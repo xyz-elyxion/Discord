@@ -8,6 +8,7 @@ RUN corepack enable
 
 # Install dependencies first for better layer caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches patches
 COPY packages/discord-types/package.json packages/discord-types/package.json
 COPY packages/limeyV1-types/package.json packages/limeyV1-types/package.json
 RUN pnpm install --frozen-lockfile
