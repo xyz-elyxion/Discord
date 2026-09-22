@@ -105,9 +105,13 @@ registerMessageCommand({
 });
 
 Vaius.once("ready", async () => {
-    const cmd = await Vaius.application.getGuildCommands(Config.homeGuildId);
-    const translateCmd = cmd.find(c => c.name === "translate");
-    if (!translateCmd) return;
+    try {
+        const cmd = await Vaius.application.getGuildCommands(Config.homeGuildId);
+        const translateCmd = cmd.find(c => c.name === "translate");
+        if (!translateCmd) return;
 
-    Commands.translate.description = Commands.translate.description.replace("/translate", `</translate:${translateCmd.id}>`);
+        Commands.translate.description = Commands.translate.description.replace("/translate", `</translate:${translateCmd.id}>`);
+    } catch (e) {
+        console.error("Failed to look up translate command id", e);
+    }
 });
