@@ -1,5 +1,6 @@
 import { MessageFlags } from "oceanic.js";
 
+import { Vaius } from "~/Client";
 import { registerChatInputCommand } from "~/SlashCommands";
 
 import Config from "~/config";
@@ -50,9 +51,21 @@ registerChatInputCommand(
                 permissions: "0"
             });
 
+            // place the new role above the donor role if it exists, otherwise
+            // above the bot's highest role that it can manage
+            const donorRole = Config.roles.donor ? i.guild.roles.get(Config.roles.donor) : undefined;
+            const botMember = i.guild.members.get(Vaius.user.id);
+            const botTopRole = botMember
+                ? botMember.roles
+                    .map(id => i.guild.roles.get(id))
+                    .filter((r): r is NonNullable<typeof r> => !!r)
+                    .sort((a, b) => b.position - a.position)[0]
+                : undefined;
+            const referenceRole = donorRole ?? botTopRole ?? Object.values(i.guild.roles).sort((a, b) => b.position - a.position)[0];
+
             await i.guild.editRolePositions([{
                 id: role.id,
-                position: i.guild.roles.get(Config.roles.donor)!.position + 1
+                position: referenceRole.position + 1
             }]);
 
             await i.guild.addMemberRole(user.id, role.id, "Custom Donor Role");
