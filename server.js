@@ -8,7 +8,7 @@
 
 const http = require("http");
 const { spawn } = require("child_process");
-const { createReadStream, existsSync, statSync } = require("fs");
+const { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } = require("fs");
 const { join, extname, normalize, resolve } = require("path");
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -19,6 +19,119 @@ const PUBLIC = join(ROOT, "public");
 const CLOUD_BIN = join(ROOT, "cloud", "limeycloud-backend");
 const CLOUD_PORT = Number(process.env.CLOUD_PORT) || 3099;
 const CLOUD_HOST = "127.0.0.1";
+
+// ------------------------------------------------------------------
+// USRBG backend — custom user banners served from this Node server
+// (api/v1/usrbg/*). Data is stored in a JSON file next to the server.
+// ------------------------------------------------------------------
+const USRBG_FILE = join(ROOT, "data", "usrbg.json");
+
+// { userId: { url, etag, addedAt } }
+let usrbgData = {};
+try {
+    usrbgData = JSON.parse(readFileSync(USRBG_FILE, "utf-8"));
+} catch { /* empty */ }
+
+function saveUsrbgData() {
+    try {
+        mkdirSync(join(ROOT, "data"), { recursive: true });
+        writeFileSync(USRBG_FILE, JSON.stringify(usrbgData, null, 2));
+    } catch (err) {
+        console.error("[usrbg] failed to persist data:", err.message);
+    }
+}
+
+function readBody(req) {
+    return new Promise((resolveBody, reject) => {
+        let body = "";
+        req.on("data", chunk => {
+            body += chunk;
+            if (body.length > 1e6) { // 1 MB cap
+                reject(new Error("body too large"));
+                req.destroy();
+            }
+        });
+        req.on("end", () => resolveBody(body));
+        req.on("error", reject);
+    });
+}
+
+function json(res, status, obj) {
+    res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" });
+    res.end(JSON.stringify(obj));
+}
+
+// Returns true if the request was handled by the usrbg API
+async function handleUsrbg(req, res, url) {
+    if (!url.startsWith("/v1/usrbg")) return false;
+
+    if (req.method === "OPTIONS") {
+        res.writeHead(204, {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        });
+        return res.end(), true;
+    }
+
+    // GET /v1/usrbg/users — the list consumed by the USRBG client plugin
+    if (req.method === "GET" && url === "/v1/usrbg/users") {
+        const users = {};
+        for (const [id, entry] of Object.entries(usrbgData)) users[id] = entry.etag;
+        return json(res, 200, { endpoint: "/v1/usrbg/users", users }), true;
+    }
+
+    const match = /^\/v1\/usrbg\/users\/(\d{5,25})$/.exec(url);
+    if (!match) {
+        if (url.startsWith("/v1/usrbg/")) return json(res, 404, { error: "not found" }), true;
+        return false;
+    }
+    const userId = match[1];
+
+    if (req.method === "GET") {
+        const entry = usrbgData[userId];
+        if (!entry) return json(res, 404, { error: "user has no banner" }), true;
+        // 302 to the banner image
+        res.writeHead(302, { Location: entry.url });
+        return res.end(), true;
+    }
+
+    // PUT/DELETE require the admin token if one is configured
+    const adminToken = process.env.USRBG_ADMIN_TOKEN;
+    if (adminToken && req.headers.authorization !== `Bearer ${adminToken}`) {
+        return json(res, 401, { error: "unauthorized" }), true;
+    }
+
+    if (req.method === "PUT") {
+        let body;
+        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const imageUrl = String(body.url || "");
+        try {
+            const parsed = new URL(imageUrl);
+            if (!/^https?:$/.test(parsed.protocol)) throw new Error();
+        } catch {
+            return json(res, 400, { error: "url must be a valid http(s) image URL" }), true;
+        }
+        usrbgData[userId] = {
+            url: imageUrl,
+            etag: Date.now().toString(36),
+            addedAt: new Date().toISOString()
+        };
+        saveUsrbgData();
+        return json(res, 200, { ok: true, userId, url: imageUrl }), true;
+    }
+
+    if (req.method === "DELETE") {
+        if (!usrbgData[userId]) return json(res, 404, { error: "user has no banner" }), true;
+        delete usrbgData[userId];
+        saveUsrbgData();
+        return json(res, 200, { ok: true }), true;
+    }
+
+    return json(res, 405, { error: "method not allowed" }), true;
+}
 
 // The Go redis client wants a bare host:port; accept full redis:// URLs too.
 function normalizeRedisUri(uri) {
@@ -149,11 +262,15 @@ function serveFile(res, filePath) {
     }
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
     const url = decodeURIComponent((req.url || "/").split("?")[0]);
 
     // Proxy /v1/* to the LimeyCloud (Go) backend
-    if (url === "/v1" || url.startsWith("/v1/")) return proxyCloud(req, res);
+    if (url === "/v1" || url.startsWith("/v1/")) {
+        // USRBG API lives alongside /v1 (handled in-process)
+        if (await handleUsrbg(req, res, url)) return;
+        return proxyCloud(req, res);
+    }
 
     // Serve dist/ files under /dist/*
     if (url.startsWith("/dist/")) {

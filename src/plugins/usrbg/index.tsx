@@ -21,12 +21,10 @@ import { LinkButton } from "@components/Button";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 
-const API_URL = "https://usrbg.is-hardly.online/users";
+const API_URL = "https://limey-discord.onrender.com/v1/usrbg/users";
 
 interface UsrbgApiReturn {
     endpoint: string;
-    bucket: string;
-    prefix: string;
     users: Record<string, string>;
 }
 
@@ -86,7 +84,7 @@ export default definePlugin({
 
     settingsAboutComponent: () => {
         return (
-            <LinkButton href="https://github.com/AutumnVN/usrbg#how-to-request-your-own-usrbg-banner" variant="primary">
+            <LinkButton href="https://limey-discord.onrender.com" variant="primary">
                 Get your own USRBG banner
             </LinkButton>
         );
@@ -118,8 +116,8 @@ export default definePlugin({
         if (!this.userHasBackground(userId)) return null;
 
         // We can assert that data exists because userHasBackground returned true
-        const { endpoint, bucket, prefix, users: { [userId]: etag } } = this.data!;
-        return `${endpoint}/${bucket}/${prefix}${userId}?${etag}`;
+        const { endpoint, users: { [userId]: etag } } = this.data!;
+        return `${endpoint}/${userId}?${etag}`;
     },
 
     async start() {
