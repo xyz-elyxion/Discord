@@ -20,9 +20,7 @@
 // @ts-check
 
 import { readFileSync } from "fs";
-import { appendFile, mkdir, readdir, readFile, rm, writeFile } from "fs/promises";
-import { join } from "path";
-import Zip from "zip-local";
+import { appendFile, readFile } from "fs/promises";
 
 import { BUILD_TIMESTAMP, commonOpts, globPlugins, IS_DEV, IS_REPORTER, IS_ANTI_CRASH_TEST, IS_STANDALONE, VERSION, commonRendererPlugins, buildOrWatchAll, stringifyValues } from "./common.mjs";
 
@@ -33,7 +31,7 @@ const commonOptions = {
     ...commonOpts,
     entryPoints: ["browser/LimeyV1.ts"],
     format: "iife",
-    globalName: "Limey V1",
+    globalName: "LimeyV1",
     external: ["~plugins", "~git-hash", "/assets/*"],
     target: ["esnext"],
     plugins: [
@@ -88,15 +86,6 @@ const buildConfigs = [
     },
     {
         ...commonOptions,
-        outfile: "dist/extension.js",
-        define: {
-            ...commonOptions.define,
-            IS_EXTENSION: "true"
-        },
-        footer: { js: "//# sourceURL=file:///LimeyV1Web" }
-    },
-    {
-        ...commonOptions,
         inject: ["browser/GMPolyfill.js", ...(commonOptions?.inject || [])],
         define: {
             ...commonOptions.define,
@@ -108,72 +97,13 @@ const buildConfigs = [
             js: readFileSync("browser/userscript.meta.js", "utf-8").replace("%version%", `${VERSION}.${new Date().getTime()}`)
         },
         footer: {
-            // UserScripts get wrapped in an iife, so define Limey V1 prop on window that returns our local
-            js: "Object.defineProperty(unsafeWindow,'Limey V1',{get:()=>Limey V1});"
+            // UserScripts get wrapped in an iife, so define LimeyV1 prop on window that returns our local
+            js: "Object.defineProperty(unsafeWindow,'LimeyV1',{get:()=>LimeyV1});"
         }
     }
 ];
 
 await buildOrWatchAll(buildConfigs);
-
-/**
- * @type {(dir: string) => Promise<string[]>}
- */
-async function globDir(dir) {
-    const files = [];
-
-    for (const child of await readdir(dir, { withFileTypes: true })) {
-        const p = join(dir, child.name);
-        if (child.isDirectory())
-            files.push(...await globDir(p));
-        else
-            files.push(p);
-    }
-
-    return files;
-}
-
-/**
- * @type {(dir: string, basePath?: string) => Promise<Record<string, string>>}
- */
-async function loadDir(dir, basePath = "") {
-    const files = await globDir(dir);
-    return Object.fromEntries(await Promise.all(files.map(async f => [f.slice(basePath.length), await readFile(f)])));
-}
-
-/**
-  * @type {(target: string, files: string[]) => Promise<void>}
- */
-async function buildExtension(target, files) {
-    const entries = {
-        "dist/LimeyV1.js": await readFile("dist/extension.js"),
-        "dist/LimeyV1.css": await readFile("dist/extension.css"),
-        ...await loadDir("dist/vendor/monaco", "dist/"),
-        ...Object.fromEntries(await Promise.all(files.map(async f => {
-            let content = await readFile(join("browser", f));
-            if (f.startsWith("manifest")) {
-                const json = JSON.parse(content.toString("utf-8"));
-                json.version = VERSION;
-                content = Buffer.from(new TextEncoder().encode(JSON.stringify(json)));
-            }
-
-            return [
-                f.startsWith("manifest") ? "manifest.json" : f,
-                content
-            ];
-        })))
-    };
-
-    await rm(target, { recursive: true, force: true });
-    await Promise.all(Object.entries(entries).map(async ([file, content]) => {
-        const dest = join("dist", target, file);
-        const parentDirectory = join(dest, "..");
-        await mkdir(parentDirectory, { recursive: true });
-        await writeFile(dest, content);
-    }));
-
-    console.info("Unpacked Extension written to dist/" + target);
-}
 
 const appendCssRuntime = readFile("dist/LimeyV1.user.css", "utf-8").then(content => {
     const cssRuntime = `unsafeWindow._vcUserScriptRendererCss=\`${content.replaceAll("`", "\\`")}\``;
@@ -181,18 +111,4 @@ const appendCssRuntime = readFile("dist/LimeyV1.user.css", "utf-8").then(content
     return appendFile("dist/LimeyV1.user.js", cssRuntime);
 });
 
-if (!process.argv.includes("--skip-extension")) {
-    await Promise.all([
-        appendCssRuntime,
-        buildExtension("chromium-unpacked", ["modifyResponseHeaders.json", "content.js", "manifest.json", "icon.png", "service-worker.js"]),
-        buildExtension("firefox-unpacked", ["background.js", "content.js", "manifestv2.json", "icon.png"]),
-    ]);
-
-    Zip.sync.zip("dist/chromium-unpacked").compress().save("dist/extension-chrome.zip");
-    console.info("Packed Chromium Extension written to dist/extension-chrome.zip");
-
-    Zip.sync.zip("dist/firefox-unpacked").compress().save("dist/extension-firefox.zip");
-    console.info("Packed Firefox Extension written to dist/extension-firefox.zip");
-} else {
-    await appendCssRuntime;
-}
+await appendCssRuntime;

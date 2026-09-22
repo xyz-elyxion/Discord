@@ -23,12 +23,10 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import { Flex } from "@components/Flex";
 import { Heart } from "@components/Heart";
 import { CopyIcon, LinkIcon } from "@components/Icons";
-import DonateButton from "@components/settings/DonateButton";
 import { openContributorModal } from "@components/settings/tabs";
 import { Devs } from "@utils/constants";
 import { copyWithToast } from "@utils/discord";
 import { Logger } from "@utils/Logger";
-import { Margins } from "@utils/margins";
 import { shouldShowContributorBadge } from "@utils/misc";
 import definePlugin from "@utils/types";
 import { ContextMenuApi, Forms, Menu, Modal, openModal, Toasts, UserStore } from "@webpack/common";
@@ -201,7 +199,7 @@ export default definePlugin({
                 openModal(props => (
                     <ErrorBoundary noop onError={() => {
                         props.onClose();
-                        LimeyV1Native.native.openExternal("https://github.com/xyz-elyxion");
+                        LimeyV1Native.native.openExternal("https://github.com/xyz-elyxion/Discord");
                     }}>
                         <Modal
                             {...props}
@@ -240,15 +238,7 @@ export default definePlugin({
                                     <Forms.FormText>
                                         This Badge is a special perk for Limey V1 Donors
                                     </Forms.FormText>
-                                    <Forms.FormText className={Margins.top20}>
-                                        Please consider supporting the development of Limey V1 by becoming a donor. It would mean a lot!!
-                                    </Forms.FormText>
                                 </div>
-                            </div>
-                            <div>
-                                <Flex justifyContent="center" style={{ width: "100%" }}>
-                                    <DonateButton />
-                                </Flex>
                             </div>
                         </Modal>
                     </ErrorBoundary>
