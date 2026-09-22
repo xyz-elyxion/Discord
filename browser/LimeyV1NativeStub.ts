@@ -24,7 +24,6 @@
 import monacoHtmlLocal from "file://monacoWin.html?minify";
 import * as DataStore from "@api/DataStore";
 import type { Settings } from "@api/Settings";
-import { getThemeInfo } from "@main/themes";
 import { debounce } from "@shared/debounce";
 import { localStorage } from "@utils/localStorage";
 import { getStylusWebStoreUrl } from "@utils/web";
@@ -37,17 +36,13 @@ const NOOP_ASYNC = async () => { };
 
 const setCssDebounced = debounce((css: string) => LimeyV1Native.quickCss.set(css));
 
-const themeStore = DataStore.createStore("LimeyV1Themes", "LimeyV1ThemeData");
-
 // probably should make this less cursed at some point
 window.LimeyV1Native = {
     themes: {
-        uploadTheme: (fileName: string, fileData: string) => DataStore.set(fileName, fileData, themeStore),
-        deleteTheme: (fileName: string) => DataStore.del(fileName, themeStore),
-        getThemesList: () => DataStore.entries(themeStore).then(entries =>
-            entries.map(([name, css]) => getThemeInfo(css, name.toString()))
-        ),
-        getThemeData: (fileName: string) => DataStore.get(fileName, themeStore),
+        uploadTheme: async () => {},
+        deleteTheme: async () => {},
+        getThemesList: async () => [],
+        getThemeData: async () => undefined,
         getSystemValues: async () => ({}),
 
         openFolder: async () => Promise.reject("themes:openFolder is not supported on web"),
@@ -86,7 +81,6 @@ window.LimeyV1Native = {
         addChangeListener(cb) {
             cssListeners.add(cb);
         },
-        addThemeChangeListener: NOOP,
         openFile: NOOP_ASYNC,
         async openEditor() {
             if (IS_USERSCRIPT) {

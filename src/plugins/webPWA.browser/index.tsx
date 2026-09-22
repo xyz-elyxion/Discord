@@ -4,13 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { addThemeChangeListener, removeThemeChangeListener } from "@api/Themes";
 import { FluxStore } from "@limeyV1/discord-types";
 import { Devs } from "@utils/constants";
 import { sleep } from "@utils/misc";
 import definePlugin from "@utils/types";
 import { findStoreLazy } from "@webpack";
-import { NotificationSettingsStore, RelationshipStore, ThemeStore } from "@webpack/common";
+import { NotificationSettingsStore, RelationshipStore } from "@webpack/common";
 
 import managedStyle from "./styles.css?managed";
 
@@ -115,9 +114,6 @@ export default definePlugin({
 
         // installability
         setManifest();
-        // user might change theme before installing the PWA
-        ThemeStore.addChangeListener(setManifest);
-        addThemeChangeListener(setManifest);
 
         // notifications
         NotificationSettingsStore.addChangeListener(this.setBadge);
@@ -145,9 +141,6 @@ export default definePlugin({
             URL.revokeObjectURL(linkEl.href);
             linkEl.remove();
         }
-        ThemeStore.removeChangeListener(setManifest);
-        removeThemeChangeListener(setManifest);
-
         NotificationSettingsStore.removeChangeListener(this.setBadge);
         GuildReadStateStore.removeChangeListener(this.setBadge);
         RelationshipStore.removeChangeListener(this.setBadge);

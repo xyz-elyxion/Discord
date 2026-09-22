@@ -7,7 +7,6 @@
 import type { Settings } from "@api/Settings";
 import type { CspRequestResult } from "@main/csp/manager";
 import type { PluginIpcMappings } from "@main/ipcPlugins";
-import type { UserThemeHeader } from "@main/themes";
 import { IpcEvents } from "@shared/IpcEvents";
 import type { IpcRes } from "@utils/types";
 import { ipcRenderer } from "electron/renderer";
@@ -32,17 +31,17 @@ for (const [plugin, methods] of Object.entries(pluginIpcMap)) {
 
 export default {
     themes: {
-        uploadTheme: async (fileName: string, fileData: string): Promise<void> => {
-            throw new Error("uploadTheme is WEB only");
+        uploadTheme: async (): Promise<void> => {
+            throw new Error("Themes have been removed");
         },
-        deleteTheme: async (fileName: string): Promise<void> => {
-            throw new Error("deleteTheme is WEB only");
+        deleteTheme: async (): Promise<void> => {
+            throw new Error("Themes have been removed");
         },
-        getThemesList: () => invoke<Array<UserThemeHeader>>(IpcEvents.GET_THEMES_LIST),
-        getThemeData: (fileName: string) => invoke<string | undefined>(IpcEvents.GET_THEME_DATA, fileName),
+        getThemesList: async () => [],
+        getThemeData: async () => undefined,
         getSystemValues: () => invoke<Record<string, string>>(IpcEvents.GET_THEME_SYSTEM_VALUES),
 
-        openFolder: () => invoke<void>(IpcEvents.OPEN_THEMES_FOLDER),
+        openFolder: async () => {},
     },
 
     updater: {
@@ -65,10 +64,6 @@ export default {
 
         addChangeListener(cb: (newCss: string) => void) {
             ipcRenderer.on(IpcEvents.QUICK_CSS_UPDATE, (_, css) => cb(css));
-        },
-
-        addThemeChangeListener(cb: () => void) {
-            ipcRenderer.on(IpcEvents.THEME_UPDATE, () => cb());
         },
 
         openFile: () => invoke<void>(IpcEvents.OPEN_QUICKCSS),

@@ -24,8 +24,7 @@ import { pathToFileURL } from "url";
 
 import { initCsp } from "./csp";
 import { RendererSettings } from "./settings";
-import { IS_VANILLA, THEMES_DIR } from "./utils/constants";
-import { ensureSafePath } from "./utils/ensureSafePath";
+import { IS_VANILLA } from "./utils/constants";
 import { installExt } from "./utils/extensions";
 
 if (IS_VESKTOP || !IS_VANILLA) {
@@ -34,19 +33,6 @@ if (IS_VESKTOP || !IS_VANILLA) {
             let url = decodeURI(unsafeUrl).slice("limeyV1://".length).replace(/\?v=\d+$/, "");
 
             if (url.endsWith("/")) url = url.slice(0, -1);
-
-            if (url.startsWith("/themes/")) {
-                const theme = url.slice("/themes/".length);
-
-                const safeUrl = ensureSafePath(THEMES_DIR, theme);
-                if (!safeUrl) {
-                    return new Response(null, {
-                        status: 404
-                    });
-                }
-
-                return net.fetch(pathToFileURL(safeUrl).toString());
-            }
 
             // Source Maps! Maybe there's a better way but since the renderer is executed
             // from a string I don't think any other form of sourcemaps would work

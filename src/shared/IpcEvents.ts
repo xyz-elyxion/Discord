@@ -28,12 +28,9 @@ export const enum IpcEvents {
     SET_SETTINGS = "LimeyV1SetSettings",
 
     GET_THEMES_LIST = "LimeyV1GetThemesList",
-    GET_THEME_DATA = "LimeyV1GetThemeData",
     GET_THEME_SYSTEM_VALUES = "LimeyV1GetThemeSystemValues",
-    THEME_UPDATE = "LimeyV1ThemeUpdate",
 
     OPEN_EXTERNAL = "LimeyV1OpenExternal",
-    OPEN_THEMES_FOLDER = "LimeyV1OpenThemesFolder",
     OPEN_SETTINGS_FOLDER = "LimeyV1OpenSettingsFolder",
 
     GET_UPDATES = "LimeyV1GetUpdates",

@@ -24,49 +24,21 @@ import { debounce } from "@shared/debounce";
 import { IpcEvents } from "@shared/IpcEvents";
 import { BrowserWindow, ipcMain, nativeTheme, shell, systemPreferences } from "electron";
 import monacoHtml from "file://monacoWin.html?minify&base64";
-import { FSWatcher, mkdirSync, readFileSync, watch, writeFileSync } from "fs";
-import { open, readdir, readFile } from "fs/promises";
+import { FSWatcher, readFileSync, watch, writeFileSync } from "fs";
+import { open, readFile } from "fs/promises";
 import { release } from "os";
 import { join } from "path";
 
 import { registerCspIpcHandlers } from "./csp/manager";
-import { getThemeInfo, stripBOM, UserThemeHeader } from "./themes";
-import { ALLOWED_PROTOCOLS, QUICK_CSS_PATH, SETTINGS_DIR, THEMES_DIR } from "./utils/constants";
-import { ensureSafePath } from "./utils/ensureSafePath";
+import { ALLOWED_PROTOCOLS, QUICK_CSS_PATH, SETTINGS_DIR } from "./utils/constants";
 import { makeLinksOpenExternally } from "./utils/externalLinks";
 
 const RENDERER_CSS_PATH = join(__dirname, IS_VESKTOP ? "limeyV1DesktopRenderer.css" : "renderer.css");
-
-mkdirSync(THEMES_DIR, { recursive: true });
 
 registerCspIpcHandlers();
 
 function readCss() {
     return readFile(QUICK_CSS_PATH, "utf-8").catch(() => "");
-}
-
-async function listThemes(): Promise<UserThemeHeader[]> {
-    const files = await readdir(THEMES_DIR).catch(() => []);
-
-    const themeInfo: UserThemeHeader[] = [];
-
-    for (const fileName of files) {
-        if (!fileName.endsWith(".css")) continue;
-
-        const data = await getThemeData(fileName).then(stripBOM).catch(() => null);
-        if (data == null) continue;
-
-        themeInfo.push(getThemeInfo(data, fileName));
-    }
-
-    return themeInfo;
-}
-
-function getThemeData(fileName: string) {
-    fileName = fileName.replace(/\?v=\d+$/, "");
-    const safePath = ensureSafePath(THEMES_DIR, fileName);
-    if (!safePath) return Promise.reject(`Unsafe path ${fileName}`);
-    return readFile(safePath, "utf-8");
 }
 
 ipcMain.handle(IpcEvents.OPEN_QUICKCSS, () => shell.openPath(QUICK_CSS_PATH));
@@ -90,8 +62,7 @@ ipcMain.handle(IpcEvents.SET_QUICK_CSS, (_, css) =>
     writeFileSync(QUICK_CSS_PATH, css)
 );
 
-ipcMain.handle(IpcEvents.GET_THEMES_LIST, () => listThemes());
-ipcMain.handle(IpcEvents.GET_THEME_DATA, (_, fileName) => getThemeData(fileName));
+ipcMain.handle(IpcEvents.GET_THEMES_LIST, () => []);
 ipcMain.handle(IpcEvents.GET_THEME_SYSTEM_VALUES, () => {
     let accentColor = systemPreferences.getAccentColor?.() ?? "";
 
@@ -104,7 +75,6 @@ ipcMain.handle(IpcEvents.GET_THEME_SYSTEM_VALUES, () => {
     };
 });
 
-ipcMain.handle(IpcEvents.OPEN_THEMES_FOLDER, () => shell.openPath(THEMES_DIR));
 ipcMain.handle(IpcEvents.OPEN_SETTINGS_FOLDER, () => shell.openPath(SETTINGS_DIR));
 
 let fsWatchers = [] as FSWatcher[];
@@ -122,21 +92,16 @@ ipcMain.handle(IpcEvents.INIT_FILE_WATCHERS, ({ sender }) => {
         }, 50));
     }).catch(() => { });
 
-    const themesWatcher = watch(THEMES_DIR, { persistent: false }, debounce(() => {
-        sender.postMessage(IpcEvents.THEME_UPDATE, void 0);
-    }));
-
     if (IS_DEV) {
         rendererCssWatcher = watch(RENDERER_CSS_PATH, { persistent: false }, async () => {
             sender.postMessage(IpcEvents.RENDERER_CSS_UPDATE, await readFile(RENDERER_CSS_PATH, "utf-8"));
         });
     }
 
-    fsWatchers = [quickCssWatcher, themesWatcher, rendererCssWatcher].filter(Boolean) as FSWatcher[];
+    fsWatchers = [quickCssWatcher, rendererCssWatcher].filter(Boolean) as FSWatcher[];
 
     sender.once("destroyed", () => {
         quickCssWatcher?.close();
-        themesWatcher.close();
         rendererCssWatcher?.close();
         fsWatchers = [];
     });

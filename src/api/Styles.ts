@@ -51,7 +51,6 @@ limeyV1RootNode.style.display = "none";
 limeyV1RootNode.append(coreStyleRootNode, managedStyleRootNode, userStyleRootNode);
 
 export function initStyles() {
-    const osValuesNode = createAndAppendStyle("limeyV1-os-theme-values", coreStyleRootNode);
     createAndAppendStyle("limeyV1-text", coreStyleRootNode).textContent = generateTextCss();
     const rendererCssNode = createAndAppendStyle("limeyV1-css-core", coreStyleRootNode);
     const vesktopCssNode = IS_VESKTOP ? createAndAppendStyle("vesktop-css-core", coreStyleRootNode) : null;
@@ -70,14 +69,6 @@ export function initStyles() {
             vesktopCssNode!.textContent = newCss;
         });
     }
-
-    LimeyV1Native.themes.getSystemValues().then(values => {
-        const variables = Object.entries(values)
-            .filter(([, v]) => !!v)
-            .map(([k, v]) => `--${k}: ${v};`)
-            .join("");
-        osValuesNode.textContent = `:root{${variables}}`;
-    });
 }
 
 document.addEventListener("DOMContentLoaded", () => {

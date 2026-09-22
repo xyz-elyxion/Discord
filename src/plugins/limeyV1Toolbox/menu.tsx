@@ -7,8 +7,7 @@
 import { openNotificationLogModal } from "@api/Notifications/notificationLog";
 import { isPluginEnabled, isSettingDisabled, isSettingHidden, plugins } from "@api/PluginManager";
 import { Settings, useSettings } from "@api/Settings";
-import { openPluginModal, openSettingsTabModal, PluginsTab, ThemesTab } from "@components/settings";
-import { useAwaiter } from "@utils/react";
+import { openPluginModal, openSettingsTabModal, PluginsTab } from "@components/settings";
 import { wordsFromCamel, wordsToTitle } from "@utils/text";
 import { OptionType, Plugin } from "@utils/types";
 import { Menu, showToast, useMemo, useState } from "@webpack/common";
@@ -184,21 +183,8 @@ export function buildPluginMenuEntries(includeEmpty = false) {
     );
 }
 
-export function buildThemeMenu() {
-    return (
-        <Menu.MenuItem
-            id="themes"
-            label="Themes"
-            action={() => openSettingsTabModal(ThemesTab)}
-        >
-            {buildThemeMenuEntries()}
-        </Menu.MenuItem>
-    );
-}
-
 export function buildThemeMenuEntries() {
-    const { useQuickCss, enabledThemes } = useSettings(["useQuickCss", "enabledThemes"]);
-    const [themes] = useAwaiter(LimeyV1Native.themes.getThemesList);
+    const { useQuickCss } = useSettings(["useQuickCss"]);
 
     return (
         <>
@@ -215,30 +201,6 @@ export function buildThemeMenuEntries() {
                 label="Edit QuickCSS"
                 action={() => LimeyV1Native.quickCss.openEditor()}
             />
-            <Menu.MenuItem
-                id="manage-themes"
-                label="Manage Themes"
-                action={() => openSettingsTabModal(ThemesTab)}
-            />
-            {!!themes?.length && (
-                <Menu.MenuGroup>
-                    {themes.map(theme => (
-                        <Menu.MenuCheckboxItem
-                            id={`theme-${theme.fileName}`}
-                            key={theme.fileName}
-                            label={theme.name}
-                            checked={enabledThemes.includes(theme.fileName)}
-                            action={() => {
-                                if (enabledThemes.includes(theme.fileName)) {
-                                    Settings.enabledThemes = enabledThemes.filter(t => t !== theme.fileName);
-                                } else {
-                                    Settings.enabledThemes = [...enabledThemes, theme.fileName];
-                                }
-                            }}
-                        />
-                    ))}
-                </Menu.MenuGroup>
-            )}
         </>
     );
 }
@@ -308,7 +270,12 @@ export function renderPopout(onClose: () => void) {
                 action={openNotificationLogModal}
             />
 
-            {buildThemeMenu()}
+            <Menu.MenuItem
+                id="quickcss"
+                label="QuickCSS"
+                action={() => LimeyV1Native.quickCss.openEditor()}
+            />
+
             {buildPluginMenu()}
 
             {buildCustomPluginEntries()}
