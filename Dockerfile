@@ -9,6 +9,9 @@ RUN CGO_ENABLED=0 go build -o limeycloud-backend .
 # ---------- Limebot (Discord bot) ----------
 FROM node:22-alpine AS limebot
 
+# Build tools for native modules (better-sqlite3, sharp) if no prebuild matches
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /bot
 
 RUN corepack enable
@@ -16,9 +19,11 @@ RUN corepack enable
 COPY limebot/package.json limebot/pnpm-lock.yaml ./
 COPY limebot ./
 
-# Rebrand note: build only, no runtime install steps (native deps like
-# better-sqlite3/sharp compile during pnpm install).
-RUN pnpm install --frozen-lockfile --ignore-scripts || pnpm install --ignore-scripts
+# Ignore scripts at install time (the root postinstall needs the sqlite3 CLI,
+# which we don't want in the image), then rebuild only the packages that ship
+# native bindings so their prebuild/compile scripts actually run.
+RUN pnpm install --frozen-lockfile --ignore-scripts \
+    && pnpm rebuild better-sqlite3 sharp
 RUN node scripts/build.mjs
 
 # ---------- Build stage ----------
@@ -63,6 +68,10 @@ COPY --from=limebot --chown=node:node /bot/dist ./limebot/dist
 COPY --from=limebot --chown=node:node /bot/node_modules ./limebot/node_modules
 COPY --from=limebot --chown=node:node /bot/package.json ./limebot/package.json
 COPY --from=limebot --chown=node:node /bot/assets ./limebot/assets
+# Limebot needs its SQLite database to exist with tables before it starts
+COPY --chown=node:node limebot/sql/create.sql ./limebot/sql/create.sql
+RUN mkdir -p /app/limebot/data && chown node:node /app/limebot/data && \
+    node -e "const d=require('/app/limebot/node_modules/better-sqlite3');const db=new d('/app/limebot/data/db.sqlite3');db.exec(require('fs').readFileSync('/app/limebot/sql/create.sql','utf8'));db.close();"
 
 EXPOSE 3000
 
