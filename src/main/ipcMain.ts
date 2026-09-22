@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ import { ALLOWED_PROTOCOLS, QUICK_CSS_PATH, SETTINGS_DIR, THEMES_DIR } from "./u
 import { ensureSafePath } from "./utils/ensureSafePath";
 import { makeLinksOpenExternally } from "./utils/externalLinks";
 
-const RENDERER_CSS_PATH = join(__dirname, IS_VESKTOP ? "vencordDesktopRenderer.css" : "renderer.css");
+const RENDERER_CSS_PATH = join(__dirname, IS_VESKTOP ? "limeyV1DesktopRenderer.css" : "renderer.css");
 
 mkdirSync(THEMES_DIR, { recursive: true });
 
@@ -81,7 +81,7 @@ ipcMain.handle(IpcEvents.OPEN_EXTERNAL, (_, url) => {
         throw "Disallowed protocol.";
 
     shell.openExternal(url)
-        .catch(err => console.error("[Vencord] Failed to open external link", url, err));
+        .catch(err => console.error("[Limey V1] Failed to open external link", url, err));
 });
 
 
@@ -147,7 +147,7 @@ ipcMain.on(IpcEvents.GET_MONACO_THEME, e => {
 });
 
 ipcMain.handle(IpcEvents.OPEN_MONACO_EDITOR, async () => {
-    const title = "Vencord QuickCSS Editor";
+    const title = "Limey V1 QuickCSS Editor";
     const existingWindow = BrowserWindow.getAllWindows().find(w => w.title === title);
     if (existingWindow && !existingWindow.isDestroyed()) {
         existingWindow.focus();
@@ -160,7 +160,7 @@ ipcMain.handle(IpcEvents.OPEN_MONACO_EDITOR, async () => {
         darkTheme: true,
         backgroundColor: nativeTheme.shouldUseDarkColors ? "#1e1e1e" : "white",
         webPreferences: {
-            preload: join(__dirname, IS_DISCORD_DESKTOP ? "preload.js" : "vencordDesktopPreload.js"),
+            preload: join(__dirname, IS_DISCORD_DESKTOP ? "preload.js" : "limeyV1DesktopPreload.js"),
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: false

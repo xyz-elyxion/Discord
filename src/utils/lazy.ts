@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,8 +35,8 @@ const unconfigurable = ["arguments", "caller", "prototype"];
 
 const handler: ProxyHandler<any> = {};
 
-export const SYM_LAZY_GET = Symbol.for("vencord.lazy.get");
-export const SYM_LAZY_CACHED = Symbol.for("vencord.lazy.cached");
+export const SYM_LAZY_GET = Symbol.for("limeyV1.lazy.get");
+export const SYM_LAZY_CACHED = Symbol.for("limeyV1.lazy.cached");
 
 for (const method of [
     "apply",

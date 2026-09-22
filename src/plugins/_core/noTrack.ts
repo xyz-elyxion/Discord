@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,10 +17,10 @@
 */
 
 import { definePluginSettings } from "@api/Settings";
+import { WebpackRequire } from "@limeyV1/discord-types/webpack";
 import { Devs } from "@utils/constants";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
-import { WebpackRequire } from "@vencord/discord-types/webpack";
 import { Flux, FluxDispatcher } from "@webpack/common";
 
 const settings = definePluginSettings({

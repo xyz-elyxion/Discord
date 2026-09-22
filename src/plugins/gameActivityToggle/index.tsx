@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2023 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2023 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +20,10 @@ import { isPluginEnabled } from "@api/PluginManager";
 import { definePluginSettings } from "@api/Settings";
 import { getUserSettingLazy } from "@api/UserSettings";
 import ErrorBoundary from "@components/ErrorBoundary";
-import VencordToolboxPlugin from "@plugins/vencordToolbox";
+import { FluxStore } from "@limeyV1/discord-types";
+import LimeyV1ToolboxPlugin from "@plugins/limeyV1Toolbox";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { FluxStore } from "@vencord/discord-types";
 import { findByPropsLazy, findComponentByCodeLazy, findStoreLazy } from "@webpack";
 import { Menu, Popout, useRef, useState, useStateFromStores } from "@webpack/common";
 
@@ -57,10 +57,10 @@ const settings = definePluginSettings({
         description: "Where to show the game activity toggle button",
         options: [
             { label: "Next to Mute/Deafen", value: "PANEL", default: true },
-            { label: "Vencord Toolbox", value: "TOOLBOX" }
+            { label: "Limey V1 Toolbox", value: "TOOLBOX" }
         ],
         get hidden() {
-            return !isPluginEnabled(VencordToolboxPlugin.name);
+            return !isPluginEnabled(LimeyV1ToolboxPlugin.name);
         }
     }
 });
@@ -106,7 +106,7 @@ function GameActivityToggleButton(props: { nameplate?: any; }) {
 
     const buttonRef = useRef<HTMLButtonElement | null>(null);
 
-    if (location !== "PANEL" && isPluginEnabled(VencordToolboxPlugin.name)) return null;
+    if (location !== "PANEL" && isPluginEnabled(LimeyV1ToolboxPlugin.name)) return null;
 
     const buttonProps = {
         tooltipText: showCurrentGame ? "Disable Game Activity" : "Enable Game Activity",

@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name            Vencord
+// @name            Limey V1
 // @description     A Discord client mod - Web version
 // @version         %version%
-// @author          Vendicated (https://github.com/Vendicated)
-// @namespace       https://github.com/Vendicated/Vencord
-// @supportURL      https://github.com/Vendicated/Vencord
-// @icon            https://raw.githubusercontent.com/Vendicated/Vencord/refs/heads/main/browser/icon.png
+// @author          Limey (https://github.com/Limey)
+// @namespace       https://github.com/Limey/LimeyV1
+// @supportURL      https://github.com/Limey/LimeyV1
+// @icon            https://raw.githubusercontent.com/Limey/Limey V1/refs/heads/main/browser/icon.png
 // @license         GPL-3.0
 // @match           *://*.discord.com/*
 // @grant           GM_xmlhttpRequest
@@ -23,4 +23,4 @@
 // to overwrite stuff on the window on sites that use CSP. Use Tampermonkey or use a chromium based browser
 // https://github.com/violentmonkey/violentmonkey/issues/997
 
-// this is a compiled and minified version of Vencord. For the source code, visit the GitHub repo
+// this is a compiled and minified version of Limey V1. For the source code, visit the GitHub repo

@@ -1,6 +1,6 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2023 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2023 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -46,14 +46,14 @@ export function authorize(callback?: () => void) {
             {...props}
             scopes={["identify"]}
             responseType="code"
-            redirectUri="https://manti.vendicated.dev/api/reviewdb/auth"
+            redirectUri="https://manti.limey.dev/api/reviewdb/auth"
             permissions={0n}
             clientId="915703782174752809"
             cancelCompletesFlow={false}
             callback={async (response: { location: string }) => {
                 try {
                     const url = new URL(response.location);
-                    url.searchParams.append("clientMod", "vencord");
+                    url.searchParams.append("clientMod", "limeyV1");
                     const res = await fetch(url, {
                         headers: { Accept: "application/json" }
                     });

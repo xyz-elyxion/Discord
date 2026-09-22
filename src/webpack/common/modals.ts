@@ -1,10 +1,10 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2026 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2026 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import * as t from "@vencord/discord-types";
+import * as t from "@limeyV1/discord-types";
 import { filters, findByCodeLazy, findExportedComponentLazy, mapMangledModuleLazy } from "@webpack";
 
 export const Modal: t.Modal = findExportedComponentLazy("Modal");

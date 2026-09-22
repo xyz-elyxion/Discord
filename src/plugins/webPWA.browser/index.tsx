@@ -1,14 +1,14 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2024 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2024 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import { addThemeChangeListener, removeThemeChangeListener } from "@api/Themes";
+import { FluxStore } from "@limeyV1/discord-types";
 import { Devs } from "@utils/constants";
 import { sleep } from "@utils/misc";
 import definePlugin from "@utils/types";
-import { FluxStore } from "@vencord/discord-types";
 import { findStoreLazy } from "@webpack";
 import { NotificationSettingsStore, RelationshipStore, ThemeStore } from "@webpack/common";
 
@@ -130,7 +130,7 @@ export default definePlugin({
             this.ctrl.abort();
             this.ctrl = new AbortController();
             window.addEventListener("message", ({ data }) => {
-                if (data?.type === "vencord:keybinds" && _keybinds) {
+                if (data?.type === "limeyV1:keybinds" && _keybinds) {
                     const { meta } = data;
                     if (meta in _keybinds) _keybinds[meta].onTrigger();
                 }

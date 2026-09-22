@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,14 +28,14 @@ export default definePlugin({
             find: "#{intl::DISCODO_DISABLED}",
             replacement: {
                 match: /(?<=#{intl::DISCODO_DISABLED}.+?return)(\(.{0,150}?tutorialId:"friends-list".+?}\))(?=}function)/,
-                replace: "[$1].concat(Vencord.Api.ServerList.renderAll(Vencord.Api.ServerList.ServerListRenderPosition.Above))"
+                replace: "[$1].concat(LimeyV1.Api.ServerList.renderAll(LimeyV1.Api.ServerList.ServerListRenderPosition.Above))"
             }
         },
         {
             find: ".setGuildsTree(",
             replacement: {
                 match: /(?<=#{intl::SERVERS}\),gap:"xs",children:)\i\.map\(.{0,50}\.length\)/,
-                replace: "Vencord.Api.ServerList.renderAll(Vencord.Api.ServerList.ServerListRenderPosition.In).concat($&)"
+                replace: "LimeyV1.Api.ServerList.renderAll(LimeyV1.Api.ServerList.ServerListRenderPosition.In).concat($&)"
             }
         }
     ]

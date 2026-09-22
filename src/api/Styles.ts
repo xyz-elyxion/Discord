@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,35 +31,35 @@ export interface Style {
     dom: HTMLStyleElement | null;
 }
 
-export const styleMap = window.VencordStyles ??= new Map();
+export const styleMap = window.LimeyV1Styles ??= new Map();
 
-export const vencordRootNode = document.createElement("vencord-root");
+export const limeyV1RootNode = document.createElement("limeyV1-root");
 /**
- * Houses all Vencord core styles. This includes all imported css files
+ * Houses all Limey V1 core styles. This includes all imported css files
  */
-export const coreStyleRootNode = document.createElement("vencord-styles");
+export const coreStyleRootNode = document.createElement("limeyV1-styles");
 /**
  * Houses all plugin specific managed styles
  */
-export const managedStyleRootNode = document.createElement("vencord-managed-styles");
+export const managedStyleRootNode = document.createElement("limeyV1-managed-styles");
 /**
  * Houses the user's themes and quick css
  */
-export const userStyleRootNode = document.createElement("vencord-user-styles");
+export const userStyleRootNode = document.createElement("limeyV1-user-styles");
 
-vencordRootNode.style.display = "none";
-vencordRootNode.append(coreStyleRootNode, managedStyleRootNode, userStyleRootNode);
+limeyV1RootNode.style.display = "none";
+limeyV1RootNode.append(coreStyleRootNode, managedStyleRootNode, userStyleRootNode);
 
 export function initStyles() {
-    const osValuesNode = createAndAppendStyle("vencord-os-theme-values", coreStyleRootNode);
-    createAndAppendStyle("vencord-text", coreStyleRootNode).textContent = generateTextCss();
-    const rendererCssNode = createAndAppendStyle("vencord-css-core", coreStyleRootNode);
+    const osValuesNode = createAndAppendStyle("limeyV1-os-theme-values", coreStyleRootNode);
+    createAndAppendStyle("limeyV1-text", coreStyleRootNode).textContent = generateTextCss();
+    const rendererCssNode = createAndAppendStyle("limeyV1-css-core", coreStyleRootNode);
     const vesktopCssNode = IS_VESKTOP ? createAndAppendStyle("vesktop-css-core", coreStyleRootNode) : null;
-    createAndAppendStyle("vencord-margins", coreStyleRootNode).textContent = generateMarginCss();
+    createAndAppendStyle("limeyV1-margins", coreStyleRootNode).textContent = generateMarginCss();
 
-    VencordNative.native.getRendererCss().then(css => rendererCssNode.textContent = css);
+    LimeyV1Native.native.getRendererCss().then(css => rendererCssNode.textContent = css);
     if (IS_DEV) {
-        VencordNative.native.onRendererCssUpdate(newCss => {
+        LimeyV1Native.native.onRendererCssUpdate(newCss => {
             rendererCssNode.textContent = newCss;
         });
     }
@@ -71,7 +71,7 @@ export function initStyles() {
         });
     }
 
-    VencordNative.themes.getSystemValues().then(values => {
+    LimeyV1Native.themes.getSystemValues().then(values => {
         const variables = Object.entries(values)
             .filter(([, v]) => !!v)
             .map(([k, v]) => `--${k}: ${v};`)
@@ -81,7 +81,7 @@ export function initStyles() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    document.documentElement.append(vencordRootNode);
+    document.documentElement.append(limeyV1RootNode);
 }, { once: true });
 
 export function requireStyle(name: string) {
@@ -108,7 +108,7 @@ export function enableStyle(name: string) {
 
     if (!style.dom) {
         style.dom = document.createElement("style");
-        style.dom.dataset.vencordName = style.name;
+        style.dom.dataset.limeyV1Name = style.name;
     }
     compileStyle(style);
 

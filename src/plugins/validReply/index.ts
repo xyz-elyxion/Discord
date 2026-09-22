@@ -1,12 +1,12 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2024 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2024 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { Channel, Message, User } from "@limeyV1/discord-types";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import { Channel, Message, User } from "@vencord/discord-types";
 import { findByCodeLazy } from "@webpack";
 import { FluxDispatcher, RestAPI } from "@webpack/common";
 

@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2023 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2023 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ export function waitForComponent<T extends ComponentType<any> = ComponentType<an
     const lazyComponent = LazyComponent(() => {
         if (myValue) return myValue;
 
-        const error = new Error(`Vencord could not find the ${name} Component`);
+        const error = new Error(`Limey V1 could not find the ${name} Component`);
         logger.error(error);
 
         if (IS_DEV) throw error;

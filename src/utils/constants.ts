@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,9 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-export const REACT_GLOBAL = "Vencord.Webpack.Common.React";
-export const VENBOT_USER_ID = "1017176847865352332";
-export const VENCORD_GUILD_ID = "1015060230222131221";
+export const REACT_GLOBAL = "LimeyV1.Webpack.Common.React";
+export const LIMEYBOT_USER_ID = "1017176847865352332";
+export const LIMEYV1_GUILD_ID = "1015060230222131221";
 export const DONOR_ROLE_ID = "1042507929485586532";
 export const CONTRIB_ROLE_ID = "1026534353167208489";
 export const REGULAR_ROLE_ID = "1026504932959977532";

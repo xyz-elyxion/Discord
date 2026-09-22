@@ -1,6 +1,6 @@
 {
-    "name": "@vencord/discord-types",
-    "author": "Vencord Contributors",
+    "name": "@limeyV1/discord-types",
+    "author": "Limey V1 Contributors",
     "private": false,
     "description": "Typescript definitions for the webpack modules of the Discord Web app",
     "version": "1.0.2",
@@ -9,7 +9,7 @@
     "type": "module",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/Vendicated/Vencord.git",
+        "url": "git+https://github.com/Limey/Limey V1.git",
         "directory": "packages/discord-types"
     },
     "dependencies": {

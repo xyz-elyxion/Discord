@@ -1,6 +1,6 @@
 /*
- * @vencord/discord-types
- * Copyright (c) 2024 Vendicated, Nuckyz and contributors
+ * @limeyV1/discord-types
+ * Copyright (c) 2024 Limey, Nuckyz and contributors
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 

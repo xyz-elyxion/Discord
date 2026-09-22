@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2023 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2023 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,42 +17,42 @@
 */
 
 export const enum IpcEvents {
-    INIT_FILE_WATCHERS = "VencordInitFileWatchers",
+    INIT_FILE_WATCHERS = "LimeyV1InitFileWatchers",
 
-    OPEN_QUICKCSS = "VencordOpenQuickCss",
-    GET_QUICK_CSS = "VencordGetQuickCss",
-    SET_QUICK_CSS = "VencordSetQuickCss",
-    QUICK_CSS_UPDATE = "VencordQuickCssUpdate",
+    OPEN_QUICKCSS = "LimeyV1OpenQuickCss",
+    GET_QUICK_CSS = "LimeyV1GetQuickCss",
+    SET_QUICK_CSS = "LimeyV1SetQuickCss",
+    QUICK_CSS_UPDATE = "LimeyV1QuickCssUpdate",
 
-    GET_SETTINGS = "VencordGetSettings",
-    SET_SETTINGS = "VencordSetSettings",
+    GET_SETTINGS = "LimeyV1GetSettings",
+    SET_SETTINGS = "LimeyV1SetSettings",
 
-    GET_THEMES_LIST = "VencordGetThemesList",
-    GET_THEME_DATA = "VencordGetThemeData",
-    GET_THEME_SYSTEM_VALUES = "VencordGetThemeSystemValues",
-    THEME_UPDATE = "VencordThemeUpdate",
+    GET_THEMES_LIST = "LimeyV1GetThemesList",
+    GET_THEME_DATA = "LimeyV1GetThemeData",
+    GET_THEME_SYSTEM_VALUES = "LimeyV1GetThemeSystemValues",
+    THEME_UPDATE = "LimeyV1ThemeUpdate",
 
-    OPEN_EXTERNAL = "VencordOpenExternal",
-    OPEN_THEMES_FOLDER = "VencordOpenThemesFolder",
-    OPEN_SETTINGS_FOLDER = "VencordOpenSettingsFolder",
+    OPEN_EXTERNAL = "LimeyV1OpenExternal",
+    OPEN_THEMES_FOLDER = "LimeyV1OpenThemesFolder",
+    OPEN_SETTINGS_FOLDER = "LimeyV1OpenSettingsFolder",
 
-    GET_UPDATES = "VencordGetUpdates",
-    GET_REPO = "VencordGetRepo",
-    UPDATE = "VencordUpdate",
-    BUILD = "VencordBuild",
+    GET_UPDATES = "LimeyV1GetUpdates",
+    GET_REPO = "LimeyV1GetRepo",
+    UPDATE = "LimeyV1Update",
+    BUILD = "LimeyV1Build",
 
-    OPEN_MONACO_EDITOR = "VencordOpenMonacoEditor",
-    GET_MONACO_THEME = "VencordGetMonacoTheme",
+    OPEN_MONACO_EDITOR = "LimeyV1OpenMonacoEditor",
+    GET_MONACO_THEME = "LimeyV1GetMonacoTheme",
 
-    GET_PLUGIN_IPC_METHOD_MAP = "VencordGetPluginIpcMethodMap",
+    GET_PLUGIN_IPC_METHOD_MAP = "LimeyV1GetPluginIpcMethodMap",
 
-    CSP_IS_DOMAIN_ALLOWED = "VencordCspIsDomainAllowed",
-    CSP_REMOVE_OVERRIDE = "VencordCspRemoveOverride",
-    CSP_REQUEST_ADD_OVERRIDE = "VencordCspRequestAddOverride",
+    CSP_IS_DOMAIN_ALLOWED = "LimeyV1CspIsDomainAllowed",
+    CSP_REMOVE_OVERRIDE = "LimeyV1CspRemoveOverride",
+    CSP_REQUEST_ADD_OVERRIDE = "LimeyV1CspRequestAddOverride",
 
-    GET_RENDERER_CSS = "VencordGetRendererCss",
-    RENDERER_CSS_UPDATE = "VencordRendererCssUpdate",
-    PRELOAD_GET_RENDERER_JS = "VencordPreloadGetRendererJs",
+    GET_RENDERER_CSS = "LimeyV1GetRendererCss",
+    RENDERER_CSS_UPDATE = "LimeyV1RendererCssUpdate",
+    PRELOAD_GET_RENDERER_JS = "LimeyV1PreloadGetRendererJs",
 
-    SUPPORTS_WINDOWS_MATERIAL = "VencordSupportsWindowsMaterial",
+    SUPPORTS_WINDOWS_MATERIAL = "LimeyV1SupportsWindowsMaterial",
 }

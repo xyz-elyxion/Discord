@@ -1,10 +1,10 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2025 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2025 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { Tooltip } from "@vencord/discord-types";
+import { Tooltip } from "@limeyV1/discord-types";
 
 const NOOP = () => { };
 

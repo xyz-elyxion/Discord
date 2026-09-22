@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2023 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2023 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { Message } from "@vencord/discord-types";
+import { Message } from "@limeyV1/discord-types";
 import { Parser, useEffect, useState } from "@webpack/common";
 
 import { TranslateIcon } from "./TranslateIcon";
@@ -44,7 +44,7 @@ export function TranslationAccessory({ message }: { message: Message; }) {
 
     useEffect(() => {
         // Ignore MessageLinkEmbeds messages
-        if ((message as any).vencordEmbeddedBy) return;
+        if ((message as any).limeyV1EmbeddedBy) return;
 
         TranslationSetters.set(message.id, setTranslation);
 

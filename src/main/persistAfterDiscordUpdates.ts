@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,20 +49,20 @@ function patchLatest() {
         if (latestVersion === currentVersion) return;
 
         const oldResources = join(discordPath, currentVersion, "resources");
-        const oldVencordAsar = join(oldResources, "app.asar");
+        const oldLimeyV1Asar = join(oldResources, "app.asar");
 
         const resources = join(discordPath, latestVersion, "resources");
         const newAppAsar = join(resources, "app.asar");
         const newAppAsarBackup = join(resources, "_app.asar");
 
-        if (!existsSync(oldVencordAsar) || !existsSync(newAppAsar) || existsSync(newAppAsarBackup)) return;
+        if (!existsSync(oldLimeyV1Asar) || !existsSync(newAppAsar) || existsSync(newAppAsarBackup)) return;
 
-        console.info(`[Vencord] Detected Host Update (${currentVersion} -> ${latestVersion}). Repatching...`);
+        console.info(`[Limey V1] Detected Host Update (${currentVersion} -> ${latestVersion}). Repatching...`);
 
         renameSync(newAppAsar, newAppAsarBackup);
-        copyFileSync(oldVencordAsar, newAppAsar);
+        copyFileSync(oldLimeyV1Asar, newAppAsar);
     } catch (err) {
-        console.error("[Vencord] Failed to repatch latest host update", err);
+        console.error("[Limey V1] Failed to repatch latest host update", err);
     }
 }
 

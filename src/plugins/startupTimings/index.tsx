@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,13 +31,13 @@ export default definePlugin({
     authors: [Devs.Megu],
     start() {
         SettingsPlugin.customEntries.push({
-            key: "vencord_startup_timings",
+            key: "limeyV1_startup_timings",
             title: "Startup Timings",
             Component: StartupTimingPage,
             Icon: ClockIcon
         });
     },
     stop() {
-        removeFromArray(SettingsPlugin.customEntries, e => e.key === "vencord_startup_timings");
+        removeFromArray(SettingsPlugin.customEntries, e => e.key === "limeyV1_startup_timings");
     },
 });

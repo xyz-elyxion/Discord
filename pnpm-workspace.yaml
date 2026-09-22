@@ -17,4 +17,4 @@ allowBuilds:
   esbuild: true
 pmOnFail: warn
 minimumReleaseAgeExclude:
-  - '@vencord/*'
+  - '@limeyV1/*'

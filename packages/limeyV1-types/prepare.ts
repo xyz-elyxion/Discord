@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2023 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2023 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ import { join } from "path";
 readdirSync(join(__dirname, "src"))
     .forEach(child => moveSync(join(__dirname, "src", child), join(__dirname, child), { overwrite: true }));
 
-const VencordSrc = join(__dirname, "..", "..", "src");
+const LimeyV1Src = join(__dirname, "..", "..", "src");
 
 for (const file of ["preload.d.ts", "userplugins", "main", "debug", "src", "browser", "scripts"]) {
     rmSync(join(__dirname, file), { recursive: true, force: true });
@@ -31,7 +31,7 @@ for (const file of ["preload.d.ts", "userplugins", "main", "debug", "src", "brow
 function copyDtsFiles(from: string, to: string) {
     for (const file of readdirSync(from, { withFileTypes: true })) {
         // bad
-        if (from === VencordSrc && file.name === "globals.d.ts") continue;
+        if (from === LimeyV1Src && file.name === "globals.d.ts") continue;
 
         const fullFrom = join(from, file.name);
         const fullTo = join(to, file.name);
@@ -44,4 +44,4 @@ function copyDtsFiles(from: string, to: string) {
     }
 }
 
-copyDtsFiles(VencordSrc, __dirname);
+copyDtsFiles(LimeyV1Src, __dirname);

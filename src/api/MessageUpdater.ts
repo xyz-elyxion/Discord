@@ -1,10 +1,10 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2024 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2024 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { Message } from "@vencord/discord-types";
+import { Message } from "@limeyV1/discord-types";
 import { MessageCache, MessageStore } from "@webpack/common";
 
 /**

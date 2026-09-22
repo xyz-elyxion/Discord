@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,18 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+import { CommandArgument, CommandContext, CommandOption } from "@limeyV1/discord-types";
 import { Logger } from "@utils/Logger";
 import { makeCodeblock } from "@utils/text";
-import { CommandArgument, CommandContext, CommandOption } from "@vencord/discord-types";
 
 import { sendBotMessage } from "./commandHelpers";
-import { ApplicationCommandInputType, ApplicationCommandOptionType, ApplicationCommandType, VencordCommand } from "./types";
+import { ApplicationCommandInputType, ApplicationCommandOptionType, ApplicationCommandType, LimeyV1Command } from "./types";
 
 export * from "./commandHelpers";
 export * from "./types";
 
-export let BUILT_IN: VencordCommand[];
-export const commands = {} as Record<string, VencordCommand>;
+export let BUILT_IN: LimeyV1Command[];
+export const commands = {} as Record<string, LimeyV1Command>;
 
 // hack for plugins being evaluated before we can grab these from webpack
 const OptPlaceholder = Symbol("OptionalMessageOption") as any as CommandOption;
@@ -48,7 +48,7 @@ export let RequiredMessageOption: CommandOption = ReqPlaceholder;
 
 let idCounter = 99;
 
-export const _init = function (cmds: VencordCommand[]) {
+export const _init = function (cmds: LimeyV1Command[]) {
     try {
         BUILT_IN = cmds;
         OptionalMessageOption = cmds.find(c => (c.untranslatedName || c.displayName) === "shrug")!.options![0];
@@ -60,8 +60,8 @@ export const _init = function (cmds: VencordCommand[]) {
     return cmds;
 } as never;
 
-export const _handleCommand = function (cmd: VencordCommand, args: CommandArgument[], ctx: CommandContext) {
-    if (!cmd.isVencordCommand)
+export const _handleCommand = function (cmd: LimeyV1Command, args: CommandArgument[], ctx: CommandContext) {
+    if (!cmd.isLimeyV1Command)
         return cmd.execute(args, ctx);
 
     const handleError = (err: any) => {
@@ -73,7 +73,7 @@ export const _handleCommand = function (cmd: VencordCommand, args: CommandArgume
         sendBotMessage(ctx.channel.id, {
             content: `${msg}:\n${makeCodeblock(reason)}`,
             author: {
-                username: "Vencord"
+                username: "Limey V1"
             }
         });
     };
@@ -91,7 +91,7 @@ export const _handleCommand = function (cmd: VencordCommand, args: CommandArgume
  * Prepare a Command Option for Discord by filling missing fields
  * @param opt
  */
-export function prepareOption<O extends CommandOption | VencordCommand>(opt: O): O {
+export function prepareOption<O extends CommandOption | LimeyV1Command>(opt: O): O {
     opt.displayName ||= opt.name;
     opt.displayDescription ||= opt.description;
     opt.options?.forEach((opt, i, opts) => {
@@ -105,11 +105,11 @@ export function prepareOption<O extends CommandOption | VencordCommand>(opt: O):
     return opt;
 }
 
-const isSubCommandParent = (cmd: VencordCommand) => cmd.options?.[0]?.type === ApplicationCommandOptionType.SUB_COMMAND;
-const getSubCommandName = (cmd: VencordCommand, option: CommandOption) => `${cmd.name} ${option.name}`;
+const isSubCommandParent = (cmd: LimeyV1Command) => cmd.options?.[0]?.type === ApplicationCommandOptionType.SUB_COMMAND;
+const getSubCommandName = (cmd: LimeyV1Command, option: CommandOption) => `${cmd.name} ${option.name}`;
 
 // Yes, Discord registers individual commands for each subcommand
-function registerSubCommands(cmd: VencordCommand, plugin: string) {
+function registerSubCommands(cmd: LimeyV1Command, plugin: string) {
     cmd.options?.forEach(o => {
         if (o.type !== ApplicationCommandOptionType.SUB_COMMAND)
             throw new Error("When specifying sub-command options, all options must be sub-commands.");
@@ -133,7 +133,7 @@ function registerSubCommands(cmd: VencordCommand, plugin: string) {
     });
 }
 
-function unregisterSubCommands(cmd: VencordCommand): boolean {
+function unregisterSubCommands(cmd: LimeyV1Command): boolean {
     const results = BUILT_IN
         .filter(c => c.rootCommand === cmd)
         .map(c => unregisterCommand(c.name));
@@ -141,7 +141,7 @@ function unregisterSubCommands(cmd: VencordCommand): boolean {
     return results.length > 0 && results.every(x => x);
 }
 
-export function registerCommand<C extends VencordCommand>(command: C, plugin: string) {
+export function registerCommand<C extends LimeyV1Command>(command: C, plugin: string) {
     if (!BUILT_IN) {
         console.warn(
             "[CommandsAPI]",
@@ -154,7 +154,7 @@ export function registerCommand<C extends VencordCommand>(command: C, plugin: st
     if (BUILT_IN.some(c => c.name === command.name))
         throw new Error(`Command '${command.name}' already exists.`);
 
-    command.isVencordCommand = true;
+    command.isLimeyV1Command = true;
     command.untranslatedName ??= command.name;
     command.untranslatedDescription ??= command.description;
     command.id ??= `-${idCounter++}`;

@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2025 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2025 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +19,11 @@
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { isPluginEnabled } from "@api/PluginManager";
 import { LinkIcon, TopRightArrow } from "@components/Icons";
+import { Message, Sticker } from "@limeyV1/discord-types";
 import ExpressionClonerPlugin from "@plugins/expressionCloner";
 import { Devs } from "@utils/constants";
 import { copyWithToast } from "@utils/discord";
 import definePlugin from "@utils/types";
-import { Message, Sticker } from "@vencord/discord-types";
 import { Menu, React, StickersStore } from "@webpack/common";
 
 const StickerExt = [, "png", "png", "json", "gif"] as const;
@@ -55,7 +55,7 @@ function buildMenuItem(sticker: PartialSticker, addBottomSeparator: boolean) {
                     label="Open Sticker Link"
                     leadingAccessory={{ type: "icon", icon: LinkIcon }}
                     trailingIndicator={{ type: "icon", icon: TopRightArrow }}
-                    action={() => VencordNative.native.openExternal(getUrl(sticker))}
+                    action={() => LimeyV1Native.native.openExternal(getUrl(sticker))}
                 />
             </Menu.MenuGroup>
             {addBottomSeparator && <Menu.MenuSeparator />}

@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ import { canBlockReviewAuthor, canDeleteReview, canReportReview, cl, showToast }
 import { openUserProfile } from "@utils/discord";
 import { classes } from "@utils/misc";
 import { findCssClassesLazy } from "@webpack";
-import { ConfirmModal, IconUtils, openModal as openVencordModal, Parser, Timestamp, useEffect, useState } from "@webpack/common";
+import { ConfirmModal, IconUtils, openModal as openLimeyV1Modal, Parser, Timestamp, useEffect, useState } from "@webpack/common";
 
 import { openBlockModal } from "./BlockedUserModal";
 import { BlockButton, DeleteButton, ReportButton } from "./MessageButton";
@@ -54,7 +54,7 @@ export default function ReviewComponent({ review, refetch, profileId }: { review
     }
 
     function delReview() {
-        openVencordModal(props => (
+        openLimeyV1Modal(props => (
             <ConfirmModal
                 {...props}
                 title="Are you sure?"
@@ -73,7 +73,7 @@ export default function ReviewComponent({ review, refetch, profileId }: { review
     }
 
     function reportRev() {
-        openVencordModal(props => (
+        openLimeyV1Modal(props => (
             <ConfirmModal
                 {...props}
                 title="Are you sure?"
@@ -96,7 +96,7 @@ export default function ReviewComponent({ review, refetch, profileId }: { review
         if (isAuthorBlocked)
             return unblockUser(review.sender.discordID);
 
-        openVencordModal(props => (
+        openLimeyV1Modal(props => (
             <ConfirmModal
                 {...props}
                 title="Are you sure?"

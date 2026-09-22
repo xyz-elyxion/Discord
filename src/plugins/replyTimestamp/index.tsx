@@ -1,15 +1,15 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2024 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2024 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import "./style.css";
 
 import ErrorBoundary from "@components/ErrorBoundary";
+import type { Message } from "@limeyV1/discord-types";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import type { Message } from "@vencord/discord-types";
 import { findCssClassesLazy } from "@webpack";
 import { DateUtils, Timestamp } from "@webpack/common";
 import type { HTMLAttributes } from "react";

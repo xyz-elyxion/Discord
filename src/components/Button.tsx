@@ -1,14 +1,14 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2025 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2025 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import "./Button.css";
 
+import type { Button as DiscordButton } from "@limeyV1/discord-types";
 import { classNameFactory } from "@utils/css";
 import { classes } from "@utils/misc";
-import type { Button as DiscordButton } from "@vencord/discord-types";
 import type { ComponentPropsWithRef } from "react";
 
 import { OpenExternalIcon } from "./Icons";

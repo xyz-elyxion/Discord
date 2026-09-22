@@ -1,6 +1,6 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2025 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2025 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -27,7 +27,7 @@ export function CspErrorCard() {
     const allowUrl = async (url: string) => {
         const { origin: baseUrl, host } = new URL(url);
 
-        const result = await VencordNative.csp.requestAddOverride(baseUrl, ["connect-src", "img-src", "style-src", "font-src"], "Vencord Themes");
+        const result = await LimeyV1Native.csp.requestAddOverride(baseUrl, ["connect-src", "img-src", "style-src", "font-src"], "Limey V1 Themes");
         if (result !== "ok") return;
 
         CspBlockedUrls.forEach(url => {

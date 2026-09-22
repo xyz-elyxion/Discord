@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@ function toCodeBlock(s: string, indentation = 0, isDiscord = false) {
 async function printReport() {
     console.log();
 
-    console.log("# Vencord Report" + (CANARY ? " (Canary)" : ""));
+    console.log("# Limey V1 Report" + (CANARY ? " (Canary)" : ""));
 
     console.log();
 
@@ -194,7 +194,7 @@ async function printReport() {
         }
 
         const body = JSON.stringify({
-            username: "Vencord Reporter" + (CANARY ? " (Canary)" : ""),
+            username: "Limey V1 Reporter" + (CANARY ? " (Canary)" : ""),
             embeds
         });
 
@@ -203,7 +203,7 @@ async function printReport() {
         };
 
         // functions similar to https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
-        // used by venbot to ensure webhook invocations are genuine (since we will pass the webhook url as a workflow input which is publicly visible)
+        // used by limeybot to ensure webhook invocations are genuine (since we will pass the webhook url as a workflow input which is publicly visible)
         // generate a secret with something like `openssl rand -hex 128`
         if (process.env.WEBHOOK_SECRET) {
             headers["X-Signature"] = "sha256=" + createHmac("sha256", process.env.WEBHOOK_SECRET).update(body).digest("hex");
@@ -241,7 +241,7 @@ page.on("console", async e => {
 
     const firstArg = await rawArgs[0]?.jsonValue();
 
-    const isVencord = firstArg === "[Vencord]";
+    const isLimeyV1 = firstArg === "[Limey V1]";
     const isDebug = firstArg === "[PUP_DEBUG]";
     const isReporterMeta = firstArg === "[REPORTER_META]";
 
@@ -251,7 +251,7 @@ page.on("console", async e => {
     }
 
     outer:
-    if (isVencord) {
+    if (isLimeyV1) {
         try {
             var args = await Promise.all(e.args().map(a => a.jsonValue()));
         } catch {

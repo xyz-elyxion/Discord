@@ -1,10 +1,10 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2024 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2024 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { VENCORD_USER_AGENT } from "@shared/vencordUserAgent";
+import { LIMEYV1_USER_AGENT } from "@shared/limeyV1UserAgent";
 import { execFile } from "child_process";
 import { promisify } from "util";
 
@@ -41,7 +41,7 @@ async function fetchRemoteData({ id, name, artist, album }: { id: string, name: 
 
         const songData = await fetch(dataUrl, {
             headers: {
-                "user-agent": VENCORD_USER_AGENT,
+                "user-agent": LIMEYV1_USER_AGENT,
             },
         })
             .then(r => r.json())

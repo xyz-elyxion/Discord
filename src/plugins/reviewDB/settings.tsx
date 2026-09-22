@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2023 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2023 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ export const settings = definePluginSettings({
                 <Button
                     variant="positive"
                     onClick={() => {
-                        VencordNative.native.openExternal("https://github.com/sponsors/mantikafasi");
+                        LimeyV1Native.native.openExternal("https://github.com/sponsors/mantikafasi");
                     }}
                 >
                     Support ReviewDB development
@@ -75,7 +75,7 @@ export const settings = definePluginSettings({
                     if (token)
                         url += "/api/redirect?token=" + encodeURIComponent(token);
 
-                    VencordNative.native.openExternal(url);
+                    LimeyV1Native.native.openExternal(url);
                 }}>
                     ReviewDB website
                 </Button>

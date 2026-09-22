@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-export const VENCORD_FILES = [
-    IS_DISCORD_DESKTOP ? "patcher.js" : "vencordDesktopMain.js",
-    IS_DISCORD_DESKTOP ? "preload.js" : "vencordDesktopPreload.js",
-    IS_DISCORD_DESKTOP ? "renderer.js" : "vencordDesktopRenderer.js",
-    IS_DISCORD_DESKTOP ? "renderer.css" : "vencordDesktopRenderer.css",
+export const LIMEYV1_FILES = [
+    IS_DISCORD_DESKTOP ? "patcher.js" : "limeyV1DesktopMain.js",
+    IS_DISCORD_DESKTOP ? "preload.js" : "limeyV1DesktopPreload.js",
+    IS_DISCORD_DESKTOP ? "renderer.js" : "limeyV1DesktopRenderer.js",
+    IS_DISCORD_DESKTOP ? "renderer.css" : "limeyV1DesktopRenderer.css",
 ];
 
 export function serializeErrors(func: (...args: any[]) => any) {

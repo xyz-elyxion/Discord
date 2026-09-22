@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,12 +17,12 @@
 */
 
 import { Settings, SettingsStore } from "@api/Settings";
+import { ThemeStore } from "@limeyV1/discord-types";
 import { createAndAppendStyle } from "@utils/css";
 import { isNonNullish } from "@utils/guards";
-import { ThemeStore } from "@vencord/discord-types";
 import { PopoutWindowStore } from "@webpack/common";
 
-import { userStyleRootNode, vencordRootNode } from "./Styles";
+import { limeyV1RootNode,userStyleRootNode } from "./Styles";
 
 let style: HTMLStyleElement;
 let themesStyle: HTMLStyleElement;
@@ -32,14 +32,14 @@ const themeChangeListeners = new Set<() => void>();
 async function toggle(isEnabled: boolean) {
     if (!style) {
         if (isEnabled) {
-            style = createAndAppendStyle("vencord-custom-css", userStyleRootNode);
-            VencordNative.quickCss.addChangeListener(css => {
+            style = createAndAppendStyle("limeyV1-custom-css", userStyleRootNode);
+            LimeyV1Native.quickCss.addChangeListener(css => {
                 style.textContent = css;
                 // At the time of writing this, changing textContent resets the disabled state
                 style.disabled = !Settings.useQuickCss;
                 updatePopoutWindows();
             });
-            style.textContent = await VencordNative.quickCss.get();
+            style.textContent = await LimeyV1Native.quickCss.get();
         }
     } else
         style.disabled = !isEnabled;
@@ -49,7 +49,7 @@ async function toggle(isEnabled: boolean) {
 let previousThemeBlobObjectURLs = [] as string[];
 
 async function initThemes() {
-    themesStyle ??= createAndAppendStyle("vencord-themes", userStyleRootNode);
+    themesStyle ??= createAndAppendStyle("limeyV1-themes", userStyleRootNode);
 
     const { themeLinks, enabledThemes } = Settings;
 
@@ -75,7 +75,7 @@ async function initThemes() {
         previousThemeBlobObjectURLs.forEach(url => URL.revokeObjectURL(url));
 
         const objectUrls = await Promise.all(enabledThemes.map(async theme => {
-            const themeData = await VencordNative.themes.getThemeData(theme);
+            const themeData = await LimeyV1Native.themes.getThemeData(theme);
             if (!themeData) return null;
 
             const blob = new Blob([themeData], { type: "text/css" });
@@ -85,7 +85,7 @@ async function initThemes() {
         previousThemeBlobObjectURLs = objectUrls.filter(isNonNullish);
         links.push(...previousThemeBlobObjectURLs);
     } else {
-        const localThemes = enabledThemes.map(theme => `vencord:///themes/${theme}?v=${Date.now()}`);
+        const localThemes = enabledThemes.map(theme => `limeyV1:///themes/${theme}?v=${Date.now()}`);
         links.push(...localThemes);
     }
 
@@ -101,9 +101,9 @@ function applyToPopout(popoutWindow: Window | undefined, key: string) {
 
     const doc = popoutWindow.document;
 
-    doc.querySelector("vencord-root")?.remove();
+    doc.querySelector("limeyV1-root")?.remove();
 
-    doc.documentElement.appendChild(vencordRootNode.cloneNode(true));
+    doc.documentElement.appendChild(limeyV1RootNode.cloneNode(true));
 }
 
 function updatePopoutWindows() {
@@ -133,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     if (!IS_WEB) {
-        VencordNative.quickCss.addThemeChangeListener(initThemes);
+        LimeyV1Native.quickCss.addThemeChangeListener(initThemes);
     }
 }, { once: true });
 

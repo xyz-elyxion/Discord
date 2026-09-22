@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ export default definePlugin({
                 // Patch the central context menu handler
                 {
                     match: /(?=let{navId:)(?<=function \i\((\i)\).+?)/,
-                    replace: "$1=Vencord.Api.ContextMenu._usePatchContextMenu($1);"
+                    replace: "$1=LimeyV1.Api.ContextMenu._usePatchContextMenu($1);"
                 },
 
                 // Demangle Discord's Menu Item module

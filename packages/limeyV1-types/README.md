@@ -1,11 +1,11 @@
-# Vencord Types
+# Limey V1 Types
 
-Typings for Vencord's api, published to npm
+Typings for Limey V1's api, published to npm
 
 ```sh
-npm i @vencord/types
+npm i @limeyV1/types
 
-yarn add @vencord/types
+yarn add @limeyV1/types
 
-pnpm add @vencord/types
+pnpm add @limeyV1/types
 ```

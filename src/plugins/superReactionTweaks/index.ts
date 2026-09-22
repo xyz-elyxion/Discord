@@ -1,6 +1,6 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2023 Vendicated, ant0n, FieryFlames and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2023 Limey, ant0n, FieryFlames and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 

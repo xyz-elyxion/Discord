@@ -1,5 +1,5 @@
 /*
- * Vencord, a Discord client mod
+ * Limey V1, a Discord client mod
  * Copyright (c) 2023 rini
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -8,9 +8,9 @@ import "./styles.css";
 
 import { definePluginSettings } from "@api/Settings";
 import ErrorBoundary from "@components/ErrorBoundary";
+import { Channel, Message, User } from "@limeyV1/discord-types";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { Channel, Message, User } from "@vencord/discord-types";
 import { RelationshipStore, StreamerModeStore } from "@webpack/common";
 
 interface UsernameProps {

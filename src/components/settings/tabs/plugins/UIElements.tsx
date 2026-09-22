@@ -1,6 +1,6 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2025 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2025 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -14,11 +14,11 @@ import { Card } from "@components/Card";
 import { PlaceholderIcon } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
 import { Switch } from "@components/Switch";
+import { RenderModalProps } from "@limeyV1/discord-types";
 import { classNameFactory } from "@utils/css";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
 import { IconComponent } from "@utils/types";
-import { RenderModalProps } from "@vencord/discord-types";
 import { Clickable, Modal, openModal } from "@webpack/common";
 
 

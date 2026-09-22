@@ -1,6 +1,6 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2026 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2026 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -11,7 +11,7 @@ import { Review, ReviewDBCurrentUser, ReviewDBUser, ReviewType } from "./entitie
 import { settings } from "./settings";
 import { showToast } from "./utils";
 
-const API_URL = "https://manti.vendicated.dev/api/reviewdb";
+const API_URL = "https://manti.limey.dev/api/reviewdb";
 
 export const REVIEWS_PER_PAGE = 50;
 

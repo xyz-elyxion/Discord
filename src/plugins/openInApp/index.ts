@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2023 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2023 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ const pluginSettings = definePluginSettings(
 );
 
 
-const Native = VencordNative.pluginHelpers.OpenInApp as PluginNative<typeof import("./native")>;
+const Native = LimeyV1Native.pluginHelpers.OpenInApp as PluginNative<typeof import("./native")>;
 
 export default definePlugin({
     name: "OpenInApp",
@@ -138,7 +138,7 @@ export default definePlugin({
                 showToast("Opened link in native app", Toasts.Type.SUCCESS);
 
                 const newUrl = url.replace(rule.match, rule.replace);
-                VencordNative.native.openExternal(newUrl);
+                LimeyV1Native.native.openExternal(newUrl);
 
                 event?.preventDefault();
                 return true;
@@ -157,7 +157,7 @@ export default definePlugin({
     handleAccountView(e: MouseEvent, platformType: string, userId: string) {
         const rule = UrlReplacementRules[platformType];
         if (rule?.accountViewReplace && pluginSettings.store[platformType]) {
-            VencordNative.native.openExternal(rule.accountViewReplace(userId));
+            LimeyV1Native.native.openExternal(rule.accountViewReplace(userId));
             e.preventDefault();
             return true;
         }

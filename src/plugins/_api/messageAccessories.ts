@@ -1,6 +1,6 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ export default definePlugin({
             find: "#{intl::REMOVE_ATTACHMENT_BODY}",
             replacement: {
                 match: /children:(\[[^\]]{0,100}?this.renderSuppressConfirmModal[^\]]{0,100}?\])/,
-                replace: "children:Vencord.Api.MessageAccessories._modifyAccessories($1,this?.props)",
+                replace: "children:LimeyV1.Api.MessageAccessories._modifyAccessories($1,this?.props)",
             },
         },
     ],

@@ -1,7 +1,7 @@
 #!/usr/bin/node
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
+ * Limey V1, a modification for Discord's desktop app
+ * Copyright (c) 2022 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,9 +31,9 @@ import { BUILD_TIMESTAMP, commonOpts, globPlugins, IS_DEV, IS_REPORTER, IS_ANTI_
  */
 const commonOptions = {
     ...commonOpts,
-    entryPoints: ["browser/Vencord.ts"],
+    entryPoints: ["browser/LimeyV1.ts"],
     format: "iife",
-    globalName: "Vencord",
+    globalName: "Limey V1",
     external: ["~plugins", "~git-hash", "/assets/*"],
     target: ["esnext"],
     plugins: [
@@ -84,7 +84,7 @@ const buildConfigs = [
     {
         ...commonOptions,
         outfile: "dist/browser.js",
-        footer: { js: "//# sourceURL=file:///VencordWeb" }
+        footer: { js: "//# sourceURL=file:///LimeyV1Web" }
     },
     {
         ...commonOptions,
@@ -93,7 +93,7 @@ const buildConfigs = [
             ...commonOptions.define,
             IS_EXTENSION: "true"
         },
-        footer: { js: "//# sourceURL=file:///VencordWeb" }
+        footer: { js: "//# sourceURL=file:///LimeyV1Web" }
     },
     {
         ...commonOptions,
@@ -103,13 +103,13 @@ const buildConfigs = [
             IS_USERSCRIPT: "true",
             window: "unsafeWindow",
         },
-        outfile: "dist/Vencord.user.js",
+        outfile: "dist/LimeyV1.user.js",
         banner: {
             js: readFileSync("browser/userscript.meta.js", "utf-8").replace("%version%", `${VERSION}.${new Date().getTime()}`)
         },
         footer: {
-            // UserScripts get wrapped in an iife, so define Vencord prop on window that returns our local
-            js: "Object.defineProperty(unsafeWindow,'Vencord',{get:()=>Vencord});"
+            // UserScripts get wrapped in an iife, so define Limey V1 prop on window that returns our local
+            js: "Object.defineProperty(unsafeWindow,'Limey V1',{get:()=>Limey V1});"
         }
     }
 ];
@@ -146,8 +146,8 @@ async function loadDir(dir, basePath = "") {
  */
 async function buildExtension(target, files) {
     const entries = {
-        "dist/Vencord.js": await readFile("dist/extension.js"),
-        "dist/Vencord.css": await readFile("dist/extension.css"),
+        "dist/LimeyV1.js": await readFile("dist/extension.js"),
+        "dist/LimeyV1.css": await readFile("dist/extension.css"),
         ...await loadDir("dist/vendor/monaco", "dist/"),
         ...Object.fromEntries(await Promise.all(files.map(async f => {
             let content = await readFile(join("browser", f));
@@ -175,10 +175,10 @@ async function buildExtension(target, files) {
     console.info("Unpacked Extension written to dist/" + target);
 }
 
-const appendCssRuntime = readFile("dist/Vencord.user.css", "utf-8").then(content => {
+const appendCssRuntime = readFile("dist/LimeyV1.user.css", "utf-8").then(content => {
     const cssRuntime = `unsafeWindow._vcUserScriptRendererCss=\`${content.replaceAll("`", "\\`")}\``;
 
-    return appendFile("dist/Vencord.user.js", cssRuntime);
+    return appendFile("dist/LimeyV1.user.js", cssRuntime);
 });
 
 if (!process.argv.includes("--skip-extension")) {
