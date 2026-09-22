@@ -1,0 +1,10 @@
+.vc-encrypted-chat {
+    margin-top: 4px;
+    padding: 4px 8px;
+    border-left: 2px solid var(--green-360, #23a55a);
+    background: rgb(35 165 90 / 8%);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
