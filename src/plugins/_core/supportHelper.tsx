@@ -86,7 +86,7 @@ async function generateDebugInfoMessage() {
 
     const info = {
         "Limey V1":
-            `v${VERSION} • [${gitHash}](<https://github.com/Limey/Limey V1/commit/${gitHash}>)` +
+            `v${VERSION} • [${gitHash}](<https://github.com/xyz-elyxion/Discord/commit/${gitHash}>)` +
             `${SettingsPlugin.additionalInfo} - ${Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(BUILD_TIMESTAMP)}`,
         Client: `${RELEASE_CHANNEL} ~ ${client}`,
         Platform: navigator.platform

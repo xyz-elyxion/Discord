@@ -3,9 +3,9 @@
 // @description     A Discord client mod - Web version
 // @version         %version%
 // @author          Limey (https://github.com/Limey)
-// @namespace       https://github.com/Limey/LimeyV1
-// @supportURL      https://github.com/Limey/LimeyV1
-// @icon            https://raw.githubusercontent.com/Limey/Limey V1/refs/heads/main/browser/icon.png
+// @namespace       https://github.com/xyz-elyxion/Discord
+// @supportURL      https://github.com/xyz-elyxion/Discord
+// @icon            https://raw.githubusercontent.com/xyz-elyxion/Discord/refs/heads/main/browser/icon.png
 // @license         GPL-3.0
 // @match           *://*.discord.com/*
 // @grant           GM_xmlhttpRequest

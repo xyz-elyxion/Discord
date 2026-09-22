@@ -30,7 +30,7 @@ export default function DonateButton({
             {...props}
             look={look}
             color={color}
-            onClick={() => LimeyV1Native.native.openExternal("https://github.com/sponsors/Limey")}
+            onClick={() => LimeyV1Native.native.openExternal("https://github.com/xyz-elyxion")}
             className="vc-donate-button"
         >
             <Heart />

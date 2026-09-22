@@ -83,7 +83,7 @@ export async function installExt(id: string) {
 
         const buf = await fetchBuffer(url, {
             headers: {
-                "User-Agent": `Electron ${process.versions.electron} ~ Limey V1 (https://github.com/Limey/Limey V1)`
+                "User-Agent": `Electron ${process.versions.electron} ~ Limey V1 (https://github.com/xyz-elyxion/Discord)`
             }
         });
 

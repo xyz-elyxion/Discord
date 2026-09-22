@@ -9,7 +9,7 @@
     "type": "module",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/Limey/Limey V1.git",
+        "url": "git+https://github.com/xyz-elyxion/Discord.git",
         "directory": "packages/discord-types"
     },
     "dependencies": {

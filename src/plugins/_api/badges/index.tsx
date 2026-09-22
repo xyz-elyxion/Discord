@@ -201,7 +201,7 @@ export default definePlugin({
                 openModal(props => (
                     <ErrorBoundary noop onError={() => {
                         props.onClose();
-                        LimeyV1Native.native.openExternal("https://github.com/sponsors/Limey");
+                        LimeyV1Native.native.openExternal("https://github.com/xyz-elyxion");
                     }}>
                         <Modal
                             {...props}

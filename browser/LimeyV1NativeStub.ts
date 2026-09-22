@@ -71,7 +71,7 @@ window.LimeyV1Native = {
     },
 
     updater: {
-        getRepo: async () => ({ ok: true, value: "https://github.com/Limey/Limey V1" }),
+        getRepo: async () => ({ ok: true, value: "https://github.com/xyz-elyxion/Discord" }),
         getUpdates: async () => ({ ok: true, value: [] }),
         update: async () => ({ ok: true, value: false }),
         rebuild: async () => ({ ok: true, value: true }),

@@ -25,7 +25,7 @@ on:
 
 jobs:
     TestPlugins:
-        if: github.repository == 'Limey/Limey V1'
+        if: github.repository == 'xyz-elyxion/Discord'
         runs-on: ubuntu-latest
 
         steps:

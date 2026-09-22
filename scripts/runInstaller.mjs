@@ -25,7 +25,7 @@ import { Readable } from "stream";
 import { finished } from "stream/promises";
 import { fileURLToPath } from "url";
 
-const BASE_URL = "https://github.com/Limey V1/Installer/releases/latest/download/";
+const BASE_URL = "https://github.com/xyz-elyxion/Installer/releases/latest/download/";
 const INSTALLER_PATH_DARWIN = "LimeyV1Installer.app/Contents/MacOS/LimeyV1Installer";
 
 const BASE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -62,7 +62,7 @@ async function ensureBinary() {
 
     const res = await fetch(BASE_URL + filename, {
         headers: {
-            "User-Agent": "Limey V1 (https://github.com/Limey/Limey V1)",
+            "User-Agent": "Limey V1 (https://github.com/xyz-elyxion/Discord)",
             "If-None-Match": etag
         }
     });
