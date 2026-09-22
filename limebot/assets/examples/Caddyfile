@@ -1,0 +1,3 @@
+limebot.limey-discord.onrender.com {
+    reverse_proxy localhost:8152
+}

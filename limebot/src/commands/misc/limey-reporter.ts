@@ -1,0 +1,52 @@
+import { defineCommand } from "~/Commands";
+import Config from "~/config";
+import { BotState } from "~/db/botState";
+import { DefaultReporterBranch, ReporterOptions, testDiscordVersion } from "~/modules/discordTracker";
+import { getEmoji } from "~/modules/emojiManager";
+import { reply } from "~/util/discord";
+import { isOneOf } from "~/util/guards";
+
+const PrRegex = /#(\d+)/;
+
+defineCommand({
+    enabled: Config.reporter.enabled,
+
+    name: "reporter",
+    description: "Run the Limey V1 reporter workflow",
+    usage: "[ref = dev] [branch = both]",
+    aliases: ["report", "limey-reporter", "test-patches", "test"],
+    allowedRoles: [Config.roles.mod, Config.roles.helper, "1542169906290630829"],
+
+    async execute({ msg }, ref = DefaultReporterBranch, branch = "both") {
+        if (!isOneOf(branch, "stable", "canary", "both"))
+            return reply(msg, "Invalid branch. Must be one of: stable, canary, both");
+
+        const options: ReporterOptions = { ref };
+
+        if (PrRegex.test(ref)) {
+            const prNumber = parseInt(ref.match(PrRegex)![1]);
+
+            options.ref = DefaultReporterBranch;
+            options.inputRepository = "limey/limey";
+            options.inputRef = `refs/pull/${prNumber}/head`;
+        }
+
+        testDiscordVersion(
+            branch,
+            {
+                stable: BotState.discordTracker?.stableHash!,
+                canary: BotState.discordTracker?.canaryHash!
+            },
+            {
+                ...options,
+                shouldLog: false,
+                shouldUpdateStatus: ref === DefaultReporterBranch,
+                onSubmit: (_report, data) => {
+                    reply(msg, data);
+                }
+            }
+        );
+
+        reply(msg, "Now testing! " + getEmoji("shipit"));
+    },
+});

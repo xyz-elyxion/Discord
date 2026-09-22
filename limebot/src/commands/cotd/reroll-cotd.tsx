@@ -1,0 +1,77 @@
+import { ButtonStyles, CreateMessageOptions, EditMessageOptions, User } from "oceanic.js";
+
+import { defineCommand } from "~/Commands";
+import Config from "~/config";
+import { Emoji } from "~/constants";
+import { drawBlobCatCozy, rerollCotd } from "~/modules/regularCotd";
+import { handleComponentInteraction } from "~/SlashCommands";
+import { toHexColorString } from "~/util/text";
+import { ActionRow, Button, ComponentMessage, Container, MediaGallery, MediaGalleryItem, TextDisplay } from "~components";
+
+async function reroll(hex?: string, interactionUser?: User): Promise<CreateMessageOptions & EditMessageOptions> {
+    const color = await rerollCotd(hex);
+    const image = await drawBlobCatCozy(color);
+
+    return (
+        // Passing empty attachments is a workaround for https://github.com/discord/discord-api-docs/issues/7529
+        // FIXME: remove this when Discord fixes the issue
+        <ComponentMessage attachments={[]} files={[{
+            name: "blobcatcozy.png",
+            contents: image
+        }]}>
+            <Container accentColor={parseInt(color.slice(1), 16)}>
+                <TextDisplay>### New cozy of the day: {color}</TextDisplay>
+                <MediaGallery>
+                    <MediaGalleryItem url="attachment://blobcatcozy.png" />
+                </MediaGallery>
+
+                {interactionUser && <TextDisplay>-# Last rerolled {`<t:${Math.round(Date.now() / 1000)}>`} by {interactionUser.mention}</TextDisplay>}
+
+                <ActionRow>
+                    <Button
+                        style={ButtonStyles.SECONDARY}
+                        customID="reroll-cotd"
+                        disabled={hex != null}
+                        emoji={{ name: Emoji.Die }}
+                    >
+                        Reroll again
+                    </Button>
+                </ActionRow>
+            </Container>
+        </ComponentMessage>
+    );
+}
+
+defineCommand({
+    name: "reroll-cotd",
+    description: "Rerolls the current cozy of the day",
+    usage: "[hex]",
+    guildOnly: true,
+    allowedRoles: [Config.roles.mod],
+    async execute({ reply }, hex?: string) {
+        if (hex === "#ffbce0") return;
+
+        if (hex) {
+            const parsed = Number(hex.replace(/^#/, "0x"));
+
+            if (isNaN(parsed)) {
+                return reply("wtf is that hex");
+            }
+
+            hex = toHexColorString(parsed);
+        }
+
+        const result = await reroll(hex);
+        return reply(result);
+    }
+});
+
+handleComponentInteraction({
+    customID: "reroll-cotd",
+    guildOnly: true,
+    allowedRoles: [Config.roles.mod],
+    async handle(interaction) {
+        const result = await reroll(undefined, interaction.user);
+        await interaction.editParent(result);
+    },
+});

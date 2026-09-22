@@ -181,7 +181,32 @@ const server = http.createServer((req, res) => {
     serveFile(res, filePath);
 });
 
+// ------------------------------------------------------------------
+// Limebot (Discord bot, limebot/) — optional, enabled when LIMEBOT_TOKEN is set
+// ------------------------------------------------------------------
+function startLimebot() {
+    if (!process.env.LIMEBOT_TOKEN) {
+        console.log("[limebot] LIMEBOT_TOKEN not set — bot disabled");
+        return;
+    }
+    if (!existsSync(join(ROOT, "limebot", "dist", "index.js"))) {
+        console.log("[limebot] dist/index.js not found — bot disabled (was it built?)");
+        return;
+    }
+
+    const child = spawn(process.execPath, ["--enable-source-maps", "."], {
+        cwd: join(ROOT, "limebot"),
+        env: { ...process.env, LIMEBOT: "1" },
+        stdio: "inherit"
+    });
+    child.on("error", err => console.error("[limebot] failed to start:", err.message));
+    child.on("exit", code => {
+        if (code !== null) console.error(`[limebot] exited with code ${code}`);
+    });
+}
+
 startCloud();
+startLimebot();
 
 server.listen(PORT, HOST, () => {
     console.log(`Limey V1 web server running at http://${HOST}:${PORT}`);

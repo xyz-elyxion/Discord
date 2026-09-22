@@ -6,6 +6,21 @@ RUN go mod download
 COPY cloud .
 RUN CGO_ENABLED=0 go build -o limeycloud-backend .
 
+# ---------- Limebot (Discord bot) ----------
+FROM node:22-alpine AS limebot
+
+WORKDIR /bot
+
+RUN corepack enable
+
+COPY limebot/package.json limebot/pnpm-lock.yaml ./
+COPY limebot ./
+
+# Rebrand note: build only, no runtime install steps (native deps like
+# better-sqlite3/sharp compile during pnpm install).
+RUN pnpm install --frozen-lockfile --ignore-scripts || pnpm install --ignore-scripts
+RUN node scripts/build.mjs
+
 # ---------- Build stage ----------
 FROM node:22-alpine AS build
 
@@ -44,6 +59,10 @@ COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/browser/icon.png ./browser/icon.png
 COPY --from=cloud --chown=node:node /cloud/limeycloud-backend ./cloud/limeycloud-backend
+COPY --from=limebot --chown=node:node /bot/dist ./limebot/dist
+COPY --from=limebot --chown=node:node /bot/node_modules ./limebot/node_modules
+COPY --from=limebot --chown=node:node /bot/package.json ./limebot/package.json
+COPY --from=limebot --chown=node:node /bot/assets ./limebot/assets
 
 EXPOSE 3000
 
