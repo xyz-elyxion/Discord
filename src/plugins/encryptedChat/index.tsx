@@ -7,7 +7,7 @@
 import "./style.css";
 
 import { MessageAccessoryFactory } from "@api/MessageAccessories";
-import { addMessagePreEditListener, addMessagePreSendListener, MessageObject, removeMessagePreEditListener, removeMessagePreSendListener } from "@api/MessageEvents";
+import { MessageEditListener, MessageObject, MessageSendListener } from "@api/MessageEvents";
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
@@ -126,24 +126,17 @@ export default definePlugin({
 
     renderMessageAccessory: EncryptedAccessory,
 
-    start() {
-        this.preSend = addMessagePreSendListener((channelId, message: MessageObject) => {
-            const key = getSharedKey(channelId);
-            if (!key) return;
+    onBeforeMessageSend: ((channelId, message: MessageObject) => {
+        const key = getSharedKey(channelId);
+        if (!key) return;
 
-            message.content = PREFIX + xorEncrypt(message.content, key);
-        });
+        message.content = PREFIX + xorEncrypt(message.content, key);
+    }) as MessageSendListener,
 
-        this.preEdit = addMessagePreEditListener((channelId, _messageId, message: MessageObject) => {
-            const key = getSharedKey(channelId);
-            if (!key) return;
+    onBeforeMessageEdit: ((channelId, _messageId, message: MessageObject) => {
+        const key = getSharedKey(channelId);
+        if (!key) return;
 
-            message.content = PREFIX + xorEncrypt(message.content, key);
-        });
-    },
-
-    stop() {
-        removeMessagePreSendListener(this.preSend);
-        removeMessagePreEditListener(this.preEdit);
-    },
+        message.content = PREFIX + xorEncrypt(message.content, key);
+    }) as MessageEditListener,
 });
