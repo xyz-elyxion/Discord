@@ -3,8 +3,8 @@ package routes
 import (
 	"github.com/gofiber/fiber/v2"
 
-	g "github.com/limey/backend/globals"
-	"github.com/limey/backend/util"
+	g "limeycloud/backend/globals"
+	"limeycloud/backend/util"
 )
 
 // /v1

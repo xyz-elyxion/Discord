@@ -31,9 +31,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redis/go-redis/v9"
 
-	g "github.com/limey/backend/globals"
-	"github.com/limey/backend/routes"
-	"github.com/limey/backend/util"
+	g "limeycloud/backend/globals"
+	"limeycloud/backend/routes"
+	"limeycloud/backend/util"
 )
 
 func requireAuth(c *fiber.Ctx) error {

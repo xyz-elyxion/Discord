@@ -6,8 +6,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/redis/go-redis/v9"
 
-	g "github.com/limey/backend/globals"
-	"github.com/limey/backend/util"
+	g "limeycloud/backend/globals"
+	"limeycloud/backend/util"
 )
 
 // /v1/settings
