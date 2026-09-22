@@ -1,5 +1,5 @@
 const Config = {
-    "token": "${LIMEBOT_TOKEN-}",
+    "token": process.env.LIMEBOT_TOKEN || "",
     "prefixes": ["v!", "v?", "v.", "v"],
     // id of the home guild of the bot. used for registering commands, etc
     "homeGuildId": "1015060230222131221",
