@@ -20,6 +20,13 @@ const CLOUD_BIN = join(ROOT, "cloud", "limeycloud-backend");
 const CLOUD_PORT = Number(process.env.CLOUD_PORT) || 3099;
 const CLOUD_HOST = "127.0.0.1";
 
+// The Go redis client wants a bare host:port; accept full redis:// URLs too.
+function normalizeRedisUri(uri) {
+    if (!uri) return uri;
+    const m = /^redis[s]?:\/\/([^/?]+)(?:\/|$)/.exec(uri.trim());
+    return m ? m[1] : uri.trim();
+}
+
 // ------------------------------------------------------------------
 // LimeyCloud backend (Go) — settings sync API at /v1/*
 // ------------------------------------------------------------------
@@ -36,7 +43,7 @@ function startCloud() {
             ...process.env,
             HOST: CLOUD_HOST,
             PORT: String(CLOUD_PORT),
-            REDIS_URI: process.env.REDIS_URI || "127.0.0.1:6379",
+            REDIS_URI: normalizeRedisUri(process.env.REDIS_URI) || "127.0.0.1:6379",
             ROOT_REDIRECT: process.env.ROOT_REDIRECT || "https://limey-discord.onrender.com",
             PEPPER_SETTINGS: process.env.PEPPER_SETTINGS || "limeycloud-settings-pepper",
             PEPPER_SECRETS: process.env.PEPPER_SECRETS || "limeycloud-secrets-pepper",
