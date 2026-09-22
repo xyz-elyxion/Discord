@@ -146,11 +146,15 @@ export function registerChatInputCommand(options: ChatInputCommandOptions, handl
 }
 
 Vaius.once("ready", async () => {
-    await Vaius.application.bulkEditGuildCommands(Config.homeGuildId, SlashCommands);
+    try {
+        await Vaius.application.bulkEditGuildCommands(Config.homeGuildId, SlashCommands);
 
-    await Vaius.application.bulkEditGlobalCommands(SlashCommands.map(cmd => ({
-        ...cmd,
-        integrationTypes: [ApplicationIntegrationTypes.USER_INSTALL],
-        contexts: [InteractionContextTypes.BOT_DM, InteractionContextTypes.GUILD, InteractionContextTypes.PRIVATE_CHANNEL],
-    })));
+        await Vaius.application.bulkEditGlobalCommands(SlashCommands.map(cmd => ({
+            ...cmd,
+            integrationTypes: [ApplicationIntegrationTypes.USER_INSTALL],
+            contexts: [InteractionContextTypes.BOT_DM, InteractionContextTypes.GUILD, InteractionContextTypes.PRIVATE_CHANNEL],
+        })));
+    } catch (e) {
+        console.error("Failed to register slash commands (is the bot in homeGuildId with the applications.commands scope?)", e);
+    }
 });
