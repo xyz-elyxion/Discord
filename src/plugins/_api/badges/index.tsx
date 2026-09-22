@@ -199,7 +199,7 @@ export default definePlugin({
                 openModal(props => (
                     <ErrorBoundary noop onError={() => {
                         props.onClose();
-                        LimeyV1Native.native.openExternal("https://github.com/xyz-elyxion/Discord");
+                        LimeyV1Native.native.openExternal("https://limey-discord.onrender.com");
                     }}>
                         <Modal
                             {...props}

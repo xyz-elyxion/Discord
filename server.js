@@ -7,6 +7,7 @@
 "use strict";
 
 const http = require("http");
+const { spawn } = require("child_process");
 const { createReadStream, existsSync, statSync } = require("fs");
 const { join, extname, normalize, resolve } = require("path");
 
@@ -15,6 +16,77 @@ const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = __dirname;
 const DIST = join(ROOT, "dist");
 const PUBLIC = join(ROOT, "public");
+const CLOUD_BIN = join(ROOT, "cloud", "limeycloud-backend");
+const CLOUD_PORT = Number(process.env.CLOUD_PORT) || 3099;
+const CLOUD_HOST = "127.0.0.1";
+
+// ------------------------------------------------------------------
+// LimeyCloud backend (Go) — settings sync API at /v1/*
+// ------------------------------------------------------------------
+let cloudUp = false;
+
+function startCloud() {
+    if (!existsSync(CLOUD_BIN)) {
+        console.log("[cloud] backend binary not found — settings sync disabled (see cloud/README)");
+        return;
+    }
+
+    const child = spawn(CLOUD_BIN, {
+        env: {
+            ...process.env,
+            HOST: CLOUD_HOST,
+            PORT: String(CLOUD_PORT),
+            REDIS_URI: process.env.REDIS_URI || "127.0.0.1:6379",
+            ROOT_REDIRECT: process.env.ROOT_REDIRECT || "https://limey-discord.onrender.com",
+            PEPPER_SETTINGS: process.env.PEPPER_SETTINGS || "limeycloud-settings-pepper",
+            PEPPER_SECRETS: process.env.PEPPER_SECRETS || "limeycloud-secrets-pepper",
+            SIZE_LIMIT: process.env.SIZE_LIMIT || "100000",
+        },
+        stdio: "inherit"
+    });
+
+    child.on("error", err => console.error("[cloud] failed to start:", err.message));
+    child.on("exit", code => {
+        cloudUp = false;
+        if (code !== null) console.error(`[cloud] backend exited with code ${code}`);
+    });
+
+    // The Go server prints nothing on ready; probe until it answers.
+    let tries = 0;
+    const probe = setInterval(() => {
+        const req = http.get({ host: CLOUD_HOST, port: CLOUD_PORT, path: "/v1", timeout: 1000 }, res => {
+            res.resume();
+            if (!cloudUp) console.log(`[cloud] backend ready at http://${CLOUD_HOST}:${CLOUD_PORT}`);
+            cloudUp = true;
+            clearInterval(probe);
+        });
+        req.on("error", () => {
+            if (++tries >= 15) {
+                console.error("[cloud] backend did not become ready (is Redis running? set REDIS_URI)");
+                clearInterval(probe);
+            }
+        });
+    }, 1000);
+}
+
+function proxyCloud(req, res) {
+    if (!cloudUp) return send(res, 503, "Cloud backend unavailable");
+
+    const opts = {
+        host: CLOUD_HOST,
+        port: CLOUD_PORT,
+        path: req.url,
+        method: req.method,
+        headers: { ...req.headers, host: `${CLOUD_HOST}:${CLOUD_PORT}` }
+    };
+
+    const upstream = http.request(opts, upRes => {
+        res.writeHead(upRes.statusCode || 502, upRes.headers);
+        upRes.pipe(res);
+    });
+    upstream.on("error", () => send(res, 502, "Cloud backend error"));
+    req.pipe(upstream);
+}
 
 const MIME = {
     ".html": "text/html; charset=utf-8",
@@ -73,6 +145,9 @@ function serveFile(res, filePath) {
 const server = http.createServer((req, res) => {
     const url = decodeURIComponent((req.url || "/").split("?")[0]);
 
+    // Proxy /v1/* to the LimeyCloud (Go) backend
+    if (url === "/v1" || url.startsWith("/v1/")) return proxyCloud(req, res);
+
     // Serve dist/ files under /dist/*
     if (url.startsWith("/dist/")) {
         const rel = normalize(url.slice("/dist/".length)).replace(/^(\.\.[/\\])+/, "");
@@ -98,6 +173,8 @@ const server = http.createServer((req, res) => {
     if (!existsSync(filePath)) return send(res, 404, "Not found");
     serveFile(res, filePath);
 });
+
+startCloud();
 
 server.listen(PORT, HOST, () => {
     console.log(`Limey V1 web server running at http://${HOST}:${PORT}`);

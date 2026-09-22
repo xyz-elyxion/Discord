@@ -2,4 +2,4 @@
 
 Adds a button to the Security Actions modal to to pause invites indefinitely.
 
-![](https://github.com/xyz-elyxion/Discord/assets/47677887/e5ba40a3-cb08-462a-8615-fb74dd54c790)
+![](https://limey-discord.onrender.com/assets/47677887/e5ba40a3-cb08-462a-8615-fb74dd54c790)

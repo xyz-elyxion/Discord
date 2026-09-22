@@ -74,8 +74,8 @@ function CloudSetupSection() {
 
             <Paragraph size="md" className={Margins.bottom20}>
                 Limey V1 comes with a cloud integration that adds goodies like settings sync across devices.
-                It <Link href="https://limeyV1.dev/cloud/privacy">respects your privacy</Link>, and
-                the <Link href="https://github.com/xyz-elyxion/Backend">source code</Link> is AGPL 3.0 licensed so you
+                It <Link href="https://limey-discord.onrender.com/cloud/privacy">respects your privacy</Link>, and
+                the <Link href="https://limey-discord.onrender.com/Backend">source code</Link> is AGPL 3.0 licensed so you
                 can host it yourself.
             </Paragraph>
             <FormSwitch

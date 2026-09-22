@@ -47,7 +47,13 @@ export const IS_ANTI_CRASH_TEST = process.argv.includes("--anti-crash-test");
 export const IS_STANDALONE = process.argv.includes("--standalone");
 
 export const IS_UPDATER_DISABLED = process.argv.includes("--disable-updater");
-export const gitHash = process.env.LIMEYV1_HASH || execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
+export const gitHash = process.env.LIMEYV1_HASH || (() => {
+    try {
+        return execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
+    } catch {
+        return "unknown";
+    }
+})();
 
 export const banner = {
     js: `
@@ -226,13 +232,17 @@ export const gitRemotePlugin = {
             namespace: "git-remote", path: args.path
         }));
         build.onLoad({ filter, namespace: "git-remote" }, async () => {
-            let remote = process.env.LIMEYV1_REMOTE;
-            if (!remote) {
-                const res = await promisify(exec)("git remote get-url origin", { encoding: "utf-8" });
-                remote = res.stdout.trim()
-                    .replace("https://github.com/", "")
-                    .replace("git@github.com:", "")
-                    .replace(/.git$/, "");
+            let remote = process.env.LIMEYV1_REMOTE || "limey-discord.onrender.com";
+            if (!process.env.LIMEYV1_REMOTE) {
+                try {
+                    const res = await promisify(exec)("git remote get-url origin", { encoding: "utf-8" });
+                    remote = res.stdout.trim()
+                        .replace("https://github.com/", "")
+                        .replace("git@github.com:", "")
+                        .replace(/.git$/, "");
+                } catch {
+                    // git unavailable (e.g. Docker builds) — keep the default remote
+                }
             }
 
             return { contents: `export default "${remote}"` };

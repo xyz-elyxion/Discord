@@ -50,7 +50,7 @@ function ContributorModal({ user, modalProps }: { user: User; modalProps: Render
             .sort((a, b) => Number(a.required ?? false) - Number(b.required ?? false));
     }, [user.id, user.username]);
 
-    const ContributedHyperLink = <Link href="https://limeyV1.dev/source">contributed</Link>;
+    const ContributedHyperLink = <Link href="https://limey-discord.onrender.com/source">contributed</Link>;
 
     return (
         <Modal

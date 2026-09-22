@@ -86,7 +86,7 @@ async function generateDebugInfoMessage() {
 
     const info = {
         "Limey V1":
-            `v${VERSION} • [${gitHash}](<https://github.com/xyz-elyxion/Discord/commit/${gitHash}>)` +
+            `v${VERSION} • [${gitHash}](<https://limey-discord.onrender.com/commit/${gitHash}>)` +
             `${SettingsPlugin.additionalInfo} - ${Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(BUILD_TIMESTAMP)}`,
         Client: `${RELEASE_CHANNEL} ~ ${client}`,
         Platform: navigator.platform
@@ -154,8 +154,8 @@ function DevBuildConfirmModal(props: RenderModalProps) {
                 <Forms.FormText>You are using a custom build of Limey V1, which we do not provide support for!</Forms.FormText>
 
                 <Forms.FormText className={Margins.top8}>
-                    We only provide support for <Link href="https://limeyV1.dev/download">official builds</Link>.
-                    Either <Link href="https://limeyV1.dev/download">switch to an official build</Link> or figure your issue out yourself.
+                    We only provide support for <Link href="https://limey-discord.onrender.com">official builds</Link>.
+                    Either <Link href="https://limey-discord.onrender.com">switch to an official build</Link> or figure your issue out yourself.
                 </Forms.FormText>
 
                 <Text variant="text-md/bold" className={Margins.top8}>You will be banned from receiving support if you ignore this rule.</Text>
@@ -247,7 +247,7 @@ export default definePlugin({
                         <div>
                             <Forms.FormText>You are using an externally updated Limey V1 version, which we do not provide support for!</Forms.FormText>
                             <Forms.FormText className={Margins.top8}>
-                                Please either switch to an <Link href="https://limeyV1.dev/download">officially supported version of Limey V1</Link>, or
+                                Please either switch to an <Link href="https://limey-discord.onrender.com">officially supported version of Limey V1</Link>, or
                                 contact your package maintainer for support instead.
                             </Forms.FormText>
                         </div>

@@ -10,7 +10,7 @@ on:
 
 jobs:
     codeberg:
-        if: github.repository == 'xyz-elyxion/Discord'
+        if: github.repository == 'limey-discord.onrender.com'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7

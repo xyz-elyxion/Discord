@@ -1,0 +1,12 @@
+.env
+
+.idea
+.DS_Store
+
+redis-data
+docker-compose.override.yml
+
+# binaries
+Backend
+Backend.exe
+backend

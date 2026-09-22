@@ -54,7 +54,7 @@ Or if you notice any bugs or typos, feel free to fix them!
 
 ## Contribute to our Documentation
 
-The source code of our documentation is available at <https://github.com/xyz-elyxion/Docs>
+The source code of our documentation is available at <https://limey-discord.onrender.com/Docs>
 
 If you see anything outdated, incorrect or lacking, please fix it!
 If you think a new page should be added, feel free to suggest it via an issue and we can discuss.

@@ -2,10 +2,10 @@
 // @name            Limey V1
 // @description     A Discord client mod - Web version
 // @version         %version%
-// @author          Limey (https://github.com/Limey)
-// @namespace       https://github.com/xyz-elyxion/Discord
-// @supportURL      https://github.com/xyz-elyxion/Discord
-// @icon            https://raw.githubusercontent.com/xyz-elyxion/Discord/refs/heads/main/browser/icon.png
+// @author          Limey
+// @namespace       https://limey-discord.onrender.com
+// @supportURL      https://limey-discord.onrender.com
+// @icon            https://limey-discord.onrender.com/browser/icon.png
 // @license         GPL-3.0
 // @match           *://*.discord.com/*
 // @grant           GM_xmlhttpRequest

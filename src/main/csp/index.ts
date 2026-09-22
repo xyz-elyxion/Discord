@@ -60,7 +60,8 @@ export const CspPolicies: PolicyMap = {
     "archive.org": ConnectSrc,
     "*.archive.org": ConnectSrc,
     "translate-pa.googleapis.com": ConnectSrc, // Google Translate API
-    "*.limeyV1.dev": ImageSrc, // VenCloud (api.limeyV1.dev) and Badges (badges.limeyV1.dev)
+    "*.limeyV1.dev": ImageSrc, // Badges (badges.limeyV1.dev)
+    "limey-discord.onrender.com": ConnectSrc, // LimeyCloud (settings sync)
     "manti.limey.dev": ImageSrc, // ReviewDB API
     "decor.fieryflames.dev": ConnectSrc, // Decor API
     "ugc.decor.fieryflames.dev": ImageSrc, // Decor CDN

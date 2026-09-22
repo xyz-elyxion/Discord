@@ -20,7 +20,7 @@ export async function checkCloudUrlCsp() {
     if (IS_WEB) return true;
 
     const { host } = getCloudUrl();
-    if (host === "api.limeyV1.dev") return true;
+    if (host === "limey-discord.onrender.com") return true;
 
     if (await LimeyV1Native.csp.isDomainAllowed(Settings.cloud.url, ["connect-src"])) {
         return true;

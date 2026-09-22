@@ -120,7 +120,7 @@ const DefaultSettings: Settings = {
 
     cloud: {
         authenticated: false,
-        url: "https://api.limeyV1.dev/",
+        url: "https://limey-discord.onrender.com/",
         settingsSync: false,
         settingsSyncVersion: 0
     }

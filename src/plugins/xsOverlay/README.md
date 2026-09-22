@@ -4,7 +4,7 @@ Sends Discord messages to [XSOverlay](https://store.steampowered.com/app/1173510
 
 ## Preview
 
-![Resulting notification inside XSOverlay](https://github.com/xyz-elyxion/Discord/assets/24845294/205d2055-bb4a-44e4-b7e3-265391bccd40)
+![Resulting notification inside XSOverlay](https://limey-discord.onrender.com/assets/24845294/205d2055-bb4a-44e4-b7e3-265391bccd40)
 
 ![Test notification inside XSOverlay](https://github.com/user-attachments/assets/d3b0c387-1d67-4697-a470-d4a927e228f4)
 

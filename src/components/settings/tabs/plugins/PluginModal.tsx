@@ -182,7 +182,7 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
                             />
                             <WebsiteButton
                                 text="View more info"
-                                href={`https://limeyV1.dev/plugins/${plugin.name}`}
+                                href={`https://limey-discord.onrender.com/plugins/${plugin.name}`}
                             />
                             <GithubButton
                                 text="View source code"

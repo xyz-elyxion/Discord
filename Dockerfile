@@ -1,3 +1,11 @@
+# ---------- Cloud backend (Go) ----------
+FROM golang:1.27-alpine AS cloud
+WORKDIR /cloud
+COPY cloud/go.mod cloud/go.sum ./
+RUN go mod download
+COPY cloud .
+RUN CGO_ENABLED=0 go build -o limeycloud-backend .
+
 # ---------- Build stage ----------
 FROM node:22-alpine AS build
 
@@ -13,7 +21,8 @@ COPY packages/discord-types/package.json packages/discord-types/package.json
 COPY packages/limeyV1-types/package.json packages/limeyV1-types/package.json
 RUN pnpm install --frozen-lockfile
 
-# Copy the rest of the source and build the web bundle (userscript + browser.js)
+# Copy the rest of the source and build the web bundle (userscript + browser.js).
+# No git needed: the build falls back to the production remote when git is absent.
 COPY . .
 RUN pnpm buildWeb
 
@@ -34,6 +43,7 @@ COPY --from=build --chown=node:node /app/package.json /app/server.js ./
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/browser/icon.png ./browser/icon.png
+COPY --from=cloud --chown=node:node /cloud/limeycloud-backend ./cloud/limeycloud-backend
 
 EXPOSE 3000
 
