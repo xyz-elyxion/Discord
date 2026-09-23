@@ -15,8 +15,13 @@ const AdminToken = process.env.USRBG_ADMIN_TOKEN || "";
 
 // Only server admins can use these commands
 function isAdmin(i: any) {
-    const perms = BigInt(i.member?.permissions ?? 0n);
-    return (perms & 8n) !== 0n; // ADMINISTRATOR
+    const perms = i.member?.permissions;
+    if (perms === undefined || perms === null) return false;
+    try {
+        return (BigInt(String(perms)) & 8n) !== 0n; // ADMINISTRATOR
+    } catch {
+        return false;
+    }
 }
 
 async function api(method: string, path: string, body?: unknown) {
