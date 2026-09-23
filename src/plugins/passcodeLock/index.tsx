@@ -107,13 +107,14 @@ const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         default: false
     },
-    // private, not user editable
-    hash: { type: OptionType.STRING, default: "" },
-    salt: { type: OptionType.STRING, default: "" },
-    iterations: { type: OptionType.NUMBER, default: 4000 },
-    locked: { type: OptionType.BOOLEAN, default: false },
-    attempts: { type: OptionType.NUMBER, default: 0 },
-    delayUntil: { type: OptionType.NUMBER, default: 0 }
+    // Internal — not shown to the user. The passcode is stored as a
+    // PBKDF2 hash with a random salt so the code itself is never saved.
+    hash: { type: OptionType.STRING, default: "", hidden: true },
+    salt: { type: OptionType.STRING, default: "", hidden: true },
+    iterations: { type: OptionType.NUMBER, default: 4000, hidden: true },
+    locked: { type: OptionType.BOOLEAN, default: false, hidden: true },
+    attempts: { type: OptionType.NUMBER, default: 0, hidden: true },
+    delayUntil: { type: OptionType.NUMBER, default: 0, hidden: true }
 } as any);
 
 const hasPasscode = () => !!settings.store.hash;
