@@ -346,7 +346,7 @@ function PasscodeLocker({ mode, onUnlock, onCancel }: {
 
 // --- Plugin --------------------------------------------------------------------
 
-export default definePlugin({
+const V1Plugin = {
     name: "PasscodeLock",
     description: "Protect your Discord with a passcode. Converted from the BetterDiscord plugin by arg0NNY.",
     tags: ["Utility", "Privacy"],
@@ -359,9 +359,23 @@ export default definePlugin({
         "Lock Discord": function (this: any) { this.lock(); }
     },
 
+    settingsAboutComponent: () => {
+        const [has, setHas] = useState(hasPasscode());
+        return (
+            <Button
+                onClick={() => (V1Plugin as any).lock(has ? "default" : "editor")}
+            >
+                {has ? "Change Passcode" : "Set Passcode"}
+            </Button>
+        );
+    },
+
     locked: false,
     lockRoot: null as HTMLDivElement | null,
     keyHandler: null as ((e: KeyboardEvent) => void) | null,
+    keybindHandler: null as ((e: KeyboardEvent) => void) | null,
+    blurListener: null as (() => void) | null,
+    focusListener: null as (() => void) | null,
     autolockTimeout: undefined as ReturnType<typeof setTimeout> | undefined,
 
     lock(mode: "default" | "editor" = "default") {
@@ -460,4 +474,6 @@ export default definePlugin({
         window.removeEventListener("blur", this.blurListener!);
         window.removeEventListener("focus", this.focusListener!);
     }
-});
+};
+
+export default definePlugin(V1Plugin as any);
