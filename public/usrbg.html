@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USRBG Manager — Limey V1</title>
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .manager { max-width: 720px; margin: 48px auto 80px; padding: 0 24px; }
+        .manager h1 { font-size: 1.8rem; margin-bottom: 8px; }
+        .manager .sub { color: var(--text-dim); margin-bottom: 28px; font-size: 0.95rem; }
+        .field { margin-bottom: 18px; }
+        .field label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
+        .field input {
+            width: 100%; padding: 12px 14px; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--surface);
+            color: var(--text); font-size: 1rem; outline: none;
+        }
+        .field input:focus { border-color: var(--lime-dark); }
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+        .status { margin-top: 16px; padding: 12px 16px; border-radius: 10px; font-size: 0.92rem; display: none; }
+        .status.ok { display: block; background: rgba(163,230,53,.1); border: 1px solid var(--lime-dark); color: var(--lime); }
+        .status.err { display: block; background: rgba(239,68,68,.1); border: 1px solid #7f1d1d; color: #fca5a5; }
+        .preview { margin-top: 20px; display: none; }
+        .preview img {
+            max-width: 100%; border-radius: 12px; border: 1px solid var(--border);
+            aspect-ratio: 600 / 240; object-fit: cover; background: var(--surface);
+        }
+        .banner-list { margin-top: 36px; }
+        .banner-list h2 { font-size: 1.2rem; margin-bottom: 14px; }
+        .banner-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 10px 14px; margin-bottom: 10px;
+        }
+        .banner-row .id { font-weight: 600; word-break: break-all; }
+        .banner-row img { height: 44px; border-radius: 6px; }
+        .banner-row button {
+            background: none; border: 1px solid #7f1d1d; color: #fca5a5;
+            border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 0.85rem;
+        }
+        .banner-row button:hover { background: rgba(239,68,68,.12); }
+        .empty { color: var(--text-dim); font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/"><span class="brand-dot"></span>Limey V1</a>
+            <nav class="nav-links"><a href="/">Home</a></nav>
+        </div>
+    </header>
+
+    <main class="manager">
+        <h1>USRBG Manager</h1>
+        <p class="sub">Give anyone a custom Discord profile banner without Nitro. Banners set here show up for all Limey V1 users with the USRBG plugin.</p>
+
+        <div class="field">
+            <label for="token">Admin token</label>
+            <input id="token" type="password" placeholder="USRBG_ADMIN_TOKEN" autocomplete="off">
+        </div>
+
+        <div class="field">
+            <label for="userId">Discord user ID</label>
+            <input id="userId" type="text" inputmode="numeric" placeholder="e.g. 123456789012345678">
+        </div>
+
+        <div class="field">
+            <label for="imageUrl">Banner image URL</label>
+            <input id="imageUrl" type="url" placeholder="https://i.imgur.com/yourimage.png">
+        </div>
+        <div class="preview" id="preview"><img id="previewImg" alt="Banner preview"></div>
+
+        <div class="actions">
+            <button id="setBtn" class="btn btn-primary" style="border:none;cursor:pointer">Set banner</button>
+            <button id="removeBtn" class="btn btn-ghost" style="cursor:pointer">Remove banner</button>
+            <button id="loadBtn" class="btn btn-ghost" style="cursor:pointer">Load current banners</button>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="banner-list">
+            <h2>Current banners</h2>
+            <div id="bannerList"><p class="empty">Enter your admin token and press "Load current banners".</p></div>
+        </div>
+    </main>
+
+    <script>
+        const $ = id => document.getElementById(id);
+        const status = $("status");
+
+        function showStatus(ok, msg) {
+            status.className = "status " + (ok ? "ok" : "err");
+            status.textContent = msg;
+        }
+
+        function headers() {
+            return { "Content-Type": "application/json", Authorization: "Bearer " + $("token").value.trim() };
+        }
+
+        async function call(method, path, body) {
+            const res = await fetch(path, {
+                method,
+                headers: headers(),
+                body: body === undefined ? undefined : JSON.stringify(body)
+            });
+            let data;
+            try { data = await res.json(); } catch { data = {}; }
+            return { ok: res.ok, status: res.status, data };
+        }
+
+        async function setBanner() {
+            const userId = $("userId").value.trim();
+            const url = $("imageUrl").value.trim();
+            if (!/^\d{5,25}$/.test(userId)) return showStatus(false, "User ID must be numeric (right-click a user in Discord → Copy User ID).");
+            if (!/^https?:\/\//.test(url)) return showStatus(false, "Image URL must start with http(s)://");
+            showStatus(true, "Setting banner…");
+            const { ok, status: code, data } = await call("PUT", "/v1/usrbg/users/" + userId, { url });
+            ok ? showStatus(true, "✅ Banner set for " + userId + "!")
+               : showStatus(false, "❌ Error " + code + ": " + (data.error || "unknown"));
+            loadList();
+        }
+
+        async function removeBanner() {
+            const userId = $("userId").value.trim();
+            if (!/^\d{5,25}$/.test(userId)) return showStatus(false, "User ID must be numeric.");
+            const { ok, status: code, data } = await call("DELETE", "/v1/usrbg/users/" + userId);
+            ok ? showStatus(true, "✅ Banner removed for " + userId + ".")
+               : showStatus(false, "❌ Error " + code + ": " + (data.error || "unknown"));
+            loadList();
+        }
+
+        async function loadList() {
+            const list = $("bannerList");
+            const token = $("token").value.trim();
+            if (!token) return showStatus(false, "Enter your admin token first.");
+            const res = await fetch("/v1/usrbg/admin/users", { headers: headers() });
+            if (res.status === 401) {
+                list.innerHTML = '<p class="empty">Unauthorized — wrong or missing admin token.</p>';
+                return showStatus(false, "❌ Unauthorized: token doesn't match USRBG_ADMIN_TOKEN.");
+            }
+            const data = await res.json();
+            const entries = Object.entries(data);
+            if (!entries.length) {
+                list.innerHTML = '<p class="empty">No banners set yet.</p>';
+                return;
+            }
+            list.innerHTML = "";
+            for (const [id, entry] of entries) {
+                const row = document.createElement("div");
+                row.className = "banner-row";
+                const img = document.createElement("img");
+                img.src = entry.url;
+                img.loading = "lazy";
+                img.onerror = () => img.remove();
+                const left = document.createElement("div");
+                left.className = "id";
+                left.textContent = id;
+                const del = document.createElement("button");
+                del.textContent = "Remove";
+                del.onclick = async () => {
+                    $("userId").value = id;
+                    await removeBanner();
+                };
+                row.append(left, img, del);
+                list.appendChild(row);
+            }
+        }
+
+        $("imageUrl").addEventListener("input", () => {
+            const url = $("imageUrl").value.trim();
+            const preview = $("preview");
+            if (/^https?:\/\//.test(url)) {
+                $("previewImg").src = url;
+                preview.style.display = "block";
+            } else {
+                preview.style.display = "none";
+            }
+        });
+
+        $("setBtn").onclick = setBanner;
+        $("removeBtn").onclick = removeBanner;
+        $("loadBtn").onclick = loadList;
+    </script>
+</body>
+</html>
