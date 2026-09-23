@@ -492,10 +492,9 @@ const messageContextMenu: NavContextMenuPatchCallback = (children, props) => {
 
 // --- Modal components come from webpack common ------------------------------------
 
-import { Button, openModal } from "@webpack/common";
+import { Button, useEffect, openModal, useRef, useState } from "@webpack/common";
 import { Modals } from "@utils/modal";
 const { ModalRoot, ModalContent, ModalFooter } = Modals as any;
-import { useEffect, useRef, useState } from "react";
 
 export default definePlugin({
     name: "GifCaptioner",
