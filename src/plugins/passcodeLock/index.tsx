@@ -387,6 +387,8 @@ const V1Plugin = {
         this.locked = true;
         settings.store.locked = true;
 
+        const close = () => this.unlock();
+
         this.lockRoot = document.createElement("div");
         document.body.appendChild(this.lockRoot);
         const container = this.lockRoot;

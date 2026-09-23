@@ -15,18 +15,39 @@
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { mapMangledModuleLazy } from "@webpack";
-
-// Discord's content-warning filter list (the module that also contains
-// the "Everyone Warning" filter). One of its entries has a `check`
-// function that runs on message send and can block it with a custom body.
-const { warningFilters } = mapMangledModuleLazy("Everyone Warning", {
-    warningFilters: m => Array.isArray(m) && m.some(x => x?.analyticsType != null)
-});
+import { search, wreq } from "@webpack";
 
 interface Filter {
     analyticsType?: string;
     check?: (content: string) => { body: string } | false;
+}
+
+// Discord's content-warning filter list (the same system that shows the
+// "@everyone" confirmation). One of its entries has a `check` function
+// that runs on message send and can block it with a custom body.
+// We locate it defensively at start time so a Discord update can never
+// crash the plugin start.
+function findFilters(): Filter[] | null {
+    try {
+        const modules = search("Everyone Warning");
+        for (const id of Object.keys(modules)) {
+            let mod: any;
+            try {
+                mod = wreq(id);
+            } catch {
+                continue;
+            }
+            if (!mod) continue;
+            for (const value of Object.values(mod)) {
+                if (Array.isArray(value) && value.some(x => x && typeof x === "object" && "check" in x && "analyticsType" in x)) {
+                    return value as Filter[];
+                }
+            }
+        }
+    } catch (err) {
+        console.error("[HoldYourTongue] failed to locate warning filters", err);
+    }
+    return null;
 }
 
 const NACHO_TYPE = "LimeyV1-hold-your-tongue";
@@ -71,7 +92,11 @@ export default definePlugin({
     patches: [],
 
     start() {
-        const filters = warningFilters as Filter[];
+        const filters = findFilters();
+        if (!filters) {
+            console.warn("[HoldYourTongue] Could not find Discord's warning filter list; the plugin will stay inactive.");
+            return;
+        }
         const existing = filters.find(f => f.analyticsType === NACHO_TYPE);
         if (existing) {
             existing.check = check;
@@ -81,7 +106,8 @@ export default definePlugin({
     },
 
     stop() {
-        const filters = warningFilters as Filter[];
+        const filters = findFilters();
+        if (!filters) return;
         const index = filters.findIndex(f => f.analyticsType === NACHO_TYPE);
         if (index !== -1) filters.splice(index, 1);
     },
