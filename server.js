@@ -143,6 +143,84 @@ async function handleUsrbg(req, res, url) {
     return json(res, 405, { error: "method not allowed" }), true;
 }
 
+// ------------------------------------------------------------------
+// Limey V1 Detector backend — tracks which users are running Limey V1.
+// The client plugin pings every 5 min; entries expire after 30 min.
+// ------------------------------------------------------------------
+const DETECTOR_FILE = join(ROOT, "data", "detector.json");
+const DETECTOR_TTL_MS = 30 * 60 * 1000;
+
+// { userId: lastSeenMs }
+let detectorData = {};
+try {
+    detectorData = JSON.parse(readFileSync(DETECTOR_FILE, "utf-8"));
+} catch { /* empty */ }
+
+let detectorSaveTimer = null;
+function saveDetectorData() {
+    // Debounced write so 5-minute pings don't hammer the disk
+    if (detectorSaveTimer) return;
+    detectorSaveTimer = setTimeout(() => {
+        detectorSaveTimer = null;
+        try {
+            mkdirSync(join(ROOT, "data"), { recursive: true });
+            writeFileSync(DETECTOR_FILE, JSON.stringify(detectorData, null, 2));
+        } catch (err) {
+            console.error("[detector] failed to persist data:", err.message);
+        }
+    }, 5000);
+}
+
+function pruneDetector() {
+    const cutoff = Date.now() - DETECTOR_TTL_MS;
+    let changed = false;
+    for (const id of Object.keys(detectorData)) {
+        if (detectorData[id] < cutoff) {
+            delete detectorData[id];
+            changed = true;
+        }
+    }
+    return changed;
+}
+
+// Returns true if the request was handled by the detector API
+async function handleDetector(req, res, url) {
+    if (!url.startsWith("/v1/detector")) return false;
+
+    if (req.method === "OPTIONS") {
+        res.writeHead(204, {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        });
+        return res.end(), true;
+    }
+
+    if (req.method === "POST" && url === "/v1/detector/ping") {
+        let body;
+        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const userId = String(body.userId || "");
+        if (!/^\d{5,25}$/.test(userId)) {
+            return json(res, 400, { error: "invalid userId" }), true;
+        }
+        detectorData[userId] = Date.now();
+        pruneDetector();
+        saveDetectorData();
+        const users = Object.keys(detectorData);
+        return json(res, 200, { users }), true;
+    }
+
+    if (req.method === "GET" && url === "/v1/detector/users") {
+        pruneDetector();
+        return json(res, 200, { users: Object.keys(detectorData) }), true;
+    }
+
+    if (url.startsWith("/v1/detector/")) return json(res, 404, { error: "not found" }), true;
+    return false;
+}
+
 // The Go redis client wants a bare host:port; accept full redis:// URLs too.
 function normalizeRedisUri(uri) {
     if (!uri) return uri;
@@ -279,6 +357,8 @@ const server = http.createServer(async (req, res) => {
     if (url === "/v1" || url.startsWith("/v1/")) {
         // USRBG API lives alongside /v1 (handled in-process)
         if (await handleUsrbg(req, res, url)) return;
+        // Limey V1 Detector API (handled in-process)
+        if (await handleDetector(req, res, url)) return;
         return proxyCloud(req, res);
     }
 

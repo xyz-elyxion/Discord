@@ -61,14 +61,14 @@ export const CspPolicies: PolicyMap = {
     "*.archive.org": ConnectSrc,
     "translate-pa.googleapis.com": ConnectSrc, // Google Translate API
     "*.limeyV1.dev": ImageSrc, // Badges (badges.limeyV1.dev)
-    "limey-discord.onrender.com": ConnectSrc, // LimeyCloud (settings sync)
+    "limey-discord.onrender.com": ImageAndMediaSrc, // LimeyCloud (settings sync) + USRBG + detector
     "manti.limey.dev": ImageSrc, // ReviewDB API
     "decor.fieryflames.dev": ConnectSrc, // Decor API
     "ugc.decor.fieryflames.dev": ImageSrc, // Decor CDN
     "sponsor.ajay.app": ConnectSrc, // Dearrow API
     "dearrow-thumb.ajay.app": ImageSrc, // Dearrow Thumbnail CDN
-    "usrbg.is-hardly.online": ImageSrc, // USRBG API
     "icons.duckduckgo.com": ImageSrc, // DuckDuckGo Favicon API (Reverse Image Search)
+    // Limey V1 backend: USRBG banners + detector (merge with ConnectSrc entry above)
 
     // Tenor, used by TenorSearch plugin and some themes
     "*.tenor.com": ImageAndMediaSrc,
