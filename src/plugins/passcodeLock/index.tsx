@@ -379,7 +379,8 @@ const V1Plugin = {
     autolockTimeout: undefined as ReturnType<typeof setTimeout> | undefined,
 
     lock(mode: "default" | "editor" = "default") {
-        if (this.locked) return;
+        // Clean up any stale lock state from a previous failed attempt
+        if (this.locked) this.unlock();
         if (!hasPasscode() && mode === "default") {
             return void showToast("Please first set up the passcode in the plugin settings.", Toasts.Type.FAILURE);
         }
@@ -425,7 +426,6 @@ const V1Plugin = {
     },
 
     unlock() {
-        if (!this.locked) return;
         this.locked = false;
         settings.store.locked = false;
         settings.store.attempts = 0;
@@ -466,7 +466,7 @@ const V1Plugin = {
         window.addEventListener("blur", this.blurListener);
         window.addEventListener("focus", this.focusListener);
 
-        if (settings.store.lockOnStartup || settings.store.locked) setTimeout(() => this.lock());
+        if (hasPasscode() && (settings.store.lockOnStartup || settings.store.locked)) setTimeout(() => this.lock());
     },
 
     stop() {
