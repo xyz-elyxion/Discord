@@ -74,6 +74,15 @@ async function handleUsrbg(req, res, url) {
         return res.end(), true;
     }
 
+    // Admin listing (requires token): full entries incl. image URLs
+    if (req.method === "GET" && url === "/v1/usrbg/admin/users") {
+        const adminToken = process.env.USRBG_ADMIN_TOKEN;
+        if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) {
+            return json(res, 401, { error: "unauthorized" }), true;
+        }
+        return json(res, 200, usrbgData), true;
+    }
+
     // GET /v1/usrbg/users — the list consumed by the USRBG client plugin
     if (req.method === "GET" && url === "/v1/usrbg/users") {
         const users = {};
@@ -96,9 +105,10 @@ async function handleUsrbg(req, res, url) {
         return res.end(), true;
     }
 
-    // PUT/DELETE require the admin token if one is configured
+    // PUT/DELETE are only allowed with the admin token (the bot uses the same
+    // USRBG_ADMIN_TOKEN env var, so only it — and whoever holds the token — can write)
     const adminToken = process.env.USRBG_ADMIN_TOKEN;
-    if (adminToken && req.headers.authorization !== `Bearer ${adminToken}`) {
+    if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) {
         return json(res, 401, { error: "unauthorized" }), true;
     }
 
