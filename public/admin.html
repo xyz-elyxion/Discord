@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Limey V1 — Admin Panel</title>
+<link rel="stylesheet" href="/style.css" />
+<style>
+    body {
+        background: #0d0f13;
+        color: #e6e6e6;
+        font-family: "gg sans", "Segoe UI", system-ui, sans-serif;
+        display: flex;
+        justify-content: center;
+        padding: 48px 16px;
+        min-height: 100vh;
+        margin: 0;
+        box-sizing: border-box;
+    }
+    .panel {
+        width: 100%;
+        max-width: 720px;
+        background: #16181d;
+        border: 1px solid #2a2d34;
+        border-radius: 12px;
+        padding: 32px;
+    }
+    h1 {
+        margin: 0 0 4px;
+        font-size: 24px;
+        color: #9eea6f;
+    }
+    .sub {
+        color: #8b909b;
+        font-size: 14px;
+        margin-bottom: 24px;
+    }
+    .card {
+        background: #1d2026;
+        border: 1px solid #2a2d34;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    label {
+        display: block;
+        font-size: 13px;
+        color: #b8bdc7;
+        margin: 12px 0 4px;
+    }
+    input, select {
+        width: 100%;
+        box-sizing: border-box;
+        background: #0d0f13;
+        color: #e6e6e6;
+        border: 1px solid #343842;
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+    input:focus, select:focus {
+        outline: none;
+        border-color: #9eea6f;
+    }
+    button {
+        background: #9eea6f;
+        color: #10130a;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 12px;
+    }
+    button:hover { filter: brightness(1.1); }
+    button.danger {
+        background: transparent;
+        color: #ff6b6b;
+        border: 1px solid #ff6b6b;
+        padding: 6px 12px;
+        font-size: 12px;
+        margin: 0;
+    }
+    .token-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid #2a2d34;
+    }
+    .token-row:last-child { border-bottom: none; }
+    .token-meta { flex: 1; }
+    .token-id {
+        font-family: monospace;
+        color: #9eea6f;
+        font-size: 13px;
+    }
+    .token-sub {
+        font-size: 12px;
+        color: #8b909b;
+        margin-top: 2px;
+    }
+    .badge {
+        display: inline-block;
+        background: #26301c;
+        color: #9eea6f;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-left: 8px;
+    }
+    .badge.hf { background: #2a2438; color: #c9a6ff; }
+    .msg { margin-top: 12px; font-size: 13px; min-height: 18px; }
+    .msg.err { color: #ff6b6b; }
+    .msg.ok { color: #9eea6f; }
+    .test-result { font-size: 12px; color: #8b909b; margin-top: 6px; }
+    .lockbox {
+        margin-bottom: 24px;
+    }
+    .hidden { display: none; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<div class="panel">
+    <h1>Limey V1 Admin</h1>
+    <p class="sub">Manage the AI token pool used by MessageScanAI. Tokens are stored server-side and never sent to clients.</p>
+
+    <div class="card lockbox" id="lockbox">
+        <label for="admintoken">Admin token</label>
+        <input type="password" id="admintoken" placeholder="USRBG_ADMIN_TOKEN" autocomplete="off" />
+        <button id="unlock">Unlock</button>
+        <div class="msg" id="lockmsg"></div>
+    </div>
+
+    <div id="content" class="hidden">
+        <div class="card">
+            <h2>Add AI token</h2>
+            <label for="provider">Provider</label>
+            <select id="provider">
+                <option value="gemini">Google Gemini</option>
+                <option value="huggingface">Hugging Face</option>
+            </select>
+            <label for="token">API token</label>
+            <input type="password" id="token" placeholder="Paste the API key / access token" autocomplete="off" />
+            <button id="add">Add token</button>
+            <div class="msg" id="addmsg"></div>
+            <div class="test-result" id="testresult"></div>
+        </div>
+
+        <div class="card">
+            <h2>Token pool <span id="poolcount" class="badge">0</span></h2>
+            <div id="toklist"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let adminToken = sessionStorage.getItem("limey-admin-token") || "";
+
+    function authHeaders() {
+        return { "Content-Type": "application/json", "Authorization": "Bearer " + adminToken };
+    }
+
+    function show(el, text, ok) {
+        el.textContent = text;
+        el.className = "msg " + (ok ? "ok" : "err");
+    }
+
+    async function loadTokens() {
+        const res = await fetch("/v1/admin/ai/tokens", { headers: authHeaders() });
+        if (res.status === 401) {
+            sessionStorage.removeItem("limey-admin-token");
+            document.getElementById("lockbox").classList.remove("hidden");
+            document.getElementById("content").classList.add("hidden");
+            return;
+        }
+        const data = await res.json();
+        const list = document.getElementById("toklist");
+        list.innerHTML = "";
+        (data.tokens || []).forEach(t => {
+            const row = document.createElement("div");
+            row.className = "token-row";
+
+            const meta = document.createElement("div");
+            meta.className = "token-meta";
+            const providerBadge = t.provider === "huggingface" ? "Hugging Face" : "Gemini";
+            meta.innerHTML =
+                `<span class="token-id">${t.preview}</span>` +
+                `<span class="badge ${t.provider === "huggingface" ? "hf" : ""}">${providerBadge}</span>` +
+                `<div class="token-sub">used ${t.uses}× · ${t.errors} errors · added ${new Date(t.addedAt).toLocaleDateString()}</div>`;
+            row.appendChild(meta);
+
+            const del = document.createElement("button");
+            del.className = "danger";
+            del.textContent = "Remove";
+            del.onclick = async () => {
+                if (!confirm("Remove this token from the pool?")) return;
+                await fetch(`/v1/admin/ai/tokens/${t.id}`, { method: "DELETE", headers: authHeaders() });
+                loadTokens();
+            };
+            row.appendChild(del);
+            list.appendChild(row);
+        });
+        document.getElementById("poolcount").textContent = (data.tokens || []).length;
+    }
+
+    document.getElementById("unlock").onclick = async () => {
+        adminToken = document.getElementById("admintoken").value.trim();
+        const res = await fetch("/v1/admin/ai/tokens", { headers: authHeaders() });
+        if (res.ok) {
+            sessionStorage.setItem("limey-admin-token", adminToken);
+            document.getElementById("lockbox").classList.add("hidden");
+            document.getElementById("content").classList.remove("hidden");
+            show(document.getElementById("lockmsg"), "", true);
+            loadTokens();
+        } else {
+            show(document.getElementById("lockmsg"), "Wrong admin token.", false);
+        }
+    };
+    document.getElementById("admintoken").addEventListener("keydown", e => {
+        if (e.key === "Enter") document.getElementById("unlock").click();
+    });
+
+    document.getElementById("add").onclick = async () => {
+        const msg = document.getElementById("addmsg");
+        const provider = document.getElementById("provider").value;
+        const token = document.getElementById("token").value.trim();
+        if (!token) return show(msg, "Paste a token first.", false);
+
+        const res = await fetch("/v1/admin/ai/tokens", {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ provider, token })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            show(msg, "Token added to the pool.", true);
+            document.getElementById("token").value = "";
+            loadTokens();
+        } else {
+            show(msg, data.error || "Failed to add token.", false);
+        }
+    };
+
+    if (adminToken) {
+        // Try restoring the session
+        fetch("/v1/admin/ai/tokens", { headers: authHeaders() }).then(res => {
+            if (res.ok) {
+                document.getElementById("lockbox").classList.add("hidden");
+                document.getElementById("content").classList.remove("hidden");
+                loadTokens();
+            }
+        });
+    }
+</script>
+</body>
+</html>

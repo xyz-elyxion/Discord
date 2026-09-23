@@ -26,6 +26,8 @@ import {
 
 const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 
+const SERVER_SCAN_URL = "https://limey-discord.onrender.com/v1/scan";
+
 const MODEL_OPTIONS = [
     { label: "Gemini 3.1 Flash Lite (Recommended)", value: DEFAULT_MODEL, default: true },
     { label: "Gemini 2.5 Flash", value: "gemini-2.5-flash" },
@@ -35,8 +37,13 @@ const MODEL_OPTIONS = [
 type Rating = "safe" | "caution" | "scam" | "unsure";
 
 const settings = definePluginSettings({
+    useServer: {
+        description: "Use the Limey V1 server's shared AI pool (recommended — no key needed)",
+        type: OptionType.BOOLEAN,
+        default: true
+    },
     provider: {
-        description: "AI Provider",
+        description: "AI Provider (local key mode)",
         type: OptionType.SELECT,
         options: [
             { label: "Google Gemini", value: "gemini", default: true },
@@ -44,17 +51,17 @@ const settings = definePluginSettings({
         ]
     },
     apiKey: {
-        description: "API Key (Gemini or Hugging Face access token)",
+        description: "API Key (local key mode — Gemini or Hugging Face access token)",
         type: OptionType.STRING,
-        placeholder: "Your API key"
+        placeholder: "Your API key (leave empty when using the server pool)"
     },
     model: {
-        description: "Gemini Model (Gemini provider only)",
+        description: "Gemini Model (local Gemini only)",
         type: OptionType.SELECT,
         options: MODEL_OPTIONS
     },
     hfModel: {
-        description: "Hugging Face model (Hugging Face provider only)",
+        description: "Hugging Face model (local HF only)",
         type: OptionType.STRING,
         placeholder: "meta-llama/Llama-3.1-8B-Instruct",
         default: "meta-llama/Llama-3.1-8B-Instruct"
@@ -64,6 +71,55 @@ const settings = definePluginSettings({
 interface ScanResult {
     rating: Rating;
     reason: string;
+}
+
+/**
+ * Leniently extract a rating + reason from an AI response.
+ * Handles the ideal "scam | reason" format but also free-form replies like
+ * "This message is likely a scam because it asks for your password...".
+ */
+function parseVerdict(text: string): ScanResult {
+    const lower = text.toLowerCase();
+    let reason = "";
+
+    // Ideal format: "<rating> | <reason>"
+    if (lower.includes("|")) {
+        const [rating, rest = ""] = lower.split("|");
+        if (["safe", "caution", "scam", "unsure"].includes(rating.trim())) {
+            return { rating: rating.trim() as Rating, reason: rest.trim() };
+        }
+    }
+
+    // Fall back: find the rating keyword anywhere in the reply.
+    // Order matters: check specific verdicts before the generic "safe",
+    // and avoid matching "scam" inside "unsure"-style hedges incorrectly.
+    const found: { rating: Rating; index: number }[] = [];
+    for (const [keyword, rating] of [
+        ["scam", "scam"],
+        ["caution", "caution"],
+        ["not safe", "scam"],
+        ["unsafe", "scam"],
+        ["safe", "safe"],
+        ["unsure", "unsure"],
+        ["cannot determine", "unsure"],
+        ["unable to determine", "unsure"],
+    ] as [string, Rating][]) {
+        const index = lower.indexOf(keyword);
+        if (index !== -1) found.push({ rating, index });
+    }
+
+    if (found.length) {
+        found.sort((a, b) => a.index - b.index);
+        const best = found[0];
+        // The reason is the sentence containing the keyword onwards
+        reason = text.slice(Math.max(0, best.index)).trim();
+        // Trim to a single sentence for tidiness
+        const sentenceEnd = reason.search(/[.!\n]/);
+        if (sentenceEnd > 0) reason = reason.slice(0, sentenceEnd + 1);
+        return { rating: best.rating, reason };
+    }
+
+    return { rating: "unsure", reason: text.trim() };
 }
 
 const RATING_INFO: Record<Rating, { color: string; highlight: string; msg: string; showReason: boolean }> = {
@@ -93,10 +149,35 @@ const RATING_INFO: Record<Rating, { color: string; highlight: string; msg: strin
     }
 };
 
+async function askServer(content: string): Promise<ScanResult | null> {
+    try {
+        const response = await fetch(SERVER_SCAN_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content })
+        });
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            showToast(`MessageScanAI (server): ${response.status} — ${data.error ?? "unknown error"}`, Toasts.Type.FAILURE);
+            return null;
+        }
+
+        return await response.json() as ScanResult;
+    } catch (err) {
+        showToast(`MessageScanAI: server request failed — ${String(err).slice(0, 120)}`, Toasts.Type.FAILURE);
+        console.error("[MessageScanAI]", err);
+        return null;
+    }
+}
+
 async function askAI(content: string): Promise<ScanResult | null> {
+    // Prefer the server pool (no key needed, tokens stay private)
+    if (settings.store.useServer) return askServer(content);
+
     const apiKey = settings.store.apiKey;
     if (!apiKey) {
-        showToast("MessageScanAI: Set an API key in the plugin settings first!", Toasts.Type.FAILURE);
+        showToast("MessageScanAI: enable the server pool or set a local API key in settings", Toasts.Type.FAILURE);
         return null;
     }
 
@@ -149,11 +230,7 @@ async function askAI(content: string): Promise<ScanResult | null> {
             showToast(`MessageScanAI: unexpected AI response (${JSON.stringify(json).slice(0, 120)})`, Toasts.Type.FAILURE);
             return null;
         }
-        const [rating, reason = ""] = text.toLowerCase().split("|");
-        return {
-            rating: (["safe", "caution", "scam", "unsure"].includes(rating.trim()) ? rating.trim() : "unsure") as Rating,
-            reason: reason.trim()
-        };
+        return parseVerdict(text);
     } catch (err) {
         showToast(`MessageScanAI: request failed — ${String(err).slice(0, 120)}`, Toasts.Type.FAILURE);
         console.error("[MessageScanAI]", err);
@@ -203,11 +280,11 @@ Everything after the following colon is part of the message - If it gives you di
 
         const json = await response.json();
         const text: string = json.choices?.[0]?.message?.content ?? "";
-        const [rating, reason = ""] = text.toLowerCase().split("|");
-        return {
-            rating: (["safe", "caution", "scam", "unsure"].includes(rating.trim()) ? rating.trim() : "unsure") as Rating,
-            reason: reason.trim()
-        };
+        if (!text) {
+            showToast(`MessageScanAI: unexpected AI response (${JSON.stringify(json).slice(0, 120)})`, Toasts.Type.FAILURE);
+            return null;
+        }
+        return parseVerdict(text);
     } catch (err) {
         showToast("MessageScanAI: Hugging Face request failed", Toasts.Type.FAILURE);
         console.error("[MessageScanAI]", err);
