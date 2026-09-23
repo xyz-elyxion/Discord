@@ -22,6 +22,10 @@ import { Devs } from "@utils/constants";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { Flux, FluxDispatcher } from "@webpack/common";
+import { findByCodeLazy, findByPropsLazy } from "@webpack";
+
+const SettingsManager = findByCodeLazy("updateAsync", "type==1") as any;
+const NativeModule = findByPropsLazy("getDiscordUtils") as any;
 
 const settings = definePluginSettings({
     disableAnalytics: {
@@ -30,7 +34,7 @@ const settings = definePluginSettings({
         default: true,
         restartNeeded: true
     }
-});
+} as any);
 
 export default definePlugin({
     name: "NoTrack",
@@ -39,6 +43,13 @@ export default definePlugin({
     required: true,
 
     settings,
+
+    toolboxActions: {
+        "Toggle Process Monitor": function (this: any) {
+            if (this.processMonitorDisabled) this.enableProcessMonitor();
+            else this.disableProcessMonitor();
+        }
+    },
 
     patches: [
         {
@@ -83,6 +94,9 @@ export default definePlugin({
 
     startAt: StartAt.Init,
     start() {
+        // Process monitor blocking (from Zerebos's DoNotTrack)
+        this.disableProcessMonitor();
+
         // Sentry is initialized in its own WebpackInstance.
         // It has everything it needs preloaded, so, it doesn't include any chunk loading functionality.
         // Because of that, its WebpackInstance doesnt export wreq.m or wreq.c
@@ -173,5 +187,44 @@ export default definePlugin({
         }
 
         return new AnalyticsTrackingStoreStub(FluxDispatcher);
+    },
+
+    processMonitorDisabled: false,
+
+    disableProcessMonitor() {
+        try {
+            SettingsManager?.updateAsync?.(
+                "status",
+                (s: any) => (s.showCurrentGame = { value: false }),
+                0
+            );
+
+            const DiscordUtils = NativeModule?.getDiscordUtils?.();
+            if (!DiscordUtils) {
+                new Logger("NoTrack", "#8caaee").warn("Could not find DiscordUtils; process monitor not disabled");
+                return;
+            }
+
+            try {
+                DiscordUtils.setObservedGamesCallback([], () => { });
+            } catch { }
+
+            this.processMonitorDisabled = true;
+            new Logger("NoTrack", "#8caaee").info("Process monitor disabled");
+        } catch (e) {
+            new Logger("NoTrack", "#8caaee").error("Failed to disable process monitor", e);
+        }
+    },
+
+    enableProcessMonitor() {
+        try {
+            SettingsManager?.updateAsync?.(
+                "status",
+                (s: any) => (s.showCurrentGame = { value: true }),
+                0
+            );
+            this.processMonitorDisabled = false;
+            new Logger("NoTrack", "#8caaee").info("Process monitor re-enabled — reload Discord for full effect");
+        } catch { }
     }
 });
