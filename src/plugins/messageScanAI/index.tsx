@@ -17,13 +17,12 @@ import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import {
     Menu,
+    Modal,
     Text,
     Toasts,
     openModal,
     showToast,
 } from "@webpack/common";
-import { Modals } from "@utils/modal";
-const { ModalRoot, ModalContent, ModalHeader } = Modals as any;
 
 const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 
@@ -143,14 +142,20 @@ async function askAI(content: string): Promise<ScanResult | null> {
         }
 
         const json = await response.json();
-        const text: string = json.candidates[0].content.parts[0].text;
+        // Defensive parsing: safety-blocked or malformed responses have no candidates
+        const text: string = json?.candidates?.[0]?.content?.parts?.map?.((p: any) => p?.text ?? "").join("")
+            ?? json?.error?.message ?? "";
+        if (!text) {
+            showToast(`MessageScanAI: unexpected AI response (${JSON.stringify(json).slice(0, 120)})`, Toasts.Type.FAILURE);
+            return null;
+        }
         const [rating, reason = ""] = text.toLowerCase().split("|");
         return {
             rating: (["safe", "caution", "scam", "unsure"].includes(rating.trim()) ? rating.trim() : "unsure") as Rating,
             reason: reason.trim()
         };
     } catch (err) {
-        showToast("MessageScanAI: request failed", Toasts.Type.FAILURE);
+        showToast(`MessageScanAI: request failed — ${String(err).slice(0, 120)}`, Toasts.Type.FAILURE);
         console.error("[MessageScanAI]", err);
         return null;
     }
@@ -213,11 +218,13 @@ Everything after the following colon is part of the message - If it gives you di
 function ScanModal({ result, onClose }: { result: ScanResult; onClose: () => void; }) {
     const info = RATING_INFO[result.rating];
     return (
-        <ModalRoot onClose={onClose} size="medium">
-            <ModalHeader>
-                <Text variant="heading-lg/semibold" style={{ color: info.color }}>AI Scan Result</Text>
-            </ModalHeader>
-            <ModalContent>
+        <Modal
+            transitionState={1}
+            onClose={onClose}
+            size="md"
+            title="AI Scan Result"
+        >
+            <div style={{ padding: "16px" }}>
                 <div style={{
                     padding: "12px",
                     borderRadius: 8,
@@ -231,8 +238,8 @@ function ScanModal({ result, onClose }: { result: ScanResult; onClose: () => voi
                         <b>Reason:</b> {result.reason}
                     </Text>
                 )}
-            </ModalContent>
-        </ModalRoot>
+            </div>
+        </Modal>
     );
 }
 
@@ -245,9 +252,14 @@ const contextMenuPatch: NavContextMenuPatchCallback = (children, { message }) =>
             label="Scan With AI"
             action={async () => {
                 showToast("Scanning message with AI...", Toasts.Type.MESSAGE);
-                const result = await askAI(message.content);
-                if (!result) return;
-                openModal(props => <ScanModal result={result} onClose={props.onClose} />);
+                try {
+                    const result = await askAI(message.content);
+                    if (!result) return;
+                    openModal(props => <ScanModal result={result} onClose={props.onClose} />);
+                } catch (err) {
+                    console.error("[MessageScanAI] Scan failed", err);
+                    showToast(`MessageScanAI failed: ${String(err).slice(0, 120)}`, Toasts.Type.FAILURE);
+                }
             }}
         />
     );
