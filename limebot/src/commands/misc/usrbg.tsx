@@ -18,7 +18,13 @@ function isAdmin(i: any) {
     const perms = i.member?.permissions;
     if (perms === undefined || perms === null) return false;
     try {
-        return (BigInt(String(perms)) & 8n) !== 0n; // ADMINISTRATOR
+        // oceanic.js gives us a Permission instance (with .allow/.has),
+        // or sometimes a raw bigint/string bitfield — handle both.
+        const bits: bigint =
+            typeof perms.has === "function" ? perms.allow
+            : typeof perms === "bigint" ? perms
+            : BigInt(perms);
+        return (bits & 8n) !== 0n; // ADMINISTRATOR
     } catch {
         return false;
     }
