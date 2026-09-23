@@ -100,7 +100,7 @@ const settings = definePluginSettings({
     lockOnStartup: {
         description: "Always lock on startup",
         type: OptionType.BOOLEAN,
-        default: true
+        default: false
     },
     hideNotifications: {
         description: "Censor notifications while locked",
