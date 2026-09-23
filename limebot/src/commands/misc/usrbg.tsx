@@ -47,7 +47,7 @@ registerChatInputCommand(
     {
         guildOnly: true,
         async handle(i) {
-            await i.defer({ flags: MessageFlags.EPHEMERAL });
+            await i.defer(MessageFlags.EPHEMERAL);
 
             if (!isAdmin(i))
                 return void i.createFollowup({ content: "Only server administrators can use this command.", flags: MessageFlags.EPHEMERAL });
@@ -88,7 +88,7 @@ registerChatInputCommand(
     {
         guildOnly: true,
         async handle(i) {
-            await i.defer({ flags: MessageFlags.EPHEMERAL });
+            await i.defer(MessageFlags.EPHEMERAL);
 
             if (!isAdmin(i))
                 return void i.createFollowup({ content: "Only server administrators can use this command.", flags: MessageFlags.EPHEMERAL });
