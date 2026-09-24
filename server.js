@@ -757,12 +757,17 @@ function serveFile(res, filePath, status = 200) {
     }
 }
 
-// Plugins page — served for /plugins and /plugins/
-function servePluginsPage(res, url) {
-    if (url !== "/plugins" && url !== "/plugins/") return false;
-    const page = join(PUBLIC, "plugins.html");
-    if (!existsSync(page)) return send(res, 404, "Not found"), true;
-    serveFile(res, page);
+// Named static pages served at clean URLs
+const NAMED_PAGES = {
+    "/plugins": "plugins.html",
+    "/download": "download.html",
+    "/404": "404.html",
+};
+
+function serveNamedPage(res, url) {
+    const page = NAMED_PAGES[url];
+    if (!page) return false;
+    serveFile(res, join(PUBLIC, page));
     return true;
 }
 
@@ -779,8 +784,8 @@ function serveAdminPage(res, url) {
 const server = http.createServer(async (req, res) => {
     const url = decodeURIComponent((req.url || "/").split("?")[0]);
 
-    // Plugins catalog page
-    if (servePluginsPage(res, url)) return;
+    // Named pages (plugins, download, 404)
+    if (serveNamedPage(res, url)) return;
 
     // Admin panel page
     if (serveAdminPage(res, url)) return;

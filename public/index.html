@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Limey V1 — The cutest Discord client mod</title>
-    <meta name="description" content="Limey V1 is a lightweight Discord client mod with 100+ built-in plugins, custom themes and CSS. Install the userscript in seconds.">
+    <meta name="description" content="Limey V1 is a lightweight Discord client mod with 100+ built-in plugins, custom themes and CSS. Install the browser extension in seconds.">
     <link rel="icon" href="/browser/icon.png" type="image/png">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -18,7 +18,7 @@
             <nav class="nav-links">
                 <a href="#features">Features</a>
                 <a href="/plugins/">Plugins</a>
-                <a href="#install">Install</a>
+                <a href="/download">Download</a>
                 <a href="/usrbg.html">USRBG</a>
                 <a href="https://limey-discord.onrender.com" target="_blank" rel="noopener">GitHub</a>
             </nav>
@@ -36,10 +36,10 @@
                     No Nitro required, no telemetry, GPL&#8209;3.0 open source.
                 </p>
                 <div class="hero-actions">
-                    <a id="install-btn" class="btn btn-primary" href="/dist/LimeyV1.user.js">Install Userscript</a>
-                    <a class="btn btn-ghost" href="#install">How to install</a>
+                    <a id="install-btn" class="btn btn-primary" href="/download">Install Limey V1</a>
+                    <a class="btn btn-ghost" href="/plugins/">Browse plugins</a>
                 </div>
-                <p class="hint">Requires a userscript manager like Tampermonkey or Violentmonkey.</p>
+                <p class="hint">Browser extension or desktop inject — pick your install method.</p>
             </div>
         </section>
 
@@ -80,16 +80,13 @@
                 <h2>Install in 3 steps</h2>
                 <ol class="steps">
                     <li>
-                        <strong>Install a userscript manager.</strong>
-                        Get <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a>
-                        or <a href="https://violentmonkey.github.io/" target="_blank" rel="noopener">Violentmonkey</a>
-                        for your browser.
+                        <strong>Download the extension.</strong>
+                        Grab <a href="/dist/LimeyV1-Extension.zip">LimeyV1-Extension.zip</a> and unzip it.
                     </li>
                     <li>
-                        <strong>Download Limey V1.</strong>
-                        Click the install button above, or grab
-                        <a href="/dist/LimeyV1.user.js">dist/LimeyV1.user.js</a> directly.
-                        Your userscript manager should offer to install it automatically.
+                        <strong>Load it in your browser.</strong>
+                        Chrome/Edge: open <code>chrome://extensions</code>, enable Developer mode, click "Load unpacked" and select the unzipped folder.
+                        Firefox: open <code>about:debugging</code> and load the extension temporarily.
                     </li>
                     <li>
                         <strong>Open Discord.</strong>
@@ -98,9 +95,8 @@
                     </li>
                 </ol>
                 <p class="note">
-                    Client modifications technically violate Discord's Terms of Service.
-                    No users have ever been banned for simply using one, but use common sense and
-                    don't run abusive plugins.
+                    Prefer the Discord desktop app? See the
+                    <a href="/download">download page</a> for the desktop inject method.
                 </p>
             </div>
         </section>

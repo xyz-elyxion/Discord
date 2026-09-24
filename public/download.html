@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download — Limey V1</title>
+    <meta name="description" content="Install Limey V1 as a browser extension or inject it into the Discord desktop app.">
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .dl-hero {
+            padding: 72px 0 40px;
+            text-align: center;
+            background: radial-gradient(ellipse 60% 50% at 50% -10%, rgba(163, 230, 53, 0.12), transparent), var(--bg);
+        }
+        .dl-hero h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            margin-bottom: 12px;
+        }
+        .dl-hero .lede { margin-bottom: 0; }
+
+        .methods {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 32px 0 16px;
+        }
+        .method {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: border-color 0.15s, transform 0.15s;
+        }
+        .method:hover {
+            border-color: var(--lime-dark);
+            transform: translateY(-2px);
+        }
+        .method.recommended {
+            border-color: var(--lime);
+            box-shadow: 0 0 24px rgba(163, 230, 53, 0.12);
+        }
+        .method-badge {
+            align-self: flex-start;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 4px 12px;
+            border-radius: 999px;
+            background: var(--lime-dark);
+            color: var(--lime);
+        }
+        .method h2 {
+            font-size: 1.25rem;
+            color: var(--lime);
+            margin: 0;
+        }
+        .method p {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+            flex: 1;
+        }
+        .method .btn { text-align: center; }
+        .method ol {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            padding-left: 20px;
+            display: grid;
+            gap: 6px;
+        }
+        .method ol a { color: var(--lime); }
+        .method .platforms {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            opacity: 0.8;
+        }
+
+        .section-note {
+            padding: 24px 0 72px;
+        }
+        .note {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+        .note a { color: var(--lime); }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <a href="/plugins/">Plugins</a>
+                <a href="/usrbg.html">USRBG</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="dl-hero">
+        <div class="container">
+            <p class="eyebrow">Get Limey V1</p>
+            <h1>Pick your <span class="accent">install method</span>.</h1>
+            <p class="lede">Two ways to run Limey V1 — pick whichever fits how you use Discord.</p>
+        </div>
+    </section>
+
+    <main class="container">
+        <div class="methods">
+            <!-- Browser extension -->
+            <div class="method recommended">
+                <h2>Browser Extension</h2>
+                <p>Load Limey V1 as a real browser extension. Works with discord.com in any Chromium browser or Firefox.</p>
+                <ol>
+                    <li>Download the extension zip below and unzip it.</li>
+                    <li>Chrome/Edge: open <code>chrome://extensions</code>, enable <strong>Developer mode</strong>, click <strong>Load unpacked</strong>, select the unzipped folder.</li>
+                    <li>Firefox: open <code>about:debugging#/runtime/this-firefox</code>, click <strong>Load Temporary Add-on</strong>, pick the unzipped <code>manifestv2.json</code>.</li>
+                    <li>Open <a href="https://discord.com/app" target="_blank" rel="noopener">discord.com/app</a> and reload.</li>
+                </ol>
+                <a class="btn btn-primary" href="/dist/LimeyV1-Extension.zip">Download Extension (.zip)</a>
+                <span class="platforms">Chromium &middot; Firefox</span>
+            </div>
+
+            <!-- Desktop inject -->
+            <div class="method">
+                <h2>Discord Desktop App</h2>
+                <p>Inject Limey V1 directly into the Discord desktop client, classic client-mod style. Built from source — requires Node.js and pnpm.</p>
+                <ol>
+                    <li>Clone the repository and install dependencies (<code>pnpm install</code>).</li>
+                    <li>Run <code>pnpm build</code>, then <code>pnpm inject</code>.</li>
+                    <li>Restart Discord — Limey V1 appears in Settings.</li>
+                    <li>To remove later, run <code>pnpm uninject</code>.</li>
+                </ol>
+                <a class="btn btn-ghost" href="https://limey-discord.onrender.com" target="_blank" rel="noopener">Get the Source</a>
+                <span class="platforms">Windows &middot; macOS &middot; Linux</span>
+            </div>
+        </div>
+
+        <div class="section-note">
+            <p class="note">
+                Client modifications technically violate Discord's Terms of Service.
+                No users have ever been banned for simply using one, but use common sense and
+                don't run abusive plugins. Both methods
+                provide the same plugins and features.
+            </p>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Limey V1 — GPL-3.0 &middot; <a href="/">Back to home</a></p>
+            <p class="fine">Discord is a trademark of Discord Inc. This project is not affiliated with or endorsed by Discord Inc.</p>
+        </div>
+    </footer>
+</body>
+</html>
