@@ -111,6 +111,26 @@ function handleInstall(req, res, url) {
     return true;
 }
 
+// ------------------------------------------------------------------
+// Backend-provided build: if the web bundle is missing at startup
+// (e.g. fresh clone without a build), run `pnpm buildWeb` in-process
+// via spawn so the server itself produces dist/browser.js.
+// ------------------------------------------------------------------
+function startBuildIfMissing() {
+    const bundlePath = join(DIST, "browser.js");
+    if (existsSync(bundlePath)) {
+        console.log("[build] dist/browser.js present — skipping build");
+        return;
+    }
+    console.log("[build] dist/browser.js missing — running pnpm buildWeb...");
+    const child = spawn("pnpm", ["buildWeb"], { cwd: ROOT, stdio: "inherit" });
+    child.on("error", err => console.error("[build] failed to spawn pnpm buildWeb:", err.message));
+    child.on("exit", code => {
+        if (code === 0) console.log("[build] pnpm buildWeb finished — install endpoint now serves a fresh zip");
+        else console.error(`[build] pnpm buildWeb exited with code ${code}`);
+    });
+}
+
 function parseRedisUri(uri) {
     if (!uri) return null;
     const m = /^redis[s]?:\/\/([^/?@]+@)?([^\/:?]+):(\d+)(?:\/?$|\?)/.exec(uri.trim());
@@ -939,6 +959,7 @@ function startLimebot() {
     });
 }
 
+startBuildIfMissing();
 startCloud();
 startLimebot();
 
