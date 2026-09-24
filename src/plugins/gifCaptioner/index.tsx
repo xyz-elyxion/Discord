@@ -209,9 +209,10 @@ class GifRenderer {
     }
 
     addVideoFrame(frame: VideoFrame) {
-        if (!frame.duration) return;
+        // ImageDecoder VideoFrames often have no duration — fall back to 100ms
+        const delay = (frame.duration || 100000) / 1000;
         this.ctx.drawImage(frame, 0, this.topOffset, this.width, this.height);
-        this.addFrameToGif(frame.duration / 1000);
+        this.addFrameToGif(delay);
         frame.close();
     }
 
@@ -224,6 +225,7 @@ class GifRenderer {
     }
 
     async render(): Promise<File> {
+        if (!this.frames.length) throw new Error("no decodable frames in gif");
         const gif = GIFEncoder();
         const palette = quantize(this.frames[0].rgba, 256);
         for (const frame of this.frames) {
@@ -291,7 +293,7 @@ function openCaptioner(src: string) {
                     currentTransform = transform;
                     captionAndSend(urlString).catch(err => {
                         console.error("[GifCaptioner] failed:", err);
-                        showError("Failed to caption gif");
+                        showError(`Failed to caption gif: ${err?.message || err}`);
                     });
                 }}
             />
