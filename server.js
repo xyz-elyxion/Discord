@@ -723,7 +723,16 @@ function send(res, status, body, headers = {}) {
     res.end(body);
 }
 
-function serveFile(res, filePath) {
+// Serve a themed error page for browser-facing errors (falls back to plain text)
+function sendErrorPage(res, status) {
+    const page = join(PUBLIC, `${status}.html`);
+    if (!existsSync(page)) {
+        return send(res, status, status === 403 ? "Forbidden" : status === 404 ? "Not found" : "Internal server error");
+    }
+    serveFile(res, page, status);
+}
+
+function serveFile(res, filePath, status = 200) {
     const ext = extname(filePath).toLowerCase();
     const type = MIME[ext] || "application/octet-stream";
 
@@ -739,7 +748,7 @@ function serveFile(res, filePath) {
     try {
         const stream = createReadStream(filePath);
         stream.on("open", () => {
-            res.writeHead(200, headers);
+            res.writeHead(status, headers);
             stream.pipe(res);
         });
         stream.on("error", () => send(res, 500, "Internal server error"));
@@ -793,25 +802,25 @@ const server = http.createServer(async (req, res) => {
     if (url.startsWith("/dist/")) {
         const rel = normalize(url.slice("/dist/".length)).replace(/^(\.\.[\/\\])+/, "");
         const filePath = resolve(DIST, rel);
-        if (!filePath.startsWith(DIST)) return send(res, 403, "Forbidden");
+        if (!filePath.startsWith(DIST)) return sendErrorPage(res, 403);
         if (existsSync(filePath) && statSync(filePath).isFile()) return serveFile(res, filePath);
-        return send(res, 404, "Not found");
+        return sendErrorPage(res, 404);
     }
 
     // Serve static assets from public/
     let rel = normalize(url).replace(/^(\.\.[\/\\])+/, "").replace(/^[/\\]+/, "");
     let filePath = resolve(PUBLIC, rel);
 
-    if (!filePath.startsWith(PUBLIC)) return send(res, 403, "Forbidden");
+    if (!filePath.startsWith(PUBLIC)) return sendErrorPage(res, 403);
 
     if (!existsSync(filePath)) {
-        // SPA-ish fallback to the landing page
-        filePath = join(PUBLIC, "index.html");
+        // Themed 404 page (this replaces the old SPA fallback to index.html)
+        return sendErrorPage(res, 404);
     } else if (statSync(filePath).isDirectory()) {
         filePath = join(filePath, "index.html");
     }
 
-    if (!existsSync(filePath)) return send(res, 404, "Not found");
+    if (!existsSync(filePath)) return sendErrorPage(res, 404);
     serveFile(res, filePath);
 });
 

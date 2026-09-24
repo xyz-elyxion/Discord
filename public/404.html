@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 — Page not found | Limey V1</title>
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .error-hero {
+            padding: 96px 24px 80px;
+            text-align: center;
+            background:
+                radial-gradient(ellipse 60% 50% at 50% -10%, rgba(163, 230, 53, 0.12), transparent),
+                var(--bg);
+        }
+        .error-code {
+            font-size: clamp(4rem, 14vw, 8rem);
+            font-weight: 800;
+            line-height: 1;
+            color: var(--lime);
+            text-shadow: 0 0 32px rgba(163, 230, 53, 0.4);
+            margin-bottom: 8px;
+        }
+        .error-hero h1 {
+            font-size: clamp(1.4rem, 4vw, 2rem);
+            margin-bottom: 12px;
+        }
+        .error-path {
+            display: inline-block;
+            font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+            font-size: 0.9rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 14px;
+            color: var(--text-dim);
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            margin-bottom: 24px;
+        }
+        .error-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .error-links {
+            padding: 40px 24px 72px;
+            text-align: center;
+        }
+        .error-links h2 {
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+        .error-links nav {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .error-links a {
+            color: var(--lime);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 18px;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: border-color 0.15s, transform 0.15s;
+        }
+        .error-links a:hover {
+            border-color: var(--lime-dark);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <a href="/plugins/">Plugins</a>
+                <a href="/usrbg.html">USRBG</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="error-hero">
+        <div class="error-code">404</div>
+        <h1>This page got lost in the server list.</h1>
+        <p class="error-path" id="path"></p>
+        <div class="error-actions">
+            <a class="btn btn-primary" href="/">Go home</a>
+            <a class="btn btn-ghost" href="/dist/LimeyV1.user.js">Install Limey V1</a>
+        </div>
+    </section>
+
+    <section class="error-links">
+        <h2>Maybe you were looking for:</h2>
+        <nav>
+            <a href="/plugins/">Plugin list</a>
+            <a href="/usrbg.html">USRBG banners</a>
+            <a href="/dist/LimeyV1.user.js">Userscript download</a>
+        </nav>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Limey V1 — GPL-3.0 &middot; <a href="/">Back to home</a></p>
+            <p class="fine">Discord is a trademark of Discord Inc. This project is not affiliated with or endorsed by Discord Inc.</p>
+        </div>
+    </footer>
+
+    <script>
+        try {
+            var url = decodeURIComponent(location.pathname);
+            // escape for safe insertion
+            document.getElementById("path").textContent = url;
+        } catch (_) {}
+    </script>
+</body>
+</html>

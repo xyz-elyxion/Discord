@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 — Forbidden | Limey V1</title>
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .error-hero {
+            padding: 96px 24px 80px;
+            text-align: center;
+            background:
+                radial-gradient(ellipse 60% 50% at 50% -10%, rgba(163, 230, 53, 0.12), transparent),
+                var(--bg);
+        }
+        .error-code {
+            font-size: clamp(4rem, 14vw, 8rem);
+            font-weight: 800;
+            line-height: 1;
+            color: var(--lime);
+            text-shadow: 0 0 32px rgba(163, 230, 53, 0.4);
+            margin-bottom: 8px;
+        }
+        .error-hero h1 {
+            font-size: clamp(1.4rem, 4vw, 2rem);
+            margin-bottom: 12px;
+        }
+        .error-hero .lede {
+            margin-bottom: 24px;
+        }
+        .error-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <a href="/plugins/">Plugins</a>
+                <a href="/usrbg.html">USRBG</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="error-hero">
+        <div class="error-code">403</div>
+        <h1>You can't touch this.</h1>
+        <p class="lede">Access to this resource is restricted. If you think this is a mistake, head back and try something else.</p>
+        <div class="error-actions">
+            <a class="btn btn-primary" href="/">Go home</a>
+            <a class="btn btn-ghost" href="/plugins/">Browse plugins</a>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Limey V1 — GPL-3.0 &middot; <a href="/">Back to home</a></p>
+            <p class="fine">Discord is a trademark of Discord Inc. This project is not affiliated with or endorsed by Discord Inc.</p>
+        </div>
+    </footer>
+</body>
+</html>
