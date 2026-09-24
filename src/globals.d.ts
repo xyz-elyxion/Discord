@@ -35,6 +35,8 @@ declare global {
     export var IS_WEB: boolean;
     export var IS_EXTENSION: boolean;
     export var IS_USERSCRIPT: boolean;
+    /** Only defined when running as a userscript (Tampermonkey/Violentmonkey grant). */
+    export var unsafeWindow: any;
     export var IS_STANDALONE: boolean;
     export var IS_UPDATER_DISABLED: boolean;
     export var IS_DEV: boolean;

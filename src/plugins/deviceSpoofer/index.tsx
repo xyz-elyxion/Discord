@@ -17,12 +17,14 @@ const settings = definePluginSettings({
         description: "Enable device spoofing.",
         default: false,
         restartNeeded: false,
+        onChange: () => applySpoof(),
     },
     userAgent: {
         type: OptionType.STRING,
         description: "Spoofed User-Agent. Leave empty to keep the real one.",
         default: "",
         placeholder: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...",
+        onChange: () => applySpoof(),
     },
     platform: {
         type: OptionType.SELECT,
@@ -38,32 +40,51 @@ const settings = definePluginSettings({
             { label: "iPad", value: "iPad" },
         ],
         default: "",
+        onChange: () => applySpoof(),
     },
     hardwareConcurrency: {
         type: OptionType.NUMBER,
         description: "Spoofed CPU core count (navigator.hardwareConcurrency). 0 = keep real.",
         default: 0,
+        onChange: () => applySpoof(),
     },
     deviceMemory: {
         type: OptionType.NUMBER,
         description: "Spoofed RAM in GiB (navigator.deviceMemory). 0 = keep real.",
         default: 0,
+        onChange: () => applySpoof(),
     },
     languages: {
         type: OptionType.STRING,
         description: "Spoofed languages as comma-separated tags (navigator.languages). Leave empty to keep real.",
         default: "",
         placeholder: "en-US,en",
+        onChange: () => applySpoof(),
     },
     timezone: {
         type: OptionType.STRING,
         description: "Spoofed IANA timezone for Intl APIs (e.g. Europe/Berlin). Leave empty to keep real.",
         default: "",
         placeholder: "Europe/Berlin",
+        onChange: () => applySpoof(),
     },
 });
 
 let applied: Array<() => void> = [];
+
+// In the userscript build, the mod runs inside a sandbox with an unsafeWindow
+// reference to the real page realm — Discord's code sees unsafeWindow, so we
+// must spoof that navigator too. On desktop/extension both are the same.
+function targetNavigators(): any[] {
+    const targets: any[] = [navigator];
+    if (IS_USERSCRIPT && typeof unsafeWindow !== "undefined") {
+        try {
+            const un = (unsafeWindow as any).navigator;
+            if (un && un !== navigator) targets.push(un);
+        } catch { /* sandbox denied — page navigator unreachable */ }
+    }
+    return targets;
+}
 
 function defineGetter(obj: any, prop: string, value: () => unknown) {
     const current = Object.getOwnPropertyDescriptor(obj, prop);
@@ -149,33 +170,43 @@ function applySpoof() {
 
     const ua = settings.store.userAgent.trim();
     if (ua) {
-        defineGetter(navigator, "userAgent", () => ua);
-        if ("userAgentData" in navigator) {
-            defineGetter(navigator, "userAgentData", () => undefined);
+        for (const nav of targetNavigators()) {
+            defineGetter(nav, "userAgent", () => ua);
+            if ("userAgentData" in nav) {
+                defineGetter(nav, "userAgentData", () => undefined);
+            }
         }
     }
 
     const platform = settings.store.platform;
     if (platform) {
-        defineGetter(navigator, "platform", () => platform);
-        if ("userAgentData" in (navigator as any)) {
-            const uad = (navigator as any).userAgentData;
-            if (uad) defineGetter(uad, "platform", () => platformName(platform));
+        for (const nav of targetNavigators()) {
+            defineGetter(nav, "platform", () => platform);
+            if ("userAgentData" in nav) {
+                const uad = (nav as any).userAgentData;
+                if (uad) defineGetter(uad, "platform", () => platformName(platform));
+            }
         }
     }
 
     const cores = settings.store.hardwareConcurrency;
-    if (cores > 0) defineGetter(navigator, "hardwareConcurrency", () => cores);
+    if (cores > 0) {
+        for (const nav of targetNavigators()) defineGetter(nav, "hardwareConcurrency", () => cores);
+    }
 
     const mem = settings.store.deviceMemory;
-    if (mem > 0) defineGetter(navigator, "deviceMemory", () => mem);
+    if (mem > 0) {
+        for (const nav of targetNavigators()) defineGetter(nav, "deviceMemory", () => mem);
+    }
 
     const langs = settings.store.languages.trim();
     if (langs) {
         const list = langs.split(",").map(l => l.trim()).filter(Boolean);
         if (list.length) {
-            defineGetter(navigator, "languages", () => list);
-            defineGetter(navigator, "language", () => list[0]);
+            for (const nav of targetNavigators()) {
+                defineGetter(nav, "languages", () => list);
+                defineGetter(nav, "language", () => list[0]);
+            }
         }
     }
 
@@ -203,6 +234,7 @@ export default definePlugin({
     description: "Spoofs your device fingerprint: user agent, platform, CPU cores, RAM, languages and timezone.",
     authors: [Devs.Vencipher],
     settings,
+    enabledByDefault: true,
 
     start() {
         applySpoof();

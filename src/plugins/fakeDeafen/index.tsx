@@ -207,27 +207,30 @@ export default definePlugin({
     description: "Appear muted, deafened, or streaming to others while your local audio is unaffected.",
     authors: [Devs.Vencipher],
     settings,
+    enabledByDefault: true,
 
     _keyDownHandler: null as ((e: KeyboardEvent) => void) | null,
 
     patches: [
         {
+            // Match any receiver/argument shape: .setSelfMute(<arg>) — robust
+            // against Discord's changing minified variable names.
             find: "setSelfMute",
             replacement: [
                 {
-                    match: /e\.setSelfMute\(n\)/g,
-                    replace: "e.setSelfMute($self.settings.store.active&&$self.settings.store.fakeMute?false:n)",
+                    match: /\.setSelfMute\((\i+)\)/g,
+                    replace: ".setSelfMute($self.settings.store.active&&$self.settings.store.fakeMute?false:$1)",
                 },
                 {
-                    match: /e\.setSelfDeaf\(t\.deaf\)/g,
-                    replace: "e.setSelfDeaf($self.settings.store.active&&$self.settings.store.fakeDeafen?false:t.deaf)",
+                    match: /\.setSelfDeaf\((\i+)\)/g,
+                    replace: ".setSelfDeaf($self.settings.store.active&&$self.settings.store.fakeDeafen?false:$1)",
                 },
             ],
         },
         {
             find: "self_video:",
             replacement: {
-                match: /self_video:(\i)/g,
+                match: /self_video:(\i+)/g,
                 replace: "self_video:($self.settings.store.active&&$self.settings.store.fakeVideo?true:$1)",
             },
         },

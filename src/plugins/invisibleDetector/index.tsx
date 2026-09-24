@@ -218,6 +218,7 @@ export default definePlugin({
     description: "Marks users with ❗ who appear offline but show activity. Highlights them in the member list and chat.",
     authors: [Devs.Vencipher],
     settings,
+    enabledByDefault: true,
     dependencies: ["MemberListDecoratorsAPI", "MessageDecorationsAPI"],
 
     start() {
