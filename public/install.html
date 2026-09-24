@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Install on Discord Desktop | Limey V1</title>
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .install-hero {
+            padding: 80px 24px 48px;
+            text-align: center;
+            background:
+                radial-gradient(ellipse 60% 50% at 50% -10%, rgba(163, 230, 53, 0.12), transparent),
+                var(--bg);
+        }
+        .install-hero h1 {
+            font-size: clamp(1.8rem, 5vw, 2.6rem);
+            margin-bottom: 12px;
+        }
+        .install-hero p {
+            color: var(--text-dim);
+            max-width: 640px;
+            margin: 0 auto 24px;
+        }
+        .install-body {
+            padding: 24px 24px 80px;
+        }
+        .steps {
+            max-width: 720px;
+            margin: 0 auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 32px 36px;
+        }
+        .steps h2 {
+            font-size: 1.15rem;
+            margin-bottom: 18px;
+            color: var(--lime);
+        }
+        .steps ol {
+            padding-left: 22px;
+            display: grid;
+            gap: 12px;
+        }
+        .steps code {
+            font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+            font-size: 0.9em;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 2px 8px;
+            color: var(--lime-strong);
+        }
+        .install-note {
+            max-width: 720px;
+            margin: 20px auto 0;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.92rem;
+        }
+        .install-note code { color: var(--lime-strong); }
+        .install-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 28px;
+            flex-wrap: wrap;
+        }
+        .status-chip {
+            display: inline-block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 999px;
+            padding: 4px 12px;
+            margin-top: 16px;
+        }
+        .status-chip.ok { background: rgba(163, 230, 53, 0.15); color: var(--lime); border: 1px solid var(--lime-dark); }
+        .status-chip.pending { background: rgba(157, 181, 142, 0.12); color: var(--text-dim); border: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <a href="/plugins/">Plugins</a>
+                <a href="/download">Download</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="install-hero">
+        <h1>Discord Desktop App</h1>
+        <p>Inject Limey V1 directly into the Discord desktop client, classic client-mod style. The backend builds and serves everything — the installer runs on your machine.</p>
+        <span class="status-chip pending" id="status">Checking build status…</span>
+    </section>
+
+    <section class="install-body">
+        <div class="steps">
+            <h2>Install steps</h2>
+            <ol>
+                <li>Install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> and enable <a href="https://pnpm.io/installation" target="_blank" rel="noopener">pnpm</a> (<code>corepack enable pnpm</code>).</li>
+                <li>Clone the repository and install dependencies: <code>git clone</code> &rarr; <code>pnpm install</code>.</li>
+                <li>Build, then inject: <code>pnpm build</code> followed by <code>pnpm inject</code>.</li>
+                <li>Restart Discord — Limey V1 appears in Settings.</li>
+            </ol>
+            <div class="install-actions">
+                <a class="btn btn-primary" href="/download">Back to Download</a>
+                <a class="btn btn-ghost" href="/v1/install/desktop">Install API (JSON)</a>
+            </div>
+        </div>
+        <p class="install-note">To remove later, run <code>pnpm uninject</code>. Works on any Discord branch: Stable, Canary or PTB. Windows &middot; macOS &middot; Linux.</p>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Limey V1 — GPL-3.0 &middot; <a href="/">Back to home</a></p>
+            <p class="fine">Discord is a trademark of Discord Inc. This project is not affiliated with or endorsed by Discord Inc.</p>
+        </div>
+    </footer>
+
+    <script>
+        fetch("/v1/install/desktop").then(r => r.json()).then(d => {
+            var el = document.getElementById("status");
+            if (d && d.built) {
+                el.textContent = "Build ready — artifacts served by the backend";
+                el.className = "status-chip ok";
+            } else {
+                el.textContent = "Build pending — artifacts are being built by the backend";
+                el.className = "status-chip pending";
+            }
+        }).catch(() => {
+            document.getElementById("status").textContent = "Build status unavailable";
+        });
+    </script>
+</body>
+</html>

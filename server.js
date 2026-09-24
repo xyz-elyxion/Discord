@@ -884,6 +884,7 @@ function serveFile(res, filePath, status = 200) {
 const NAMED_PAGES = {
     "/plugins": "plugins.html",
     "/download": "download.html",
+    "/install": "install.html",
     "/404": "404.html",
 };
 
@@ -907,8 +908,11 @@ function serveAdminPage(res, url) {
 const server = http.createServer(async (req, res) => {
     const url = decodeURIComponent((req.url || "/").split("?")[0]);
 
-    // Named pages (plugins, download, 404)
+    // Named pages (plugins, download, install, 404)
     if (serveNamedPage(res, url)) return;
+
+    // /install/desktop — themed desktop install page (API variant lives at /v1/install/desktop)
+    if (url === "/install/desktop") return serveFile(res, join(PUBLIC, "install.html"));
 
     // Admin panel page
     if (serveAdminPage(res, url)) return;
