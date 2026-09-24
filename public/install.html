@@ -106,12 +106,15 @@
             <h2>Install steps — no Node.js required</h2>
             <ol>
                 <li>Download the Limey V1 Installer for your platform below.</li>
-                <li>Windows: just run the <code>.exe</code>. macOS/Linux: run <code>./LimeyV1Installer</code> in a terminal (you may need <code>chmod +x</code> first).</li>
+                <li>Windows: just run the <code>.exe</code>. macOS: run <code>./LimeyV1Installer-cli-macos-*</code> in Terminal (use <code>chmod +x</code> first; arm64 = Apple Silicon). Linux: <code>chmod +x LimeyV1Installer-cli-linux && ./LimeyV1Installer-cli-linux</code>.</li>
                 <li>Pick your Discord install, choose <strong>Install Limey V1</strong>, done.</li>
                 <li>Restart Discord — Limey V1 appears in Settings. Use <strong>Uninstall</strong> to remove it.</li>
             </ol>
             <div class="install-actions">
-                <a class="btn btn-primary" href="/dist/LimeyV1Installer-cli-linux">Download Installer (Linux)</a>
+                <a class="btn btn-primary" href="/dist/LimeyV1Installer-cli-win.exe">Installer for Windows</a>
+                <a class="btn btn-primary" href="/dist/LimeyV1Installer-cli-macos-arm64">macOS (Apple Silicon)</a>
+                <a class="btn btn-primary" href="/dist/LimeyV1Installer-cli-macos-amd64">macOS (Intel)</a>
+                <a class="btn btn-primary" href="/dist/LimeyV1Installer-cli-linux">Linux</a>
                 <a class="btn btn-ghost" href="/v1/install/desktop-zip">Alternative: manual .zip package</a>
                 <a class="btn btn-ghost" href="/v1/install/extension">Get the Browser Extension instead</a>
             </div>
