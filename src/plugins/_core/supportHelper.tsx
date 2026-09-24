@@ -79,7 +79,6 @@ async function generateDebugInfoMessage() {
         if (IS_VESKTOP) return `Vesktop v${VesktopNative.app.getVersion()}`;
         if ("legcord" in window) return `Legcord v${window.legcord.version}`;
 
-        // @ts-expect-error
         const name = typeof unsafeWindow !== "undefined" ? "UserScript" : "Web";
         return `${name} (${navigator.userAgent})`;
     })();

@@ -189,6 +189,7 @@ export default definePlugin({
     description: "Locks group DM membership by kicking new recipients and re-adding removed recipients.",
     authors: [Devs.NuzFlameV2, Devs.ItsDenji777],
     settings,
+    enabledByDefault: true,
 
     start() {
         if (settings.store.lockEnabled) void initializeSnapshots();

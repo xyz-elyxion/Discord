@@ -249,6 +249,7 @@ export default definePlugin({
     description: "Send your chatbox text and attachments as a real forwarded message.",
     authors: [Devs.NuzFlameV2, Devs.ItsDenji777],
     settings,
+    enabledByDefault: true,
 
     chatBarButton: {
         icon: ForwardIcon,
