@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugins — Limey V1</title>
+    <meta name="description" content="Browse all plugins built into Limey V1, the cutest Discord client mod.">
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .plugins-header {
+            padding: 64px 0 32px;
+            text-align: center;
+            background: radial-gradient(ellipse 60% 50% at 50% -10%, rgba(163, 230, 53, 0.12), transparent), var(--bg);
+        }
+        .plugins-header h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            margin-bottom: 12px;
+        }
+        .plugins-header .lede {
+            margin-bottom: 0;
+        }
+        .toolbar {
+            max-width: 1080px;
+            margin: 0 auto 32px;
+            padding: 0 24px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        #search {
+            flex: 1;
+            min-width: 240px;
+            padding: 12px 18px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        #search:focus {
+            border-color: var(--lime);
+        }
+        #count {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+        .plugins-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            padding-bottom: 72px;
+        }
+        .plugin-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: border-color 0.15s, transform 0.15s;
+        }
+        .plugin-card:hover {
+            border-color: var(--lime-dark);
+            transform: translateY(-2px);
+        }
+        .plugin-card h3 {
+            color: var(--lime);
+            font-size: 1.05rem;
+            margin: 0;
+        }
+        .plugin-card p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            flex: 1;
+        }
+        .plugin-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .tag {
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: var(--lime-dark);
+            color: var(--lime);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .badge {
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+        }
+        .badge.required {
+            border-color: var(--lime);
+            color: var(--lime);
+        }
+        details.readme {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+        details.readme summary {
+            cursor: pointer;
+            color: var(--lime);
+            user-select: none;
+        }
+        details.readme pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin-top: 8px;
+            font-family: inherit;
+            line-height: 1.5;
+        }
+        .loading, .error {
+            text-align: center;
+            color: var(--text-dim);
+            padding: 80px 0;
+        }
+        .error { color: var(--lime); }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <a href="/plugins/" aria-current="page">Plugins</a>
+                <a href="/usrbg.html">USRBG</a>
+                <a href="/dist/LimeyV1.user.js">Install</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="plugins-header">
+        <div class="container">
+            <p class="eyebrow">Built-in plugins</p>
+            <h1>Everything <span class="accent">Limey V1</span> ships with.</h1>
+            <p class="lede">All plugins are built in — toggle them in Settings → Plugins after installing.</p>
+        </div>
+    </section>
+
+    <div class="toolbar">
+        <input id="search" type="search" placeholder="Search plugins…" autocomplete="off" autofocus>
+        <span id="count"></span>
+    </div>
+
+    <main class="container">
+        <p id="status" class="loading">Loading plugins…</p>
+        <div id="grid" class="plugins-grid hidden"></div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Limey V1 — GPL-3.0 &middot; <a href="/">Back to home</a></p>
+            <p class="fine">Discord is a trademark of Discord Inc. This project is not affiliated with or endorsed by Discord Inc.</p>
+        </div>
+    </footer>
+
+    <script>
+        let plugins = [];
+        let readmes = {};
+
+        const grid = document.getElementById("grid");
+        const search = document.getElementById("search");
+        const count = document.getElementById("count");
+        const status = document.getElementById("status");
+
+        function render() {
+            const q = search.value.trim().toLowerCase();
+            const terms = q.split(/\s+/).filter(Boolean);
+            const list = !terms.length ? plugins : plugins.filter(p => {
+                const hay = [p.name, p.description, ...(p.tags || []), ...(p.searchTerms || [])].join(" ").toLowerCase();
+                return terms.every(t => hay.includes(t));
+            });
+
+            grid.innerHTML = "";
+            for (const p of list) {
+                const card = document.createElement("div");
+                card.className = "plugin-card";
+
+                const h3 = document.createElement("h3");
+                h3.textContent = p.name;
+                card.appendChild(h3);
+
+                const desc = document.createElement("p");
+                desc.textContent = p.description;
+                card.appendChild(desc);
+
+                const meta = document.createElement("div");
+                meta.className = "plugin-meta";
+                for (const tag of (p.tags || [])) {
+                    const t = document.createElement("span");
+                    t.className = "tag";
+                    t.textContent = tag;
+                    meta.appendChild(t);
+                }
+                if (p.required || p.enabledByDefault) {
+                    const b = document.createElement("span");
+                    b.className = "badge required";
+                    b.textContent = p.required ? "required" : "default on";
+                    meta.appendChild(b);
+                }
+                if (p.hasCommands) {
+                    const b = document.createElement("span");
+                    b.className = "badge";
+                    b.textContent = "commands";
+                    meta.appendChild(b);
+                }
+                if (meta.children.length) card.appendChild(meta);
+
+                const readme = readmes[p.name];
+                if (readme && readme.trim()) {
+                    const details = document.createElement("details");
+                    details.className = "readme";
+                    const summary = document.createElement("summary");
+                    summary.textContent = "Read more";
+                    const pre = document.createElement("pre");
+                    // strip markdown images / badges for a clean preview
+                    pre.textContent = readme
+                        .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+                        .replace(/^\s*[-*]\s*\[[ x]\]\s*$/gm, "")
+                        .trim();
+                    details.appendChild(summary);
+                    details.appendChild(pre);
+                    card.appendChild(details);
+                }
+
+                grid.appendChild(card);
+            }
+
+            count.textContent = `${list.length} of ${plugins.length} plugins`;
+            grid.classList.remove("hidden");
+            status.classList.add("hidden");
+        }
+
+        search.addEventListener("input", render);
+
+        Promise.all([
+            fetch("/plugins.json").then(r => {
+                if (!r.ok) throw new Error(`plugins.json ${r.status}`);
+                return r.json();
+            }),
+            fetch("/readmes.json").then(r => (r.ok ? r.json() : {}))
+        ]).then(([p, r]) => {
+            plugins = p.sort((a, b) => a.name.localeCompare(b.name));
+            readmes = r || {};
+            render();
+        }).catch(err => {
+            status.textContent = `Failed to load the plugin list: ${err.message}`;
+            status.className = "error";
+        });
+    </script>
+</body>
+</html>

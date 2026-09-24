@@ -748,6 +748,15 @@ function serveFile(res, filePath) {
     }
 }
 
+// Plugins page — served for /plugins and /plugins/
+function servePluginsPage(res, url) {
+    if (url !== "/plugins" && url !== "/plugins/") return false;
+    const page = join(PUBLIC, "plugins.html");
+    if (!existsSync(page)) return send(res, 404, "Not found"), true;
+    serveFile(res, page);
+    return true;
+}
+
 // Admin page — only served when the admin token is set
 function serveAdminPage(res, url) {
     if (url !== "/admin" && url !== "/admin/") return false;
@@ -760,6 +769,9 @@ function serveAdminPage(res, url) {
 
 const server = http.createServer(async (req, res) => {
     const url = decodeURIComponent((req.url || "/").split("?")[0]);
+
+    // Plugins catalog page
+    if (servePluginsPage(res, url)) return;
 
     // Admin panel page
     if (serveAdminPage(res, url)) return;

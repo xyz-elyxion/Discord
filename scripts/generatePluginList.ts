@@ -61,6 +61,21 @@ function getObjectProp(node: ObjectLiteralExpression, name: string) {
     return prop;
 }
 
+// Resolve `definePlugin(V1Plugin as any)` where `const V1Plugin = {...}` at top level
+function resolveObjectLiteral(node: any, file: any): ObjectLiteralExpression | undefined {
+    if (node?.kind === SyntaxKind.AsExpression || node?.kind === SyntaxKind.SatisfiesExpression) node = node.expression;
+    if (isObjectLiteralExpression(node)) return node;
+    if (isIdentifier(node)) {
+        // find `const <name> = {...}` at the file's top level
+        for (const child of file.statements) {
+            if (!isVariableStatement(child)) continue;
+            const decl = child.declarationList.declarations.find(d => hasName(d, node.text));
+            if (decl?.initializer && isObjectLiteralExpression(decl.initializer)) return decl.initializer;
+        }
+    }
+    return undefined;
+}
+
 function parseDevs() {
     const file = createSourceFile("constants.ts", readFileSync("src/utils/constants.ts", "utf8"), ScriptTarget.Latest);
 
@@ -100,13 +115,18 @@ async function parseFile(fileName: string) {
     };
 
     for (const node of file.getChildAt(0).getChildren()) {
-        if (!isExportAssignment(node) || !isCallExpression(node.expression)) continue;
+        if (!isExportAssignment(node)) continue;
 
-        const call = node.expression;
+        // Unwrap `export default definePlugin({...}) as any` / `satisfies X`
+        const outer: any = node.expression;
+        const call: any = outer.kind === SyntaxKind.AsExpression || outer.kind === SyntaxKind.SatisfiesExpression
+            ? outer.expression
+            : outer;
+        if (!isCallExpression(call)) continue;
         if (!isIdentifier(call.expression) || call.expression.text !== "definePlugin") continue;
 
-        const pluginObj = node.expression.arguments[0];
-        if (!isObjectLiteralExpression(pluginObj)) throw fail("no object literal passed to definePlugin");
+        let pluginObj = call.arguments[0] ? resolveObjectLiteral(call.arguments[0], file) : undefined;
+        if (!pluginObj || !isObjectLiteralExpression(pluginObj)) throw fail("no object literal passed to definePlugin");
 
         const data = {
             hasPatches: false,

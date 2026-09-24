@@ -45,6 +45,8 @@ RUN pnpm install --frozen-lockfile
 # No git needed: the build falls back to the production remote when git is absent.
 COPY . .
 RUN pnpm buildWeb
+# Generate the plugin catalog data for /plugins/
+RUN pnpm generatePluginJson public/plugins.json public/readmes.json
 
 # ---------- Runtime stage ----------
 FROM node:22-alpine
