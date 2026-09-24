@@ -111,8 +111,9 @@
                 <li>Restart Discord — Limey V1 appears in Settings.</li>
             </ol>
             <div class="install-actions">
-                <a class="btn btn-primary" href="/download">Back to Download</a>
-                <a class="btn btn-ghost" href="/v1/install/desktop">Install API (JSON)</a>
+                <button class="btn btn-primary" id="copy-cmd" type="button">Copy install command</button>
+                <a class="btn btn-ghost" href="/v1/install/extension">Get the Browser Extension instead</a>
+                <a class="btn btn-ghost" href="/download">Back to Download</a>
             </div>
         </div>
         <p class="install-note">To remove later, run <code>pnpm uninject</code>. Works on any Discord branch: Stable, Canary or PTB. Windows &middot; macOS &middot; Linux.</p>
@@ -148,6 +149,18 @@
             render();
         }).catch(() => {
             document.getElementById("status").textContent = "Build status unavailable";
+        });
+
+        document.getElementById("copy-cmd").addEventListener("click", async function () {
+            var cmd = "git clone <repo-url> && cd <repo> && pnpm install && pnpm build && pnpm inject";
+            try {
+                await navigator.clipboard.writeText(cmd);
+                this.textContent = "✓ Copied!";
+            } catch (_) {
+                this.textContent = cmd;
+            }
+            var btn = this;
+            setTimeout(() => { btn.textContent = "Copy install command"; }, 2000);
         });
     </script>
 </body>
