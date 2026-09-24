@@ -13,6 +13,7 @@ export const ConnectSrc = ["connect-src"];
 export const ImageSrc = [...ConnectSrc, "img-src"];
 export const CssSrc = ["style-src", "font-src"];
 export const ImageAndMediaSrc = [...ImageSrc, "media-src"];
+export const ImageConnectAndMediaSrc = [...ImageAndMediaSrc, "connect-src"];
 export const ImageAndCssSrc = [...ImageSrc, ...CssSrc];
 export const ImageScriptsAndCssSrc = [...ImageAndCssSrc, "script-src", "worker-src"];
 
@@ -52,7 +53,7 @@ export const CspPolicies: PolicyMap = {
     "cdn.jsdelivr.net": ImageScriptsAndCssSrc,
 
     // Function Specific
-    "api.github.com": ConnectSrc, // used for updating Limey V1 itself
+    "limey-discord.onrender.com": ImageConnectAndMediaSrc, // Limey V1 backend: updates, settings sync, USRBG + detector
     "ws.audioscrobbler.com": ConnectSrc, // Last.fm API
     "musicbrainz.org": ConnectSrc,
     "*.listenbrainz.org": ConnectSrc,
@@ -61,7 +62,6 @@ export const CspPolicies: PolicyMap = {
     "*.archive.org": ConnectSrc,
     "translate-pa.googleapis.com": ConnectSrc, // Google Translate API
     "*.limeyV1.dev": ImageSrc, // Badges (badges.limeyV1.dev)
-    "limey-discord.onrender.com": ImageAndMediaSrc, // LimeyCloud (settings sync) + USRBG + detector
     "manti.limey.dev": ImageSrc, // ReviewDB API
     "decor.fieryflames.dev": ConnectSrc, // Decor API
     "ugc.decor.fieryflames.dev": ImageSrc, // Decor CDN

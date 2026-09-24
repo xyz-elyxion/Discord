@@ -16,65 +16,67 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { fetchBuffer, fetchJson } from "@main/utils/http";
+import { fetchBuffer } from "@main/utils/http";
 import { IpcEvents } from "@shared/IpcEvents";
-import { LIMEYV1_USER_AGENT } from "@shared/limeyV1UserAgent";
 import { ipcMain } from "electron";
 import { writeFile } from "fs/promises";
 import { join } from "path";
 
 import gitHash from "~git-hash";
-import gitRemote from "~git-remote";
 
-import { LIMEYV1_FILES,serializeErrors } from "./common";
+import { LIMEYV1_FILES, serializeErrors } from "./common";
 
-const API_BASE = `https://api.github.com/repos/${gitRemote}`;
-let PendingUpdates = [] as [string, string][];
+// All updates come from the Limey V1 backend. Every served build file is
+// stamped with a first-line version comment ("// Limey V1 <hash>"), the same
+// stamp the installer uses to detect installed vs latest builds.
+const LIMEY_BASE = "https://limey-discord.onrender.com";
+const VERSION_FILE = "renderer.css";
+// The stamp on js files is a comment; on css it is wrapped in slashes.
+const HASH_STAMP_CSS = "/* Limey ";
 
-async function githubGet<T = any>(endpoint: string) {
-    return fetchJson<T>(API_BASE + endpoint, {
-        headers: {
-            Accept: "application/vnd.github+json",
-            // "All API requests MUST include a valid User-Agent header.
-            // Requests with no User-Agent header will be rejected."
-            "User-Agent": LIMEYV1_USER_AGENT
-        }
-    });
+let PendingUpdates = [] as string[];
+
+function fileUrl(name: string) {
+    return `${LIMEY_BASE}/v1/install/files/${name}`;
+}
+
+async function fetchLatestHash() {
+    const res = await fetchBuffer(fileUrl(VERSION_FILE));
+    const firstLine = new TextDecoder().decode(res).split("\n", 1)[0].trim();
+
+    if (!firstLine.startsWith(HASH_STAMP_CSS)) {
+        throw new Error("Could not determine latest build hash from the Limey V1 backend");
+    }
+    const hash = firstLine.slice(HASH_STAMP_CSS.length).replace(/\*\/$/, "").trim();
+    if (!hash) throw new Error("Could not determine latest build hash from the Limey V1 backend");
+
+    if (!hash) throw new Error("Could not determine latest build hash from the Limey V1 backend");
+    return hash;
 }
 
 async function calculateGitChanges() {
     const isOutdated = await fetchUpdates();
     if (!isOutdated) return [];
 
-    const data = await githubGet(`/compare/${gitHash}...HEAD`);
-
-    return data.commits.map((c: any) => ({
-        // github api only sends the long sha
-        hash: c.sha.slice(0, 7),
-        author: c.author?.login ?? c.commit?.author?.name ?? "Unknown Author",
-        message: c.commit.message.split("\n")[0]
-    }));
+    // No diff data is available from the backend; report a single change entry.
+    return [{
+        hash: "update",
+        author: "Limey V1",
+        message: "New Limey V1 build available on limey-discord.onrender.com"
+    }];
 }
 
 async function fetchUpdates() {
-    const data = await githubGet("/releases/latest");
+    const hash = await fetchLatestHash();
+    if (hash === gitHash) return false;
 
-    const hash = data.name.slice(data.name.lastIndexOf(" ") + 1);
-    if (hash === gitHash)
-        return false;
-
-    data.assets.forEach(({ name, browser_download_url }) => {
-        if (LIMEYV1_FILES.some(s => name.startsWith(s))) {
-            PendingUpdates.push([name, browser_download_url]);
-        }
-    });
-
+    PendingUpdates = [...LIMEYV1_FILES];
     return true;
 }
 
 async function applyUpdates() {
-    const fileContents = await Promise.all(PendingUpdates.map(async ([name, url]) => {
-        const contents = await fetchBuffer(url);
+    const fileContents = await Promise.all(PendingUpdates.map(async name => {
+        const contents = await fetchBuffer(fileUrl(name));
         return [join(__dirname, name), contents] as const;
     }));
 
@@ -86,7 +88,7 @@ async function applyUpdates() {
     return true;
 }
 
-ipcMain.handle(IpcEvents.GET_REPO, serializeErrors(() => `https://github.com/${gitRemote}`));
+ipcMain.handle(IpcEvents.GET_REPO, serializeErrors(() => LIMEY_BASE));
 ipcMain.handle(IpcEvents.GET_UPDATES, serializeErrors(calculateGitChanges));
 ipcMain.handle(IpcEvents.UPDATE, serializeErrors(fetchUpdates));
 ipcMain.handle(IpcEvents.BUILD, serializeErrors(applyUpdates));

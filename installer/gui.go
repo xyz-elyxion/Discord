@@ -269,6 +269,20 @@ func Tooltip(label string) g.Widget {
 		)
 }
 
+// versionStatusLabel describes the current update state in plain language.
+func versionStatusLabel() string {
+	switch {
+	case LatestHash == "Unknown":
+		return "Checking for updates from " + BaseUrl + "..."
+	case InstalledHash == "None":
+		return "Latest version: " + LatestHash + " (no install detected yet)"
+	case InstalledHash == LatestHash:
+		return "Installed version " + InstalledHash + " is up to date ✓"
+	default:
+		return "Installed version " + InstalledHash + " is outdated — latest is " + LatestHash + ". Use 'Reinstall / Repair' to update."
+	}
+}
+
 func InfoModal(id, title, description string) g.Widget {
 	return RawInfoModal(id, title, description, "")
 }
@@ -338,12 +352,6 @@ func renderInstaller() g.Widget {
 
 	wi, _ := win.GetSize()
 	w := float32(wi) - 96
-
-	var currentDiscord *DiscordInstall
-	if radioIdx != customChoiceIdx {
-		currentDiscord = discords[radioIdx].(*DiscordInstall)
-	}
-	_ = currentDiscord
 
 	layout := g.Layout{
 		g.Style().SetFontSize(20).To(
@@ -470,7 +478,7 @@ func renderInstaller() g.Widget {
 					To(
 						g.Button("Install").
 							OnClick(handlePatch).
-							Size((w-40)/4, 50),
+							Size((w-20)/3, 50),
 						Tooltip("Patch the selected Discord Install"),
 					),
 				g.Style().
@@ -490,7 +498,7 @@ func renderInstaller() g.Widget {
 									}
 								}
 							}).
-							Size((w-40)/4, 50),
+							Size((w-20)/3, 50),
 						Tooltip("Reinstall & Update Limey V1"),
 					),
 				g.Style().
@@ -499,10 +507,16 @@ func renderInstaller() g.Widget {
 					SetStyle(g.StyleVarFrameRounding, 8, 8).
 					To(g.Button("Uninstall").
 						OnClick(handleUnpatch).
-						Size((w-40)/3, 50),
+						Size((w-20)/3, 50),
 						Tooltip("Unpatch the selected Discord Install"),
 					),
 			),
+		),
+
+		g.Dummy(0, 10),
+
+		g.Style().SetColor(g.StyleColorText, color.RGBA{0xff, 0xff, 0xff, 0x80}).SetFontSize(18).To(
+			g.Label(versionStatusLabel()).Wrapped(true),
 		),
 
 		InfoModal("#patched", "Installed!", "Limey V1 was successfully installed!"),
