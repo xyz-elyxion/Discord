@@ -126,15 +126,26 @@
     </footer>
 
     <script>
-        fetch("/v1/install/desktop").then(r => r.json()).then(d => {
+        fetch("/v1/build/status").then(r => r.json()).then(d => {
             var el = document.getElementById("status");
-            if (d && d.built) {
-                el.textContent = "Build ready — artifacts served by the backend";
-                el.className = "status-chip ok";
-            } else {
-                el.textContent = "Build pending — artifacts are being built by the backend";
-                el.className = "status-chip pending";
+            function render() {
+                fetch("/v1/build/status").then(r => r.json()).then(d => {
+                    var el = document.getElementById("status");
+                    if (d.web.building || d.desktop.building) {
+                        el.textContent = "⏳ Building — the backend is compiling the artifacts right now";
+                        el.className = "status-chip pending";
+                        setTimeout(render, 3000);
+                    } else if (d.web.state === "failed" || d.desktop.state === "failed") {
+                        var which = d.web.state === "failed" ? "web" : "desktop";
+                        el.textContent = "⚠ Build failed (" + which + ") — check server logs";
+                        el.className = "status-chip pending";
+                    } else {
+                        el.textContent = "✓ Build ready — artifacts served by the backend";
+                        el.className = "status-chip ok";
+                    }
+                });
             }
+            render();
         }).catch(() => {
             document.getElementById("status").textContent = "Build status unavailable";
         });

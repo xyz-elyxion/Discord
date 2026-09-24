@@ -97,6 +97,21 @@ function buildExtensionZip() {
 }
 
 function handleInstall(req, res, url) {
+    if (url === "/v1/build/status") {
+        const st = key => ({
+            state: buildStatus[key].state,
+            built: key === "web"
+                ? existsSync(join(DIST, "browser.js"))
+                : existsSync(join(DIST, "patcher.js")) && existsSync(join(DIST, "renderer.js")) && existsSync(join(DIST, "preload.js")),
+            ...buildStatus[key]
+        });
+        return json(res, 200, {
+            web: st("web"),
+            desktop: st("desktop"),
+            building: buildStatus.web.state === "building" || buildStatus.desktop.state === "building",
+            serverStartedAt: buildStatus.startedAt
+        }), true;
+    }
     if (url === "/v1/install/desktop") {
         const built = existsSync(join(DIST, "patcher.js")) && existsSync(join(DIST, "renderer.js")) && existsSync(join(DIST, "preload.js"));
         return json(res, 200, {
@@ -126,25 +141,46 @@ function handleInstall(req, res, url) {
 // `pnpm build` in-process via spawn so the server itself produces
 // the browser extension and Discord Desktop App artifacts.
 // ------------------------------------------------------------------
+// Build status registry — lets /v1/build/status report exactly what the
+// backend has done, is doing, or failed to do.
+const buildStatus = {
+    web: { state: "present" },   // present | building | done | failed
+    desktop: { state: "present" },
+    startedAt: null,
+};
+
 function startBuildIfMissing() {
     const jobs = [];
     if (!existsSync(join(DIST, "browser.js"))) {
         console.log("[build] dist/browser.js missing — running pnpm buildWeb...");
-        jobs.push(["buildWeb", ["buildWeb"]]);
+        buildStatus.web = { state: "building", startedAt: new Date().toISOString() };
+        jobs.push(["web", "buildWeb", ["buildWeb"]]);
     }
     if (!existsSync(join(DIST, "patcher.js"))) {
         console.log("[build] dist/patcher.js missing — running pnpm build (Discord Desktop App)...");
-        jobs.push(["build", ["build"]]);
+        buildStatus.desktop = { state: "building", startedAt: new Date().toISOString() };
+        jobs.push(["desktop", "build", ["build"]]);
     }
     if (!jobs.length) {
         console.log("[build] dist bundles present — skipping build");
         return;
     }
-    for (const [name, args] of jobs) {
+    buildStatus.startedAt = new Date().toISOString();
+    for (const [key, name, args] of jobs) {
         const child = spawn("pnpm", args, { cwd: ROOT, stdio: "inherit" });
-        child.on("error", err => console.error(`[build] failed to spawn pnpm ${name}:`, err.message));
+        child.on("error", err => {
+            buildStatus[key] = { state: "failed", error: err.message, finishedAt: new Date().toISOString() };
+            console.error(`[build] failed to spawn pnpm ${name}:`, err.message);
+        });
         child.on("exit", code => {
-            if (code === 0) console.log(`[build] pnpm ${name} finished`);
+            const ok = code === 0 && existsSync(join(DIST, key === "web" ? "browser.js" : "patcher.js"));
+            buildStatus[key] = {
+                state: ok ? "done" : "failed",
+                exitCode: code,
+                startedAt: buildStatus[key]?.startedAt,
+                finishedAt: new Date().toISOString(),
+            };
+            if (ok) console.log(`[build] pnpm ${name} finished`);
             else console.error(`[build] pnpm ${name} exited with code ${code}`);
         });
     }
