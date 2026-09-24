@@ -198,7 +198,9 @@ export default definePlugin({
             find: 'name:"Channel",renderLoader',
             replacement: [
                 {
-                    match: /return (.{0,15}\.createElement\(.{0,15}\{channel:.{0,30}}\))/,
+                    // Matches both the old `return X.createElement(Y,{channel:Z})` form and
+                    // the modern `return (0,X.jsx)(Y,{channel:Z})` form (with trailing args)
+                    match: /return ((?:null!=\w&&\w\?)?\(0,\w+\.jsxs?\)\(\w+,\{channel:\w+\}(?:,\w+[^)]*)?\)(?::\(0,\w+\.jsxs?\)\(\w+,\{\}\))?)/,
                     replace: "return $self.wrapChannelContent($1, arguments[0])"
                 }
             ]

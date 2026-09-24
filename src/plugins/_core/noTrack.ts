@@ -24,8 +24,13 @@ import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { Flux, FluxDispatcher } from "@webpack/common";
 import { findByCodeLazy, findByPropsLazy } from "@webpack";
 
-const SettingsManager = findByCodeLazy("updateAsync", "type==1") as any;
+// May not exist on every web build (e.g. user settings proto manager absent);
+// proxyLazy throws on later property access when the module is missing, so we
+// resolve the proxies once below — all call sites use optional chaining.
+let SettingsManager: any = findByCodeLazy("updateAsync", "type==1");
 const NativeModule = findByPropsLazy("getDiscordUtils") as any;
+try { void SettingsManager?.updateAsync; } catch { SettingsManager = undefined; }
+try { void NativeModule?.getDiscordUtils; } catch { }
 
 const settings = definePluginSettings({
     disableAnalytics: {

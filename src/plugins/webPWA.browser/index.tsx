@@ -134,7 +134,7 @@ export default definePlugin({
         }
     },
     stop() {
-        navigator.setAppBadge(0);
+        if (navigator.clearAppBadge) navigator.clearAppBadge();
         this.ctrl.abort();
 
         if (linkEl) {
@@ -191,9 +191,11 @@ export default definePlugin({
             let totalCount = mentionCount + pendingRequests;
             if (!totalCount && hasUnread && !disableUnreadBadge) totalCount = -1;
 
-            navigator.setAppBadge(totalCount);
+            // setAppBadge isn't supported everywhere (e.g. Firefox, some
+            // userscript managers' sandboxes) — silently skip instead of erroring
+            if (navigator.setAppBadge) navigator.setAppBadge(totalCount);
         } catch (e) {
-            console.error(e);
+            console.warn("[Limey V1 WebPWA] setAppBadge failed:", e);
         }
     }
 });

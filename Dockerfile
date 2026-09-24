@@ -6,14 +6,18 @@ RUN go mod download
 COPY cloud .
 RUN CGO_ENABLED=0 go build -o limeycloud-backend .
 
-# ---------- Limey V1 Installer (Go CLI) ----------
+# ---------- Limey V1 Installer (Go CLI + Windows GUI) ----------
 FROM golang:1.27-alpine AS installer
 WORKDIR /installer
+# mingw is needed to cross-compile the cgo-based GUI installer for Windows
+RUN apk add --no-cache mingw-w64-gcc
 COPY installer/go.mod installer/go.sum ./
 RUN go mod download
 COPY installer .
-# Cross-compile static CLI installers for Windows, macOS (Intel + Apple Silicon) and Linux
-RUN CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags cli -ldflags "-s -w -extldflags=-static" -o /LimeyV1Installer-cli-win.exe . \
+# Cross-compile the GUI installer (Windows .exe) and static CLI installers
+# for Windows, macOS (Intel + Apple Silicon) and Linux
+RUN CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui -s -w" -o /LimeyV1Installer.exe . \
+ && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags cli -ldflags "-s -w -extldflags=-static" -o /LimeyV1Installer-cli-win.exe . \
  && CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags cli -ldflags "-s -w" -o /LimeyV1Installer-cli-macos-arm64 . \
  && CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -tags cli -ldflags "-s -w" -o /LimeyV1Installer-cli-macos-amd64 . \
  && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags cli -ldflags "-s -w -extldflags=-static" -o /LimeyV1Installer-cli-linux .
@@ -85,6 +89,7 @@ COPY --from=build --chown=node:node /app/dist ./dist
 # Full browser/ extension shell so the server can package the install zip itself
 COPY --from=build --chown=node:node /app/browser ./browser
 COPY --from=cloud --chown=node:node /cloud/limeycloud-backend ./cloud/limeycloud-backend
+COPY --from=installer --chown=node:node /LimeyV1Installer.exe ./dist/LimeyV1Installer.exe
 COPY --from=installer --chown=node:node /LimeyV1Installer-cli-win.exe ./dist/LimeyV1Installer-cli-win.exe
 COPY --from=installer --chown=node:node /LimeyV1Installer-cli-macos-arm64 ./dist/LimeyV1Installer-cli-macos-arm64
 COPY --from=installer --chown=node:node /LimeyV1Installer-cli-macos-amd64 ./dist/LimeyV1Installer-cli-macos-amd64

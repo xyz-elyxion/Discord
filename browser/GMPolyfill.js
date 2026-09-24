@@ -61,10 +61,14 @@ function GM_fetch(url, opt) {
             resp.ok = resp.status >= 200 && resp.status < 300;
             resolve(resp);
         };
-        options.ontimeout = () => reject("fetch timeout");
-        options.onerror = () => reject("fetch error");
-        options.onabort = () => reject("fetch abort");
-        GM_xmlhttpRequest(options);
+        options.ontimeout = () => reject(new Error(`GM fetch timeout: ${url}`));
+        options.onerror = err => reject(new Error(`GM fetch error: ${url}${err?.error ? ` (${err.error})` : ""}`));
+        options.onabort = () => reject(new Error(`GM fetch aborted: ${url}`));
+        try {
+            GM_xmlhttpRequest(options);
+        } catch (e) {
+            reject(new Error(`GM fetch failed to start: ${url} (${e?.message ?? e})`));
+        }
     });
 }
 export const fetch = GM_fetch;

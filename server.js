@@ -1054,7 +1054,8 @@ const NAMED_PAGES = {
 };
 
 function serveNamedPage(res, url) {
-    const page = NAMED_PAGES[url];
+    // Accept optional trailing slash (/plugins/)
+    const page = NAMED_PAGES[url] || NAMED_PAGES[url.replace(/\/+$/, "") || url];
     if (!page) return false;
     serveFile(res, join(PUBLIC, page));
     return true;
