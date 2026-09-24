@@ -21,8 +21,149 @@ const CLOUD_PORT = Number(process.env.CLOUD_PORT) || 3099;
 const CLOUD_HOST = "127.0.0.1";
 
 // ------------------------------------------------------------------
+// Persistent storage — Render Redis (RESP over TCP, zero dependencies).
+// Uses the same REDIS_URI env var as the Go LimeyCloud backend. When it
+// is not set, falls back to local JSON files in data/ (local dev).
+// ------------------------------------------------------------------
+const net = require("net");
+
+function parseRedisUri(uri) {
+    if (!uri) return null;
+    const m = /^redis[s]?:\/\/([^/?@]+@)?([^\/:?]+):(\d+)(?:\/?$|\?)/.exec(uri.trim());
+    if (!m) return null;
+    return { host: m[2], port: Number(m[3]), password: m[1] ? decodeURIComponent(m[1].slice(0, -1)) : null };
+}
+
+const REDIS_CONF = parseRedisUri(process.env.REDIS_URI);
+const KV_ENABLED = Boolean(REDIS_CONF);
+
+let redisSock = null;
+let redisBuf = Buffer.alloc(0);
+let redisWaiters = []; // { resolve, reject, isBulk }
+let redisQueue = []; // pending { cmd, resolve, reject, isBulk }
+let redisConnected = false;
+
+function redisSendRaw(cmdParts, isBulk) {
+    return new Promise((resolve, reject) => {
+        const entry = { cmd: cmdParts, resolve, reject, isBulk };
+        if (redisConnected && redisSock) {
+            writeRedisCommand(entry);
+        } else {
+            redisQueue.push(entry);
+            connectRedis();
+        }
+    });
+}
+
+function writeRedisCommand(entry) {
+    const parts = entry.cmd.map(s => {
+        const b = Buffer.from(String(s));
+        return `$${b.length}\r\n${b}\r\n`;
+    });
+    const payload = Buffer.from(`*${entry.cmd.length}\r\n` + parts.join(""));
+    // Waiters are FIFO; attach this entry as the next waiter
+    redisWaiters.push(entry);
+    redisSock.write(payload);
+}
+
+function connectRedis() {
+    if (redisSock || !REDIS_CONF) return;
+    const sock = net.createConnection({ host: REDIS_CONF.host, port: REDIS_CONF.port });
+    sock.setNoDelay(true);
+    redisSock = sock;
+
+    sock.on("connect", () => {
+        redisConnected = true;
+        if (REDIS_CONF.password) {
+            redisWaiters.push({ resolve: () => {}, reject: () => {}, isBulk: false });
+            sock.write(Buffer.from(`*2\r\n$4\r\nAUTH\r\n$${Buffer.byteLength(REDIS_CONF.password)}\r\n${REDIS_CONF.password}\r\n`));
+        }
+        const queued = redisQueue.splice(0);
+        for (const entry of queued) writeRedisCommand(entry);
+    });
+
+    sock.on("data", chunk => {
+        redisBuf = Buffer.concat([redisBuf, chunk]);
+        let nl;
+        while ((nl = redisBuf.indexOf("\r\n")) !== -1) {
+            const line = redisBuf.slice(0, nl).toString();
+            const type = line[0];
+            const body = line.slice(1);
+            const waiter = redisWaiters.shift();
+
+            if (type === "$") {
+                const len = Number(body);
+                if (len === -1) {
+                    redisBuf = redisBuf.slice(nl + 2);
+                    waiter?.resolve(null);
+                    continue;
+                }
+                const need = nl + 2 + len + 2;
+                if (redisBuf.length < need) {
+                    // Wait for more data — put the waiter back
+                    if (waiter) redisWaiters.unshift(waiter);
+                    return;
+                }
+                const data = redisBuf.slice(nl + 2, nl + 2 + len).toString();
+                redisBuf = redisBuf.slice(need);
+                waiter?.resolve(data);
+                continue;
+            }
+
+            redisBuf = redisBuf.slice(nl + 2);
+            if (type === "-") waiter?.reject(new Error(body));
+            else waiter?.resolve(body);
+        }
+    });
+
+    function fail(err) {
+        redisConnected = false;
+        redisSock = null;
+        redisBuf = Buffer.alloc(0);
+        const waiters = redisWaiters.splice(0);
+        for (const w of waiters) w.reject?.(err);
+    }
+
+    sock.on("error", () => fail(new Error("redis connection error")));
+    sock.on("close", () => fail(new Error("redis connection closed")));
+}
+
+function kvSet(key, value) {
+    if (!KV_ENABLED) return;
+    redisSendRaw(["SET", key, JSON.stringify(value)], false)
+        .catch(err => console.error(`[kv] set ${key} failed:`, err.message));
+}
+
+async function kvGet(key) {
+    return redisSendRaw(["GET", key], true);
+}
+
+// Hydrate the in-memory stores from Redis at startup (local files are
+// only used as a fallback when Redis is not configured).
+async function hydrateKv() {
+    if (!KV_ENABLED) return;
+    try {
+        const [usrbg, aiTokens, detector] = await Promise.all([
+            kvGet("limey:usrbg"),
+            kvGet("limey:ai-tokens"),
+            kvGet("limey:detector")
+        ]);
+        if (usrbg) usrbgData = JSON.parse(usrbg);
+        if (aiTokens) {
+            const parsed = JSON.parse(aiTokens);
+            if (Array.isArray(parsed.tokens)) aiTokensData = { tokens: parsed.tokens, next: parsed.next || 0 };
+        }
+        if (detector) detectorData = JSON.parse(detector);
+        console.log(`[kv] hydrated stores from Redis (${REDIS_CONF.host}:${REDIS_CONF.port})`);
+    } catch (err) {
+        console.error("[kv] failed to hydrate from Redis:", err.message);
+    }
+}
+
+// ------------------------------------------------------------------
 // USRBG backend — custom user banners served from this Node server
-// (api/v1/usrbg/*). Data is stored in a JSON file next to the server.
+// (api/v1/usrbg/*). Data is stored in Redis (or a JSON file fallback)
+// next to the server.
 // ------------------------------------------------------------------
 const USRBG_FILE = join(ROOT, "data", "usrbg.json");
 
@@ -33,6 +174,7 @@ try {
 } catch { /* empty */ }
 
 function saveUsrbgData() {
+    void kvSet("limey:usrbg", usrbgData);
     try {
         mkdirSync(join(ROOT, "data"), { recursive: true });
         writeFileSync(USRBG_FILE, JSON.stringify(usrbgData, null, 2));
@@ -70,16 +212,18 @@ function json(res, status, obj) {
 const AI_TOKENS_FILE = join(ROOT, "data", "ai-tokens.json");
 
 // { tokens: [{ id, provider, token, addedAt, uses, errors }], next: number }
-let aiTokens = { tokens: [], next: 0 };
+let aiTokensData = { tokens: [], next: 0 };
 try {
     const parsed = JSON.parse(readFileSync(AI_TOKENS_FILE, "utf-8"));
-    if (Array.isArray(parsed.tokens)) aiTokens = { tokens: parsed.tokens, next: parsed.next || 0 };
+    if (Array.isArray(parsed.tokens)) aiTokensData = { tokens: parsed.tokens, next: parsed.next || 0 };
 } catch { /* empty */ }
+const aiTokens = { get tokens() { return aiTokensData.tokens; }, set tokens(v) { aiTokensData.tokens = v; }, get next() { return aiTokensData.next; }, set next(v) { aiTokensData.next = v; } };
 
 function saveAiTokens() {
+    void kvSet("limey:ai-tokens", { tokens: aiTokensData.tokens, next: aiTokensData.next });
     try {
         mkdirSync(join(ROOT, "data"), { recursive: true });
-        writeFileSync(AI_TOKENS_FILE, JSON.stringify({ tokens: aiTokens.tokens, next: aiTokens.next }, null, 2));
+        writeFileSync(AI_TOKENS_FILE, JSON.stringify({ tokens: aiTokensData.tokens, next: aiTokensData.next }, null, 2));
     } catch (err) {
         console.error("[ai-tokens] failed to persist data:", err.message);
     }
@@ -411,10 +555,11 @@ try {
 
 let detectorSaveTimer = null;
 function saveDetectorData() {
-    // Debounced write so 5-minute pings don't hammer the disk
+    // Debounced write so 5-minute pings don't hammer the disk/Redis
     if (detectorSaveTimer) return;
     detectorSaveTimer = setTimeout(() => {
         detectorSaveTimer = null;
+        void kvSet("limey:detector", detectorData);
         try {
             mkdirSync(join(ROOT, "data"), { recursive: true });
             writeFileSync(DETECTOR_FILE, JSON.stringify(detectorData, null, 2));
@@ -477,8 +622,8 @@ async function handleDetector(req, res, url) {
 // The Go redis client wants a bare host:port; accept full redis:// URLs too.
 function normalizeRedisUri(uri) {
     if (!uri) return uri;
-    const m = /^redis[s]?:\/\/([^/?]+)(?:\/|$)/.exec(uri.trim());
-    return m ? m[1] : uri.trim();
+    const conf = parseRedisUri(uri);
+    return conf ? `${conf.host}:${conf.port}` : uri.trim();
 }
 
 // ------------------------------------------------------------------
@@ -685,6 +830,9 @@ function startLimebot() {
 startCloud();
 startLimebot();
 
-server.listen(PORT, HOST, () => {
-    console.log(`Limey V1 web server running at http://${HOST}:${PORT}`);
+// Wait for Redis hydration (if configured) before accepting requests
+hydrateKv().finally(() => {
+    server.listen(PORT, HOST, () => {
+        console.log(`Limey V1 web server running at http://${HOST}:${PORT} (persistent storage: ${KV_ENABLED ? `Redis ${REDIS_CONF.host}:${REDIS_CONF.port}` : "local files"})`);
+    });
 });
