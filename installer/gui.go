@@ -46,7 +46,6 @@ var (
 	modalMessage = "You should never see this"
 	modalExtra   = ""
 
-	acceptedOpenAsar   bool
 	showedUpdatePrompt bool
 	showCustomLocation bool
 
@@ -141,36 +140,6 @@ func handleUnpatch() {
 	choice := getChosenInstall()
 	if choice != nil {
 		choice.Unpatch()
-	}
-}
-
-func handleOpenAsar() {
-	if acceptedOpenAsar || getChosenInstall().IsOpenAsar() {
-		handleOpenAsarConfirmed()
-		return
-	}
-
-	g.OpenPopup("#openasar-confirm")
-}
-
-func handleOpenAsarConfirmed() {
-	choice := getChosenInstall()
-	if choice != nil {
-		if choice.IsOpenAsar() {
-			if err := choice.UninstallOpenAsar(); err != nil {
-				handleErr(choice, err, "uninstall OpenAsar from")
-			} else {
-				g.OpenPopup("#openasar-unpatched")
-				g.Update()
-			}
-		} else {
-			if err := choice.InstallOpenAsar(); err != nil {
-				handleErr(choice, err, "install OpenAsar on")
-			} else {
-				g.OpenPopup("#openasar-patched")
-				g.Update()
-			}
-		}
 	}
 }
 
@@ -301,14 +270,14 @@ func Tooltip(label string) g.Widget {
 }
 
 func InfoModal(id, title, description string) g.Widget {
-	return RawInfoModal(id, title, description, "", false)
+	return RawInfoModal(id, title, description, "")
 }
 
 func InfoModalExtra(id, title, description, extra string) g.Widget {
-	return RawInfoModal(id, title, description, extra, false)
+	return RawInfoModal(id, title, description, extra)
 }
 
-func RawInfoModal(id, title, description, extra string, isOpenAsar bool) g.Widget {
+func RawInfoModal(id, title, description, extra string) g.Widget {
 	isDynamic := strings.HasPrefix(id, "#modal") && extra != ""
 	return g.Style().
 		SetStyle(g.StyleVarWindowPadding, 30, 30).
@@ -352,30 +321,6 @@ func RawInfoModal(id, title, description, extra string, isOpenAsar bool) g.Widge
 							}).Size(200, 30),
 						)
 					}, nil},
-					&CondWidget{isOpenAsar,
-						func() g.Widget {
-							return g.Row(
-								g.Button("Accept").
-									OnClick(func() {
-										acceptedOpenAsar = true
-										g.CloseCurrentPopup()
-									}).
-									Size(100, 30),
-								g.Button("Cancel").
-									OnClick(func() {
-										g.CloseCurrentPopup()
-									}).
-									Size(100, 30),
-							)
-						},
-						func() g.Widget {
-							return g.Button("Ok").
-								OnClick(func() {
-									g.CloseCurrentPopup()
-								}).
-								Size(100, 30)
-						},
-					},
 				),
 		)
 }
@@ -398,7 +343,7 @@ func renderInstaller() g.Widget {
 	if radioIdx != customChoiceIdx {
 		currentDiscord = discords[radioIdx].(*DiscordInstall)
 	}
-	var isOpenAsar = currentDiscord != nil && currentDiscord.IsOpenAsar()
+	_ = currentDiscord
 
 	layout := g.Layout{
 		g.Style().SetFontSize(20).To(
@@ -552,21 +497,10 @@ func renderInstaller() g.Widget {
 					SetColor(g.StyleColorButton, DiscordRed).
 					SetColor(g.StyleColorButtonHovered, DiscordRedHovered).
 					SetStyle(g.StyleVarFrameRounding, 8, 8).
-					To(
-						g.Button("Uninstall").
-							OnClick(handleUnpatch).
-							Size((w-40)/4, 50),
+					To(g.Button("Uninstall").
+						OnClick(handleUnpatch).
+						Size((w-40)/3, 50),
 						Tooltip("Unpatch the selected Discord Install"),
-					),
-				g.Style().
-					SetColor(g.StyleColorButton, Ternary(isOpenAsar, DiscordRed, DiscordGreen)).
-					SetColor(g.StyleColorButtonHovered, Ternary(isOpenAsar, DiscordRedHovered, DiscordGreenHovered)).
-					SetStyle(g.StyleVarFrameRounding, 8, 8).
-					To(
-						g.Button(Ternary(isOpenAsar, "Uninstall OpenAsar", Ternary(currentDiscord != nil, "Install OpenAsar", "(Un-)Install OpenAsar"))).
-							OnClick(handleOpenAsar).
-							Size((w-40)/4, 50),
-						Tooltip("Manage OpenAsar"),
 					),
 			),
 		),
@@ -579,14 +513,6 @@ func renderInstaller() g.Widget {
 			"Use the below button to jump there and delete any folder called Discord or Squirrel.\n"+
 			"If the folder is now empty, feel free to go back a step and delete that folder too.\n"+
 			"Then see if Discord still starts. If not, reinstall it"),
-		RawInfoModal("#openasar-confirm", "OpenAsar", "OpenAsar is an open-source alternative of Discord desktop's app.asar.\n"+
-			"Limey V1 is in no way affiliated with OpenAsar.\n"+
-			"You're installing OpenAsar at your own risk. If you run into issues with OpenAsar,\n"+
-			"no support will be provided, join the OpenAsar Server instead!\n\n"+
-			"To install OpenAsar, press Accept and click 'Install OpenAsar' again.", "", true),
-		InfoModal("#insufficient-permissions", "Insufficient Permissions", "Permission denied. Please grant the installer permissions in the settings."),
-		InfoModal("#openasar-patched", "Successfully Installed OpenAsar", "If Discord is still open, fully close it first. Then start it again and verify OpenAsar installed successfully!"),
-		InfoModal("#openasar-unpatched", "Successfully Uninstalled OpenAsar", "If Discord is still open, fully close it first. Then start it again and it should be back to stock!"),
 		InfoModal("#invalid-custom-location", "Invalid Location", "The specified location is not a valid Discord install.\nMake sure you select the base folder.\n\nHint: Discord snap is not supported. use flatpak or .deb"),
 		InfoModalExtra("#modal"+strconv.Itoa(modalId), modalTitle, modalMessage, modalExtra),
 	}
@@ -638,7 +564,7 @@ func loop() {
 			g.Dummy(0, 40),
 
 			&CondWidget{
-				predicate:  LatestHash == "Unknown",
+				predicate: LatestHash == "Unknown",
 				ifWidget: func() g.Widget {
 					return g.Style().SetFontSize(20).To(renderErrorCard(DiscordRed, color.White, "Failed to fetch build info from the Limey backend. If this issue persists, visit https://limey-discord.onrender.com for help.", 40))
 				},

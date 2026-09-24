@@ -39,7 +39,7 @@ func die(msg string) {
 }
 
 func main() {
-	
+
 	discords = FindDiscords()
 
 	// Used by log.go init func
@@ -51,8 +51,6 @@ func main() {
 	var installFlag = flag.Bool("install", false, "Install Limey V1")
 	var updateFlag = flag.Bool("repair", false, "Repair Limey V1")
 	var uninstallFlag = flag.Bool("uninstall", false, "Uninstall Limey V1")
-	var installOpenAsarFlag = flag.Bool("install-openasar", false, "Install OpenAsar")
-	var uninstallOpenAsarFlag = flag.Bool("uninstall-openasar", false, "Uninstall OpenAsar")
 	var locationFlag = flag.String("location", "", "The location of the Discord install to modify")
 	var branchFlag = flag.String("branch", "", "The branch of Discord to modify [auto|stable|ptb|canary]")
 	flag.Parse()
@@ -94,8 +92,8 @@ func main() {
 		}
 	}
 
-	install, uninstall, update, installOpenAsar, uninstallOpenAsar := *installFlag, *uninstallFlag, *updateFlag, *installOpenAsarFlag, *uninstallOpenAsarFlag
-	switches := []*bool{&install, &update, &uninstall, &installOpenAsar, &uninstallOpenAsar}
+	install, uninstall, update := *installFlag, *uninstallFlag, *updateFlag
+	switches := []*bool{&install, &update, &uninstall}
 	if !SliceContainsFunc(switches, func(b *bool) bool { return *b }) {
 		interactive = true
 
@@ -111,8 +109,6 @@ func main() {
 			"Install Limey V1",
 			"Repair Limey V1",
 			"Uninstall Limey V1",
-			"Install OpenAsar",
-			"Uninstall OpenAsar",
 			"View Help Menu",
 			"Update Limey V1 Installer",
 			"Quit",
@@ -152,20 +148,6 @@ func main() {
 		Log.Info("Done!")
 		if err == nil {
 			errSilent = PromptDiscord("repair", *locationFlag, *branchFlag).patch()
-		}
-	} else if installOpenAsar {
-		discord := PromptDiscord("patch", *locationFlag, *branchFlag)
-		if !discord.IsOpenAsar() {
-			err = discord.InstallOpenAsar()
-		} else {
-			die("OpenAsar already installed")
-		}
-	} else if uninstallOpenAsar {
-		discord := PromptDiscord("patch", *locationFlag, *branchFlag)
-		if discord.IsOpenAsar() {
-			err = discord.UninstallOpenAsar()
-		} else {
-			die("OpenAsar not installed")
 		}
 	}
 

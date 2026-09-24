@@ -50,7 +50,6 @@ type DiscordInstall struct {
 	isPatched        bool
 	isFlatpak        bool
 	isSystemElectron bool // Needs special care https://aur.archlinux.org/packages/discord_arch_electron
-	isOpenAsar       *bool
 }
 
 //region Patch
