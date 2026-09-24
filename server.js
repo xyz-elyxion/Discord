@@ -27,6 +27,90 @@ const CLOUD_HOST = "127.0.0.1";
 // ------------------------------------------------------------------
 const net = require("net");
 
+// ------------------------------------------------------------------
+// Backend-provided install: the server packages the browser extension
+// zip itself (in-process, using fflate) so the install is always fresh
+// and never depends on a possibly stale/missing build artifact.
+// ------------------------------------------------------------------
+const EXTENSION_ZIP_PATH = join(DIST, "LimeyV1-Extension.zip");
+const EXTENSION_FILES = [
+    "browser/manifest.json",
+    "browser/manifestv2.json",
+    "browser/background.js",
+    "browser/content.js",
+    "browser/service-worker.js",
+    "browser/GMPolyfill.js",
+    "browser/patch-worker.js",
+    "browser/modifyResponseHeaders.json",
+    "browser/icon.png",
+    "dist/browser.js",
+    "dist/browser.css",
+];
+const EXTENSION_VENDOR_FILES = ["dist/vendor/monaco/index.js"];
+
+/**
+ * Build the extension zip in-process. Returns the zip Buffer, or null if
+ * the built mod bundle (dist/browser.js) is missing.
+ * Results are cached in memory until the bundle changes (mtime check).
+ */
+let extZipCache = null;
+let extZipCacheKey = "";
+
+function buildExtensionZip() {
+    const bundlePath = join(DIST, "browser.js");
+    if (!existsSync(bundlePath)) {
+        console.error("[install] dist/browser.js missing — run `pnpm buildWeb` first");
+        return null;
+    }
+
+    // Rebuild the cache when the bundle mtime changes
+    const key = String(statSync(bundlePath).mtimeMs);
+    if (extZipCache && key === extZipCacheKey) return extZipCache;
+
+    const files = [...EXTENSION_FILES, ...EXTENSION_VENDOR_FILES];
+    const zipData = {};
+    for (const file of files) {
+        try {
+            zipData[file] = new Uint8Array(readFileSync(join(ROOT, file)));
+        } catch { /* optional file missing (e.g. monaco vendor) — skip */ }
+    }
+
+    let zipSync;
+    try {
+        ({ zipSync } = require("fflate"));
+    } catch (err) {
+        console.error("[install] fflate unavailable:", err.message);
+        return null;
+    }
+    const zipped = Buffer.from(zipSync(zipData, { level: 9 }));
+
+    extZipCache = zipped;
+    extZipCacheKey = key;
+    // Also write it to disk so /dist/LimeyV1-Extension.zip keeps working
+    try {
+        mkdirSync(DIST, { recursive: true });
+        writeFileSync(EXTENSION_ZIP_PATH, zipped);
+    } catch (err) {
+        console.error("[install] failed to write zip to disk:", err.message);
+    }
+    return zipped;
+}
+
+function handleInstall(req, res, url) {
+    if (url !== "/v1/install/extension") return false;
+    const zip = buildExtensionZip();
+    if (!zip) return json(res, 503, { error: "extension not built yet — run pnpm buildWeb" }), true;
+    res.writeHead(200, {
+        "Content-Type": "application/zip",
+        "Content-Length": zip.length,
+        "Content-Disposition": "attachment; filename=\"LimeyV1-Extension.zip\"",
+        "Cache-Control": "no-cache",
+        "Access-Control-Allow-Origin": "*"
+    });
+    res.end(zip);
+    return true;
+}
+
 function parseRedisUri(uri) {
     if (!uri) return null;
     const m = /^redis[s]?:\/\/([^/?@]+@)?([^\/:?]+):(\d+)(?:\/?$|\?)/.exec(uri.trim());
@@ -800,6 +884,8 @@ const server = http.createServer(async (req, res) => {
         if (await handleUsrbg(req, res, url)) return;
         // Limey V1 Detector API (handled in-process)
         if (await handleDetector(req, res, url)) return;
+        // Backend-provided install: freshly packaged extension zip
+        if (handleInstall(req, res, url)) return;
         return proxyCloud(req, res);
     }
 

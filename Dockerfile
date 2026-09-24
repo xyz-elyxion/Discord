@@ -45,6 +45,8 @@ RUN pnpm install --frozen-lockfile
 # No git needed: the build falls back to the production remote when git is absent.
 COPY . .
 RUN pnpm buildWeb
+# Stage fflate (used by server.js to package the extension zip in-process)
+RUN mkdir -p /app/runtime_deps/node_modules && cp -rL /app/node_modules/fflate /app/runtime_deps/node_modules/
 # Generate the plugin catalog data for /plugins/
 RUN pnpm generatePluginJson public/plugins.json public/readmes.json
 
@@ -62,9 +64,11 @@ USER node
 
 # Copy only what the server needs
 COPY --from=build --chown=node:node /app/package.json /app/server.js ./
+COPY --from=build --chown=node:node /app/runtime_deps/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/dist ./dist
-COPY --from=build --chown=node:node /app/browser/icon.png ./browser/icon.png
+# Full browser/ extension shell so the server can package the install zip itself
+COPY --from=build --chown=node:node /app/browser ./browser
 COPY --from=cloud --chown=node:node /cloud/limeycloud-backend ./cloud/limeycloud-backend
 COPY --from=limebot --chown=node:node /bot/dist ./limebot/dist
 COPY --from=limebot --chown=node:node /bot/node_modules ./limebot/node_modules
