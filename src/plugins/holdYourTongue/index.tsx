@@ -15,42 +15,12 @@
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { search, wreq } from "@webpack";
+import { MessageActions, Modal, Button, openModal } from "@webpack/common";
 
-interface Filter {
-    analyticsType?: string;
-    check?: (content: string) => { body: string } | false;
-}
-
-// Discord's content-warning filter list (the same system that shows the
-// "@everyone" confirmation). One of its entries has a `check` function
-// that runs on message send and can block it with a custom body.
-// We locate it defensively at start time so a Discord update can never
-// crash the plugin start.
-function findFilters(): Filter[] | null {
-    try {
-        const modules = search("Everyone Warning");
-        for (const id of Object.keys(modules)) {
-            let mod: any;
-            try {
-                mod = wreq(id);
-            } catch {
-                continue;
-            }
-            if (!mod) continue;
-            for (const value of Object.values(mod)) {
-                if (Array.isArray(value) && value.some(x => x && typeof x === "object" && "check" in x && "analyticsType" in x)) {
-                    return value as Filter[];
-                }
-            }
-        }
-    } catch (err) {
-        console.error("[HoldYourTongue] failed to locate warning filters", err);
-    }
-    return null;
-}
-
-const NACHO_TYPE = "LimeyV1-hold-your-tongue";
+// --- Reliable send interception -----------------------------------------------
+// Discord's internal warning-filter list is not dependable across updates
+// (the send path may snapshot the array or never iterate our entry), so we
+// wrap MessageActions.sendMessage directly — a stable webpack export.
 
 const settings = definePluginSettings({
     keywords: {
@@ -83,6 +53,45 @@ function check(content: string): { body: string } | false {
     };
 }
 
+// --- Reliable send interception -----------------------------------------------
+// Discord's internal warning-filter array is not dependable across updates
+// (the send path may snapshot the array or never iterate ours), so we also
+// wrap MessageActions.sendMessage directly.
+
+let originalSendMessage: any = null;
+
+function makeConfirmModal(props: any, text: string, onConfirm: () => void) {
+    return (
+        <Modal
+            {...props}
+            transitionState={props.transitionState}
+            size="md"
+            title="Hold your tongue!"
+        >
+            <div style={{ marginBottom: 12 }}>{text}</div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <Button color={Button.Colors.RED} onClick={() => { props.onClose(); onConfirm(); }}>
+                    Send anyway
+                </Button>
+                <Button color={Button.Colors.PRIMARY} onClick={props.onClose}>
+                    Cancel
+                </Button>
+            </div>
+        </Modal>
+    );
+}
+
+function interceptSendMessage(channelId: string, data: any, ...rest: any[]) {
+    const content = String(data?.content || "");
+    const result = check(content);
+    if (!result) return originalSendMessage!(channelId, data, ...rest);
+
+    openModal(props => makeConfirmModal(
+        props,
+        result.body,
+        () => originalSendMessage!(channelId, data, ...rest)
+    ));
+}
 export default definePlugin({
     name: "HoldYourTongue",
     description: "Stop yourself from saying things in chat! Blocks sending messages that contain your flagged keywords",
@@ -92,23 +101,21 @@ export default definePlugin({
     patches: [],
 
     start() {
-        const filters = findFilters();
-        if (!filters) {
-            console.warn("[HoldYourTongue] Could not find Discord's warning filter list; the plugin will stay inactive.");
-            return;
-        }
-        const existing = filters.find(f => f.analyticsType === NACHO_TYPE);
-        if (existing) {
-            existing.check = check;
+        // Discord's internal warning-filter array is unreliable across updates
+        // (the send path may snapshot the array or never iterate ours), so we
+        // wrap MessageActions.sendMessage directly for a guaranteed block.
+        if (!originalSendMessage && typeof MessageActions?.sendMessage === "function") {
+            originalSendMessage = MessageActions.sendMessage;
+            MessageActions.sendMessage = interceptSendMessage as any;
         } else {
-            filters.push({ analyticsType: NACHO_TYPE, check });
+            console.warn("[HoldYourTongue] MessageActions.sendMessage not found; plugin inactive.");
         }
     },
 
     stop() {
-        const filters = findFilters();
-        if (!filters) return;
-        const index = filters.findIndex(f => f.analyticsType === NACHO_TYPE);
-        if (index !== -1) filters.splice(index, 1);
+        if (originalSendMessage) {
+            MessageActions.sendMessage = originalSendMessage;
+            originalSendMessage = null;
+        }
     },
 });

@@ -272,23 +272,20 @@ function openCaptioner(src: string) {
     const url = formatUrl(src);
     const urlString = url.toString();
 
-    const video = document.createElement("video");
-    video.src = urlString;
-    video.autoplay = true;
-    video.loop = true;
-    video.muted = true;
-    video.load();
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = urlString;
 
-    video.addEventListener("canplaythrough", async () => {
-        const width = video.videoWidth;
-        const height = video.videoHeight;
+    img.addEventListener("load", async () => {
+        const width = img.naturalWidth;
+        const height = img.naturalHeight;
 
         const modal = openModal(props => (
             <CaptionModal
                 modalProps={props}
                 width={width}
                 height={height}
-                element={video}
+                element={img}
                 onConfirm={(transform) => {
                     currentTransform = transform;
                     captionAndSend(urlString).catch(err => {
@@ -300,14 +297,14 @@ function openCaptioner(src: string) {
         ));
     }, { once: true });
 
-    video.addEventListener("error", () => showError("Failed to load gif"));
+    img.addEventListener("error", () => showError("Failed to load gif"));
 }
 
 function CaptionModal({ modalProps, width, height, element, onConfirm }: {
     modalProps: any;
     width: number;
     height: number;
-    element: HTMLVideoElement;
+    element: HTMLImageElement;
     onConfirm: (t: Transform) => void;
 }) {
     const [text, setText] = useState("");
