@@ -213,16 +213,18 @@ export default definePlugin({
 
     patches: [
         {
-            // Match any receiver/argument shape: .setSelfMute(<arg>) — robust
-            // against Discord's changing minified variable names.
+            // Match any receiver/argument shape: .setSelfMute(<anything>) —
+            // robust against Discord's changing minified variable names
+            // (args can be dotted like t.deaf, so \i macros don't suffice).
+            // Only the engine-forwarding calls in module "setSelfMute" match this find.
             find: "setSelfMute",
             replacement: [
                 {
-                    match: /\.setSelfMute\((\i+)\)/g,
+                    match: /\.setSelfMute\(([^)]+)\)/g,
                     replace: ".setSelfMute($self.settings.store.active&&$self.settings.store.fakeMute?false:$1)",
                 },
                 {
-                    match: /\.setSelfDeaf\((\i+)\)/g,
+                    match: /\.setSelfDeaf\(([^)]+)\)/g,
                     replace: ".setSelfDeaf($self.settings.store.active&&$self.settings.store.fakeDeafen?false:$1)",
                 },
             ],
@@ -230,7 +232,7 @@ export default definePlugin({
         {
             find: "self_video:",
             replacement: {
-                match: /self_video:(\i+)/g,
+                match: /self_video:([^,}]+)/g,
                 replace: "self_video:($self.settings.store.active&&$self.settings.store.fakeVideo?true:$1)",
             },
         },
