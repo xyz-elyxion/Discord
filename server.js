@@ -97,6 +97,15 @@ function buildExtensionZip() {
 }
 
 function handleInstall(req, res, url) {
+    if (url === "/v1/install/desktop") {
+        const built = existsSync(join(DIST, "patcher.js")) && existsSync(join(DIST, "renderer.js")) && existsSync(join(DIST, "preload.js"));
+        return json(res, 200, {
+            app: "Limey V1 Discord Desktop App",
+            built,
+            installCommand: "pnpm build && pnpm inject",
+            artifacts: built ? ["/dist/patcher.js", "/dist/renderer.js", "/dist/preload.js"] : []
+        }), true;
+    }
     if (url !== "/v1/install/extension") return false;
     const zip = buildExtensionZip();
     if (!zip) return json(res, 503, { error: "extension not built yet — run pnpm buildWeb" }), true;
@@ -112,23 +121,33 @@ function handleInstall(req, res, url) {
 }
 
 // ------------------------------------------------------------------
-// Backend-provided build: if the web bundle is missing at startup
-// (e.g. fresh clone without a build), run `pnpm buildWeb` in-process
-// via spawn so the server itself produces dist/browser.js.
+// Backend-provided build: if the bundles are missing at startup
+// (e.g. fresh clone without a build), run `pnpm buildWeb` and/or
+// `pnpm build` in-process via spawn so the server itself produces
+// the browser extension and Discord Desktop App artifacts.
 // ------------------------------------------------------------------
 function startBuildIfMissing() {
-    const bundlePath = join(DIST, "browser.js");
-    if (existsSync(bundlePath)) {
-        console.log("[build] dist/browser.js present — skipping build");
+    const jobs = [];
+    if (!existsSync(join(DIST, "browser.js"))) {
+        console.log("[build] dist/browser.js missing — running pnpm buildWeb...");
+        jobs.push(["buildWeb", ["buildWeb"]]);
+    }
+    if (!existsSync(join(DIST, "patcher.js"))) {
+        console.log("[build] dist/patcher.js missing — running pnpm build (Discord Desktop App)...");
+        jobs.push(["build", ["build"]]);
+    }
+    if (!jobs.length) {
+        console.log("[build] dist bundles present — skipping build");
         return;
     }
-    console.log("[build] dist/browser.js missing — running pnpm buildWeb...");
-    const child = spawn("pnpm", ["buildWeb"], { cwd: ROOT, stdio: "inherit" });
-    child.on("error", err => console.error("[build] failed to spawn pnpm buildWeb:", err.message));
-    child.on("exit", code => {
-        if (code === 0) console.log("[build] pnpm buildWeb finished — install endpoint now serves a fresh zip");
-        else console.error(`[build] pnpm buildWeb exited with code ${code}`);
-    });
+    for (const [name, args] of jobs) {
+        const child = spawn("pnpm", args, { cwd: ROOT, stdio: "inherit" });
+        child.on("error", err => console.error(`[build] failed to spawn pnpm ${name}:`, err.message));
+        child.on("exit", code => {
+            if (code === 0) console.log(`[build] pnpm ${name} finished`);
+            else console.error(`[build] pnpm ${name} exited with code ${code}`);
+        });
+    }
 }
 
 function parseRedisUri(uri) {
@@ -904,7 +923,7 @@ const server = http.createServer(async (req, res) => {
         if (await handleUsrbg(req, res, url)) return;
         // Limey V1 Detector API (handled in-process)
         if (await handleDetector(req, res, url)) return;
-        // Backend-provided install: freshly packaged extension zip
+        // Backend-provided install: freshly packaged extension zip + desktop install info
         if (handleInstall(req, res, url)) return;
         return proxyCloud(req, res);
     }
