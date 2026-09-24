@@ -6,6 +6,14 @@ RUN go mod download
 COPY cloud .
 RUN CGO_ENABLED=0 go build -o limeycloud-backend .
 
+# ---------- Limey V1 Installer (Go CLI) ----------
+FROM golang:1.27-alpine AS installer
+WORKDIR /installer
+COPY installer/go.mod installer/go.sum ./
+RUN go mod download
+COPY installer .
+RUN CGO_ENABLED=0 go build -tags cli -ldflags "-s -w -extldflags=-static" -o /limey-installer .
+
 # ---------- Limebot (Discord bot) ----------
 FROM node:22-alpine AS limebot
 
@@ -73,6 +81,7 @@ COPY --from=build --chown=node:node /app/dist ./dist
 # Full browser/ extension shell so the server can package the install zip itself
 COPY --from=build --chown=node:node /app/browser ./browser
 COPY --from=cloud --chown=node:node /cloud/limeycloud-backend ./cloud/limeycloud-backend
+COPY --from=installer --chown=node:node /limey-installer ./dist/LimeyV1Installer-cli-linux
 COPY --from=limebot --chown=node:node /bot/dist ./limebot/dist
 COPY --from=limebot --chown=node:node /bot/node_modules ./limebot/node_modules
 COPY --from=limebot --chown=node:node /bot/package.json ./limebot/package.json

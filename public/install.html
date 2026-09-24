@@ -97,26 +97,26 @@
 
     <section class="install-hero">
         <h1>Discord Desktop App</h1>
-        <p>Inject Limey V1 directly into the Discord desktop client, classic client-mod style. The backend builds and serves everything — the installer runs on your machine.</p>
+        <p>Inject Limey V1 directly into the Discord desktop client, classic client-mod style. One native installer — no Node.js, no pnpm, no building. Windows &middot; macOS &middot; Linux.</p>
         <span class="status-chip pending" id="status">Checking build status…</span>
     </section>
 
     <section class="install-body">
         <div class="steps">
-            <h2>Install steps</h2>
+            <h2>Install steps — no Node.js required</h2>
             <ol>
-                <li>Install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> and enable <a href="https://pnpm.io/installation" target="_blank" rel="noopener">pnpm</a> (<code>corepack enable pnpm</code>).</li>
-                <li>Clone the repository and install dependencies: <code>git clone</code> &rarr; <code>pnpm install</code>.</li>
-                <li>Build, then inject: <code>pnpm build</code> followed by <code>pnpm inject</code>.</li>
-                <li>Restart Discord — Limey V1 appears in Settings.</li>
+                <li>Download the Limey V1 Installer for your platform below.</li>
+                <li>Windows: just run the <code>.exe</code>. macOS/Linux: run <code>./LimeyV1Installer</code> in a terminal (you may need <code>chmod +x</code> first).</li>
+                <li>Pick your Discord install, choose <strong>Install Limey V1</strong>, done.</li>
+                <li>Restart Discord — Limey V1 appears in Settings. Use <strong>Uninstall</strong> to remove it.</li>
             </ol>
             <div class="install-actions">
-                <button class="btn btn-primary" id="copy-cmd" type="button">Copy install command</button>
+                <a class="btn btn-primary" href="/dist/LimeyV1Installer-cli-linux">Download Installer (Linux)</a>
+                <a class="btn btn-ghost" href="/v1/install/desktop-zip">Alternative: manual .zip package</a>
                 <a class="btn btn-ghost" href="/v1/install/extension">Get the Browser Extension instead</a>
-                <a class="btn btn-ghost" href="/download">Back to Download</a>
             </div>
         </div>
-        <p class="install-note">To remove later, run <code>pnpm uninject</code>. Works on any Discord branch: Stable, Canary or PTB. Windows &middot; macOS &middot; Linux.</p>
+        <p class="install-note">To remove later: delete the injected <code>app</code> folder in Discord's <code>resources</code> directory and restore <code>app.asar</code> from <code>app.orig.asar</code>. Works on any Discord branch: Stable, Canary or PTB. Windows &middot; macOS &middot; Linux.</p>
     </section>
 
     <footer class="footer">
@@ -151,17 +151,7 @@
             document.getElementById("status").textContent = "Build status unavailable";
         });
 
-        document.getElementById("copy-cmd").addEventListener("click", async function () {
-            var cmd = "git clone <repo-url> && cd <repo> && pnpm install && pnpm build && pnpm inject";
-            try {
-                await navigator.clipboard.writeText(cmd);
-                this.textContent = "✓ Copied!";
-            } catch (_) {
-                this.textContent = cmd;
-            }
-            var btn = this;
-            setTimeout(() => { btn.textContent = "Copy install command"; }, 2000);
-        });
+
     </script>
 </body>
 </html>

@@ -96,7 +96,118 @@ function buildExtensionZip() {
     return zipped;
 }
 
+// Ready-built desktop package: dist artifacts + a one-command installer
+// script the user runs locally — no compiling on their machine.
+const DESKTOP_FILES = [
+    "dist/patcher.js",
+    "dist/renderer.js",
+    "dist/preload.js",
+    "dist/limeyV1DesktopMain.js",
+    "dist/limeyV1DesktopRenderer.js",
+    "dist/limeyV1DesktopPreload.js",
+];
+
+let desktopZipCache = null;
+let desktopZipKey = "";
+
+function buildDesktopZip() {
+    if (!existsSync(join(DIST, "patcher.js"))) return null;
+    const key = DESKTOP_FILES.map(f => {
+        const p = join(ROOT, f);
+        return existsSync(p) ? statSync(p).mtimeMs : "-";
+    }).join(",");
+    if (desktopZipCache && key === desktopZipKey) return desktopZipCache;
+
+    let zipSync;
+    try { ({ zipSync } = require("fflate")); } catch { return null; }
+
+    const zipData = {};
+    for (const f of DESKTOP_FILES) {
+        try { zipData[f] = new Uint8Array(readFileSync(join(ROOT, f))); } catch { /* optional */ }
+    }
+    zipData["install-desktop.mjs"] = new TextEncoder().encode(`
+// Limey V1 desktop installer — run:  node install-desktop.mjs
+// Injects the bundled build into your Discord client (same as pnpm inject).
+const { existsSync, mkdirSync, copyFileSync, writeFileSync, readdirSync, rmSync } = require("fs");
+const { join } = require("path");
+const { homedir, platform } = require("os");
+
+const home = homedir();
+const candidates = platform() === "win32"
+    ? [join(home, "AppData", "Roaming", "discord")]
+    : platform() === "darwin"
+        ? [join(home, "Library", "Application Support", "discord")]
+        : [join(home, ".config", "discord")];
+const discordDir = candidates.find(existsSync);
+if (!discordDir) {
+    console.error("Discord desktop install folder not found — is Discord installed?");
+    process.exit(1);
+}
+const appDirs = readdirSync(discordDir).filter(d => d.startsWith("app-")).sort().reverse();
+if (!appDirs.length) { console.error("No app-* folder found in", discordDir); process.exit(1); }
+const appDir = join(discordDir, appDirs[0]);
+const resourcesDir = join(appDir, "resources");
+const injectDir = join(resourcesDir, "app");
+console.log("Injecting Limey V1 into", appDir);
+
+if (!existsSync(join(resourcesDir, "app.orig.asar"))) {
+    copyFileSync(join(resourcesDir, "app.asar"), join(resourcesDir, "app.orig.asar"));
+}
+rmSync(injectDir, { recursive: true, force: true });
+mkdirSync(injectDir, { recursive: true });
+copyFileSync("patcher.js", join(injectDir, "index.js"));
+writeFileSync(join(injectDir, "package.json"), JSON.stringify({ main: "index.js", name: "limeyV1", private: true }));
+console.log("Done! Restart Discord — Limey V1 appears in Settings.");
+console.log("To remove: delete", injectDir, "and restore app.asar from app.orig.asar.");
+`);
+    const zipped = Buffer.from(zipSync(zipData, { level: 9 }));
+    desktopZipCache = zipped;
+    desktopZipKey = key;
+    return zipped;
+}
+
 function handleInstall(req, res, url) {
+    // Serve the desktop build files to the Go installer, stamped with the
+    // build hash (first line of patcher.js: "// Limey V1 <hash>") so the
+    // installer can detect installed vs latest.
+    if (url.startsWith("/v1/install/files/")) {
+        const name = url.slice("/v1/install/files/".length);
+        if (!/^[\w.-]+\.(js|css)$/.test(name)) return json(res, 400, { error: "invalid file name" }), true;
+        const filePath = join(DIST, name);
+        if (!existsSync(filePath)) return json(res, 404, { error: "file not found — is the build ready?" }), true;
+
+        let content = readFileSync(filePath);
+        if (name.endsWith(".css")) {
+            // The installer fetches renderer.css only to read the hash comment.
+            let hash = "unknown";
+            try {
+                const patcherHead = readFileSync(join(DIST, "patcher.js")).toString("utf8", 0, 64);
+                const m = /^\/\/ Limey V1 (\S+)/.exec(patcherHead);
+                if (m) hash = m[1];
+            } catch { /* keep unknown */ }
+            content = Buffer.from(`/* Limey ${hash} */\n` + content.toString("utf8"));
+        }
+        res.writeHead(200, {
+            "Content-Type": name.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8",
+            "Content-Length": content.length,
+            "Cache-Control": "no-cache",
+            "Access-Control-Allow-Origin": "*"
+        });
+        return res.end(content), true;
+    }
+    if (url === "/v1/install/desktop-zip") {
+        const zip = buildDesktopZip();
+        if (!zip) return json(res, 503, { error: "desktop build not available yet" }), true;
+        res.writeHead(200, {
+            "Content-Type": "application/zip",
+            "Content-Length": zip.length,
+            "Content-Disposition": "attachment; filename=\"LimeyV1-Desktop.zip\"",
+            "Cache-Control": "no-cache",
+            "Access-Control-Allow-Origin": "*"
+        });
+        res.end(zip);
+        return true;
+    }
     if (url === "/v1/build/status") {
         const st = key => ({
             state: buildStatus[key].state,
