@@ -45,6 +45,9 @@ RUN pnpm install --frozen-lockfile
 # No git needed: the build falls back to the production remote when git is absent.
 COPY . .
 RUN pnpm buildWeb
+# Build the Discord Desktop App artifacts (patcher/renderer/preload) so the
+# runtime server can serve /v1/install/desktop as built without compiling.
+RUN pnpm build
 # Stage fflate (used by server.js to package the extension zip in-process)
 RUN mkdir -p /app/runtime_deps/node_modules && cp -rL /app/node_modules/fflate /app/runtime_deps/node_modules/
 # Generate the plugin catalog data for /plugins/

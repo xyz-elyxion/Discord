@@ -150,6 +150,24 @@ const buildStatus = {
 };
 
 function startBuildIfMissing() {
+    // The runtime container has no source or root node_modules — builds happen
+    // in the Docker build stage. Only attempt to compile when source exists
+    // (i.e. running from a repo checkout, e.g. local dev).
+    const hasSource = existsSync(join(ROOT, "scripts", "build", "buildWeb.mjs"));
+    if (!hasSource) {
+        const missing = [
+            !existsSync(join(DIST, "browser.js")) && "web",
+            !existsSync(join(DIST, "patcher.js")) && "desktop",
+        ].filter(Boolean);
+        if (missing.length) {
+            console.error(`[build] dist missing (${missing.join(", ")}) but no source available — run pnpm buildWeb / pnpm build before deploying`);
+            buildStatus.web.state = existsSync(join(DIST, "browser.js")) ? "present" : "failed";
+            buildStatus.desktop.state = existsSync(join(DIST, "patcher.js")) ? "present" : "failed";
+        } else {
+            console.log("[build] dist bundles present — skipping build");
+        }
+        return;
+    }
     const jobs = [];
     if (!existsSync(join(DIST, "browser.js"))) {
         console.log("[build] dist/browser.js missing — running pnpm buildWeb...");
