@@ -243,7 +243,12 @@ class GifRenderer {
 async function captionImageFile(url: string): Promise<File> {
     const res = await fetch(url);
     const buffer = await res.arrayBuffer();
-    const mime = url.endsWith(".webp") ? "image/webp" : "image/gif";
+    // Extension-less URLs (Discord proxy/embed media) — use the response type,
+    // falling back to gif (works for webp too in Chromium's ImageDecoder).
+    const contentType = res.headers.get("content-type") ?? "";
+    const mime = contentType.startsWith("image/") ? contentType
+        : url.endsWith(".webp") ? "image/webp"
+        : "image/gif";
     const decoder = new ImageDecoder({ data: buffer, type: mime });
     await decoder.tracks.ready;
     const track = decoder.tracks.selectedTrack;
@@ -472,20 +477,57 @@ async function sendFile(file: File) {
 
 // --- Context menu ------------------------------------------------------------------
 
+const GIF_URL_RE = /https?:\/\/[^\s<>"')]+\.(?:gif|webp)(?:\?[^\s<>"')]*)?/gi;
+
+type GifSource = { label: string; url: string };
+
+// Collect gif-able image URLs from a message: attachments, embeds (which is
+// how link previews of gifs appear) and raw gif links in the message content.
+function collectGifSources(message: any): GifSource[] {
+    if (!message) return [];
+    const sources: GifSource[] = [];
+    const seen = new Set<string>();
+    const push = (label: string, url?: string | null) => {
+        if (!url || seen.has(url)) return;
+        seen.add(url);
+        sources.push({ label, url });
+    };
+
+    for (const attachment of message.attachments ?? []) {
+        const isGifLike = attachment.content_type?.startsWith("image/")
+            || attachment.filename?.endsWith(".gif")
+            || attachment.filename?.endsWith(".webp");
+        if (isGifLike) push("Attachment", attachment.url);
+    }
+
+    for (const embed of message.embeds ?? []) {
+        const image = embed.image ?? embed.video ?? embed.thumbnail;
+        // embeds of gif links are type "imagev2"/"image" with a proxy_url
+        if (image?.url || image?.proxy_url) {
+            push("Link preview", image.proxy_url ?? image.url);
+        }
+    }
+
+    for (const match of String(message.content ?? "").matchAll(GIF_URL_RE)) {
+        push("Link", match[0]);
+    }
+
+    return sources;
+}
+
 const messageContextMenu: NavContextMenuPatchCallback = (children, props) => {
-    const message = props?.message;
-    const attachment = message?.attachments?.[0];
-    const isGifLike = attachment &&
-        (attachment.content_type?.startsWith("image/") || attachment.filename?.endsWith(".gif"));
-    if (!isGifLike) return;
+    const sources = collectGifSources(props?.message);
+    if (!sources.length) return;
 
     children.push(
-        <Menu.MenuItem
-            id="gifcaptioner-caption"
-            key="gifcaptioner-caption"
-            label="Caption Gif"
-            action={() => openCaptioner(attachment.url)}
-        />
+        ...sources.map((source, i) => (
+            <Menu.MenuItem
+                id={`gifcaptioner-caption-${i}`}
+                key={`gifcaptioner-caption-${i}`}
+                label={sources.length > 1 ? `Caption Gif (${source.label})` : "Caption Gif"}
+                action={() => openCaptioner(source.url)}
+            />
+        ))
     );
 };
 
@@ -497,7 +539,7 @@ const { ModalRoot, ModalContent, ModalFooter } = Modals as any;
 
 export default definePlugin({
     name: "GifCaptioner",
-    description: "Add a caption or speech bubble to GIFs and send the result as a new gif. Converted from the BetterDiscord plugin by TheLazySquid.",
+    description: "Add a caption or speech bubble to GIFs (attachments, gif links and link previews) and send the result as a new gif. Converted from the BetterDiscord plugin by TheLazySquid.",
     tags: ["Fun", "Utility"],
     authors: [Devs.Limey],
     settings,
