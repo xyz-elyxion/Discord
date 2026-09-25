@@ -240,13 +240,31 @@ class GifRenderer {
 
 // --- Frame decoding (WebCodecs) ----------------------------------------------
 
+// Some hosts (e.g. certain gif CDNs) block cross-origin fetches entirely.
+// Our backend can proxy the bytes with permissive CORS as a fallback.
+const MEDIA_PROXY = "https://limey-discord.onrender.com/v1/media-proxy?url=";
+
+async function fetchGifBuffer(url: string): Promise<{ buffer: ArrayBuffer; contentType: string }> {
+    const attempts = [url, MEDIA_PROXY + encodeURIComponent(url)];
+    let lastErr: unknown;
+    for (const attempt of attempts) {
+        try {
+            const res = await fetch(attempt);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const contentType = res.headers.get("content-type") ?? "";
+            return { buffer: await res.arrayBuffer(), contentType };
+        } catch (err) {
+            lastErr = err;
+        }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error("Failed to fetch gif");
+}
+
 async function captionImageFile(url: string): Promise<File> {
-    const res = await fetch(url);
-    const buffer = await res.arrayBuffer();
+    const { buffer, contentType: resType } = await fetchGifBuffer(url);
     // Extension-less URLs (Discord proxy/embed media) — use the response type,
     // falling back to gif (works for webp too in Chromium's ImageDecoder).
-    const contentType = res.headers.get("content-type") ?? "";
-    const mime = contentType.startsWith("image/") ? contentType
+    const mime = resType.startsWith("image/") ? resType
         : url.endsWith(".webp") ? "image/webp"
         : "image/gif";
     const decoder = new ImageDecoder({ data: buffer, type: mime });
@@ -278,7 +296,17 @@ function openCaptioner(src: string) {
     const urlString = url.toString();
 
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    // Some gif hosts don't send CORS headers; if the CORS-enabled load fails,
+    // retry without crossOrigin (the preview canvas is never read from, so a
+    // tainted canvas is fine — actual frame data comes via captionImageFile).
+    img.addEventListener("error", () => {
+        if (img.crossOrigin) {
+            img.crossOrigin = null;
+            img.src = urlString;
+        } else {
+            showError("Failed to load gif");
+        }
+    }, { once: false });
     img.src = urlString;
 
     img.addEventListener("load", async () => {

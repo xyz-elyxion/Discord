@@ -871,6 +871,90 @@ function pruneDetector() {
     return changed;
 }
 
+// ------------------------------------------------------------------
+// Media proxy — fetches a remote image (gif/webp) server-side and streams it
+// back with permissive CORS. Used by the GifCaptioner plugin for hosts that
+// block cross-origin requests. GET /v1/media-proxy?url=<encoded url>
+// ------------------------------------------------------------------
+const MEDIA_PROXY_ALLOWED_HOSTS = /(^|\.)(discordapp\.com|discordapp\.net|discord\.com|tenor\.com|giphy\.com|imgur\.com|catbox\.moe|redgifs\.com|gfycat\.com|media\.tgst\.media|imgix\.net|cloudfront\.net|githubusercontent\.com|github\.com|user-images\.githubusercontent\.com|raw\.githubusercontent\.com)$/i;
+
+async function handleMediaProxy(req, res, url) {
+    if (!url.startsWith("/v1/media-proxy")) return false;
+
+    const origin = res.req?.headers?.origin;
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        res.end();
+        return true;
+    }
+    if (req.method !== "GET") {
+        res.writeHead(405, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ message: "method not allowed" }));
+        return true;
+    }
+
+    const params = new URLSearchParams(url.split("?")[1] ?? "");
+    const target = params.get("url");
+    let parsed;
+    try {
+        parsed = new URL(target ?? "");
+    } catch {
+        parsed = null;
+    }
+    if (!parsed || !/^https?:$/.test(parsed.protocol) || !MEDIA_PROXY_ALLOWED_HOSTS.test(parsed.hostname)) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ message: "invalid or disallowed url" }));
+        return true;
+    }
+
+    try {
+        const upstream = await fetch(parsed, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (compatible; LimeyV1MediaProxy/1.0)",
+                Accept: "image/gif,image/webp,image/*,*/*;q=0.8",
+                Referer: parsed.origin + "/",
+            },
+            redirect: "follow"
+        });
+        if (!upstream.ok || !upstream.body) {
+            res.writeHead(502, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ message: `upstream returned ${upstream.status}` }));
+            return true;
+        }
+
+        const contentType = upstream.headers.get("content-type") || "application/octet-stream";
+        if (!contentType.startsWith("image/") && !contentType.includes("octet-stream")) {
+            res.writeHead(415, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ message: `upstream is not an image (${contentType})` }));
+            return true;
+        }
+
+        res.writeHead(200, {
+            "Content-Type": contentType,
+            "Cache-Control": "public, max-age=3600",
+            ...(origin ? { "Access-Control-Allow-Origin": "*" } : {})
+        });
+        const reader = upstream.body.getReader();
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            res.write(Buffer.from(value));
+        }
+        res.end();
+    } catch (err) {
+        console.error("[media-proxy] fetch failed:", err.message);
+        if (!res.headersSent) {
+            res.writeHead(502, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ message: "upstream fetch failed" }));
+        } else {
+            res.end();
+        }
+    }
+    return true;
+}
+
 // Returns true if the request was handled by the detector API
 async function handleDetector(req, res, url) {
     if (!url.startsWith("/v1/detector")) return false;
@@ -1108,6 +1192,8 @@ const server = http.createServer(async (req, res) => {
         if (await handleUsrbg(req, res, url)) return;
         // Limey V1 Detector API (handled in-process)
         if (await handleDetector(req, res, url)) return;
+        // CORS-friendly media proxy for the GifCaptioner plugin
+        if (await handleMediaProxy(req, res, url)) return;
         // Backend-provided install: freshly packaged extension zip + desktop install info
         if (handleInstall(req, res, url)) return;
         // Self-hosted ReviewDB API
