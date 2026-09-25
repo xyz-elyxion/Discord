@@ -33,11 +33,12 @@ const DATA_FILE = join(ROOT, "data", "reviewdb.json");
 const DISCORD_API = "https://discord.com/api/v10";
 
 // --- Config (env) -----------------------------------------------------------
-// REVIEWDB_CLIENT_ID / REVIEWDB_CLIENT_SECRET: a Discord OAuth2 application
-// with the "identify" scope. The redirect URI must be set to
-//   https://<host>/v1/reviewdb/auth
-const CLIENT_ID = process.env.REVIEWDB_CLIENT_ID || "";
-const CLIENT_SECRET = process.env.REVIEWDB_CLIENT_SECRET || "";
+// Uses DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET (shared with other Discord
+// integrations), overridable with REVIEWDB_CLIENT_ID / REVIEWDB_CLIENT_SECRET.
+// Must be a Discord OAuth2 application with the "identify" scope. The redirect
+// URI must be set to https://<host>/v1/reviewdb/auth
+const CLIENT_ID = process.env.REVIEWDB_CLIENT_ID || process.env.DISCORD_CLIENT_ID || "";
+const CLIENT_SECRET = process.env.REVIEWDB_CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
 
 // Optional moderation token: grants admin actions via X-Admin-Token header.
 const ADMIN_TOKEN = process.env.REVIEWDB_ADMIN_TOKEN || "";
