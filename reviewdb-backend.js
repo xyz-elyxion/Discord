@@ -247,7 +247,11 @@ function avatarUrl(discordUser) {
 
 // --- Route handlers --------------------------------------------------------------
 async function handle(req, res, url) {
-    const path = url.slice("/v1/reviewdb".length) || "/";
+    // Separate the query string before matching paths (routes never match
+    // when "?code=..." is included in `path`).
+    const queryIndex = url.indexOf("?");
+    const query = queryIndex === -1 ? "" : url.slice(queryIndex);
+    const path = url.slice("/v1/reviewdb".length, queryIndex === -1 ? undefined : queryIndex) || "/";
     const method = req.method;
 
     if (method === "OPTIONS") {
