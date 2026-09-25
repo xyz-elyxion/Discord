@@ -78,6 +78,11 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
+# Writable data dirs (must run as root before switching to node):
+# JSON persistence for usrbg/detector/reviewdb fallbacks (Redis is the primary
+# store when REDIS_URI is set) and the limebot SQLite database.
+RUN mkdir -p /app/data /app/limebot/data && chown -R node:node /app/data /app/limebot/data
+
 # Run as a non-root user
 USER node
 
@@ -101,11 +106,7 @@ COPY --from=limebot --chown=node:node /bot/package.json ./limebot/package.json
 COPY --from=limebot --chown=node:node /bot/assets ./limebot/assets
 # Limebot needs its SQLite database to exist with tables before it starts
 COPY --chown=node:node limebot/sql/create.sql ./limebot/sql/create.sql
-# Writable data dir for JSON persistence (usrbg/detector/reviewdb fallbacks;
-# Redis is the primary store when REDIS_URI is set)
-RUN mkdir -p /app/data && chown node:node /app/data && \
-    mkdir -p /app/limebot/data && chown node:node /app/limebot/data && \
-    node -e "const d=require('/app/limebot/node_modules/better-sqlite3');const db=new d('/app/limebot/data/db.sqlite3');db.exec(require('fs').readFileSync('/app/limebot/sql/create.sql','utf8'));db.close();"
+RUN node -e "const d=require('/app/limebot/node_modules/better-sqlite3');const db=new d('/app/limebot/data/db.sqlite3');db.exec(require('fs').readFileSync('/app/limebot/sql/create.sql','utf8'));db.close();"
 
 EXPOSE 3000
 
