@@ -11,7 +11,8 @@ import { Review, ReviewDBCurrentUser, ReviewDBUser, ReviewType } from "./entitie
 import { settings } from "./settings";
 import { showToast } from "./utils";
 
-const API_URL = "https://manti.limey.dev/api/reviewdb";
+// Self-hosted ReviewDB backend served by the Limey V1 site
+export const API_URL = "https://limey-discord.onrender.com/v1/reviewdb";
 
 export const REVIEWS_PER_PAGE = 50;
 

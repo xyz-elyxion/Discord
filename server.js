@@ -431,10 +431,11 @@ async function kvGet(key) {
 async function hydrateKv() {
     if (!KV_ENABLED) return;
     try {
-        const [usrbg, aiTokens, detector] = await Promise.all([
+        const [usrbg, aiTokens, detector, reviewdbData] = await Promise.all([
             kvGet("limey:usrbg"),
             kvGet("limey:ai-tokens"),
-            kvGet("limey:detector")
+            kvGet("limey:detector"),
+            kvGet("limey:reviewdb")
         ]);
         if (usrbg) usrbgData = JSON.parse(usrbg);
         if (aiTokens) {
@@ -442,6 +443,7 @@ async function hydrateKv() {
             if (Array.isArray(parsed.tokens)) aiTokensData = { tokens: parsed.tokens, next: parsed.next || 0 };
         }
         if (detector) detectorData = JSON.parse(detector);
+        if (reviewdbData && reviewdb) reviewdb.hydrate(JSON.parse(reviewdbData));
         console.log(`[kv] hydrated stores from Redis (${REDIS_CONF.host}:${REDIS_CONF.port})`);
     } catch (err) {
         console.error("[kv] failed to hydrate from Redis:", err.message);
@@ -915,6 +917,19 @@ function normalizeRedisUri(uri) {
 }
 
 // ------------------------------------------------------------------
+// ReviewDB backend (self-hosted) — mounted at /v1/reviewdb/*
+// ------------------------------------------------------------------
+let reviewdb;
+try {
+    reviewdb = require("./reviewdb-backend");
+    // Let the reviewdb backend mirror its persisted database to Redis
+    global.__reviewdbKvSet = kvSet;
+    console.log("[reviewdb] backend loaded");
+} catch (err) {
+    console.error("[reviewdb] failed to load backend:", err.message);
+}
+
+// ------------------------------------------------------------------
 // LimeyCloud backend (Go) — settings sync API at /v1/*
 // ------------------------------------------------------------------
 let cloudUp = false;
@@ -1095,6 +1110,8 @@ const server = http.createServer(async (req, res) => {
         if (await handleDetector(req, res, url)) return;
         // Backend-provided install: freshly packaged extension zip + desktop install info
         if (handleInstall(req, res, url)) return;
+        // Self-hosted ReviewDB API
+        if (reviewdb && url.startsWith("/v1/reviewdb/") && await reviewdb.handle(req, res, url)) return;
         return proxyCloud(req, res);
     }
 

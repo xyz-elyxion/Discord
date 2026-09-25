@@ -9,6 +9,7 @@ import { Logger } from "@utils/Logger";
 import { OAuth2AuthorizeModal, openModal, showToast, Toasts, UserStore } from "@webpack/common";
 
 import { ReviewDBAuth } from "./entities";
+import { API_URL } from "./reviewDbApi";
 
 const DATA_STORE_KEY = "rdb-auth";
 
@@ -40,38 +41,61 @@ export async function updateAuth(newAuth: ReviewDBAuth) {
     });
 }
 
+let cachedClientId: string | null = null;
+
+async function getClientId(): Promise<string | null> {
+    if (cachedClientId) return cachedClientId;
+    try {
+        const res = await fetch(`${API_URL}/config`);
+        if (!res.ok) return null;
+        const { clientId } = await res.json();
+        cachedClientId = clientId ?? null;
+        return cachedClientId;
+    } catch {
+        return null;
+    }
+}
+
 export function authorize(callback?: () => void) {
-    openModal(props =>
-        <OAuth2AuthorizeModal
-            {...props}
-            scopes={["identify"]}
-            responseType="code"
-            redirectUri="https://manti.limey.dev/api/reviewdb/auth"
-            permissions={0n}
-            clientId="915703782174752809"
-            cancelCompletesFlow={false}
-            callback={async (response: { location: string }) => {
-                try {
-                    const url = new URL(response.location);
-                    url.searchParams.append("clientMod", "limeyV1");
-                    const res = await fetch(url, {
-                        headers: { Accept: "application/json" }
-                    });
+    void (async () => {
+        const clientId = await getClientId();
+        if (!clientId) {
+            showToast("ReviewDB backend is unavailable right now.", Toasts.Type.FAILURE);
+            return;
+        }
 
-                    if (!res.ok) {
-                        const { message } = await res.json();
-                        showToast(message ?? "An error occured while authorizing", Toasts.Type.FAILURE);
-                        return;
+        openModal(props =>
+            <OAuth2AuthorizeModal
+                {...props}
+                scopes={["identify"]}
+                responseType="code"
+                redirectUri={`${API_URL}/auth`}
+                permissions={0n}
+                clientId={clientId}
+                cancelCompletesFlow={false}
+                callback={async (response: { location: string }) => {
+                    try {
+                        const url = new URL(response.location);
+                        url.searchParams.append("clientMod", "limeyV1");
+                        const res = await fetch(url, {
+                            headers: { Accept: "application/json" }
+                        });
+
+                        if (!res.ok) {
+                            const { message } = await res.json();
+                            showToast(message ?? "An error occured while authorizing", Toasts.Type.FAILURE);
+                            return;
+                        }
+
+                        const { token } = await res.json();
+                        updateAuth({ token });
+                        showToast("Successfully logged in!", Toasts.Type.SUCCESS);
+                        callback?.();
+                    } catch (e) {
+                        new Logger("ReviewDB").error("Failed to authorize", e);
                     }
-
-                    const { token } = await res.json();
-                    updateAuth({ token });
-                    showToast("Successfully logged in!", Toasts.Type.SUCCESS);
-                    callback?.();
-                } catch (e) {
-                    new Logger("ReviewDB").error("Failed to authorize", e);
-                }
-            }}
-        />
-    );
+                }}
+            />
+        );
+    })();
 }

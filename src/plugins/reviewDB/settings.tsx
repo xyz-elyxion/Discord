@@ -58,23 +58,8 @@ export const settings = definePluginSettings({
         type: OptionType.COMPONENT,
         component: () => (
             <div className={cl("button-grid")} >
-                <Button onClick={openBlockModal}>Manage Blocked Users</Button>
-
-                <Button
-                    variant="positive"
-                    onClick={() => {
-                        LimeyV1Native.native.openExternal("https://github.com/sponsors/mantikafasi");
-                    }}
-                >
-                    Support ReviewDB development
-                </Button>
-
-                <Button variant="link" onClick={async () => {
-                    let url = "https://reviewdb.mantikafasi.dev";
-                    const token = await getToken();
-                    if (token)
-                        url += "/api/redirect?token=" + encodeURIComponent(token);
-
+                <Button onClick={openBlockModal}>Manage Blocked Users</Button>                <Button variant="link" onClick={async () => {
+                    const url = "https://limey-discord.onrender.com/plugins";
                     LimeyV1Native.native.openExternal(url);
                 }}>
                     ReviewDB website
