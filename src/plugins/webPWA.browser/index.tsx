@@ -192,8 +192,13 @@ export default definePlugin({
             if (!totalCount && hasUnread && !disableUnreadBadge) totalCount = -1;
 
             // setAppBadge isn't supported everywhere (e.g. Firefox, some
-            // userscript managers' sandboxes) — silently skip instead of erroring
-            if (navigator.setAppBadge) navigator.setAppBadge(totalCount);
+            // userscript managers' sandboxes) — silently skip instead of erroring.
+            // -1 is also not a valid unsigned long long; "flag" style badges
+            // should clear the badge instead.
+            if (navigator.setAppBadge) {
+                if (totalCount < 0) navigator.clearAppBadge();
+                else navigator.setAppBadge(totalCount);
+            }
         } catch (e) {
             console.warn("[Limey V1 WebPWA] setAppBadge failed:", e);
         }

@@ -49,8 +49,15 @@ async function loadBadges(noCache = false) {
     if (noCache)
         init.cache = "no-cache";
 
-    DonorBadges = await fetch("https://badges.limeyV1.dev/badges.json", init)
-        .then(r => r.json());
+    DonorBadges = await fetch("https://limey-discord.onrender.com/badges.json", init)
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+        })
+        .catch(e => {
+            new Logger("Badges").error("Failed to load donor badges", e);
+            return {};
+        });
 }
 
 let intervalId: any;
