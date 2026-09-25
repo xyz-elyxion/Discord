@@ -1262,17 +1262,18 @@ const server = http.createServer(async (req, res) => {
     // Dispatches by the `state` query param to the owning backend:
     //   state=settings-sync -> Go cloud backend /v1/oauth/callback
     //   state=reviewdb      -> self-hosted reviewdb auth
-    // (Discord redirects here; the plugin appends state before calling.)
-    if (url.split("?")[0] === "/v1/oauth/callback") {
-        const params = new URLSearchParams(url.split("?")[1] ?? "");
-        const state = params.get("state");
-        if (state === "reviewdb" && reviewdb) {
-            const rewritten = "/v1/reviewdb/auth" + (url.includes("?") ? "?" + url.split("?").slice(1).join("?") : "");
-            if (await reviewdb.handle(req, res, rewritten)) return;
+    // NOTE: uses raw req.url — `url` above has the query string stripped.
+    if ((req.url || "").split("?")[0] === "/v1/oauth/callback") {
+        const query = (req.url || "").split("?").slice(1).join("?");
+        const params = new URLSearchParams(query);
+        if (params.get("state") === "reviewdb" && reviewdb) {
+            if (await reviewdb.handle(req, res, "/v1/reviewdb/auth" + (query ? "?" + query : ""))) return;
         }
-        // default: settings sync cloud (Go backend owns this route)
-        const rewritten = url.replace("/v1/oauth/callback", "/v1/oauth/callback");
-        return proxyCloud(req, res, rewritten);
+        // default: settings sync cloud (Go backend owns this route);
+        // strip our client-side state so the Go callback sees a clean request
+        params.delete("state");
+        const cleanQuery = params.toString();
+        return proxyCloud(req, res, "/v1/oauth/callback" + (cleanQuery ? "?" + cleanQuery : ""));
     }
 
     if (url === "/v1" || url.startsWith("/v1/")) {
