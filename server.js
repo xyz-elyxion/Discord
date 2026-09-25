@@ -924,7 +924,7 @@ try {
     reviewdb = require("./reviewdb-backend");
     // Let the reviewdb backend mirror its persisted database to Redis
     global.__reviewdbKvSet = kvSet;
-    console.log("[reviewdb] backend loaded");
+    console.log("[reviewdb] backend loaded (redis persistence: " + KV_ENABLED + ")");
 } catch (err) {
     console.error("[reviewdb] failed to load backend:", err.message);
 }

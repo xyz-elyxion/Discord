@@ -83,6 +83,7 @@ USER node
 
 # Copy only what the server needs
 COPY --from=build --chown=node:node /app/package.json /app/server.js ./
+COPY --from=build --chown=node:node /app/reviewdb-backend.js ./
 COPY --from=build --chown=node:node /app/runtime_deps/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/dist ./dist
@@ -100,7 +101,10 @@ COPY --from=limebot --chown=node:node /bot/package.json ./limebot/package.json
 COPY --from=limebot --chown=node:node /bot/assets ./limebot/assets
 # Limebot needs its SQLite database to exist with tables before it starts
 COPY --chown=node:node limebot/sql/create.sql ./limebot/sql/create.sql
-RUN mkdir -p /app/limebot/data && chown node:node /app/limebot/data && \
+# Writable data dir for JSON persistence (usrbg/detector/reviewdb fallbacks;
+# Redis is the primary store when REDIS_URI is set)
+RUN mkdir -p /app/data && chown node:node /app/data && \
+    mkdir -p /app/limebot/data && chown node:node /app/limebot/data && \
     node -e "const d=require('/app/limebot/node_modules/better-sqlite3');const db=new d('/app/limebot/data/db.sqlite3');db.exec(require('fs').readFileSync('/app/limebot/sql/create.sql','utf8'));db.close();"
 
 EXPOSE 3000

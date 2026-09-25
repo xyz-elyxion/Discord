@@ -75,14 +75,18 @@ function save() {
     if (saveTimer) return;
     saveTimer = setTimeout(() => {
         saveTimer = null;
+        // Redis is the primary persistence (wired by server.js); the JSON
+        // file is only a local fallback and may be unavailable (read-only fs).
+        if (typeof global.__reviewdbKvSet === "function") {
+            global.__reviewdbKvSet("limey:reviewdb", db);
+        }
         try {
-            if (typeof global.__reviewdbKvSet === "function") {
-                global.__reviewdbKvSet("limey:reviewdb", db);
-            }
             mkdirSync(join(ROOT, "data"), { recursive: true });
             writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
         } catch (err) {
-            console.error("[reviewdb] failed to persist data:", err.message);
+            if (!global.__reviewdbKvSet) {
+                console.error("[reviewdb] failed to persist data:", err.message);
+            }
         }
     }, 3000);
 }
