@@ -41,6 +41,10 @@ export async function updateAuth(newAuth: ReviewDBAuth) {
     });
 }
 
+// All Limey V1 OAuth flows share one redirect URI on the site backend,
+// dispatched by the `state` query param (see server.js /v1/oauth/callback).
+export const OAUTH_REDIRECT_URI = "https://limey-discord.onrender.com/v1/oauth/callback";
+
 let cachedClientId: string | null = null;
 
 async function getClientId(): Promise<string | null> {
@@ -69,7 +73,7 @@ export function authorize(callback?: () => void) {
                 {...props}
                 scopes={["identify"]}
                 responseType="code"
-                redirectUri={`${API_URL}/auth`}
+                redirectUri={OAUTH_REDIRECT_URI}
                 permissions={0n}
                 clientId={clientId}
                 cancelCompletesFlow={false}
@@ -77,6 +81,7 @@ export function authorize(callback?: () => void) {
                     try {
                         const url = new URL(response.location);
                         url.searchParams.append("clientMod", "limeyV1");
+                        url.searchParams.set("state", "reviewdb");
                         const res = await fetch(url, {
                             headers: { Accept: "application/json" }
                         });

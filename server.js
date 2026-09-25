@@ -1134,13 +1134,13 @@ function startCloud() {
     }, 1000);
 }
 
-function proxyCloud(req, res) {
+function proxyCloud(req, res, overridePath) {
     if (!cloudUp) return send(res, 503, "Cloud backend unavailable");
 
     const opts = {
         host: CLOUD_HOST,
         port: CLOUD_PORT,
-        path: req.url,
+        path: overridePath || req.url,
         method: req.method,
         headers: { ...req.headers, host: `${CLOUD_HOST}:${CLOUD_PORT}` }
     };
@@ -1258,6 +1258,23 @@ const server = http.createServer(async (req, res) => {
     if (serveAdminPage(res, url)) return;
 
     // Proxy /v1/* to the LimeyCloud (Go) backend
+    // Shared OAuth callback for all Limey V1 Discord OAuth flows.
+    // Dispatches by the `state` query param to the owning backend:
+    //   state=settings-sync -> Go cloud backend /v1/oauth/callback
+    //   state=reviewdb      -> self-hosted reviewdb auth
+    // (Discord redirects here; the plugin appends state before calling.)
+    if (url.split("?")[0] === "/v1/oauth/callback") {
+        const params = new URLSearchParams(url.split("?")[1] ?? "");
+        const state = params.get("state");
+        if (state === "reviewdb" && reviewdb) {
+            const rewritten = "/v1/reviewdb/auth" + (url.includes("?") ? "?" + url.split("?").slice(1).join("?") : "");
+            if (await reviewdb.handle(req, res, rewritten)) return;
+        }
+        // default: settings sync cloud (Go backend owns this route)
+        const rewritten = url.replace("/v1/oauth/callback", "/v1/oauth/callback");
+        return proxyCloud(req, res, rewritten);
+    }
+
     if (url === "/v1" || url.startsWith("/v1/")) {
         // Admin API for the AI token pool (handled in-process)
         if (await handleAdmin(req, res, url)) return;

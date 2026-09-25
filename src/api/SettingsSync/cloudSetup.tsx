@@ -97,7 +97,9 @@ export async function authorizeCloud() {
 
     try {
         const oauthConfiguration = await fetch(new URL("/v1/oauth/settings", getCloudUrl()));
-        var { clientId, redirectUri } = await oauthConfiguration.json();
+        var { clientId } = await oauthConfiguration.json();
+        // All Limey V1 OAuth flows share one redirect URI on the site backend
+        var redirectUri = "https://limey-discord.onrender.com/v1/oauth/callback";
     } catch {
         showNotification({
             title: "Cloud Integration",
@@ -122,7 +124,9 @@ export async function authorizeCloud() {
             }
 
             try {
-                const res = await fetch(location, {
+                const callbackUrl = new URL(location);
+                callbackUrl.searchParams.set("state", "settings-sync");
+                const res = await fetch(callbackUrl, {
                     headers: { Accept: "application/json" }
                 });
                 const { secret } = await res.json();

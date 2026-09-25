@@ -212,7 +212,9 @@ async function exchangeCode(code) {
         grant_type: "authorization_code",
         code,
         redirect_uri: process.env.REVIEWDB_REDIRECT_URI
-            || "https://limey-discord.onrender.com/v1/reviewdb/auth",
+            // Must match the redirect the plugin used to start the OAuth flow:
+            // the shared /v1/oauth/callback (state=reviewdb is appended client-side).
+            || "https://limey-discord.onrender.com/v1/oauth/callback",
     });
 
     const tokenRes = await fetch(DISCORD_API + "/oauth2/token", {
