@@ -431,11 +431,12 @@ async function kvGet(key) {
 async function hydrateKv() {
     if (!KV_ENABLED) return;
     try {
-        const [usrbg, aiTokens, detector, reviewdbData] = await Promise.all([
+        const [usrbg, aiTokens, detector, reviewdbData, badges] = await Promise.all([
             kvGet("limey:usrbg"),
             kvGet("limey:ai-tokens"),
             kvGet("limey:detector"),
-            kvGet("limey:reviewdb")
+            kvGet("limey:reviewdb"),
+            kvGet("limey:badges")
         ]);
         if (usrbg) usrbgData = JSON.parse(usrbg);
         if (aiTokens) {
@@ -444,6 +445,12 @@ async function hydrateKv() {
         }
         if (detector) detectorData = JSON.parse(detector);
         if (reviewdbData && reviewdb) reviewdb.hydrate(JSON.parse(reviewdbData));
+        if (badges) {
+            try {
+                const parsed = JSON.parse(badges);
+                if (typeof parsed === "object" && !Array.isArray(parsed)) badgesData = parsed;
+            } catch { }
+        }
         console.log(`[kv] hydrated stores from Redis (${REDIS_CONF.host}:${REDIS_CONF.port})`);
     } catch (err) {
         console.error("[kv] failed to hydrate from Redis:", err.message);
@@ -872,6 +879,71 @@ function pruneDetector() {
 }
 
 // ------------------------------------------------------------------
+// Donor badges — served at /badges.json for the BadgeAPI plugin.
+// Shape: { [discordId]: [{ tooltip, badge }] } (badge = image URL).
+// Persisted to data/badges.json, mirrored to Redis (limey:badges).
+// Admin: PUT /badges.json with X-Admin-Token header to update.
+// ------------------------------------------------------------------
+let badgesData = {};
+try {
+    badgesData = JSON.parse(readFileSync(join(ROOT, "data", "badges.json"), "utf-8"));
+} catch { /* fresh */ }
+const BADGES_ADMIN_TOKEN = process.env.BADGES_ADMIN_TOKEN || process.env.USRBG_ADMIN_TOKEN || "";
+let badgesSaveTimer = null;
+function saveBadges() {
+    if (badgesSaveTimer) return;
+    badgesSaveTimer = setTimeout(() => {
+        badgesSaveTimer = null;
+        if (KV_ENABLED) void kvSet("limey:badges", badgesData);
+        try {
+            writeFileSync(join(ROOT, "data", "badges.json"), JSON.stringify(badgesData, null, 2));
+        } catch (err) {
+            if (!KV_ENABLED) console.error("[badges] failed to persist:", err.message);
+        }
+    }, 3000);
+}
+
+function handleBadges(req, res, url) {
+    if (url !== "/badges.json") return false;
+
+    if (req.method === "GET") {
+        res.writeHead(200, {
+            "Content-Type": "application/json; charset=utf-8",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=300"
+        });
+        res.end(JSON.stringify(badgesData));
+        return true;
+    }
+
+    if (req.method === "PUT" && BADGES_ADMIN_TOKEN && req.headers["x-admin-token"] === BADGES_ADMIN_TOKEN) {
+        let body = "";
+        req.on("data", chunk => {
+            body += chunk;
+            if (body.length > 5e6) req.destroy();
+        });
+        req.on("end", () => {
+            try {
+                const parsed = JSON.parse(body || "{}");
+                if (typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("expected object");
+                badgesData = parsed;
+                saveBadges();
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ ok: true }));
+            } catch (err) {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ message: err.message }));
+            }
+        });
+        return true;
+    }
+
+    res.writeHead(req.method === "PUT" ? 401 : 405, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ message: req.method === "PUT" ? "admin token required" : "method not allowed" }));
+    return true;
+}
+
+// ------------------------------------------------------------------
 // Media proxy — fetches a remote image (gif/webp) server-side and streams it
 // back with permissive CORS. Used by the GifCaptioner plugin for hosts that
 // block cross-origin requests. GET /v1/media-proxy?url=<encoded url>
@@ -1175,6 +1247,9 @@ const server = http.createServer(async (req, res) => {
 
     // Named pages (plugins, download, install, 404)
     if (serveNamedPage(res, url)) return;
+
+    // Donor badges JSON for the BadgeAPI plugin
+    if (handleBadges(req, res, url)) return;
 
     // /install/desktop — themed desktop install page (API variant lives at /v1/install/desktop)
     if (url === "/install/desktop") return serveFile(res, join(PUBLIC, "install.html"));
