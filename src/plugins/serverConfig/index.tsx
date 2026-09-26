@@ -10,6 +10,7 @@ import { Guild } from "@limeyV1/discord-types";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { Menu, openModal, PermissionsBits, PermissionStore, SelectedGuildStore } from "@webpack/common";
+import { FluxDispatcher } from "@webpack/common";
 
 import { ServerConfigModal } from "./ServerConfigModal";
 import { getRemoteConfig, pushGuildConfig, remoteCache, startAutoRefresh, stopAutoRefresh } from "./sync";
@@ -122,6 +123,14 @@ const makePatch: NavContextMenuPatchCallback = (children, { guild }: { guild: Gu
     );
 };
 
+// Pre-fetch the remote config for the currently selected guild and re-fetch
+// whenever the user switches guilds, so the synchronous isPluginDisabled...
+// checks always have fresh data available without waiting on a network call.
+function prefetchSelectedGuildConfig() {
+    const guildId = SelectedGuildStore?.getGuildId?.();
+    if (guildId) void getRemoteConfig(guildId);
+}
+
 export default definePlugin({
     name: "ServerConfig",
     description: "Lets server owners disable certain Limey V1 plugins for their server via the server context menu. Synced to all members.",
@@ -132,10 +141,13 @@ export default definePlugin({
     start() {
         void initAuth();
         startAutoRefresh();
+        prefetchSelectedGuildConfig();
+        FluxDispatcher?.subscribe?.("GUILD_SELECT", prefetchSelectedGuildConfig);
     },
 
     stop() {
         stopAutoRefresh();
+        FluxDispatcher?.unsubscribe?.("GUILD_SELECT", prefetchSelectedGuildConfig);
     },
 
     contextMenus: {
