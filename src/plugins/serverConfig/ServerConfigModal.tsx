@@ -26,14 +26,22 @@ const PLUGIN_DESCRIPTIONS: Record<string, string> = {
     ShowHiddenChannels: "Shows channels that you do not have access to view."
 };
 
-export function ServerConfigModal({ modalProps, guild, disabledPlugins, onToggle }: Props) {
+export function ServerConfigModal({ modalProps, guild, disabledPlugins: initialDisabled, onToggle }: Props) {
+    const [disabledPlugins, setDisabledPlugins] = useState<string[]>(initialDisabled);
     const [error, setError] = useState<string | null>(null);
     const [authed, setAuthed] = useState(Boolean(Auth.token));
     const [needsReauth, setNeedsReauth] = useState(false);
 
     const handleToggle = async (name: string, value: boolean) => {
+        // Optimistically update the switch; revert if the backend rejects it
+        setDisabledPlugins(prev =>
+            value ? prev.filter(p => p !== name) : [...prev, name]
+        );
         const result = await onToggle(name, value);
         if (result) {
+            setDisabledPlugins(prev =>
+                value ? [...prev, name] : prev.filter(p => p !== name)
+            );
             setError(result);
             showToast(result, Toasts.Type.FAILURE);
             if (/authoriz|token|log(ged)? in|owner|permission/i.test(result)) {

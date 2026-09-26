@@ -40,8 +40,8 @@ const ADMIN_TOKEN = process.env.SERVER_CONFIG_ADMIN_TOKEN || process.env.USRBG_A
 
 // --- Data store --------------------------------------------------------------
 // {
-//   tokens:       { [token]: discordId },
-//   owners:       { [guildId]: discordId[] } // cached list of verified owners/managers per guild
+//   tokens:       { [token]: { discordId, refreshToken } },
+//   owners:       { [guildId]: discordId[] }, // cached list of verified owners/managers per guild
 //   configs:      { [guildId]: { disabledPlugins: string[] } }
 // }
 let db = {
@@ -106,7 +106,9 @@ function getAuth(req) {
     const header = req.headers.authorization || "";
     const token = header.replace(/^Bearer\s+/i, "").trim();
     if (!token) return null;
-    const discordId = db.tokens[token];
+    const entry = db.tokens[token];
+    if (!entry) return null;
+    const discordId = typeof entry === "string" ? entry : entry.discordId;
     if (!discordId) return null;
     return { token, discordId };
 }
@@ -145,7 +147,7 @@ async function exchangeCode(code) {
     if (!meRes.ok) {
         throw Object.assign(new Error(`Discord @me failed (${meRes.status})`), { status: 401 });
     }
-    return { me: await meRes.json(), accessToken: access_token };
+    return { me: await meRes.json(), accessToken: access_token, refreshToken: refresh_token };
 }
 
 // Fetches the guilds the identified user owns or manages.
@@ -183,10 +185,42 @@ async function canManageGuild(discordId, guildId, discordUserAccessToken) {
 }
 
 // For PUT: the user must be a verified owner/manager of the target guild.
-// We can't reuse their short-lived OAuth access_token after the flow, so we
-// rely on the db.owners cache which was populated at authorization time.
-async function canManageGuildCached(discordId, guildId) {
-    return Boolean(db.owners[guildId]?.includes(discordId));
+// If the cache misses, refresh the user's OAuth access token and re-check
+// against Discord live (so users who became owner after a prior auth work).
+async function canManageGuildCached(discordId, guildId, bearerToken) {
+    if (db.owners[guildId]?.includes(discordId)) return true;
+
+    const entry = db.tokens[bearerToken];
+    const refreshToken = typeof entry === "object" ? entry?.refreshToken : undefined;
+    if (!refreshToken) return false;
+
+    try {
+        const body = new URLSearchParams({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            grant_type: "refresh_token",
+            refresh_token: refreshToken,
+        });
+        const tokenRes = await fetch(DISCORD_API + "/oauth2/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body
+        });
+        if (!tokenRes.ok) return false;
+        const { access_token, refresh_token } = await tokenRes.json();
+
+        const managed = await fetchManagedGuilds(access_token);
+        for (const g of managed) {
+            db.owners[g.id] ??= [];
+            if (!db.owners[g.id].includes(discordId)) db.owners[g.id].push(discordId);
+        }
+        if (typeof entry === "object") entry.refreshToken = refresh_token;
+        save();
+        return db.owners[guildId]?.includes(discordId) ?? false;
+    } catch (err) {
+        console.error("[server-config] live re-verification failed:", err.message);
+        return false;
+    }
 }
 
 // --- Route handlers --------------------------------------------------------------
@@ -218,10 +252,10 @@ async function handle(req, res, url) {
         if (!code) return json(res, 400, { message: "missing code parameter" }), true;
 
         try {
-            const { me, accessToken } = await exchangeCode(code);
+            const { me, accessToken, refreshToken } = await exchangeCode(code);
             const token = crypto.randomBytes(32).toString("hex");
 
-            db.tokens[token] = me.id;
+            db.tokens[token] = { discordId: me.id, refreshToken };
 
             // Cache the guilds this user owns/manages NOW, while we still hold
             // their OAuth access token — PUT verification relies on this cache.
@@ -270,7 +304,7 @@ async function handle(req, res, url) {
             if (!isAdmin(req)) {
                 const auth = getAuth(req);
                 if (!auth) return json(res, 401, { message: "Unauthorized: missing Bearer token" }), true;
-                if (!(await canManageGuildCached(auth.discordId, guildId))) {
+                if (!(await canManageGuildCached(auth.discordId, guildId, auth.token))) {
                     return json(res, 403, { message: "You don't manage this server (re-authorize if you became owner recently)" }), true;
                 }
             }
