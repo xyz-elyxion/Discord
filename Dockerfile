@@ -89,6 +89,7 @@ USER node
 # Copy only what the server needs
 COPY --from=build --chown=node:node /app/package.json /app/server.js ./
 COPY --from=build --chown=node:node /app/reviewdb-backend.js ./
+COPY --from=build --chown=node:node /app/server-config-backend.js ./
 COPY --from=build --chown=node:node /app/runtime_deps/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/dist ./dist

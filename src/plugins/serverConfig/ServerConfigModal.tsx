@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { useState } from "react";
+import { useState } from "@webpack/common";
 
 import { FormSwitch } from "@components/FormSwitch";
 import { Paragraph } from "@components/Paragraph";
