@@ -90,7 +90,9 @@ export interface ReviewAuthor {
     badges: Badge[];
 }
 
-// Split rating categories (1-5 each), e.g. trustworthy / friendly / skilled
+// Split rating categories (1-5 each).
+// User profiles: trustworthy / friendly / skilled / responsive / creative
+// Servers: friendly / active / moderated
 export type RatingCategories = readonly string[];
 
 export interface RatingSummaryEntry {

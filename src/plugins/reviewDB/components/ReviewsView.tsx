@@ -33,7 +33,8 @@ const ChatInputTypes = findByPropsLazy("FORM", "USER_PROFILE");
 const InputComponent = findComponentByCodeLazy("editorClassName", "CHANNEL_TEXT_AREA");
 const createChannelRecordFromServer = findByCodeLazy(".GUILD_TEXT]", "fromServer)");
 
-const DEFAULT_RATING_CATEGORIES = ["trustworthy", "friendly", "skilled"] as const;
+const USER_RATING_CATEGORIES = ["trustworthy", "friendly", "skilled"] as const;
+const SERVER_RATING_CATEGORIES = ["friendly", "active", "moderated"] as const;
 
 function RatingsPicker({ categories, ratings, onChange }: { categories: readonly string[]; ratings: Ratings; onChange(ratings: Ratings): void; }) {
     return (
@@ -119,7 +120,7 @@ export default function ReviewsView({
 }: Props) {
     const [signal, refetch] = useForceUpdater(true);
 
-    const [reviewData] = useAwaiter(() => getReviews(discordId, { offset: (page - 1) * REVIEWS_PER_PAGE, limit: REVIEWS_PER_PAGE, fetchVotes: true }), {
+    const [reviewData] = useAwaiter(() => getReviews(discordId, { offset: (page - 1) * REVIEWS_PER_PAGE, limit: REVIEWS_PER_PAGE, fetchVotes: true, type }), {
         fallbackValue: null,
         deps: [refetchSignal, signal, page],
         onSuccess: data => {
@@ -152,6 +153,7 @@ export default function ReviewsView({
                     discordId={discordId}
                     refetch={refetch}
                     isAuthor={reviewData!.reviews?.some(r => r.sender.discordID === UserStore.getCurrentUser().id)}
+                    type={type}
                 />
             )}
         </>
@@ -184,7 +186,7 @@ function ReviewList({ refetch, reviews, hideOwnReview, profileId, type }: { refe
 
 
 export function ReviewsInputComponent(
-    { discordId, isAuthor, refetch, name, modalKey }: { discordId: string, name: string; isAuthor: boolean; refetch(): void; modalKey?: string; }
+    { discordId, isAuthor, refetch, name, modalKey, type = ReviewType.User }: { discordId: string, name: string; isAuthor: boolean; refetch(): void; modalKey?: string; type?: ReviewType; }
 ) {
     const { token } = Auth;
     const editorRef = useRef<any>(null);
@@ -208,7 +210,7 @@ export function ReviewsInputComponent(
             </div>
             {showRatings && token && (
                 <RatingsPicker
-                    categories={DEFAULT_RATING_CATEGORIES}
+                    categories={type === ReviewType.Server ? SERVER_RATING_CATEGORIES : USER_RATING_CATEGORIES}
                     ratings={ratings}
                     onChange={setRatings}
                 />
@@ -240,6 +242,7 @@ export function ReviewsInputComponent(
                                 userid: discordId,
                                 comment: res.value,
                                 ratings: Object.keys(ratings).length ? ratings : undefined,
+                                type,
                             });
 
                             if (response) {

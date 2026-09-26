@@ -71,7 +71,7 @@ async function rdbRequest<T = unknown>(path: string, options: RequestInit = {}):
     return data as T;
 }
 
-export async function getReviews(id: string, { limit, offset = 0, fetchVotes = false }: { limit?: number; offset?: number; fetchVotes?: boolean } = {}): Promise<UserReviewsData> {
+export async function getReviews(id: string, { limit, offset = 0, fetchVotes = false, type = ReviewType.User }: { limit?: number; offset?: number; fetchVotes?: boolean; type?: ReviewType } = {}): Promise<UserReviewsData> {
     let flags = 0;
     if (!settings.store.showWarning) flags |= WarningFlag;
 
@@ -79,6 +79,7 @@ export async function getReviews(id: string, { limit, offset = 0, fetchVotes = f
     if (flags) params.append("flags", String(flags));
     if (offset) params.append("offset", String(offset));
     if (limit) params.append("limit", String(limit));
+    if (type) params.append("type", String(type));
 
     const votesPromise = fetchVotes ? getReviewVotes(id).catch(() => []) : Promise.resolve([]);
     const req = await fetch(`${API_URL}/users/${id}/reviews?${params}`);
@@ -143,7 +144,7 @@ export async function getReviewVotes(id: string): Promise<ReviewVote[]> {
     return res?.votes ?? [];
 }
 
-export async function addReview(review: { userid: string; comment: string; ratings?: Ratings }): Promise<UserReviewsData | null> {
+export async function addReview(review: { userid: string; comment: string; ratings?: Ratings; type?: ReviewType }): Promise<UserReviewsData | null> {
 
     const token = await getToken();
     if (!token) {

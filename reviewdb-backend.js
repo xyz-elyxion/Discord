@@ -43,13 +43,20 @@ const CLIENT_SECRET = process.env.REVIEWDB_CLIENT_SECRET || process.env.DISCORD_
 // Optional moderation token: grants admin actions via X-Admin-Token header.
 const ADMIN_TOKEN = process.env.REVIEWDB_ADMIN_TOKEN || "";
 
-// Split rating categories — each review may rate the user on these (1-5 each).
-const RATING_CATEGORIES = ["trustworthy", "friendly", "skilled", "responsive", "creative"];
+// Split rating categories — each review may rate the target on these (1-5 each).
+// User profiles use the user categories, servers the server categories.
+const RATING_CATEGORIES = [
+    "trustworthy", "friendly", "skilled", "responsive", "creative", // user
+    "active", "moderated", // server
+];
+const USER_RATING_CATEGORIES = RATING_CATEGORIES.slice(0, 5);
+const SERVER_RATING_CATEGORIES = ["friendly", "active", "moderated"];
 
-function sanitizeRatings(input) {
+function sanitizeRatings(input, type = 0) {
     if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+    const allowed = type === 1 ? SERVER_RATING_CATEGORIES : USER_RATING_CATEGORIES;
     const out = {};
-    for (const category of RATING_CATEGORIES) {
+    for (const category of allowed) {
         const value = Number(input[category]);
         if (Number.isFinite(value) && value >= 1 && value <= 5) {
             out[category] = Math.round(value);
@@ -58,19 +65,22 @@ function sanitizeRatings(input) {
     return out;
 }
 
-// Average each category across all reviews of a user.
-function ratingsSummaryFor(discordId) {
+// Average each category across all reviews of a target (user or server id).
+// type: 0 = user, 1 = server — selects which categories are allowed/summarized.
+function ratingsSummaryFor(targetId, type = 0) {
+    const allowed = type === 1 ? SERVER_RATING_CATEGORIES : USER_RATING_CATEGORIES;
     const sums = {};
     const counts = {};
     for (const review of db.reviews) {
-        if (review.userid !== discordId || !review.ratings) continue;
+        if (review.userid !== targetId || !review.ratings) continue;
         for (const [category, value] of Object.entries(review.ratings)) {
+            if (!allowed.includes(category)) continue;
             sums[category] = (sums[category] ?? 0) + value;
             counts[category] = (counts[category] ?? 0) + 1;
         }
     }
     const summary = {};
-    for (const category of RATING_CATEGORIES) {
+    for (const category of allowed) {
         if (counts[category]) {
             summary[category] = {
                 average: Math.round((sums[category] / counts[category]) * 10) / 10,
@@ -348,13 +358,16 @@ async function handle(req, res, url) {
         return json(res, 200, currentUserPayload(auth.user ?? { discordID: auth.discordId })), true;
     }
 
-    // Read reviews (public)
+    // Read reviews (public). `type` query param: 0 = user (default), 1 = server —
+    // selects which rating categories apply to the target.
     let m = /^\/users\/(\d{5,25})\/reviews$/.exec(path);
     if (method === "GET" && m) {
         const params = new URLSearchParams(url.split("?")[1] ?? "");
         const offset = Number(params.get("offset") ?? 0) || 0;
         const limitRaw = Number(params.get("limit") ?? 0) || 0;
         const limit = Math.min(limitRaw || 50, 100);
+        const targetType = Number(params.get("type") ?? 0) === 1 ? 1 : 0;
+        const categories = targetType === 1 ? SERVER_RATING_CATEGORIES : USER_RATING_CATEGORIES;
 
         const { reviews, reviewCount, hasNextPage } = reviewsFor(m[1], { offset, limit });
 
@@ -373,8 +386,8 @@ async function handle(req, res, url) {
             updated: false,
             hasNextPage,
             reviewCount,
-            ratingsSummary: ratingsSummaryFor(m[1]),
-            ratingCategories: RATING_CATEGORIES,
+            ratingsSummary: ratingsSummaryFor(m[1], targetType),
+            ratingCategories: categories,
             hasOptedOut: db.optedOut.includes(m[1]),
         }), true;
     }
@@ -416,7 +429,8 @@ async function handle(req, res, url) {
         if ((sender.warningCount ?? 0) >= 3) return json(res, 403, { message: "You are temporarily unable to add reviews" }), true;
 
         // one review per author per target — update instead of duplicate
-        const ratings = sanitizeRatings(body.ratings);
+        const targetType = Number(body.type ?? 0) === 1 ? 1 : 0;
+        const ratings = sanitizeRatings(body.ratings, targetType);
 
         const existing = db.reviews.find(r => r.userid === targetId && r.senderdiscordID === auth.discordId);
         if (existing) {
@@ -436,7 +450,7 @@ async function handle(req, res, url) {
             star: Math.max(0, Math.min(5, Number(body.star ?? 0))),
             ratings,
             timestamp: Date.now(),
-            type: 0,
+            type: targetType,
         });
         db.users[targetId] ??= { discordID: targetId, ID: Object.keys(db.users).length + 1, type: 0, badges: [] };
         db.users[targetId].lastReviewID = db.nextReviewId - 1;

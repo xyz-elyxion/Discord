@@ -69,6 +69,7 @@ function ReviewsModal({ modalProps, modalKey, discordId, name, type }: { modalPr
                             name={name}
                             refetch={refetch}
                             modalKey={modalKey}
+                            type={type}
                         />
 
                         {!!reviewCount && (
