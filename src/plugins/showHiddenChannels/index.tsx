@@ -28,8 +28,6 @@ import definePlugin, { OptionType } from "@utils/types";
 import { findCssClassesLazy } from "@webpack";
 import { ChannelStore, PermissionsBits, PermissionStore, Tooltip } from "@webpack/common";
 
-import { isPluginDisabledInSelectedGuild } from "@plugins/serverConfig";
-
 import HiddenChannelLockScreen, { setChannelBeginHeader } from "./components/HiddenChannelLockScreen";
 
 export const cl = classNameFactory("vc-shc-");
@@ -510,8 +508,6 @@ export default definePlugin({
 
     isHiddenChannel(channel: Channel & { channelId?: string; }, checkConnect = false) {
         try {
-            if (isPluginDisabledInSelectedGuild("ShowHiddenChannels")) return false;
-
             if (channel == null || Object.hasOwn(channel, "channelId") && channel.channelId == null) return false;
 
             if (channel.channelId != null) channel = ChannelStore.getChannel(channel.channelId);
