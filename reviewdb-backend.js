@@ -8,7 +8,7 @@
  * Endpoints (all JSON, CORS enabled):
  *   GET  /v1/reviewdb/config                       -> { clientId }  (public OAuth app id)
  *   GET  /v1/reviewdb/auth?code=...&clientMod=...  -> { token }     (OAuth2 code exchange)
- *   GET  /v1/reviewdb/users/:id/reviews            -> UserReviewsData
+ *   GET  /v1/reviewdb/users/:id/reviews            -> UserReviewsData (+ ratingsSummary, ratingCategories)
  *   GET  /v1/reviewdb/users/:id/reviews/votes      -> { votes }     (auth)
  *   PUT  /v1/reviewdb/users/:id/reviews            -> { message, reviews... } (auth)
  *   DELETE /v1/reviewdb/users/:id/reviews          -> { message }   (auth)
@@ -42,6 +42,44 @@ const CLIENT_SECRET = process.env.REVIEWDB_CLIENT_SECRET || process.env.DISCORD_
 
 // Optional moderation token: grants admin actions via X-Admin-Token header.
 const ADMIN_TOKEN = process.env.REVIEWDB_ADMIN_TOKEN || "";
+
+// Split rating categories — each review may rate the user on these (1-5 each).
+const RATING_CATEGORIES = ["trustworthy", "friendly", "skilled", "responsive", "creative"];
+
+function sanitizeRatings(input) {
+    if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+    const out = {};
+    for (const category of RATING_CATEGORIES) {
+        const value = Number(input[category]);
+        if (Number.isFinite(value) && value >= 1 && value <= 5) {
+            out[category] = Math.round(value);
+        }
+    }
+    return out;
+}
+
+// Average each category across all reviews of a user.
+function ratingsSummaryFor(discordId) {
+    const sums = {};
+    const counts = {};
+    for (const review of db.reviews) {
+        if (review.userid !== discordId || !review.ratings) continue;
+        for (const [category, value] of Object.entries(review.ratings)) {
+            sums[category] = (sums[category] ?? 0) + value;
+            counts[category] = (counts[category] ?? 0) + 1;
+        }
+    }
+    const summary = {};
+    for (const category of RATING_CATEGORIES) {
+        if (counts[category]) {
+            summary[category] = {
+                average: Math.round((sums[category] / counts[category]) * 10) / 10,
+                count: counts[category],
+            };
+        }
+    }
+    return summary;
+}
 
 // --- Data store ---------------------------------------------------------------
 // {
@@ -166,6 +204,7 @@ function serializeReview(review) {
         star: review.star ?? 0,
         timestamp: review.timestamp ?? 0,
         type: review.type ?? 0,
+        ratings: review.ratings ?? {},
         senderdiscordID: review.senderdiscordID,
         sender: {
             id: senderUser?.ID ?? 0,
@@ -334,6 +373,8 @@ async function handle(req, res, url) {
             updated: false,
             hasNextPage,
             reviewCount,
+            ratingsSummary: ratingsSummaryFor(m[1]),
+            ratingCategories: RATING_CATEGORIES,
             hasOptedOut: db.optedOut.includes(m[1]),
         }), true;
     }
@@ -375,11 +416,14 @@ async function handle(req, res, url) {
         if ((sender.warningCount ?? 0) >= 3) return json(res, 403, { message: "You are temporarily unable to add reviews" }), true;
 
         // one review per author per target — update instead of duplicate
+        const ratings = sanitizeRatings(body.ratings);
+
         const existing = db.reviews.find(r => r.userid === targetId && r.senderdiscordID === auth.discordId);
         if (existing) {
             existing.comment = comment;
             existing.timestamp = Date.now();
             existing.star = Math.max(0, Math.min(5, Number(body.star ?? existing.star ?? 0)));
+            existing.ratings = ratings;
             save();
             return json(res, 200, { message: "Review updated successfully" }), true;
         }
@@ -390,6 +434,7 @@ async function handle(req, res, url) {
             senderdiscordID: auth.discordId,
             comment,
             star: Math.max(0, Math.min(5, Number(body.star ?? 0))),
+            ratings,
             timestamp: Date.now(),
             type: 0,
         });

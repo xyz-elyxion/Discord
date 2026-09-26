@@ -90,6 +90,20 @@ export interface ReviewAuthor {
     badges: Badge[];
 }
 
+// Split rating categories (1-5 each), e.g. trustworthy / friendly / skilled
+export type RatingCategories = readonly string[];
+
+export interface RatingSummaryEntry {
+    average: number;
+    count: number;
+}
+
+/** category -> { average, count } */
+export type RatingsSummary = Record<string, RatingSummaryEntry>;
+
+/** category -> 1..5 (only categories the reviewer actually rated) */
+export type Ratings = Record<string, number>;
+
 export interface Review {
     comment: string,
     id: number,
@@ -98,5 +112,6 @@ export interface Review {
     sender: ReviewAuthor,
     timestamp: number;
     type?: ReviewType;
+    ratings?: Ratings;
     userVote?: boolean | null;
 }

@@ -226,6 +226,24 @@ export default function ReviewComponent({ review, refetch, profileId }: { review
                         {dateFormat.format(review.timestamp * 1000)}
                     </Timestamp>)
             }
+            {review.ratings && Object.keys(review.ratings).length > 0 && (
+                <div className={cl("review-ratings")}>
+                    {Object.entries(review.ratings).map(([category, value]) => (
+                        <span key={category} className={cl("review-rating")} title={`${category}: ${value}/5`}>
+                            <span className={cl("ratings-label")}>{category[0].toUpperCase() + category.slice(1)}</span>
+                            <span className={cl("ratings-summary-average")}>{value}</span>
+                            <span className={cl("ratings-summary-stars")}>
+                                {[1, 2, 3, 4, 5].map(starValue => (
+                                    <span
+                                        key={starValue}
+                                        className={cl("ratings-star", value >= starValue && "ratings-star-filled")}
+                                    >★</span>
+                                ))}
+                            </span>
+                        </span>
+                    ))}
+                </div>
+            )}
             <div className={cl("review-comment")}>
                 {(review.comment.length > 200 && !showAll)
                     ? (

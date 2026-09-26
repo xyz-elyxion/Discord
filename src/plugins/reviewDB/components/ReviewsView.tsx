@@ -17,13 +17,13 @@
 */
 
 import { Auth, authorize } from "@plugins/reviewDB/auth";
-import { Review, ReviewType } from "@plugins/reviewDB/entities";
+import { Ratings, Review, ReviewType } from "@plugins/reviewDB/entities";
 import { addReview, getReviews, REVIEWS_PER_PAGE, UserReviewsData } from "@plugins/reviewDB/reviewDbApi";
 import { settings } from "@plugins/reviewDB/settings";
 import { cl, showToast } from "@plugins/reviewDB/utils";
 import { useAwaiter, useForceUpdater } from "@utils/react";
 import { findByCodeLazy, findByPropsLazy, findComponentByCodeLazy } from "@webpack";
-import { Forms, React, RelationshipStore, useRef, UserStore } from "@webpack/common";
+import { Forms, React, RelationshipStore, useRef, useState, UserStore } from "@webpack/common";
 
 import ReviewComponent from "./ReviewComponent";
 
@@ -32,6 +32,64 @@ const Editor = findByPropsLazy("start", "end", "toSlateRange");
 const ChatInputTypes = findByPropsLazy("FORM", "USER_PROFILE");
 const InputComponent = findComponentByCodeLazy("editorClassName", "CHANNEL_TEXT_AREA");
 const createChannelRecordFromServer = findByCodeLazy(".GUILD_TEXT]", "fromServer)");
+
+const DEFAULT_RATING_CATEGORIES = ["trustworthy", "friendly", "skilled"] as const;
+
+function RatingsPicker({ categories, ratings, onChange }: { categories: readonly string[]; ratings: Ratings; onChange(ratings: Ratings): void; }) {
+    return (
+        <div className={cl("ratings-picker")}>
+            {categories.map(category => (
+                <div key={category} className={cl("ratings-row")}>
+                    <span className={cl("ratings-label")}>{category[0].toUpperCase() + category.slice(1)}</span>
+                    <div className={cl("ratings-stars")}>
+                        {[1, 2, 3, 4, 5].map(value => (
+                            <button
+                                key={value}
+                                type="button"
+                                className={cl("ratings-star", (ratings[category] ?? 0) >= value && "ratings-star-filled")}
+                                onClick={() => {
+                                    // clicking the current value clears that category
+                                    const next = { ...ratings };
+                                    if (ratings[category] === value) delete next[category];
+                                    else next[category] = value;
+                                    onChange(next);
+                                }}
+                            >
+                                ★
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function RatingsSummaryBar({ summary, categories }: { summary?: Record<string, { average: number; count: number }>; categories?: readonly string[]; }) {
+    if (!summary) return null;
+    const entries = Object.entries(summary);
+    if (entries.length === 0) return null;
+
+    return (
+        <div className={cl("ratings-summary")}>
+            {entries.map(([category, { average, count }]) => (
+                <div key={category} className={cl("ratings-summary-item")} title={`${count} rating${count === 1 ? "" : "s"}`}>
+                    <span className={cl("ratings-label")}>{category[0].toUpperCase() + category.slice(1)}</span>
+                    <span className={cl("ratings-summary-average")}>{average.toFixed(1)}</span>
+                    <span className={cl("ratings-summary-stars")}>
+                        {[1, 2, 3, 4, 5].map(value => (
+                            <span
+                                key={value}
+                                className={cl("ratings-star", average >= value - 0.25 && "ratings-star-filled")}
+                            >★</span>
+                        ))}
+                    </span>
+                </div>
+            ))}
+            {categories && <span className={cl("ratings-summary-cats")}>{categories.join(" · ")}</span>}
+        </div>
+    );
+}
 
 interface UserProps {
     discordId: string;
@@ -79,6 +137,7 @@ export default function ReviewsView({
 
     return (
         <>
+            <RatingsSummaryBar summary={reviewData.ratingsSummary} categories={reviewData.ratingCategories} />
             <ReviewList
                 refetch={refetch}
                 reviews={reviewData!.reviews}
@@ -129,6 +188,8 @@ export function ReviewsInputComponent(
 ) {
     const { token } = Auth;
     const editorRef = useRef<any>(null);
+    const [ratings, setRatings] = useState<Ratings>({});
+    const [showRatings, setShowRatings] = useState(false);
     const inputType = ChatInputTypes.USER_PROFILE_REPLY;
     inputType.disableAutoFocus = true;
 
@@ -136,6 +197,22 @@ export function ReviewsInputComponent(
 
     return (
         <>
+            <div className={cl("ratings-toggle")}>
+                <button
+                    type="button"
+                    className={cl("ratings-toggle-button", showRatings && "ratings-toggle-open")}
+                    onClick={() => setShowRatings(v => !v)}
+                >
+                    {showRatings ? "Hide ratings" : "Add ratings ★"}
+                </button>
+            </div>
+            {showRatings && token && (
+                <RatingsPicker
+                    categories={DEFAULT_RATING_CATEGORIES}
+                    ratings={ratings}
+                    onChange={setRatings}
+                />
+            )}
             <div onClick={() => {
                 if (!token) {
                     showToast("Opening authorization window...");
@@ -162,9 +239,12 @@ export function ReviewsInputComponent(
                             const response = await addReview({
                                 userid: discordId,
                                 comment: res.value,
+                                ratings: Object.keys(ratings).length ? ratings : undefined,
                             });
 
                             if (response) {
+                                setRatings({});
+                                setShowRatings(false);
                                 refetch();
 
                                 const slateEditor = editorRef.current.ref.current.getSlateEditor();

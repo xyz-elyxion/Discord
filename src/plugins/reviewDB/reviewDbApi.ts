@@ -7,7 +7,7 @@
 import { Toasts } from "@webpack/common";
 
 import { Auth, authorize, getToken, updateAuth } from "./auth";
-import { Review, ReviewDBCurrentUser, ReviewDBUser, ReviewType } from "./entities";
+import { RatingCategories, Ratings, RatingsSummary, Review, ReviewDBCurrentUser, ReviewDBUser, ReviewType } from "./entities";
 import { settings } from "./settings";
 import { showToast } from "./utils";
 
@@ -22,6 +22,8 @@ export interface UserReviewsData {
     updated: boolean;
     hasNextPage: boolean;
     reviewCount: number;
+    ratingsSummary?: RatingsSummary;
+    ratingCategories?: RatingCategories;
     hasOptedOut: boolean;
 }
 
@@ -90,7 +92,7 @@ export async function getReviews(id: string, { limit, offset = 0, fetchVotes = f
             hasNextPage: false,
             reviewCount: 0,
             hasOptedOut: false,
-        };
+        } as UserReviewsData;
 
     if (!req.ok) {
         showToast(res.message, Toasts.Type.FAILURE);
@@ -141,7 +143,7 @@ export async function getReviewVotes(id: string): Promise<ReviewVote[]> {
     return res?.votes ?? [];
 }
 
-export async function addReview(review: { userid: string; comment: string }): Promise<UserReviewsData | null> {
+export async function addReview(review: { userid: string; comment: string; ratings?: Ratings }): Promise<UserReviewsData | null> {
 
     const token = await getToken();
     if (!token) {

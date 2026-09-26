@@ -190,3 +190,118 @@
     background: color-mix(in srgb, var(--status-danger) 14%, transparent);
     color: var(--status-danger);
 }
+
+/* --- Split ratings ---------------------------------------------------- */
+
+.vc-rdb-ratings-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+}
+
+.vc-rdb-ratings-summary-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.vc-rdb-ratings-summary-average {
+    font-weight: 700;
+    color: var(--text-default);
+    font-size: 0.85rem;
+}
+
+.vc-rdb-ratings-summary-stars,
+.vc-rdb-ratings-stars {
+    display: inline-flex;
+    gap: 1px;
+}
+
+.vc-rdb-ratings-summary-cats {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-left: auto;
+}
+
+.vc-rdb-ratings-label {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: capitalize;
+}
+
+.vc-rdb-ratings-star {
+    color: var(--interactive-muted);
+    font-size: 0.85rem;
+    line-height: 1;
+    background: none;
+    border: 0;
+    padding: 0 1px;
+    cursor: pointer;
+}
+
+span.vc-rdb-ratings-star {
+    cursor: default;
+}
+
+.vc-rdb-ratings-star-filled {
+    color: var(--status-warning, #f0b232);
+}
+
+.vc-rdb-ratings-picker {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+}
+
+.vc-rdb-ratings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.vc-rdb-ratings-toggle {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 2px;
+}
+
+.vc-rdb-ratings-toggle-button {
+    background: none;
+    border: 0;
+    color: var(--text-link);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.vc-rdb-ratings-toggle-button:hover {
+    background: var(--background-modifier-hover);
+}
+
+.vc-rdb-review-ratings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin: 2px 0 4px;
+}
+
+.vc-rdb-review-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 6px;
+    background: var(--background-secondary);
+    border-radius: 6px;
+}
