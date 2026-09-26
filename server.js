@@ -431,12 +431,13 @@ async function kvGet(key) {
 async function hydrateKv() {
     if (!KV_ENABLED) return;
     try {
-        const [usrbg, aiTokens, detector, reviewdbData, badges] = await Promise.all([
+        const [usrbg, aiTokens, detector, reviewdbData, badges, serverConfigAuth] = await Promise.all([
             kvGet("limey:usrbg"),
             kvGet("limey:ai-tokens"),
             kvGet("limey:detector"),
             kvGet("limey:reviewdb"),
-            kvGet("limey:badges")
+            kvGet("limey:badges"),
+            kvGet("limey:server-config-auth")
         ]);
         if (usrbg) usrbgData = JSON.parse(usrbg);
         if (aiTokens) {
@@ -445,6 +446,12 @@ async function hydrateKv() {
         }
         if (detector) detectorData = JSON.parse(detector);
         if (reviewdbData && reviewdb) reviewdb.hydrate(JSON.parse(reviewdbData));
+        if (serverConfigAuth) {
+            try {
+                const parsed = JSON.parse(serverConfigAuth);
+                if (typeof parsed === "object" && !Array.isArray(parsed)) serverConfigBackend.hydrate(parsed);
+            } catch { }
+        }
         if (badges) {
             try {
                 const parsed = JSON.parse(badges);
@@ -1072,6 +1079,7 @@ function normalizeRedisUri(uri) {
     return conf ? `${conf.host}:${conf.port}` : uri.trim();
 }
 
+let serverConfigBackend;
 // ------------------------------------------------------------------
 // ReviewDB backend (self-hosted) — mounted at /v1/reviewdb/*
 // ------------------------------------------------------------------
@@ -1083,6 +1091,17 @@ try {
     console.log("[reviewdb] backend loaded (redis persistence: " + KV_ENABLED + ")");
 } catch (err) {
     console.error("[reviewdb] failed to load backend:", err.message);
+}
+
+// ------------------------------------------------------------------
+// Server Configuration backend (self-hosted) — mounted at /v1/server-config/*
+// Owner-verified via Discord OAuth (shared /v1/oauth/callback, state=serverconfig)
+// ------------------------------------------------------------------
+try {
+    serverConfigBackend = require("./server-config-backend");
+    console.log("[server-config] backend loaded");
+} catch (err) {
+    console.error("[server-config] failed to load backend:", err.message);
 }
 
 // ------------------------------------------------------------------
@@ -1262,12 +1281,16 @@ const server = http.createServer(async (req, res) => {
     // Dispatches by the `state` query param to the owning backend:
     //   state=settings-sync -> Go cloud backend /v1/oauth/callback
     //   state=reviewdb      -> self-hosted reviewdb auth
+    //   state=serverconfig  -> self-hosted server-config auth
     // NOTE: uses raw req.url — `url` above has the query string stripped.
     if ((req.url || "").split("?")[0] === "/v1/oauth/callback") {
         const query = (req.url || "").split("?").slice(1).join("?");
         const params = new URLSearchParams(query);
         if (params.get("state") === "reviewdb" && reviewdb) {
             if (await reviewdb.handle(req, res, "/v1/reviewdb/auth" + (query ? "?" + query : ""))) return;
+        }
+        if (params.get("state") === "serverconfig" && serverConfigBackend) {
+            if (await serverConfigBackend.handle(req, res, "/v1/server-config/auth" + (query ? "?" + query : ""))) return;
         }
         // default: settings sync cloud (Go backend owns this route);
         // strip our client-side state so the Go callback sees a clean request
@@ -1291,6 +1314,8 @@ const server = http.createServer(async (req, res) => {
         if (handleInstall(req, res, url)) return;
         // Self-hosted ReviewDB API
         if (reviewdb && url.startsWith("/v1/reviewdb/") && await reviewdb.handle(req, res, url)) return;
+        // Self-hosted Server Configuration API
+        if (serverConfigBackend && url.startsWith("/v1/server-config") && await serverConfigBackend.handle(req, res, url)) return;
         return proxyCloud(req, res);
     }
 
