@@ -24,6 +24,16 @@ export async function initAuth() {
     Auth = await getAuth() ?? {};
 }
 
+/** Clears the stored token for the current user (e.g. when it's stale or invalid). */
+export async function clearAuth() {
+    await DataStore.update(DATA_STORE_KEY, auth => {
+        auth ??= {};
+        delete auth[UserStore.getCurrentUser()?.id];
+        return auth;
+    });
+    Auth = {};
+}
+
 async function getAuth(): Promise<ServerConfigAuth | undefined> {
     const auth = await DataStore.get(DATA_STORE_KEY);
     return auth?.[UserStore.getCurrentUser()?.id];

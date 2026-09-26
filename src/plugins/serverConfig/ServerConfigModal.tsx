@@ -11,7 +11,7 @@ import { Paragraph } from "@components/Paragraph";
 import { Guild } from "@limeyV1/discord-types";
 import { Modal, showToast, Toasts } from "@webpack/common";
 
-import { authorize, Auth } from "./auth";
+import { authorize, Auth, clearAuth } from "./auth";
 import { SERVER_CONFIGURABLE_PLUGINS } from "./index";
 
 interface Props {
@@ -29,14 +29,19 @@ const PLUGIN_DESCRIPTIONS: Record<string, string> = {
 export function ServerConfigModal({ modalProps, guild, disabledPlugins, onToggle }: Props) {
     const [error, setError] = useState<string | null>(null);
     const [authed, setAuthed] = useState(Boolean(Auth.token));
+    const [needsReauth, setNeedsReauth] = useState(false);
 
     const handleToggle = async (name: string, value: boolean) => {
         const result = await onToggle(name, value);
         if (result) {
             setError(result);
             showToast(result, Toasts.Type.FAILURE);
+            if (/authoriz|token|log(ged)? in|owner|permission/i.test(result)) {
+                setNeedsReauth(true);
+            }
         } else {
             setError(null);
+            setNeedsReauth(false);
         }
     };
 
@@ -66,6 +71,28 @@ export function ServerConfigModal({ modalProps, guild, disabledPlugins, onToggle
                             }}
                         >
                             Log in with Discord
+                        </a>
+                    </Paragraph>
+                )}
+
+                {authed && needsReauth && (
+                    <Paragraph>
+                        <strong>
+                            Your Discord authorization is missing or outdated:
+                        </strong>{" "}
+                        <a
+                            href="#"
+                            onClick={e => {
+                                e.preventDefault();
+                                void clearAuth().then(() => {
+                                    authorize(() => {
+                                        setAuthed(true);
+                                        setNeedsReauth(false);
+                                    });
+                                });
+                            }}
+                        >
+                            Re-authorize with Discord
                         </a>
                     </Paragraph>
                 )}
