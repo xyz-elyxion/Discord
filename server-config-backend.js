@@ -145,7 +145,7 @@ async function exchangeCode(code) {
     if (!meRes.ok) {
         throw Object.assign(new Error(`Discord @me failed (${meRes.status})`), { status: 401 });
     }
-    return meRes.json(); // { id, username, ... }
+    return { me: await meRes.json(), accessToken: access_token };
 }
 
 // Fetches the guilds the identified user owns or manages.
@@ -218,10 +218,23 @@ async function handle(req, res, url) {
         if (!code) return json(res, 400, { message: "missing code parameter" }), true;
 
         try {
-            const me = await exchangeCode(code);
+            const { me, accessToken } = await exchangeCode(code);
             const token = crypto.randomBytes(32).toString("hex");
 
             db.tokens[token] = me.id;
+
+            // Cache the guilds this user owns/manages NOW, while we still hold
+            // their OAuth access token — PUT verification relies on this cache.
+            try {
+                const managed = await fetchManagedGuilds(accessToken);
+                for (const g of managed) {
+                    db.owners[g.id] ??= [];
+                    if (!db.owners[g.id].includes(me.id)) db.owners[g.id].push(me.id);
+                }
+            } catch (err) {
+                console.error("[server-config] failed to cache managed guilds:", err.message);
+            }
+
             save();
 
             return json(res, 200, { token, discordId: me.id }), true;
