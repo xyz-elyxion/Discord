@@ -93,17 +93,18 @@ async function togglePlugin(guildId: string, pluginName: string, value: boolean)
 }
 
 function openGuildConfigModal(guild: Guild) {
-    // Make sure we have the authoritative backend config before editing
-    void getRemoteConfig(guild.id);
-
-    openModal(modalProps => (
-        <ServerConfigModal
-            modalProps={modalProps}
-            guild={guild}
-            disabledPlugins={getGuildConfig(guild.id).disabledPlugins}
-            onToggle={(pluginName, value) => togglePlugin(guild.id, pluginName, value)}
-        />
-    ));
+    // Load the authoritative backend config before showing the modal, so the
+    // switches reflect what's actually stored (the local store is only a fallback).
+    void getRemoteConfig(guild.id).then(remoteConfig => {
+        openModal(modalProps => (
+            <ServerConfigModal
+                modalProps={modalProps}
+                guild={guild}
+                disabledPlugins={remoteConfig.disabledPlugins}
+                onToggle={(pluginName, value) => togglePlugin(guild.id, pluginName, value)}
+            />
+        ));
+    });
 }
 
 const makePatch: NavContextMenuPatchCallback = (children, { guild }: { guild: Guild; }) => {
