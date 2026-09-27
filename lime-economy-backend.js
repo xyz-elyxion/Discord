@@ -34,6 +34,8 @@ const EARNING = {
     daily: { amount: 50, cooldownMs: 20 * 60 * 60 * 1000 }, // claim every ~20h
     message: { amount: 1, capPerDay: 100 }, // 1 Lime per 25 msgs, max 100/day
     voiceMinute: { amount: 5, capPerDay: 60 }, // 5 Limes per 15 min voice, max 60/day
+    stream: { amount: 10, capPerDay: 40 }, // 10 Limes per 15 min streaming, max 40/day
+    game: { amount: 3, capPerDay: 45 }, // 3 Limes per 15 min in-game, max 45/day
     streakBonus: 25 // extra Limes per consecutive daily claim day, capped
 };
 const STREAK_CAP = 7;
@@ -118,6 +120,8 @@ function getWallet(userId) {
             lastMessageDay: null,
             messagesToday: 0,
             voiceToday: 0,
+            streamToday: 0,
+            gameToday: 0,
             dayKey: null
         };
     }
@@ -127,6 +131,8 @@ function getWallet(userId) {
         wallet.dayKey = today;
         wallet.messagesToday = 0;
         wallet.voiceToday = 0;
+        wallet.streamToday = 0;
+        wallet.gameToday = 0;
     }
     return wallet;
 }
@@ -433,6 +439,36 @@ async function handle(req, res, url) {
         wallet.voiceToday += awardable;
         if (awardable > 0) addLimes(userId, awardable * EARNING.voiceMinute.amount, "voice");
         return json(res, 200, { awarded: awardable * EARNING.voiceMinute.amount, balance: getWallet(userId).balance }), true;
+    }
+
+    // ---- Earning: streaming ----
+    if (sub === "/earn/stream" && req.method === "POST") {
+        if (!userId) return json(res, 400, { error: "missing userId" }), true;
+        const wallet = getWallet(userId);
+        const minutes = Number(req.body?.minutes || 0);
+        const blocks = Math.floor(minutes / 15);
+        if (blocks <= 0) return json(res, 200, { awarded: 0, balance: wallet.balance }), true;
+
+        const room = EARNING.stream.capPerDay - wallet.streamToday;
+        const awardable = Math.min(blocks, room);
+        wallet.streamToday += awardable;
+        if (awardable > 0) addLimes(userId, awardable * EARNING.stream.amount, "streaming");
+        return json(res, 200, { awarded: awardable * EARNING.stream.amount, balance: getWallet(userId).balance }), true;
+    }
+
+    // ---- Earning: playing a game ----
+    if (sub === "/earn/game" && req.method === "POST") {
+        if (!userId) return json(res, 400, { error: "missing userId" }), true;
+        const wallet = getWallet(userId);
+        const minutes = Number(req.body?.minutes || 0);
+        const blocks = Math.floor(minutes / 15);
+        if (blocks <= 0) return json(res, 200, { awarded: 0, balance: wallet.balance }), true;
+
+        const room = EARNING.game.capPerDay - wallet.gameToday;
+        const awardable = Math.min(blocks, room);
+        wallet.gameToday += awardable;
+        if (awardable > 0) addLimes(userId, awardable * EARNING.game.amount, "playing");
+        return json(res, 200, { awarded: awardable * EARNING.game.amount, balance: getWallet(userId).balance }), true;
     }
 
     // ---- Perk tiers ----

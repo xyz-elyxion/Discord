@@ -9,6 +9,7 @@ import { Command } from "@limeyV1/discord-types";
 import { Logger } from "@utils/Logger";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
+import { findByPropsLazy } from "@webpack";
 import { FluxDispatcher, Toasts, UserStore, showToast } from "@webpack/common";
 
 const logger = new Logger("LimeRewards");
@@ -106,38 +107,61 @@ async function flushMessages() {
 }
 
 // --- earning: voice time (5 Limes per 15 min connected) ---
+// --- earning: streaming (10 Limes per 15 min live) ---
+// --- earning: playing a game (3 Limes per 15 min in-game) ---
+// All three share the same 15-minute block reporter pattern.
 
-let voiceChannelId: string | null = null;
-let voiceJoinedAt = 0;
-let voiceReporter: any = null;
+function makeBlockReporter(source: "voice" | "stream" | "game", intervalMs = 5 * 60_000) {
+    let activeAt = 0;
+    let timer: any = null;
 
-function startVoiceTracking() {
-    stopVoiceTracking();
-    voiceReporter = setInterval(async () => {
-        if (!voiceChannelId || !voiceJoinedAt) return;
-        const minutes = Math.floor((Date.now() - voiceJoinedAt) / 60_000);
-        const reportable = Math.floor(minutes / 15) * 15;
-        if (reportable <= 0) return;
-
-        voiceJoinedAt += reportable * 60_000; // only report the elapsed blocks once
+    async function report(source: "voice" | "stream" | "game", minutes: number) {
         try {
-            const res = await api("/earn/voice", { method: "POST", body: JSON.stringify({ minutes: reportable }) }) as { awarded: number; balance: number };
+            const res = await api(`/earn/${source}`, { method: "POST", body: JSON.stringify({ minutes }) }) as { awarded: number; balance: number };
             if (res.awarded > 0) {
                 invalidateWallet();
-                notifyEarned(res.awarded, res.balance, "voice time");
+                const label = source === "voice" ? "voice time" : source === "stream" ? "streaming" : "playing a game";
+                notifyEarned(res.awarded, res.balance, label);
             }
         } catch (error) {
-            logger.error("Failed to track voice time", error);
+            logger.error(`Failed to track ${source}`, error);
         }
-    }, 5 * 60_000); // check every 5 minutes
+    }
+
+    return {
+        setActive(active: boolean) {
+            if (active && !activeAt) activeAt = Date.now();
+            if (!active && activeAt) {
+                const minutes = Math.floor((Date.now() - activeAt) / 60_000);
+                const reportable = Math.floor(minutes / 15) * 15;
+                activeAt = 0;
+                if (reportable > 0) report(source, reportable);
+            }
+        },
+        start() {
+            stop();
+            timer = setInterval(() => {
+                if (!activeAt) return;
+                const minutes = Math.floor((Date.now() - activeAt) / 60_000);
+                const reportable = Math.floor(minutes / 15) * 15;
+                if (reportable > 0) {
+                    activeAt += reportable * 60_000; // only report each block once
+                    report(source, reportable);
+                }
+            }, intervalMs);
+        },
+        stop() {
+            if (timer) {
+                clearInterval(timer);
+                timer = null;
+            }
+        }
+    };
 }
 
-function stopVoiceTracking() {
-    if (voiceReporter) {
-        clearInterval(voiceReporter);
-        voiceReporter = null;
-    }
-}
+const voiceReporter = makeBlockReporter("voice");
+const streamReporter = makeBlockReporter("stream");
+const gameReporter = makeBlockReporter("game");
 
 function onVoiceStateUpdates(event: any) {
     const me = UserStore.getCurrentUser()?.id;
@@ -145,13 +169,23 @@ function onVoiceStateUpdates(event: any) {
 
     for (const state of event.voiceStates ?? []) {
         if (state.userId !== me) continue;
-        if (state.channelId && !voiceChannelId) {
-            voiceChannelId = state.channelId;
-            voiceJoinedAt = Date.now();
-        } else if (!state.channelId && voiceChannelId) {
-            voiceChannelId = null;
-            voiceJoinedAt = 0;
-        }
+        const connected = Boolean(state.channelId);
+        voiceReporter.setActive(connected);
+        // streaming = self_stream flag while connected
+        streamReporter.setActive(connected && Boolean(state.selfStream));
+    }
+}
+
+// games: the SelfPresenceStore exposes what activity the client has set
+const SelfPresenceStore = findByPropsLazy("getSelfPresence");
+
+function trackGameActivity() {
+    try {
+        const presence = SelfPresenceStore.getSelfPresence?.(UserStore.getCurrentUser()?.id);
+        const activity = presence?.activities?.find((a: any) => a.type === 0); // 0 = PLAYING
+        gameReporter.setActive(Boolean(activity));
+    } catch {
+        // presence store shape may differ; game tracking is best-effort
     }
 }
 
@@ -208,7 +242,7 @@ function makeLimesCommand(): Command {
 
 export default definePlugin({
     name: "LimeRewards",
-    description: "Earn Limes (🍋) for using Discord and spend them on perk tiers at limey-discord.onrender.com/limes. This plugin powers the Lime economy and is always on.",
+    description: "Earn Limes (🍋) for using Discord — daily claims, chatting, voice, streaming and gaming — and spend them on perk tiers at limey-discord.onrender.com/limes. This plugin powers the Lime economy and is always on.",
     tags: ["Utility", "Fun"],
     authors: [Devs.Limey],
     required: true,
@@ -226,13 +260,20 @@ export default definePlugin({
                 .catch(error => logger.error("Failed to sync wallet", error));
         }, 15_000);
 
-        startVoiceTracking();
+        voiceReporter.start();
+        streamReporter.start();
+        gameReporter.start();
+        // poll game presence periodically (no flux event for self activity changes)
+        const gamePoll = setInterval(trackGameActivity, 60_000);
 
         // periodic re-sync so tier expiry is reflected
         const resync = setInterval(() => invalidateWallet(), 5 * 60_000);
         this.stop = () => {
             clearInterval(resync);
-            stopVoiceTracking();
+            clearInterval(gamePoll);
+            voiceReporter.stop();
+            streamReporter.stop();
+            gameReporter.stop();
             flushMessages();
         };
     }
