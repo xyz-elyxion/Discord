@@ -54,4 +54,15 @@ Vaius.on("error", err => {
     handleError("Unhandled Client Error", err);
 });
 
-Vaius.connect().catch(console.error);
+async function connectWithRetry(attempt = 1): Promise<void> {
+    try {
+        await Vaius.connect();
+        console.log("Connected to Discord gateway");
+    } catch (err) {
+        const delay = Math.min(2 ** attempt * 5_000, 5 * 60_000);
+        console.error(`Failed to connect to Discord gateway (attempt ${attempt}), retrying in ${Math.round(delay / 1000)}s:`, err);
+        setTimeout(() => connectWithRetry(attempt + 1), delay).unref();
+    }
+}
+
+connectWithRetry();
