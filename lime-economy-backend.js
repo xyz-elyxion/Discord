@@ -65,9 +65,29 @@ const TIERS = {
 
 const TIER_ORDER = ["seedling", "grove", "orchard"];
 
-// ---------------------------------------------------------------------------
-// State
-// ---------------------------------------------------------------------------
+// Badge integrations: active subscribers get their tier badge on their Discord
+// profile via /badges.json (merged in by server.js). Uses inline SVGs so no
+// image hosting is needed.
+const BADGE_COLORS = { seedling: "#4ade80", grove: "#a3e635", orchard: "#f59e0b" };
+
+function limeBadgeSvg(color) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="13" r="9" fill="${color}"/><rect x="10.5" y="1" width="3" height="5" rx="1.5" fill="#3f6212"/></svg>`;
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function getTierBadges() {
+    const out = {};
+    for (const [userId, perks] of Object.entries(db.perks)) {
+        if (!perks.tier || !perks.expiresAt || Date.now() >= perks.expiresAt) continue;
+        const tier = TIERS[perks.tier];
+        if (!tier) continue;
+        out[userId] = [{
+            tooltip: `${tier.name} (${perks.trialUsed?.[perks.tier] && perks.expiresAt - Date.now() < tier.trialDays * 86400000 ? "trial" : "subscriber"})`,
+            badge: limeBadgeSvg(BADGE_COLORS[perks.tier] || "#a3e635")
+        }];
+    }
+    return out;
+}
 
 // db.wallets[userId] = { balance, streak, lastDaily, lastMessageDay, messagesToday, dayKey, voiceToday }
 // db.perks[userId]  = { tier, expiresAt, trialUsed: { [tier]: true } }
@@ -577,4 +597,4 @@ async function handle(req, res, url) {
     return false; // not ours
 }
 
-module.exports = { handle, hydrate, TIERS, TIER_ORDER, EARNING, _db: () => db };
+module.exports = { handle, hydrate, TIERS, TIER_ORDER, EARNING, getTierBadges, _db: () => db };

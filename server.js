@@ -909,12 +909,23 @@ function handleBadges(req, res, url) {
     if (url !== "/badges.json") return false;
 
     if (req.method === "GET") {
+        // Merge Lime tier badges (active subscribers) into the donor badges
+        const merged = { ...badgesData };
+        if (limeEconomy) {
+            try {
+                for (const [userId, badges] of Object.entries(limeEconomy.getTierBadges())) {
+                    merged[userId] = [...(merged[userId] || []), ...badges];
+                }
+            } catch (err) {
+                console.error("[badges] failed to merge lime tier badges:", err.message);
+            }
+        }
         res.writeHead(200, {
             "Content-Type": "application/json; charset=utf-8",
             "Access-Control-Allow-Origin": "*",
             "Cache-Control": "public, max-age=300"
         });
-        res.end(JSON.stringify(badgesData));
+        res.end(JSON.stringify(merged));
         return true;
     }
 
