@@ -353,11 +353,12 @@ async function handle(req, res, url) {
 
     // ---- Wallet ----
     let userId = getUser(req, query);
-    if (!userId && req.method !== "GET") {
-        const body = await readBody(req);
-        userId = getUser(req, new URLSearchParams(Object.entries(body).map(([k, v]) => [k, String(v)])));
-        // re-parse remaining body for endpoints that need it
-        req.body = body;
+    // Always parse JSON bodies for POSTs (tier, minutes, count, admin grants...)
+    if (req.method === "POST") {
+        req.body = await readBody(req);
+        if (!userId) {
+            userId = getUser(req, new URLSearchParams(Object.entries(req.body).map(([k, v]) => [k, String(v)])));
+        }
     }
 
     if (sub === "/wallet" && req.method === "GET") {
