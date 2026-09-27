@@ -113,18 +113,21 @@ if (!IS_DEV && !IS_REPORTER && process.env.LIMEY_NO_OBFUSCATE !== "1") {
     const { readFileSync, writeFileSync } = await import("fs");
     const JavaScriptObfuscator = (await import("javascript-obfuscator")).default;
 
+    // Conservative options: mangle identifiers and fold strings without
+    // selfDefending/base64 encoding — aggressive modes (selfDefending,
+    // deadCodeInjection, stringArrayEncoding) break inside userscript managers.
     const obfuscateOptions = {
         compact: true,
-        selfDefending: true,
-        controlFlowFlattening: true,
-        controlFlowFlatteningThreshold: 0.5,
-        deadCodeInjection: true,
-        deadCodeInjectionThreshold: 0.3,
+        controlFlowFlattening: false,
+        deadCodeInjection: false,
         stringArray: true,
-        stringArrayEncoding: ["base64"],
-        stringArrayThreshold: 0.75,
+        stringArrayEncoding: [],
+        stringArrayThreshold: 0.5,
+        stringArrayRotate: true,
+        stringArrayShuffle: true,
         identifierNamesGenerator: "hexadecimal",
         renameGlobals: false, // keep the LimeyV1 global intact
+        selfDefending: false,
         sourceMap: false
     };
 
