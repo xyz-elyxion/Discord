@@ -42,7 +42,37 @@ const ContributorBadge: ProfileBadge = {
     onClick: (_, { userId }) => openContributorModal(UserStore.getUser(userId))
 };
 
-let DonorBadges = {} as Record<string, Array<Record<"tooltip" | "badge", string>>>;
+let DonorBadges = {} as Record<string, Array<Record<"tooltip" | "badge", string> & { kind?: string; tier?: string; trial?: boolean }>>;
+
+// Opens a modal describing a Lime tier badge (Seedling/Grove/Orchard)
+function openTierBadgeModal(badge: { tooltip?: string; tier?: string; trial?: boolean }) {
+    const tierNames: Record<string, string> = { seedling: "Seedling", grove: "Grove", orchard: "Orchard" };
+    const tierName = tierNames[badge.tier ?? ""] || badge.tooltip || "Lime Tier";
+    const tierColors: Record<string, string> = { seedling: "#4ade80", grove: "#a3e635", orchard: "#f59e0b" };
+    openModal(props => (
+        <ErrorBoundary noop onError={props.onClose}>
+            <Modal
+                {...props}
+                title={
+                    <Forms.FormTitle
+                        tag="h2"
+                        style={{ width: "100%", textAlign: "center", margin: 0 }}
+                    >
+                        <Flex justifyContent="center" alignItems="center" gap="0.5em">
+                            🍋 {tierName}
+                        </Flex>
+                    </Forms.FormTitle>
+                }
+            >
+                <div style={{ padding: "1em", textAlign: "center" }}>
+                    <Forms.FormText>
+                        This Badge is a perk of the <b>{tierName}</b> tier{badge.trial ? " (free trial)" : ""} — earned with Limes at <b>limey-discord.onrender.com/limes</b>.
+                    </Forms.FormText>
+                </div>
+            </Modal>
+        </ErrorBoundary>
+    ));
+}
 
 async function loadBadges(noCache = false) {
     const init = {} as RequestInit;
@@ -203,6 +233,11 @@ export default definePlugin({
                 ContextMenuApi.openContextMenu(event, () => <BadgeContextMenu badge={badge} />);
             },
             onClick() {
+                // Lime tier badges get their own modal; donor badges the donor one
+                if (badge.kind === "limeTier") {
+                    openTierBadgeModal(badge);
+                    return;
+                }
                 openModal(props => (
                     <ErrorBoundary noop onError={() => {
                         props.onClose();

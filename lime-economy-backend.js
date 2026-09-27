@@ -81,8 +81,12 @@ function getTierBadges() {
         if (!perks.tier || !perks.expiresAt || Date.now() >= perks.expiresAt) continue;
         const tier = TIERS[perks.tier];
         if (!tier) continue;
+        const isTrial = Boolean(perks.trialUsed?.[perks.tier]) && (perks.expiresAt - Date.now()) < tier.trialDays * 86400000;
         out[userId] = [{
-            tooltip: `${tier.name} (${perks.trialUsed?.[perks.tier] && perks.expiresAt - Date.now() < tier.trialDays * 86400000 ? "trial" : "subscriber"})`,
+            kind: "limeTier",
+            tier: perks.tier,
+            trial: isTrial,
+            tooltip: isTrial ? `${tier.name} (trial)` : tier.name,
             badge: limeBadgeSvg(BADGE_COLORS[perks.tier] || "#a3e635")
         }];
     }
