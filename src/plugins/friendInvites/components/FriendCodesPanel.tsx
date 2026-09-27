@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import "./styles.css";
+import "../styles.css";
 
 import { BaseText } from "@components/BaseText";
 import { Button, TextButton } from "@components/Button";
