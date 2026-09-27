@@ -19,9 +19,10 @@ const ADMIN_TOKEN = process.env.LIMES_ADMIN_TOKEN || process.env.USRBG_ADMIN_TOK
 const DISCORD_API = "https://discord.com/api/v10";
 const CLIENT_ID = process.env.LIMES_CLIENT_ID || process.env.DISCORD_CLIENT_ID || "";
 const CLIENT_SECRET = process.env.LIMES_CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
-// The site logs in with its own redirect back to /limes.html so the page can
-// finish the flow entirely in the browser.
-const SITE_REDIRECT_URI = process.env.LIMES_SITE_REDIRECT_URI || "https://limey-discord.onrender.com/limes.html";
+// The site logs in through the shared OAuth callback, which bounces the
+// session back to the Limes page.
+const SITE_REDIRECT_URI = process.env.LIMES_SITE_REDIRECT_URI || "https://limey-discord.onrender.com/v1/oauth/callback";
+const SITE_LOGIN_PAGE = process.env.LIMES_SITE_PAGE || "https://limey-discord.onrender.com/limes.html";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -281,7 +282,7 @@ async function handle(req, res, url) {
     }
 
     // ---- Site OAuth login ----
-    // GET /v1/limes/login?code=... -> { token, user } (redirect_uri = /limes.html)
+    // GET /v1/limes/login?code=... -> { token, user } (JSON, for direct use)
     if (sub === "/login" && req.method === "GET") {
         const code = query.get("code");
         if (!code) return json(res, 400, { error: "missing code" }), true;
@@ -291,6 +292,32 @@ async function handle(req, res, url) {
         db.users[me.id] = me;
         scheduleSave();
         return json(res, 200, { token, user: publicUser(me) }), true;
+    }
+
+    // GET /v1/limes/callback?code=... -> 302 back to the Limes page with a
+    // session token in the fragment-free query. Used by the shared OAuth
+    // callback when state=limes.
+    if (sub === "/callback" && req.method === "GET") {
+        const code = query.get("code");
+        const target = new URL(SITE_LOGIN_PAGE);
+        if (!code) {
+            target.searchParams.set("login", "missing_code");
+            res.writeHead(302, { Location: target.toString() });
+            return res.end(), true;
+        }
+        try {
+            const me = await exchangeCode(code);
+            const token = crypto.randomBytes(32).toString("hex");
+            db.siteTokens[token] = me.id;
+            db.users[me.id] = me;
+            scheduleSave();
+            target.searchParams.set("session", token);
+        } catch (err) {
+            console.error("[limes] login failed:", err.message);
+            target.searchParams.set("login", "failed");
+        }
+        res.writeHead(302, { Location: target.toString() });
+        return res.end(), true;
     }
 
     // GET /v1/limes/me (Bearer token) -> session + wallet summary

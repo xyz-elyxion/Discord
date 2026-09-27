@@ -1285,9 +1285,8 @@ const server = http.createServer(async (req, res) => {
             if (await reviewdb.handle(req, res, "/v1/reviewdb/auth" + (query ? "?" + query : ""))) return;
         }
         if (params.get("state") === "limes" && limeEconomy) {
-            // The limes flow uses its own redirect back to the site page, so it
-            // never actually lands here — but handle a stray callback gracefully.
-            return proxyCloud(req, res);
+            // Exchange the code server-side and bounce the session to the site page
+            if (await limeEconomy.handle(req, res, "/v1/limes/callback" + (query ? "?" + query : ""))) return;
         }
         // default: settings sync cloud (Go backend owns this route);
         // strip our client-side state so the Go callback sees a clean request

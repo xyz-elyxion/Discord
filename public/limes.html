@@ -167,30 +167,28 @@
         const walletLoggedOut = document.getElementById("walletLoggedOut");
         const walletLoggedIn = document.getElementById("walletLoggedIn");
 
-        const SITE_REDIRECT_URI = location.origin + "/limes.html";
         let sessionToken = null;
         try { sessionToken = localStorage.getItem("limeySessionToken"); } catch { }
 
-        // --- OAuth: build login URL, handle ?code=... on return ---
+        // --- OAuth via the shared callback: Discord -> /v1/oauth/callback?state=limes
+        // -> server exchanges code -> 302 back here with ?session=... ---
         async function initLogin() {
             const params = new URLSearchParams(location.search);
-            const code = params.get("code");
-            if (code) {
-                // clean the URL first so refreshes don't re-exchange
+
+            const session = params.get("session");
+            const loginError = params.get("login");
+            if (session || loginError) {
                 history.replaceState(null, "", "/limes");
-                try {
-                    const res = await fetch(`/v1/limes/login?code=${encodeURIComponent(code)}`);
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || "Login failed");
-                    sessionToken = data.token;
-                    localStorage.setItem("limeySessionToken", sessionToken);
-                    walletStatus.textContent = `Welcome, ${data.user.globalName}!`;
-                } catch (err) {
-                    walletStatus.textContent = `Login failed: ${err.message}`;
+                if (session) {
+                    sessionToken = session;
+                    try { localStorage.setItem("limeySessionToken", sessionToken); } catch { }
+                    walletStatus.textContent = "Logged in!";
+                } else {
+                    walletStatus.textContent = "Discord login failed — please try again.";
                 }
             }
 
-            // point the login button at Discord's authorize URL
+            // point the login button at Discord's authorize URL via the shared callback
             try {
                 const res = await fetch("/v1/limes/oauth-config");
                 if (res.ok) {
@@ -198,7 +196,7 @@
                     const auth = new URL("https://discord.com/oauth2/authorize");
                     auth.searchParams.set("client_id", cfg.clientId);
                     auth.searchParams.set("response_type", "code");
-                    auth.searchParams.set("redirect_uri", SITE_REDIRECT_URI);
+                    auth.searchParams.set("redirect_uri", cfg.redirectUri);
                     auth.searchParams.set("scope", "identify");
                     auth.searchParams.set("state", "limes");
                     loginBtn.href = auth.toString();
