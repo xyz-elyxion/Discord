@@ -10,9 +10,18 @@
 
 const { existsSync, readFileSync, writeFileSync, mkdirSync } = require("fs");
 const { join } = require("path");
+const crypto = require("crypto");
 
 const DATA_FILE = join(__dirname, "data", "lime-economy.json");
 const ADMIN_TOKEN = process.env.LIMES_ADMIN_TOKEN || process.env.USRBG_ADMIN_TOKEN;
+
+// Discord OAuth (shared app credentials, like the other Limey flows)
+const DISCORD_API = "https://discord.com/api/v10";
+const CLIENT_ID = process.env.LIMES_CLIENT_ID || process.env.DISCORD_CLIENT_ID || "";
+const CLIENT_SECRET = process.env.LIMES_CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
+// The site logs in with its own redirect back to /limes.html so the page can
+// finish the flow entirely in the browser.
+const SITE_REDIRECT_URI = process.env.LIMES_SITE_REDIRECT_URI || "https://limey-discord.onrender.com/limes.html";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -59,7 +68,7 @@ const TIER_ORDER = ["seedling", "grove", "orchard"];
 
 // db.wallets[userId] = { balance, streak, lastDaily, lastMessageDay, messagesToday, dayKey, voiceToday }
 // db.perks[userId]  = { tier, expiresAt, trialUsed: { [tier]: true } }
-let db = { wallets: {}, perks: {} };
+let db = { wallets: {}, perks: {}, siteTokens: {}, users: {} };
 
 let saveTimer = null;
 function scheduleSave() {
@@ -80,6 +89,8 @@ function hydrate(parsed) {
     if (!parsed || typeof parsed !== "object") return;
     if (parsed.wallets && typeof parsed.wallets === "object") db.wallets = parsed.wallets;
     if (parsed.perks && typeof parsed.perks === "object") db.perks = parsed.perks;
+    if (parsed.siteTokens && typeof parsed.siteTokens === "object") db.siteTokens = parsed.siteTokens;
+    if (parsed.users && typeof parsed.users === "object") db.users = parsed.users;
     console.log(`[limes] hydrated ${Object.keys(db.wallets).length} wallet(s), ${Object.keys(db.perks).length} perk subscription(s)`);
 }
 
@@ -172,9 +183,63 @@ function readBody(req) {
 //  2. Authorization: Bearer <token> -> delegated to the plugin's token map
 // For a virtual economy we keep it simple and trust the plugin's user id over
 // HTTPS; the plugin authenticates the user with Discord itself.
+// --- Site OAuth -----------------------------------------------------------------
+
+async function exchangeCode(code) {
+    if (!CLIENT_ID || !CLIENT_SECRET) {
+        throw Object.assign(new Error("Limes OAuth is not configured (missing DISCORD_CLIENT_ID/SECRET)"), { status: 503 });
+    }
+    const body = new URLSearchParams({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: SITE_REDIRECT_URI
+    });
+    const tokenRes = await fetch(DISCORD_API + "/oauth2/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body
+    });
+    if (!tokenRes.ok) {
+        const text = await tokenRes.text().catch(() => "");
+        throw Object.assign(new Error(`Discord token exchange failed (${tokenRes.status}): ${text.slice(0, 200)}`), { status: 401 });
+    }
+    const { access_token } = await tokenRes.json();
+    const meRes = await fetch(DISCORD_API + "/users/@me", {
+        headers: { Authorization: `Bearer ${access_token}` }
+    });
+    if (!meRes.ok) throw Object.assign(new Error("Discord @me failed"), { status: 401 });
+    return meRes.json(); // { id, username, global_name, avatar, ... }
+}
+
+function avatarUrl(user) {
+    if (user.avatar) return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`;
+    const index = (BigInt(user.id) >> 22n) % 6n;
+    return `https://cdn.discordapp.com/embed/avatars/${index}.png`;
+}
+
+// Site session: Bearer token issued by /login, maps to a verified Discord id.
+function getSiteUser(req) {
+    const header = req.headers.authorization || "";
+    const token = header.replace(/^Bearer\s+/i, "").trim();
+    if (!token) return null;
+    const discordId = db.siteTokens[token];
+    if (!discordId) return null;
+    return { token, discordId, user: db.users[discordId] ?? null };
+}
+
+// Trust order: site session first (verified via OAuth), then explicit ids (plugin).
 function getUser(req, query) {
+    const siteUser = getSiteUser(req);
+    if (siteUser) return siteUser.discordId;
     const userId = query.get("userId") || req.headers["x-limey-user-id"];
     return userId && /^\d{5,25}$/.test(String(userId)) ? String(userId) : null;
+}
+
+function publicUser(user) {
+    if (!user) return null;
+    return { id: user.id, username: user.username, globalName: user.global_name || user.username, avatar: avatarUrl(user) };
 }
 
 function isAdmin(req) {
@@ -209,6 +274,50 @@ async function handle(req, res, url) {
         }), true;
     }
 
+    // OAuth client id for the site's "Login with Discord" button
+    if (req.method === "GET" && sub === "/oauth-config") {
+        if (!CLIENT_ID) return json(res, 503, { error: "oauth not configured" }), true;
+        return json(res, 200, { clientId: CLIENT_ID, redirectUri: SITE_REDIRECT_URI, scope: "identify" }), true;
+    }
+
+    // ---- Site OAuth login ----
+    // GET /v1/limes/login?code=... -> { token, user } (redirect_uri = /limes.html)
+    if (sub === "/login" && req.method === "GET") {
+        const code = query.get("code");
+        if (!code) return json(res, 400, { error: "missing code" }), true;
+        const me = await exchangeCode(code);
+        const token = crypto.randomBytes(32).toString("hex");
+        db.siteTokens[token] = me.id;
+        db.users[me.id] = me;
+        scheduleSave();
+        return json(res, 200, { token, user: publicUser(me) }), true;
+    }
+
+    // GET /v1/limes/me (Bearer token) -> session + wallet summary
+    if (sub === "/me" && req.method === "GET") {
+        const siteUser = getSiteUser(req);
+        if (!siteUser) return json(res, 401, { error: "not logged in" }), true;
+        const wallet = getWallet(siteUser.discordId);
+        return json(res, 200, {
+            user: publicUser(siteUser.user),
+            balance: wallet.balance,
+            streak: wallet.streak,
+            tier: activeTier(siteUser.discordId),
+            multiplier: tierMultiplier(siteUser.discordId),
+            nextDailyAt: wallet.lastDaily + EARNING.daily.cooldownMs
+        }), true;
+    }
+
+    // POST /v1/limes/logout (Bearer token)
+    if (sub === "/logout" && req.method === "POST") {
+        const siteUser = getSiteUser(req);
+        if (siteUser) {
+            delete db.siteTokens[siteUser.token];
+            scheduleSave();
+        }
+        return json(res, 200, { ok: true }), true;
+    }
+
     // ---- Wallet ----
     let userId = getUser(req, query);
     if (!userId && req.method !== "GET") {
@@ -221,7 +330,9 @@ async function handle(req, res, url) {
     if (sub === "/wallet" && req.method === "GET") {
         if (!userId) return json(res, 400, { error: "missing userId" }), true;
         const wallet = getWallet(userId);
+        const siteUser = getSiteUser(req);
         return json(res, 200, {
+            user: siteUser ? publicUser(siteUser.user) : null,
             balance: wallet.balance,
             streak: wallet.streak,
             tier: activeTier(userId),

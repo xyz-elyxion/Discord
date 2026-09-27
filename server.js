@@ -1276,12 +1276,18 @@ const server = http.createServer(async (req, res) => {
     // Dispatches by the `state` query param to the owning backend:
     //   state=settings-sync -> Go cloud backend /v1/oauth/callback
     //   state=reviewdb      -> self-hosted reviewdb auth
+    //   state=limes         -> lime economy site login
     // NOTE: uses raw req.url — `url` above has the query string stripped.
     if ((req.url || "").split("?")[0] === "/v1/oauth/callback") {
         const query = (req.url || "").split("?").slice(1).join("?");
         const params = new URLSearchParams(query);
         if (params.get("state") === "reviewdb" && reviewdb) {
             if (await reviewdb.handle(req, res, "/v1/reviewdb/auth" + (query ? "?" + query : ""))) return;
+        }
+        if (params.get("state") === "limes" && limeEconomy) {
+            // The limes flow uses its own redirect back to the site page, so it
+            // never actually lands here — but handle a stray callback gracefully.
+            return proxyCloud(req, res);
         }
         // default: settings sync cloud (Go backend owns this route);
         // strip our client-side state so the Go callback sees a clean request

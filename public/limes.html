@@ -99,7 +99,7 @@
                 <a href="/#features">Features</a>
                 <a href="/plugins/">Plugins</a>
                 <a href="/download">Download</a>
-                <a href="/limes.html">Limes</a>
+                <a href="/limes">Limes</a>
                 <a href="/usrbg.html">USRBG</a>
             </nav>
         </div>
@@ -113,14 +113,24 @@
         </section>
 
         <div class="wallet-card">
-            <div class="wallet-user">
+            <div id="walletLoggedOut" class="wallet-user">
                 <strong>Your wallet</strong>
-                <input id="userIdInput" placeholder="Your Discord user ID" inputmode="numeric">
+                <span class="wallet-meta">Log in with Discord to view your Limes</span>
+                <a class="btn-lime" id="loginBtn" href="#" style="text-align:center; text-decoration:none; display:inline-block; margin-top:4px">Login with Discord</a>
             </div>
-            <div style="text-align:right">
-                <div class="wallet-balance" id="balanceDisplay">— 🍋</div>
-                <div class="wallet-meta" id="walletMeta">Enter your ID to load</div>
-                <button class="btn-lime" id="dailyBtn" style="margin-top:8px" disabled>Claim daily</button>
+            <div id="walletLoggedIn" style="display:none; align-items:center; justify-content:space-between; gap:16px; width:100%">
+                <div class="wallet-user" style="flex-direction:row; align-items:center; gap:12px">
+                    <img id="userAvatar" src="" alt="" width="48" height="48" style="border-radius:50%; border:1px solid var(--border)">
+                    <div>
+                        <strong id="userName">…</strong>
+                        <div class="wallet-meta" id="walletMeta"></div>
+                    </div>
+                </div>
+                <div style="text-align:right">
+                    <div class="wallet-balance" id="balanceDisplay">— 🍋</div>
+                    <button class="btn-lime" id="dailyBtn" style="margin-top:8px">Claim daily</button>
+                    <button class="btn-lime" id="logoutBtn" style="margin-top:8px; background:transparent; border-color:var(--border)">Log out</button>
+                </div>
             </div>
         </div>
         <p id="walletStatus"></p>
@@ -146,41 +156,108 @@
     </footer>
 
     <script>
-        const userIdInput = document.getElementById("userIdInput");
+        const CLIENT_ID = ""; // filled from /v1/limes/tiers response config when set
         const balanceDisplay = document.getElementById("balanceDisplay");
         const walletMeta = document.getElementById("walletMeta");
         const dailyBtn = document.getElementById("dailyBtn");
+        const logoutBtn = document.getElementById("logoutBtn");
         const walletStatus = document.getElementById("walletStatus");
         const tiersContainer = document.getElementById("tiersContainer");
+        const loginBtn = document.getElementById("loginBtn");
+        const walletLoggedOut = document.getElementById("walletLoggedOut");
+        const walletLoggedIn = document.getElementById("walletLoggedIn");
 
-        try {
-            const saved = localStorage.getItem("limeyUserId");
-            if (saved) userIdInput.value = saved;
-        } catch { }
+        const SITE_REDIRECT_URI = location.origin + "/limes.html";
+        let sessionToken = null;
+        try { sessionToken = localStorage.getItem("limeySessionToken"); } catch { }
+
+        // --- OAuth: build login URL, handle ?code=... on return ---
+        async function initLogin() {
+            const params = new URLSearchParams(location.search);
+            const code = params.get("code");
+            if (code) {
+                // clean the URL first so refreshes don't re-exchange
+                history.replaceState(null, "", "/limes");
+                try {
+                    const res = await fetch(`/v1/limes/login?code=${encodeURIComponent(code)}`);
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || "Login failed");
+                    sessionToken = data.token;
+                    localStorage.setItem("limeySessionToken", sessionToken);
+                    walletStatus.textContent = `Welcome, ${data.user.globalName}!`;
+                } catch (err) {
+                    walletStatus.textContent = `Login failed: ${err.message}`;
+                }
+            }
+
+            // point the login button at Discord's authorize URL
+            try {
+                const res = await fetch("/v1/limes/oauth-config");
+                if (res.ok) {
+                    const cfg = await res.json();
+                    const auth = new URL("https://discord.com/oauth2/authorize");
+                    auth.searchParams.set("client_id", cfg.clientId);
+                    auth.searchParams.set("response_type", "code");
+                    auth.searchParams.set("redirect_uri", SITE_REDIRECT_URI);
+                    auth.searchParams.set("scope", "identify");
+                    auth.searchParams.set("state", "limes");
+                    loginBtn.href = auth.toString();
+                } else {
+                    loginBtn.addEventListener("click", e => {
+                        e.preventDefault();
+                        walletStatus.textContent = "Login is not configured on the server yet.";
+                    });
+                }
+            } catch { }
+        }
+
+        async function api(path, init) {
+            const res = await fetch(path, {
+                ...init,
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+                    ...(init?.headers || {})
+                }
+            });
+            if (res.status === 401) { logout(false); throw new Error("Session expired — log in again"); }
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+            return data;
+        }
+
+        function setLoggedIn(user) {
+            walletLoggedOut.style.display = "none";
+            walletLoggedIn.style.display = "flex";
+            document.getElementById("userName").textContent = user?.globalName || "Limey user";
+            document.getElementById("userAvatar").src = user?.avatar || "";
+        }
+
+        function logout(clearServer = true) {
+            if (clearServer && sessionToken) {
+                fetch("/v1/limes/logout", { method: "POST", headers: { Authorization: `Bearer ${sessionToken}` } }).catch(() => { });
+            }
+            sessionToken = null;
+            try { localStorage.removeItem("limeySessionToken"); } catch { }
+            walletLoggedIn.style.display = "none";
+            walletLoggedOut.style.display = "flex";
+        }
+
+        logoutBtn.addEventListener("click", () => logout(true));
 
         async function loadWallet() {
-            const userId = userIdInput.value.trim();
-            if (!/^\d{5,25}$/.test(userId)) {
-                balanceDisplay.textContent = "— 🍋";
-                walletMeta.textContent = "Enter your ID to load";
-                dailyBtn.disabled = true;
-                return;
-            }
+            if (!sessionToken) return;
             try {
-                localStorage.setItem("limeyUserId", userId);
-                const res = await fetch(`/v1/limes/wallet?userId=${userId}`);
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || "Failed to load");
+                const data = await api("/v1/limes/me");
+                setLoggedIn(data.user);
                 balanceDisplay.textContent = `${data.balance} 🍋`;
                 walletMeta.textContent = data.tier
                     ? `${data.tier.charAt(0).toUpperCase() + data.tier.slice(1)} tier · streak ${data.streak}d`
                     : `streak ${data.streak}d · no tier`;
-                dailyBtn.disabled = false;
                 dailyBtn.dataset.next = data.nextDailyAt;
                 updateDailyBtn();
             } catch (err) {
-                walletMeta.textContent = err.message;
-                dailyBtn.disabled = true;
+                walletStatus.textContent = err.message;
             }
         }
 
@@ -199,25 +276,16 @@
         setInterval(updateDailyBtn, 60000);
 
         dailyBtn.addEventListener("click", async () => {
-            const userId = userIdInput.value.trim();
             dailyBtn.disabled = true;
             try {
-                const res = await fetch("/v1/limes/earn/daily", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", "x-limey-user-id": userId },
-                    body: "{}"
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || "Claim failed");
+                const data = await api("/v1/limes/earn/daily", { method: "POST", body: "{}" });
                 walletStatus.textContent = `+${data.amount} 🍋 claimed!${data.streakBonus ? ` (${data.streak}-day streak +${data.streakBonus})` : ""}`;
                 loadWallet();
             } catch (err) {
                 walletStatus.textContent = err.message;
+                updateDailyBtn();
             }
         });
-
-        userIdInput.addEventListener("change", loadWallet);
-        if (userIdInput.value) loadWallet();
 
         async function loadTiers() {
             try {
@@ -243,25 +311,17 @@
         }
 
         function requireUser() {
-            const userId = userIdInput.value.trim();
-            if (!/^\d{5,25}$/.test(userId)) {
-                walletStatus.textContent = "Enter your Discord user ID first.";
-                return null;
+            if (!sessionToken) {
+                walletStatus.textContent = "Log in with Discord first.";
+                return false;
             }
-            return userId;
+            return true;
         }
 
         async function startTrial(tier) {
-            const userId = requireUser();
-            if (!userId) return;
+            if (!requireUser()) return;
             try {
-                const res = await fetch("/v1/limes/perks/trial", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", "x-limey-user-id": userId },
-                    body: JSON.stringify({ tier })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || "Trial failed");
+                const data = await api("/v1/limes/perks/trial", { method: "POST", body: JSON.stringify({ tier }) });
                 walletStatus.textContent = `Trial started: ${tier} for ${data.trialDays} day(s)! Restart Discord to see your perks.`;
                 loadWallet();
             } catch (err) {
@@ -270,23 +330,21 @@
         }
 
         async function subscribe(tier) {
-            const userId = requireUser();
-            if (!userId) return;
+            if (!requireUser()) return;
             try {
-                const res = await fetch("/v1/limes/perks/subscribe", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", "x-limey-user-id": userId },
-                    body: JSON.stringify({ tier })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(res.status === 402 ? `Not enough Limes — need ${data.needed}, you have ${data.balance}` : (data.error || "Subscribe failed"));
+                const data = await api("/v1/limes/perks/subscribe", { method: "POST", body: JSON.stringify({ tier }) });
                 walletStatus.textContent = `Subscribed to ${tier}! Spent ${data.spent} 🍋, ${data.balance} left.`;
                 loadWallet();
             } catch (err) {
-                walletStatus.textContent = err.message;
+                walletStatus.textContent = err.status === 402 || /not enough/i.test(err.message)
+                    ? err.message
+                    : err.message;
+                loadWallet();
             }
         }
 
+        initLogin();
+        if (sessionToken) loadWallet();
         loadTiers();
     </script>
 </body>
