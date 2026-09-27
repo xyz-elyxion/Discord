@@ -105,40 +105,6 @@ const buildConfigs = [
 
 await buildOrWatchAll(buildConfigs);
 
-// --- Obfuscation (production only) ---
-// Mangles identifiers, control-flow flattens and dead-code injects the shipped
-// userscript/extension bundle to discourage casual tampering/rebranding.
-// Dev/watch builds and the reporter stay readable. Set LIMEY_NO_OBFUSCATE=1 to skip.
-if (!IS_DEV && !IS_REPORTER && process.env.LIMEY_NO_OBFUSCATE !== "1") {
-    const { readFileSync, writeFileSync } = await import("fs");
-    const JavaScriptObfuscator = (await import("javascript-obfuscator")).default;
-
-    // Conservative options: mangle identifiers and fold strings without
-    // selfDefending/base64 encoding — aggressive modes (selfDefending,
-    // deadCodeInjection, stringArrayEncoding) break inside userscript managers.
-    const obfuscateOptions = {
-        compact: true,
-        controlFlowFlattening: false,
-        deadCodeInjection: false,
-        stringArray: true,
-        stringArrayEncoding: [],
-        stringArrayThreshold: 0.5,
-        stringArrayRotate: true,
-        stringArrayShuffle: true,
-        identifierNamesGenerator: "hexadecimal",
-        renameGlobals: false, // keep the LimeyV1 global intact
-        selfDefending: false,
-        sourceMap: false
-    };
-
-    for (const file of ["dist/browser.js", "dist/LimeyV1.user.js"]) {
-        const before = readFileSync(file, "utf-8");
-        const result = JavaScriptObfuscator.obfuscate(before, obfuscateOptions);
-        writeFileSync(file, result.getObfuscatedCode());
-        console.log(`[obfuscate] ${file} (${(before.length / 1e6).toFixed(1)}MB -> ${(result.getObfuscatedCode().length / 1e6).toFixed(1)}MB)`);
-    }
-}
-
 const appendCssRuntime = readFile("dist/LimeyV1.user.css", "utf-8").then(content => {
     const cssRuntime = `unsafeWindow._vcUserScriptRendererCss=\`${content.replaceAll("`", "\\`")}\``;
 
