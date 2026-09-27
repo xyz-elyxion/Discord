@@ -58,8 +58,12 @@ async function connectWithRetry(attempt = 1): Promise<void> {
     try {
         await Vaius.connect();
         console.log("Connected to Discord gateway");
-    } catch (err) {
-        const delay = Math.min(2 ** attempt * 5_000, 5 * 60_000);
+    } catch (err: any) {
+        // If Discord rate-limited us, wait exactly as long as it asks (+ buffer)
+        const rateLimitDelay: number | undefined = err?.cause?.delay;
+        const delay = rateLimitDelay != null
+            ? rateLimitDelay + 10_000
+            : Math.min(2 ** attempt * 60_000, 10 * 60_000);
         console.error(`Failed to connect to Discord gateway (attempt ${attempt}), retrying in ${Math.round(delay / 1000)}s:`, err);
         setTimeout(() => connectWithRetry(attempt + 1), delay).unref();
     }
