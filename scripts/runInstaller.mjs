@@ -26,7 +26,6 @@ import { finished } from "stream/promises";
 import { fileURLToPath } from "url";
 
 const BASE_URL = "https://limey-discord.onrender.com/installer/";
-const INSTALLER_PATH_DARWIN = "LimeyV1Installer.app/Contents/MacOS/LimeyV1Installer";
 
 const BASE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FILE_DIR = join(BASE_DIR, "dist", "Installer");
@@ -37,7 +36,7 @@ function getFilename() {
         case "win32":
             return "LimeyV1InstallerCli.exe";
         case "darwin":
-            return "LimeyV1Installer.MacOS.zip";
+            return "LimeyV1InstallerCli-darwin";
         case "linux":
             return "LimeyV1InstallerCli-linux";
         default:
@@ -51,10 +50,7 @@ async function ensureBinary() {
 
     mkdirSync(FILE_DIR, { recursive: true });
 
-    const downloadName = join(FILE_DIR, filename);
-    const outputFile = process.platform === "darwin"
-        ? join(FILE_DIR, "LimeyV1Installer")
-        : downloadName;
+    const outputFile = join(FILE_DIR, filename);
 
     const etag = existsSync(outputFile) && existsSync(ETAG_FILE)
         ? readFileSync(ETAG_FILE, "utf-8")
@@ -76,36 +72,11 @@ async function ensureBinary() {
 
     writeFileSync(ETAG_FILE, res.headers.get("etag"));
 
-    if (process.platform === "darwin") {
-        console.log("Unzipping...");
-        const zip = new Uint8Array(await res.arrayBuffer());
-
-        const ff = await import("fflate");
-        const bytes = ff.unzipSync(zip, {
-            filter: f => f.name === INSTALLER_PATH_DARWIN
-        })[INSTALLER_PATH_DARWIN];
-
-        writeFileSync(outputFile, bytes, { mode: 0o755 });
-
-        console.log("Overriding security policy for installer binary (this is required to run it)");
-        console.log("xattr might error, that's okay");
-
-        const logAndRun = cmd => {
-            console.log("Running", cmd);
-            try {
-                execSync(cmd);
-            } catch { }
-        };
-        logAndRun(`sudo spctl --add '${outputFile}' --label "Limey V1 Installer"`);
-        logAndRun(`sudo xattr -d com.apple.quarantine '${outputFile}'`);
-    } else {
-        // WHY DOES NODE FETCH RETURN A WEB STREAM OH MY GOD
-        const body = Readable.fromWeb(res.body);
-        await finished(body.pipe(createWriteStream(outputFile, {
-            mode: 0o755,
-            autoClose: true
-        })));
-    }
+    const body = Readable.fromWeb(res.body);
+    await finished(body.pipe(createWriteStream(outputFile, {
+        mode: 0o755,
+        autoClose: true
+    })));
 
     console.log("Finished downloading!");
 
