@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limes — Limey V1</title>
+    <meta name="description" content="Earn Limes by using Discord and spend them on perk tiers: Seedling, Grove and Orchard. Each tier has a free trial.">
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .lime-hero { text-align: center; padding: 64px 0 32px; }
+        .lime-hero h1 { font-size: 2.6rem; margin-bottom: 12px; }
+        .lime-hero p { color: var(--text-dim); max-width: 560px; margin: 0 auto; }
+        .lime-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+
+        .wallet-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px 28px;
+            max-width: 480px;
+            margin: 24px auto 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .wallet-balance { font-size: 2rem; font-weight: 700; color: var(--lime); }
+        .wallet-meta { color: var(--text-dim); font-size: 0.9rem; }
+        .wallet-user { display: flex; flex-direction: column; gap: 4px; }
+        .wallet-user input {
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 8px 12px;
+            font-size: 0.95rem;
+            width: 220px;
+        }
+        .btn-lime {
+            background: var(--lime-dark);
+            color: var(--text);
+            border: 1px solid var(--lime-dark);
+            border-radius: 8px;
+            padding: 8px 18px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-lime:hover { background: var(--lime-strong); color: #0c1208; }
+        .btn-lime:disabled { opacity: 0.5; cursor: default; }
+
+        .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; padding-bottom: 64px; }
+        .tier-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+        }
+        .tier-card.featured { border-color: var(--lime); box-shadow: 0 0 24px rgba(163, 230, 53, 0.12); }
+        .tier-badge {
+            position: absolute; top: -12px; right: 20px;
+            background: var(--lime); color: #0c1208;
+            font-size: 0.75rem; font-weight: 700;
+            padding: 3px 10px; border-radius: 999px;
+        }
+        .tier-name { font-size: 1.4rem; font-weight: 700; }
+        .tier-price { color: var(--lime); font-weight: 700; font-size: 1.1rem; }
+        .tier-price span { color: var(--text-dim); font-weight: 400; font-size: 0.85rem; }
+        .tier-trial { color: var(--text-dim); font-size: 0.85rem; }
+        .tier-perks { list-style: none; display: flex; flex-direction: column; gap: 6px; margin: 8px 0; flex: 1; }
+        .tier-perks li::before { content: "🍋 "; }
+        .tier-actions { display: flex; gap: 8px; }
+        .tier-actions .btn-lime { flex: 1; }
+
+        .earn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 32px 0 64px; }
+        .earn-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+        .earn-card .amount { color: var(--lime); font-weight: 700; font-size: 1.2rem; }
+        .earn-card .label { color: var(--text-dim); font-size: 0.9rem; }
+
+        .section-title { text-align: center; font-size: 1.8rem; margin: 40px 0 8px; }
+        .section-sub { text-align: center; color: var(--text-dim); margin-bottom: 28px; }
+
+        #walletStatus { text-align: center; color: var(--text-dim); font-size: 0.9rem; min-height: 1.4em; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/#features">Features</a>
+                <a href="/plugins/">Plugins</a>
+                <a href="/download">Download</a>
+                <a href="/limes.html">Limes</a>
+                <a href="/usrbg.html">USRBG</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="lime-hero">
+            <span class="lime-emoji">🍋</span>
+            <h1>Limes</h1>
+            <p>The Limey V1 currency. Earn Limes just by using Discord — chatting, hanging out in voice and claiming daily. Spend them on perk tiers. No real money, ever.</p>
+        </section>
+
+        <div class="wallet-card">
+            <div class="wallet-user">
+                <strong>Your wallet</strong>
+                <input id="userIdInput" placeholder="Your Discord user ID" inputmode="numeric">
+            </div>
+            <div style="text-align:right">
+                <div class="wallet-balance" id="balanceDisplay">— 🍋</div>
+                <div class="wallet-meta" id="walletMeta">Enter your ID to load</div>
+                <button class="btn-lime" id="dailyBtn" style="margin-top:8px" disabled>Claim daily</button>
+            </div>
+        </div>
+        <p id="walletStatus"></p>
+
+        <h2 class="section-title">How to earn</h2>
+        <p class="section-sub">The LimeRewards plugin (built into Limey V1) tracks everything automatically.</p>
+        <div class="earn-grid">
+            <div class="earn-card"><div class="amount">50 🍋</div><div class="label">Daily claim (every ~20h)</div></div>
+            <div class="earn-card"><div class="amount">+25 🍋/day</div><div class="label">Streak bonus (up to 7 days)</div></div>
+            <div class="earn-card"><div class="amount">1 🍋 / 25 msgs</div><div class="label">Chatting (up to 100/day)</div></div>
+            <div class="earn-card"><div class="amount">5 🍋 / 15 min</div><div class="label">Voice time (up to 60/day)</div></div>
+        </div>
+
+        <h2 class="section-title">Perk tiers</h2>
+        <p class="section-sub">Pay with Limes, monthly. Every tier includes a one-time free trial — no Limes needed.</p>
+        <div class="tiers" id="tiersContainer"></div>
+    </main>
+
+    <footer>
+        <div class="container" style="padding: 24px; color: var(--text-dim); text-align:center; font-size: 0.85rem;">
+            Limes are a virtual currency with no monetary value. Perks are cosmetic and experimental.
+        </div>
+    </footer>
+
+    <script>
+        const userIdInput = document.getElementById("userIdInput");
+        const balanceDisplay = document.getElementById("balanceDisplay");
+        const walletMeta = document.getElementById("walletMeta");
+        const dailyBtn = document.getElementById("dailyBtn");
+        const walletStatus = document.getElementById("walletStatus");
+        const tiersContainer = document.getElementById("tiersContainer");
+
+        try {
+            const saved = localStorage.getItem("limeyUserId");
+            if (saved) userIdInput.value = saved;
+        } catch { }
+
+        async function loadWallet() {
+            const userId = userIdInput.value.trim();
+            if (!/^\d{5,25}$/.test(userId)) {
+                balanceDisplay.textContent = "— 🍋";
+                walletMeta.textContent = "Enter your ID to load";
+                dailyBtn.disabled = true;
+                return;
+            }
+            try {
+                localStorage.setItem("limeyUserId", userId);
+                const res = await fetch(`/v1/limes/wallet?userId=${userId}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed to load");
+                balanceDisplay.textContent = `${data.balance} 🍋`;
+                walletMeta.textContent = data.tier
+                    ? `${data.tier.charAt(0).toUpperCase() + data.tier.slice(1)} tier · streak ${data.streak}d`
+                    : `streak ${data.streak}d · no tier`;
+                dailyBtn.disabled = false;
+                dailyBtn.dataset.next = data.nextDailyAt;
+                updateDailyBtn();
+            } catch (err) {
+                walletMeta.textContent = err.message;
+                dailyBtn.disabled = true;
+            }
+        }
+
+        function updateDailyBtn() {
+            const next = Number(dailyBtn.dataset.next || 0);
+            const remaining = next - Date.now();
+            if (remaining > 0) {
+                const hours = Math.ceil(remaining / 3600000);
+                dailyBtn.textContent = `Ready in ~${hours}h`;
+                dailyBtn.disabled = true;
+            } else {
+                dailyBtn.textContent = "Claim daily";
+                dailyBtn.disabled = false;
+            }
+        }
+        setInterval(updateDailyBtn, 60000);
+
+        dailyBtn.addEventListener("click", async () => {
+            const userId = userIdInput.value.trim();
+            dailyBtn.disabled = true;
+            try {
+                const res = await fetch("/v1/limes/earn/daily", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "x-limey-user-id": userId },
+                    body: "{}"
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Claim failed");
+                walletStatus.textContent = `+${data.amount} 🍋 claimed!${data.streakBonus ? ` (${data.streak}-day streak +${data.streakBonus})` : ""}`;
+                loadWallet();
+            } catch (err) {
+                walletStatus.textContent = err.message;
+            }
+        });
+
+        userIdInput.addEventListener("change", loadWallet);
+        if (userIdInput.value) loadWallet();
+
+        async function loadTiers() {
+            try {
+                const res = await fetch("/v1/limes/tiers");
+                const data = await res.json();
+                const featured = "grove";
+                tiersContainer.innerHTML = data.tiers.map(t => `
+                    <div class="tier-card ${t.id === featured ? "featured" : ""}">
+                        ${t.id === featured ? '<span class="tier-badge">Most popular</span>' : ""}
+                        <div class="tier-name">${t.name}</div>
+                        <div class="tier-price">${t.pricePerMonth} 🍋 <span>/ month</span></div>
+                        <div class="tier-trial">Free trial: ${t.trialDays} day${t.trialDays > 1 ? "s" : ""}</div>
+                        <ul class="tier-perks">${t.perks.map(p => `<li>${p}</li>`).join("")}</ul>
+                        <div class="tier-actions">
+                            <button class="btn-lime" onclick="startTrial('${t.id}')">Start free trial</button>
+                            <button class="btn-lime" onclick="subscribe('${t.id}')" title="Loads your wallet first if needed">Subscribe</button>
+                        </div>
+                    </div>
+                `).join("");
+            } catch {
+                tiersContainer.innerHTML = "<p style='grid-column:1/-1;text-align:center;color:var(--text-dim)'>Could not load tiers. Is the backend up?</p>";
+            }
+        }
+
+        function requireUser() {
+            const userId = userIdInput.value.trim();
+            if (!/^\d{5,25}$/.test(userId)) {
+                walletStatus.textContent = "Enter your Discord user ID first.";
+                return null;
+            }
+            return userId;
+        }
+
+        async function startTrial(tier) {
+            const userId = requireUser();
+            if (!userId) return;
+            try {
+                const res = await fetch("/v1/limes/perks/trial", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "x-limey-user-id": userId },
+                    body: JSON.stringify({ tier })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Trial failed");
+                walletStatus.textContent = `Trial started: ${tier} for ${data.trialDays} day(s)! Restart Discord to see your perks.`;
+                loadWallet();
+            } catch (err) {
+                walletStatus.textContent = err.message;
+            }
+        }
+
+        async function subscribe(tier) {
+            const userId = requireUser();
+            if (!userId) return;
+            try {
+                const res = await fetch("/v1/limes/perks/subscribe", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "x-limey-user-id": userId },
+                    body: JSON.stringify({ tier })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(res.status === 402 ? `Not enough Limes — need ${data.needed}, you have ${data.balance}` : (data.error || "Subscribe failed"));
+                walletStatus.textContent = `Subscribed to ${tier}! Spent ${data.spent} 🍋, ${data.balance} left.`;
+                loadWallet();
+            } catch (err) {
+                walletStatus.textContent = err.message;
+            }
+        }
+
+        loadTiers();
+    </script>
+</body>
+</html>

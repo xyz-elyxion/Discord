@@ -444,6 +444,8 @@ async function hydrateKv() {
             if (Array.isArray(parsed.tokens)) aiTokensData = { tokens: parsed.tokens, next: parsed.next || 0 };
         }
         if (detector) detectorData = JSON.parse(detector);
+        const limeEconomyData = await kvGet("limey:lime-economy");
+        if (limeEconomyData && limeEconomy) limeEconomy.hydrate(JSON.parse(limeEconomyData));
         if (reviewdbData && reviewdb) reviewdb.hydrate(JSON.parse(reviewdbData));
         if (badges) {
             try {
@@ -1086,6 +1088,17 @@ try {
 }
 
 // ------------------------------------------------------------------
+// Lime Economy backend — virtual currency + perk tiers, mounted at /v1/limes/*
+// ------------------------------------------------------------------
+let limeEconomy;
+try {
+    limeEconomy = require("./lime-economy-backend");
+    console.log("[limes] economy backend loaded");
+} catch (err) {
+    console.error("[limes] failed to load backend:", err.message);
+}
+
+// ------------------------------------------------------------------
 // LimeyCloud backend (Go) — settings sync API at /v1/*
 // ------------------------------------------------------------------
 let cloudUp = false;
@@ -1291,6 +1304,8 @@ const server = http.createServer(async (req, res) => {
         if (handleInstall(req, res, url)) return;
         // Self-hosted ReviewDB API
         if (reviewdb && url.startsWith("/v1/reviewdb/") && await reviewdb.handle(req, res, url)) return;
+        // Lime Economy (virtual currency + perk tiers)
+        if (limeEconomy && url.startsWith("/v1/limes/") && await limeEconomy.handle(req, res, url)) return;
         return proxyCloud(req, res);
     }
 
