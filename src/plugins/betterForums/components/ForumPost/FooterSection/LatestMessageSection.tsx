@@ -1,0 +1,111 @@
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2025 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import { BaseText } from "@components/BaseText";
+import { getIntlMessage } from "@utils/discord";
+import { useCallback } from "@webpack/common";
+
+import { cl } from "../../..";
+import {
+    useForumPostState,
+    useMessageCount,
+    usePreview,
+    useRecentMessage,
+    useTypingUsers,
+} from "../../../hooks";
+import { settings } from "../../../settings";
+import { ThreadChannel } from "../../../types";
+import { _memo, MessageActions } from "../../../utils";
+import { Icons } from "../../icons";
+import { MessageContent } from "../../MessageContent";
+import { Typing } from "../../Typing";
+import { Username } from "../../Username";
+import { FooterSection } from "./";
+
+interface LatestMessageSectionProps {
+    channel: ThreadChannel;
+}
+
+export const LatestMessageSection = _memo<LatestMessageSectionProps>(function LatestMessageSection({
+    channel,
+}) {
+    const { highlightNewMessages } = settings.use(["highlightNewMessages"]);
+
+    const mostRecentMessage = useRecentMessage(channel);
+    const hasRecentMessage = !!mostRecentMessage;
+    const messageId = mostRecentMessage?.id ?? channel.lastMessageId;
+
+    const typingUsers = useTypingUsers(channel.id);
+    const hasTypingUsers = typingUsers.length > 0;
+
+    const forumState = useForumPostState(channel);
+    const { messageCount, messageCountText, unreadCount, unreadCountText } = useMessageCount(
+        channel,
+        forumState.hasUnreads
+    );
+
+    const { isReplyPreview, isTypingIndicator, isEmpty } = usePreview(
+        forumState,
+        hasRecentMessage,
+        hasTypingUsers
+    );
+
+    const clickHandler = useCallback(() => {
+        // wait until router navigation
+        setImmediate(() =>
+            MessageActions.jumpToMessage({ channelId: channel.id, messageId: messageId!, flash: true })
+        );
+    }, [channel.id, messageId]);
+
+    if (isEmpty && messageCount === 0) return <FooterSection.Spacer />;
+
+    const isActive = highlightNewMessages && !!unreadCount && !forumState.isMuted;
+
+    return (
+        <FooterSection
+            className={cl("vc-better-forums-latest-message", {
+                "vc-better-forums-empty-section": isEmpty,
+            })}
+            icon={<Icons.Chat />}
+            text={messageCountText}
+            onClick={messageId ? clickHandler : undefined}
+            active={isActive}
+        >
+            {isTypingIndicator ? (
+                <Typing
+                    channel={channel}
+                    users={typingUsers}
+                    weight={isActive ? "semibold" : "normal"}
+                />
+            ) : isReplyPreview ? (
+                <div className="vc-better-forums-latest-message-content">
+                    <Username
+                        channel={channel}
+                        user={mostRecentMessage!.author}
+                        renderColon
+                        renderBadge
+                    />
+                    <MessageContent
+                        channel={channel}
+                        message={mostRecentMessage!}
+                        weight={isActive ? "semibold" : "normal"}
+                        lineClamp={1}
+                        visibleIcons
+                    />
+                </div>
+            ) : (
+                !!unreadCount && "•"
+            )}
+            {!!unreadCount && (
+                <BaseText size="sm" weight="semibold" style={{ color: "var(--text-brand)" }}>
+                    {getIntlMessage("CHANNEL_NEW_POSTS_LABEL", {
+                        count: unreadCountText,
+                    })}
+                </BaseText>
+            )}
+        </FooterSection>
+    );
+});

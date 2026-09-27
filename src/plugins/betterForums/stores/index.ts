@@ -1,0 +1,77 @@
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2025 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import { FluxStore } from "@limeyV1/discord-types";
+import { findStoreLazy, proxyLazyWebpack } from "@webpack";
+import {
+    ChannelStore as _ChannelStore,
+    Flux,
+    GuildMemberStore as _GuildMemberStore,
+    PermissionStore as _PermissionStore,
+    ReadStateStore as _ReadStateStore,
+    RelationshipStore as _RelationshipStore,
+    TypingStore as _TypingStore,
+    UserSettingsProtoStore as _UserSettingsProtoStore,
+    UserStore as _UserStore
+} from "@webpack/common";
+
+import { useStores } from "../hooks";
+import { RemoveIndex } from "../types";
+import { ExtendedStores as S } from "./types";
+export * from "./types";
+
+export const BaseStore = proxyLazyWebpack(
+    () =>
+        class BaseStore extends Flux.Store {
+            use<TReturn>(
+                mapper: (store: Omit<RemoveIndex<this>, "use">) => TReturn,
+                deps?: unknown[],
+                isEqual?: (old: TReturn, newer: TReturn) => boolean
+            ): TReturn {
+                return useStores([this], mapper, deps, isEqual);
+            }
+        }
+);
+
+export type CustomStore<TStore extends FluxStore> = TStore & InstanceType<typeof BaseStore>;
+
+function $<T extends FluxStore>(store: string | (() => T)): CustomStore<T> {
+    const lazyStore: T = typeof store === "string" ? findStoreLazy(store) : proxyLazyWebpack(store);
+
+    return new Proxy(lazyStore, {
+        get(target, prop) {
+            if (prop === "use") return BaseStore.prototype.use.bind(target);
+            return target[prop];
+        },
+    }) as CustomStore<T>;
+}
+
+export const ChannelSectionStore = $<S.ChannelSectionStore>("ChannelSectionStore");
+export const ForumPostMessagesStore = $<S.ForumPostMessagesStore>("ForumPostMessagesStore");
+export const ForumPostUnreadCountStore = $<S.ForumPostUnreadCountStore>(
+    "ForumPostUnreadCountStore"
+);
+export const ForumSearchStore = $<S.ForumSearchStore>("ForumSearchStore");
+export const GuildMemberRequesterStore = $<S.GuildMemberRequesterStore>(
+    "GuildMemberRequesterStore"
+);
+export const GuildVerificationStore = $<S.GuildVerificationStore>("GuildVerificationStore");
+export const JoinedThreadsStore = $<S.JoinedThreadsStore>("JoinedThreadsStore");
+export const KeywordFilterStore = $<S.KeywordFilterStore>("KeywordFilterStore");
+export const LurkingStore = $<S.LurkingStore>("LurkingStore");
+export const ThreadMembersStore = $<S.ThreadMembersStore>("ThreadMembersStore");
+export const ThreadMessageStore = $<S.ThreadMessageStore>("ThreadMessageStore");
+
+export const ChannelStore = $(() => _ChannelStore as unknown as S.ChannelStore);
+export const GuildMemberStore = $(() => _GuildMemberStore);
+export const PermissionStore = $(() => _PermissionStore);
+export const ReadStateStore = $(() => _ReadStateStore);
+export const RelationshipStore = $(() => _RelationshipStore as unknown as S.RelationshipStore);
+export const TypingStore = $(() => _TypingStore);
+export const UserSettingsProtoStore = $(() => _UserSettingsProtoStore);
+export const UserStore = $(() => _UserStore as S.UserStore);
+
+export { MissingGuildMemberStore } from "./MissingGuildMemberStore";

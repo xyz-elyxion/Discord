@@ -1,0 +1,100 @@
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2025 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import { ErrorBoundary, Flex } from "@components/index";
+import { getIntlMessage } from "@utils/discord";
+import { Channel } from "@limeyV1/discord-types";
+import { Clickable, useEffect, useRef } from "@webpack/common";
+import { ComponentProps, ComponentType, Ref } from "react";
+
+import { cl } from "../..";
+import {
+    useFirstMessage,
+    useForumPostComposerStore,
+    useForumPostEvents,
+    useMessageCount,
+    useResizeObserver,
+} from "../../hooks";
+import { ChannelSectionStore, ChannelStore } from "../../stores";
+import { ThreadChannel } from "../../types";
+import { Body } from "./Body";
+import { Footer } from "./Footer";
+import { Media } from "./Media";
+import { Tags } from "./Tags";
+import { Title } from "./Title";
+
+const ClickableWithRing: ComponentType<
+    ComponentProps<typeof Clickable> & {
+        focusProps: { ringTarget: Ref<HTMLElement> };
+    }
+> = Clickable;
+
+const mediaThreshold = 500;
+
+interface ForumPostProps {
+    goToThread: (channel: Channel, shiftKey: boolean) => void;
+    threadId: Channel["id"];
+}
+
+export function ForumPost({ goToThread, threadId }: ForumPostProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const channel = ChannelStore.use($ => $.getChannel(threadId) as ThreadChannel, [threadId]);
+
+    const isOpen = ChannelSectionStore.use(
+        $ => $.getCurrentSidebarChannelId(channel.parent_id) === channel.id,
+        [channel.parent_id, channel.id]
+    );
+
+    const { firstMessage } = useFirstMessage(channel);
+    const { messageCountText } = useMessageCount(channel);
+
+    const { width, height } = useResizeObserver(containerRef);
+    const { handleLeftClick, handleRightClick } = useForumPostEvents({ goToThread, channel });
+
+    const setCardHeight = useForumPostComposerStore(store => store.setCardHeight);
+    useEffect(() => {
+        if (height) setCardHeight(threadId, height);
+    }, [height, setCardHeight, threadId]);
+
+    return (
+        <ErrorBoundary>
+            <ClickableWithRing
+                onClick={handleLeftClick}
+                focusProps={{ ringTarget: containerRef }}
+                onContextMenu={handleRightClick}
+                aria-label={getIntlMessage("FORUM_POST_ARIA_LABEL", {
+                    title: channel.name,
+                    count: messageCountText,
+                })}
+            >
+                <div
+                    ref={containerRef}
+                    data-item-id={threadId}
+                    className={cl("vc-better-forums-thread", {
+                        "vc-better-forums-thread-open": isOpen,
+                    })}
+                >
+                    <Flex className="vc-better-forums-thread-body-container" gap={0}>
+                        <ForumPost.Body channel={channel} message={firstMessage} />
+                        <ForumPost.Media message={firstMessage} maxWidth={width - mediaThreshold} />
+                    </Flex>
+                    <ForumPost.Footer
+                        channel={channel}
+                        message={firstMessage}
+                        containerWidth={width}
+                    />
+                </div>
+            </ClickableWithRing>
+        </ErrorBoundary>
+    );
+}
+
+ForumPost.Media = Media;
+ForumPost.Body = Body;
+ForumPost.Footer = Footer;
+ForumPost.Tags = Tags;
+ForumPost.Title = Title;

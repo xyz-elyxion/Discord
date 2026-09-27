@@ -1,0 +1,56 @@
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2025 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import "./style.css";
+
+import { classNameFactory } from "@utils/css";
+import { Devs } from "@utils/constants";
+import { proxyLazy } from "@utils/lazy";
+import definePlugin from "@utils/types";
+
+import { ForumPost } from "./components/ForumPost";
+import { setForumChannelStore } from "./hooks/forums/useForumChannelStore";
+import { settings } from "./settings";
+import { ForumChannelStore, MissingGuildMemberStore } from "./stores";
+import { initializeStore } from "./stores/ForumChannelStore";
+
+export const cl = classNameFactory();
+
+export default definePlugin({
+    name: "BetterForums",
+    description: "Complete forum list view redesign with QoL features.",
+    authors: [Devs.Davri],
+    settings,
+    patches: [
+        {
+            find: ".getHasSearchResults",
+            replacement: {
+                match: /\.memo\(/,
+                replace: ".memo($self.ForumPost??"
+            }
+        },
+        {
+            find: "toggleTagFilter=",
+            replacement: {
+                match: /let (\i)=\(0,\i\.\i\)/,
+                replace: "let $1=$self.createStore"
+            },
+            predicate: () => settings.store.keepState
+        }
+    ],
+    start() {
+        // Initialize store as soon as Flux is available
+        MissingGuildMemberStore.reset();
+    },
+    ForumPost,
+    createStore(storeCreator: (_set: unknown, _get: unknown) => ForumChannelStore) {
+        const useStore = proxyLazy(() => initializeStore(storeCreator));
+
+        setForumChannelStore(useStore);
+
+        return useStore;
+    }
+});
