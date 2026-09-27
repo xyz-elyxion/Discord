@@ -6,6 +6,7 @@
 
 import { definePluginSettings, migratePluginSettings } from "@api/Settings";
 import definePlugin, { OptionType } from "@utils/types";
+import { Devs } from "@utils/constants";
 
 const settings = definePluginSettings({
     removeCloseButton: {
@@ -31,9 +32,7 @@ migratePluginSettings("DiscordDevBanner", "devBanner");
 export default definePlugin({
     name: "DiscordDevBanner",
     description: "Enables the Discord developer banner, in which displays the build-ID",
-    authors: [
-        { name: "krystalskullofficial", id: 929208515883569182n },
-    ],
+    authors: [Devs.krystalskullofficial],
     settings,
 
     patches: [

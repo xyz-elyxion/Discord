@@ -689,6 +689,14 @@ export const Devs = /* #__PURE__*/ Object.freeze({
     Limey: {
         name: "Limey",
         id: 1503962881794899989n
+    },
+    Nexpid: {
+        name: "Nexpid",
+        id: 853550207039832084n
+    },
+    krystalskullofficial: {
+        name: "krystalskullofficial",
+        id: 929208515883569182n
     }
 } satisfies Record<string, Dev>);
 
