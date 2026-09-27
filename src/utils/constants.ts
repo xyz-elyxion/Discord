@@ -697,6 +697,18 @@ export const Devs = /* #__PURE__*/ Object.freeze({
     krystalskullofficial: {
         name: "krystalskullofficial",
         id: 929208515883569182n
+    },
+    domibtnr: {
+        name: "domi.btnr",
+        id: 354191516979429376n
+    },
+    omaw: {
+        name: "omaw",
+        id: 1155026301791514655n
+    },
+    justjxke: {
+        name: "justjxke",
+        id: 852558183087472640n
     }
 } satisfies Record<string, Dev>);
 

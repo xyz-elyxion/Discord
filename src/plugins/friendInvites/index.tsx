@@ -21,13 +21,25 @@ import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { findByPropsLazy } from "@webpack";
 
+import FriendCodesPanel from "./components/FriendCodesPanel";
+
 const FriendInvites = findByPropsLazy("createFriendInvite");
 
 export default definePlugin({
     name: "FriendInvites",
-    description: "Create and manage friend invite links via slash commands (/create friend invite, /view friend invites, /revoke friend invites).",
+    description: "Create and manage friend invite links via slash commands (/create friend invite, /view friend invites, /revoke friend invites) and adds a Friend Codes panel to the Add Friends page.",
     tags: ["Friends", "Commands"],
-    authors: [Devs.afn, Devs.Dziurwa],
+    authors: [Devs.afn, Devs.Dziurwa, Devs.domibtnr],
+    patches: [
+        {
+            find: "#{intl::ADD_FRIEND})}),(",
+            replacement: {
+                match: /\.Fragment,\{children:\[(\(0,\i\.jsx\)\(\i,\{\}\)),(\(0,\i\.jsx\)\(\i,\{\}\))\]/,
+                replace: ".Fragment,{children:[$1,$self.FriendCodesPanel,$2]"
+            }
+        }
+    ],
+
     commands: [
         {
             name: "create friend invite",
@@ -77,5 +89,9 @@ export default definePlugin({
                 });
             },
         },
-    ]
+    ],
+
+    get FriendCodesPanel() {
+        return <FriendCodesPanel />;
+    }
 });

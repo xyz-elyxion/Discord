@@ -1,0 +1,132 @@
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2025 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import "./styles.css";
+
+import { BaseText } from "@components/BaseText";
+import { Button, TextButton } from "@components/Button";
+import { Flex } from "@components/Flex";
+import { Heading } from "@components/Heading";
+import { copyToClipboard } from "@utils/clipboard";
+import { findByPropsLazy, findCssClassesLazy } from "@webpack";
+import { Parser, useEffect, useState } from "@webpack/common";
+
+import { FriendInvite } from "../types";
+
+const FormStyles = findCssClassesLazy("header", "title", "emptyState");
+const { createFriendInvite, getAllFriendInvites, revokeFriendInvites } = findByPropsLazy("createFriendInvite");
+
+function CopyButton({ copyText, copiedText, onClick }) {
+    const [copied, setCopied] = useState(false);
+
+    const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1000);
+        onClick(e);
+    };
+
+    return (
+        <Button
+            onClick={handleButtonClick}
+            variant={copied ? "positive" : "primary"}
+            size="small"
+        >
+            {copied ? copiedText : copyText}
+        </Button>
+    );
+}
+
+function FriendInviteCard({ invite }: { invite: FriendInvite }) {
+    return (
+        <div className="vc-friend-codes-card">
+            <Flex justifyContent="space-between">
+                <div className="vc-friend-codes-card-title">
+                    <Heading tag="h4" style={{ textTransform: "none" }}>
+                        {invite.code}
+                    </Heading>
+                    <span>
+                        Expires {Parser.parse(`<t:${new Date(invite.expires_at).getTime() / 1000}:R>`)} • {invite.uses}/{invite.max_uses} uses
+                    </span>
+                </div>
+                <CopyButton
+                    copyText="Copy"
+                    copiedText="Copied!"
+                    onClick={() => copyToClipboard(`https://discord.gg/${invite.code}`)}
+                />
+            </Flex>
+        </div>
+    );
+}
+
+export default function FriendCodesPanel() {
+    const [invites, setInvites] = useState<FriendInvite[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        setLoading(true);
+        getAllFriendInvites()
+            .then(setInvites)
+            .then(() => setLoading(false));
+    }, []);
+
+    return (
+        <header className={FormStyles.header} style={{ display: "block", padding: "20px 30px" }}>
+            <Heading
+                tag="h2"
+                className={FormStyles.title}
+            >
+                Your Friend Codes
+            </Heading>
+
+            <Flex
+                style={{ marginBottom: "16px" }}
+                justifyContent="space-between"
+            >
+                <h2 className="vc-friend-codes-info-header">{`Friend Codes - ${invites.length}`}</h2>
+                <Flex justifyContent="end">
+                    <Button
+                        variant="positive"
+                        onClick={() => createFriendInvite().then((invite: FriendInvite) => setInvites([...invites, invite]))}
+                    >
+                        Create Friend Code
+                    </Button>
+                    <TextButton
+                        style={{ marginLeft: "8px" }}
+                        variant="danger"
+                        disabled={!invites.length}
+                        onClick={() => revokeFriendInvites().then(setInvites([]))}
+                    >
+                        Revoke all Friend Codes
+                    </TextButton>
+                </Flex>
+            </Flex>
+
+            {
+                loading ?
+                    <BaseText
+                        size="md"
+                        weight="semibold"
+                        className="vc-friend-codes-text"
+                    >
+                        Loading...
+                    </BaseText> :
+                    invites.length === 0 ?
+                        <BaseText
+                            size="md"
+                            weight="semibold"
+                            className="vc-friend-codes-text"
+                        >
+                            You don't have any friend codes yet
+                        </BaseText> :
+                        <div style={{ maxHeight: "40vh", overflowY: "auto" }}>
+                            {invites.map(invite => (
+                                <FriendInviteCard key={invite.code} invite={invite} />
+                            ))}
+                        </div>
+            }
+        </header>
+    );
+}
