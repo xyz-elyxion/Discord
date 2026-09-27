@@ -1234,6 +1234,7 @@ const NAMED_PAGES = {
     "/plugins": "plugins.html",
     "/download": "download.html",
     "/install": "install.html",
+    "/limes": "limes.html",
     "/404": "404.html",
 };
 
