@@ -74,6 +74,12 @@ const ctxMenuPatch: NavContextMenuPatchCallback = (children, props) => {
 };
 
 export default definePlugin({
+    permissions: [{
+        id: "accessMicrophoneRecording",
+        title: "Record your microphone",
+        description: "Records audio clips you send as voice messages and converts them to waveform messages.",
+        risk: "Anything captured during recording is included in the message you send."
+    }],
     name: "VoiceMessages",
     description: "Allows you to send voice messages like on mobile. To do so, right click the upload button and click Send Voice Message",
     tags: ["Voice"],

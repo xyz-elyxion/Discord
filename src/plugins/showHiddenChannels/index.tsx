@@ -69,6 +69,12 @@ function isUncategorized(objChannel: { channel: Channel; comparator: number; }) 
 }
 
 export default definePlugin({
+    permissions: [{
+        id: "revealHiddenChannels",
+        title: "Reveal channels you cannot access",
+        description: "Shows hidden channels in the sidebar and lets you view their topic; you still cannot read their messages.",
+        risk: "Server staff may not want you to see which channels exist. Circumventing visibility may be against server rules."
+    }],
     name: "ShowHiddenChannels",
     description: "Show channels that you do not have access to view.",
     tags: ["Servers", "Utility"],

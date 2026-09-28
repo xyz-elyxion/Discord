@@ -176,6 +176,12 @@ const devContextCallback: NavContextMenuPatchCallback = (children, { id }: { id:
 };
 
 export default definePlugin({
+    permissions: [{
+        id: "revealRawMessageContent",
+        title: "View raw message data",
+        description: "Adds options to copy the raw content and full JSON payload of any message.",
+        risk: "The JSON payload can contain tokens of embedded links, webhook URLs and other sensitive metadata — do not share it blindly."
+    }],
     name: "ViewRaw",
     description: "Copy and view the raw content/data of any message, channel or guild",
     tags: ["Chat", "Developers"],

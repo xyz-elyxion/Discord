@@ -168,6 +168,12 @@ const settings = definePluginSettings({
 });
 
 export default definePlugin({
+    permissions: [{
+        id: "contactDearrowApi",
+        title: "Contact the DeArrow thumbnail API",
+        description: "Asks dearrow-thumb.ajay.app for community-submitted titles/thumbnails for YouTube links you see.",
+        risk: "Your IP address and the video IDs you encounter are visible to that third-party service."
+    }],
     name: "Dearrow",
     description: "Makes YouTube embed titles and thumbnails less sensationalist, powered by Dearrow",
     tags: ["Media", "Utility"],

@@ -235,6 +235,12 @@ export const settings = definePluginSettings({
 migratePluginSettings("MusicRichPresence", "LastFMRichPresence");
 migratePluginSetting("MusicRichPresence", "showLastFmLogo", "showLogo");
 export default definePlugin({
+    permissions: [{
+        id: "contactMusicApis",
+        title: "Contact music metadata services",
+        description: "Queries Last.fm, ListenBrainz and MusicBrainz to find what you are listening to and set your Rich Presence.",
+        risk: "Your listening history is shared with those services, associated with your API keys/username."
+    }],
     name: "MusicRichPresence",
     description: "Rich Presence for Last.FM/Listenbrainz",
     tags: ["Activity", "Media"],

@@ -241,6 +241,12 @@ function makeLimesCommand(): Command {
 }
 
 export default definePlugin({
+    permissions: [{
+        id: "limeyAccountAccess",
+        title: "Access your Limey V1 account",
+        description: "Connects to limey-discord.onrender.com to check and claim your Limes rewards using your site session.",
+        risk: "Requests are made in your name to the Limey V1 API. A compromised server could serve malicious responses."
+    }],
     name: "LimeRewards",
     description: "Earn Limes (🍋) for using Discord — daily claims, chatting, voice, streaming and gaming — and spend them on perk tiers at limey-discord.onrender.com/limes. This plugin powers the Lime economy and is always on.",
     tags: ["Utility", "Fun"],

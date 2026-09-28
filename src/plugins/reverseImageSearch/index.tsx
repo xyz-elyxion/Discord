@@ -84,6 +84,12 @@ const imageContextMenuPatch: NavContextMenuPatchCallback = (children, props) => 
 };
 
 export default definePlugin({
+    permissions: [{
+        id: "sendImagesToSearchEngines",
+        title: "Send image URLs to search engines",
+        description: "Adds context-menu entries that open images in Google Lens, Yandex, SauceNAO etc.",
+        risk: "The image URL (and thus the image) is shared with those third-party services."
+    }],
     name: "ReverseImageSearch",
     description: "Adds ImageSearch to image context menus",
     tags: ["Media", "Utility"],

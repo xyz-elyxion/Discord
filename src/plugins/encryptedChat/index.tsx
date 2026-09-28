@@ -117,6 +117,12 @@ const EncryptedAccessory: MessageAccessoryFactory = ({ message }) => {
 };
 
 export default definePlugin({
+    permissions: [{
+        id: "modifyOutgoingMessages",
+        title: "Modify your outgoing messages",
+        description: "Encrypts messages before they are sent and decrypts incoming ones, using invisible markers in the text.",
+        risk: "Your messages are altered before sending; a bug or key mismatch could make messages unreadable or leak that you are encrypting."
+    }],
     name: "EncryptedChat",
     description: "Encrypts your DMs with a key derived from both usernames — only you and the other person can read them",
     tags: ["Privacy", "Utility"],

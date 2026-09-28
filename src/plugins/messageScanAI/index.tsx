@@ -343,6 +343,12 @@ const contextMenuPatch: NavContextMenuPatchCallback = (children, { message }) =>
 };
 
 export default definePlugin({
+    permissions: [{
+        id: "sendMessagesToServer",
+        title: "Send message contents to Limey's scan server / AI provider",
+        description: "Messages you choose to scan are sent to limey-discord.onrender.com (or the AI provider you configure) to check them for scams and phishing.",
+        risk: "The contents of scanned messages leave your device. If you use your own API key, you pay for those requests."
+    }],
     name: "MessageScanAI",
     description: "Scan any message for phishing/scams with AI (Google Gemini or Hugging Face)",
     authors: [Devs.Limey],

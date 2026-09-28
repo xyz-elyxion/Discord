@@ -109,6 +109,12 @@ const ChatBarContextCheckbox: NavContextMenuPatchCallback = children => {
 
 
 export default definePlugin({
+    permissions: [{
+        id: "suppressTypingIndicator",
+        title: "Hide your typing indicator",
+        description: "Blocks the client from telling Discord that you are typing.",
+        risk: "Minimal — others simply will not see when you are typing."
+    }],
     name: "SilentTyping",
     authors: [Devs.Ven, Devs.Rini, Devs.ImBanana],
     description: "Hide that you are typing",

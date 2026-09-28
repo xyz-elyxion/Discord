@@ -58,6 +58,17 @@ export const settings = definePluginSettings({
 export default definePlugin({
     name: "UserpluginInstaller",
     description: "Install userplugins with a simple button click",
+    permissions: [{
+        id: "runGitCommands",
+        title: "Run git and shell commands on your computer",
+        description: "Clones, pulls and deletes git repositories in your Limey V1 userplugins folder to install, update and remove plugins.",
+        risk: "A compromised or malicious repository could install arbitrary code that runs inside your client with full plugin privileges."
+    }, {
+        id: "showNativeDialogs",
+        title: "Show desktop dialogs",
+        description: "Opens confirmation windows asking you to review a plugin before it is installed or updated.",
+        risk: "Dialogs could be used to phish you into approving actions you did not intend."
+    }],
     async checkPluginUpdates() {
         for (const p of this.plugins.value()) {
             if (await Native!.isUpdateAvailableForPlugin(p.directory!)) {

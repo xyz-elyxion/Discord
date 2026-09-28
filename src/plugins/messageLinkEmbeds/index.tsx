@@ -381,6 +381,12 @@ function AutomodEmbedAccessory(props: MessageEmbedProps): JSX.Element | null {
 }
 
 export default definePlugin({
+    permissions: [{
+        id: "fetchOtherChannelMessages",
+        title: "Read messages from other channels",
+        description: "Fetches the linked message via the Discord API to render it as an embed, including channels you have access to.",
+        risk: "Could expose message content in servers where link previews are unwanted; uses your account to fetch."
+    }],
     name: "MessageLinkEmbeds",
     description: "Adds a preview to messages that link another message",
     tags: ["Chat", "Appearance"],
