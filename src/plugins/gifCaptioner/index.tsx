@@ -392,31 +392,31 @@ function CaptionModal({ modalProps, width, height, element, onConfirm }: {
     return (
         <ModalRoot {...modalProps}>
             <ModalContent>
-                <div className="gc-editor">
-                    <div className="gc-tabs">
+                <div className="vc-gc-editor">
+                    <div className="vc-gc-tabs">
                         <button className={tab === "caption" ? "active" : ""} onClick={() => setTab("caption")}>Caption</button>
                         <button className={tab === "speechbubble" ? "active" : ""} onClick={() => setTab("speechbubble")}>Speech Bubble</button>
                     </div>
                     {tab === "caption" && (
                         <>
                             <input
-                                className="gc-caption"
+                                className="vc-gc-caption"
                                 placeholder="Enter caption..."
                                 onChange={e => setText(e.target.value)}
                             />
-                            <div className="gc-range">
+                            <div className="vc-gc-range">
                                 <span>Font size</span>
                                 <input type="range" min={5} max={200} value={size} onChange={e => setSize(parseFloat(e.target.value))} />
                             </div>
                         </>
                     )}
                     {tab === "speechbubble" && (
-                        <div className="gc-range">
+                        <div className="vc-gc-range">
                             <span>Tip base position</span>
                             <input type="range" min={0} max={80} value={tipBase} onChange={e => setTipBase(parseFloat(e.target.value))} />
                         </div>
                     )}
-                    <div ref={wrapperRef} className="gc-speechbubbler">
+                    <div ref={wrapperRef} className="vc-gc-speechbubbler">
                         <canvas
                             ref={canvasRef}
                             width={width}
@@ -565,6 +565,67 @@ import { Button, useEffect, openModal, useRef, useState } from "@webpack/common"
 import { Modals } from "@utils/modal";
 const { ModalRoot, ModalContent, ModalFooter } = Modals as any;
 
+const css = `
+    .vc-gc-editor {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .vc-gc-tabs {
+        display: flex;
+        gap: 8px;
+    }
+    .vc-gc-tabs button {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid var(--input-border-default, transparent);
+        border-radius: var(--radius-sm, 4px);
+        background: var(--control-secondary-background-default, var(--background-secondary));
+        color: var(--text-default, var(--text-normal));
+        cursor: pointer;
+        font-weight: 500;
+    }
+    .vc-gc-tabs button:hover {
+        background: var(--control-secondary-background-hover, var(--background-secondary-alt));
+    }
+    .vc-gc-tabs button.active {
+        background: var(--brand-500, var(--brand-experiment-560));
+        color: #fff;
+        border-color: transparent;
+    }
+    .vc-gc-caption {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid var(--input-border-default, transparent);
+        border-radius: var(--radius-sm, 4px);
+        background: var(--input-background-default, var(--background-base-lowest, var(--background-secondary)));
+        color: var(--text-default, var(--text-normal));
+        outline: none;
+    }
+    .vc-gc-caption::placeholder {
+        color: var(--text-muted);
+    }
+    .vc-gc-caption:focus {
+        border-color: var(--text-link, var(--brand-500));
+        background: var(--input-background-hover, var(--background-base-low));
+    }
+    .vc-gc-range {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--text-default, var(--text-normal));
+    }
+    .vc-gc-range input[type="range"] {
+        flex: 1;
+        accent-color: var(--brand-500, var(--brand-experiment-560));
+    }
+    .vc-gc-speechbubbler canvas {
+        max-width: 100%;
+        border-radius: var(--radius-sm, 4px);
+    }
+`;
+
 export default definePlugin({
     name: "GifCaptioner",
     permissions: [
@@ -579,6 +640,8 @@ export default definePlugin({
     tags: ["Fun", "Utility"],
     authors: [Devs.Limey],
     settings,
+
+    managedStyle: css,
 
     contextMenus: {
         "message": messageContextMenu
