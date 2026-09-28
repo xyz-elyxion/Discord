@@ -13,6 +13,7 @@ import { Plugin } from "@utils/types";
 import { React, showToast, Toasts } from "@webpack/common";
 
 import { cl, logger } from ".";
+import { confirmEnable } from "@plugins/permissionsManager";
 import { openPluginModal } from "./PluginModal";
 
 interface PluginCardProps extends React.HTMLProps<HTMLDivElement> {
@@ -30,6 +31,16 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
     function toggleEnabled() {
         const wasEnabled = isEnabled();
 
+        if (!wasEnabled) {
+            void confirmEnable(plugin).then(ok => {
+                if (ok) applyEnable(wasEnabled);
+            });
+            return;
+        }
+        applyEnable(wasEnabled);
+    }
+
+    function applyEnable(wasEnabled: boolean) {
         // If we're enabling a plugin, make sure all deps are enabled recursively.
         if (!wasEnabled) {
             const { restartNeeded, failures } = startDependenciesRecursive(plugin);

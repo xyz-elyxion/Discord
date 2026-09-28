@@ -40,6 +40,11 @@ export const settings = definePluginSettings({
         description: "Never show update notifications for these plugins (you can still update them from the UserPlugins tab)",
         default: ""
     },
+    blockUndeclaredInstalls: {
+        type: OptionType.BOOLEAN,
+        description: "Block installing userplugins that do not declare permissions (enforced by Permissions Manager)",
+        default: true
+    },
     setGitPath: {
         type: OptionType.COMPONENT,
         component: () => <Button onClick={() => {

@@ -83,7 +83,7 @@ export async function isUpdateAvailableForPlugin(_, name: string): Promise<boole
     });
 }
 
-export function initPluginInstall(_, link: string, source: string, owner: string, repo: string): Promise<string> {
+export function initPluginInstall(_, link: string, source: string, owner: string, repo: string, blockUndeclared = true): Promise<string> {
     // eslint-disable-next-line
     return new Promise(async (resolve, reject) => {
         const verifiedRegex = link.match(CLONE_LINK_REGEX)!;
@@ -114,6 +114,20 @@ export function initPluginInstall(_, link: string, source: string, owner: string
 
         // Get plugin meta
         const meta = await getPluginMeta(join(vencordPath, "..", "src", "userplugins", repo));
+
+        // Permissions Manager: block userplugins that do not declare permissions (unless disabled)
+        if (!meta.declaresPermissions && blockUndeclared) {
+            await rm(join(vencordPath, "..", "src", "userplugins", repo), { recursive: true });
+            const blockDialog = await dialog.showMessageBox({
+                title: "Install blocked",
+                message: `${meta.name} was blocked by Permissions Manager`,
+                type: "warning",
+                detail: `This userplugin does not declare any permissions, so Limey V1 cannot verify what it does.\n\nFor safety, plugins that do not adapt to the permissions system are blocked.\n\nYou can disable this in Settings > Plugins > Permissions Manager, but only do so if you fully trust this plugin.`,
+                buttons: ["OK"]
+            });
+            void blockDialog;
+            return reject("Blocked by Permissions Manager: plugin does not declare permissions");
+        }
 
         // Review plugin
         const win = new BrowserWindow({
@@ -188,6 +202,7 @@ async function getPluginMeta(path: string, extra: object = {}): Promise<{
     description: string;
     usesPreSend: boolean;
     usesNative: boolean;
+    declaresPermissions?: boolean;
     directory?: string;
     remote: string;
     supportChannelID?: string | null;
@@ -235,6 +250,7 @@ async function getPluginMeta(path: string, extra: object = {}): Promise<{
             description: rawMeta![2],
             usesPreSend: file.includes("PreSendListener") || file.includes("onBeforeMessage"),
             usesNative: files.includes("native.ts") || files.includes("native.js"),
+            declaresPermissions: /permissions\s*:/.test(file),
             remote: remoteURL ? remoteURL[1] : "",
             supportChannelID,
             ...extra

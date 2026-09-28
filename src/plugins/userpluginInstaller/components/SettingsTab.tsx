@@ -23,7 +23,7 @@ import { closeAllModals } from "@utils/modal";
 import { relaunch } from "@utils/native";
 import { Alerts, NavigationRouter, Toasts, useEffect, useState } from "@webpack/common";
 
-import userpluginInstaller, { Native } from "..";
+import userpluginInstaller, { Native, settings } from "..";
 import {
     cl,
     CLONE_LINK_REGEX,
@@ -161,6 +161,7 @@ function UserPluginsTab() {
                                         gitLink[[1, 4][idpl]],
                                         gitLink[[2, 5][idpl]],
                                         gitLink[[3, 6][idpl]],
+                                        settings.store.blockUndeclaredInstalls !== false,
                                     ),
                                 );
                                 showInstallFinishedAlert(name, native);

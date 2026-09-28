@@ -123,6 +123,17 @@ export interface Plugin extends PluginDef {
 
 export type IconComponent = (props: IconProps & Record<string, any>) => ReactNode;
 export type IconProps = { height?: number | string; width?: number | string; className?: string; };
+export interface PluginPermission {
+    /** Short id of the permission, e.g. "readMessages" */
+    id: string;
+    /** Human readable title, e.g. "Read your messages" */
+    title: string;
+    /** Why the plugin needs this and what it will do with it */
+    description: string;
+    /** Why this permission could be dangerous if abused */
+    risk: string;
+}
+
 export interface PluginDef {
     name: string;
     description: string;
@@ -143,6 +154,12 @@ export interface PluginDef {
      * Generally these will be API plugins
      */
     dependencies?: string[],
+    /**
+     * Permissions this plugin requests. Shown to the user in a confirmation
+     * dialog before the plugin can be enabled. Plugins without declared
+     * permissions are treated as unreviewed by the Permissions Manager.
+     */
+    permissions?: PluginPermission[],
     /**
      * Whether this plugin is required and forcefully enabled
      */
