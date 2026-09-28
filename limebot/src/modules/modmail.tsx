@@ -75,11 +75,14 @@ async function log(data: {
     );
 }
 
-function getThreadParent() {
-    const c = Vaius.getChannel(channelId);
-    if (!c) throw new Error("Modmail category not found");
+// Hard-coded modmail forum channel — modmail threads are forum posts here.
+const FORUM_CHANNEL_ID = "1553997335992995840";
 
-    return c as TextChannel;
+function getThreadParent() {
+    const c = Vaius.getChannel(FORUM_CHANNEL_ID);
+    if (!c) throw new Error("Modmail forum channel not found (is the bot in the guild and can it see the channel?)");
+
+    return c as AnyTextableGuildChannel;
 }
 
 async function createModmailModal(interaction: GuildInteraction) {
@@ -303,10 +306,11 @@ if (enabled) {
                     return null;
                 }
 
-                const thread = await getThreadParent().startThreadWithoutMessage({
-                    type: ChannelTypes.PRIVATE_THREAD,
+                // Forum channels require a starter message and only support
+                // public threads — the first modmail message doubles as the post body.
+                const thread = await getThreadParent().startThread({
                     name: `${channelName}-${id}`,
-                    invitable: false
+                    message: { content: `-# Modmail thread (ID ${id})` }
                 }) as PrivateThreadChannel;
 
                 await t.updateTable("tickets")

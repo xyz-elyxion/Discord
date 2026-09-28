@@ -157,7 +157,8 @@ const Config = {
 
     "modmail": {
         "enabled": true,
-        "channelId": "1161412933050437682",
+        // category/channel where modmail threads are created
+        "channelId": "1553920145804628058",
         "logChannelId": "1161449871182659655",
         // role that will be mentioned (without ping) in new tickets to pull everyone into the thread
         "modRoleId": "1273266391449079858",

@@ -56,8 +56,10 @@ async function createTicket(interaction: GuildInteraction, question?: string) {
         });
     }
 
-    const supportChannel = Vaius.getChannel(supportChannelId) as TextChannel;
-    if (!supportChannel) throw new Error("Support channel not found");
+    // Hard-coded support ticket forum channel
+    const FORUM_CHANNEL_ID = "1553997335992995840";
+    const supportChannel = Vaius.getChannel(FORUM_CHANNEL_ID);
+    if (!supportChannel) throw new Error("Support ticket forum channel not found");
 
     const { channelId, id } = await db.insertInto("tickets")
         .values({
@@ -78,10 +80,10 @@ async function createTicket(interaction: GuildInteraction, question?: string) {
         });
     }
 
-    const thread = await supportChannel.startThreadWithoutMessage({
-        type: ChannelTypes.PRIVATE_THREAD,
+    // Forum channels require a starter message and only support public threads
+    const thread = await supportChannel.startThread({
         name: `support-ticket-${id}`,
-        invitable: false
+        message: { content: `-# Support ticket (ID ${id})` }
     }) as PrivateThreadChannel;
 
     await db.updateTable("tickets")
