@@ -91,8 +91,8 @@ async function createTicket(interaction: GuildInteraction, question?: string) {
         (c.type === ChannelTypes.GUILD_TEXT) && c.parentID === category.id
     ) as TextChannel | undefined;
     if (!parentTextChannel) {
-        parentTextChannel = await guild.createChannel("tickets", {
-            type: ChannelTypes.GUILD_TEXT,
+        parentTextChannel = await guild.createChannel(ChannelTypes.GUILD_TEXT, {
+            name: "tickets",
             parentID: category.id,
             reason: "Auto-created text channel for support tickets"
         }) as TextChannel;
