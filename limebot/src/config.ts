@@ -30,6 +30,13 @@ const Config = {
         ],
     },
 
+    "tickets": {
+        // role pinged when a new support ticket is opened; can close tickets
+        "helper": "1244313853357981787",
+        // can also close tickets
+        "mod": "1026509424686284924",
+    },
+
     "roles": {
         // anyone with this role can execute moderation commands
         "mod": "1026509424686284924",
