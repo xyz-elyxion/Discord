@@ -64,11 +64,16 @@ RUN pnpm buildWeb
 # Build the Discord Desktop App artifacts (patcher/renderer/preload) so the
 # runtime server can serve /v1/install/desktop as built without compiling.
 RUN pnpm build
-# Stage fflate (used by server.js to package the extension zip in-process)
-# and undici (used by server.js to validate the limebot proxy at startup)
+# Stage fflate (used by server.js to package the extension zip in-process),
+# undici (used by server.js to validate the limebot proxy at startup) and pg
+# (PostgreSQL kv persistence). pnpm hoists only direct deps to the top level,
+# so install pg cleanly with npm instead of copying its transitive tree.
 RUN mkdir -p /app/runtime_deps/node_modules \
     && cp -rL /app/node_modules/fflate /app/runtime_deps/node_modules/ \
-    && cp -rL /app/node_modules/undici /app/runtime_deps/node_modules/
+    && cp -rL /app/node_modules/undici /app/runtime_deps/node_modules/ \
+    && cd /app/runtime_deps \
+    && echo '{"name":"limey-runtime-deps","private":true}' > package.json \
+    && npm install --no-audit --no-fund --loglevel=error "pg@$(node -p "require('/app/node_modules/pg/package.json').version")"
 # Generate the plugin catalog data for /plugins/
 RUN pnpm generatePluginJson public/plugins.json public/readmes.json
 
@@ -91,6 +96,7 @@ USER node
 
 # Copy only what the server needs
 COPY --from=build --chown=node:node /app/package.json /app/server.js ./
+COPY --from=build --chown=node:node /app/pgkv.js ./
 COPY --from=build --chown=node:node /app/reviewdb-backend.js ./
 COPY --from=build --chown=node:node /app/lime-economy-backend.js ./
 COPY --from=build --chown=node:node /app/runtime_deps/node_modules ./node_modules
