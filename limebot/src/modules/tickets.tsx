@@ -80,7 +80,25 @@ async function createTicket(interaction: GuildInteraction, question?: string) {
         });
     }
 
-    const thread = await supportChannel.startThreadWithoutMessage({
+    // Discord doesn't allow threads to be created directly in a category —
+    // they must hang off a text channel inside it. Find (or create) a text
+    // channel in the ticket category and start the thread there.
+    const category = supportChannel.type === ChannelTypes.GUILD_CATEGORY
+        ? supportChannel
+        : supportChannel.parent;
+    const guild = "guild" in supportChannel ? supportChannel.guild : interaction.guild;
+    let parentTextChannel = guild.channels.find(c =>
+        (c.type === ChannelTypes.GUILD_TEXT) && c.parentID === category.id
+    ) as TextChannel | undefined;
+    if (!parentTextChannel) {
+        parentTextChannel = await guild.createChannel("tickets", {
+            type: ChannelTypes.GUILD_TEXT,
+            parentID: category.id,
+            reason: "Auto-created text channel for support tickets"
+        }) as TextChannel;
+    }
+
+    const thread = await parentTextChannel.startThreadWithoutMessage({
         type: ChannelTypes.PRIVATE_THREAD,
         name: `support-ticket-${id}`,
         invitable: false
