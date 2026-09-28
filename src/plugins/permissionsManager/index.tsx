@@ -120,6 +120,7 @@ export default definePlugin({
     name: "PermissionsManager",
     description: "Shows you what permissions a plugin needs, what it does and why that could be bad before you enable it. Also blocks userplugins that do not declare permissions.",
     authors: [Devs.Ven],
+    required: true,
     enabledByDefault: true,
     tags: ["Utility"],
     settings,
