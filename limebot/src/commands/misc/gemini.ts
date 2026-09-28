@@ -229,7 +229,7 @@ defineCommand({
             : "Bro didn't say anything";
 
         // Prevent JS codeblocks in support category (Limey V1 adds Execute button)
-        const supportCategoryId = "1108135649699180705";
+        const supportCategoryId = "1553922850669334600";
         if (msg.channel.parentID === supportCategoryId) {
             text = text.replace(/```js\b/g, "```ts");
         }

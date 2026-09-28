@@ -67,7 +67,7 @@ Vaius.on("messageUpdate", (msg, oldMsg) => {
 const IntroRegex = /^(?:hi|hello|hey|sup|yo)? ?(?:i['’ʼʹ´]?m|i am) (.{1,32}?)$/i;
 const IntroCooldown = new Deduper(30 * Millis.MINUTE);
 async function handleIntroduction(msg: Message) {
-    if (!msg.inCachedGuildChannel() || msg.channel.parentID === "1108135649699180705" /* support */) return;
+    if (!msg.inCachedGuildChannel() || msg.channel.parentID === "1553922850669334600" /* support */) return;
 
     if (msg.content && Math.random() > 0.9 && IntroRegex.test(msg.content) && !IntroCooldown.getOrAdd(msg.author.id)) {
         const [, name] = msg.content.match(IntroRegex)!;

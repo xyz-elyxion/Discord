@@ -87,7 +87,7 @@ defineCommand({
         text ||= response.stop_reason === "refusal" ? "Fable declined this request." : "Bro didn't say anything";
 
         // Prevent JS codeblocks in support category (Limey V1 adds Execute button)
-        if (msg.channel.parentID === "1108135649699180705") {
+        if (msg.channel.parentID === "1553922850669334600") {
             text = text.replace(/```js\b/g, "```ts");
         }
 

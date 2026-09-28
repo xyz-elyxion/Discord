@@ -93,7 +93,7 @@ const Config = {
         "eligibleCategories": [
             "1015060231060983889", // chat
             "1216095839848501338", // limey-discord.onrender.comelopment
-            "1108135649699180705" // support
+            "1553922850669334600" // support
         ],
         "rewards": {
             5: "1136687385434918992", // image sender

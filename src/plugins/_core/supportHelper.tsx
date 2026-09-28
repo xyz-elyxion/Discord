@@ -25,7 +25,7 @@ import { Flex } from "@components/Flex";
 import { Link } from "@components/Link";
 import { openSettingsTabModal, UpdaterTab } from "@components/settings";
 import { Channel, RenderModalProps } from "@limeyV1/discord-types";
-import { CONTRIB_ROLE_ID, Devs, DONOR_ROLE_ID, KNOWN_ISSUES_CHANNEL_ID, LIMEYBOT_USER_ID, LIMEYV1_GUILD_ID,REGULAR_ROLE_ID, SUPPORT_CATEGORY_ID, SUPPORT_CHANNEL_ID } from "@utils/constants";
+import { CONTRIB_ROLE_ID, Devs, DONOR_ROLE_ID, LIMEYBOT_USER_ID, LIMEYV1_GUILD_ID,REGULAR_ROLE_ID, SUPPORT_CATEGORY_ID, SUPPORT_CHANNEL_ID } from "@utils/constants";
 import { sendMessage } from "@utils/discord";
 import { Logger } from "@utils/Logger";
 import { Margins } from "@utils/margins";
@@ -269,10 +269,8 @@ export default definePlugin({
 
         const shouldAddUpdateButton =
             !IS_UPDATER_DISABLED
-            && (
-                (props.channel.id === KNOWN_ISSUES_CHANNEL_ID) ||
-                (props.channel.parent_id === SUPPORT_CATEGORY_ID && props.message.author.id === LIMEYBOT_USER_ID)
-            )
+            && props.channel.parent_id === SUPPORT_CATEGORY_ID
+            && props.message.author.id === LIMEYBOT_USER_ID
             && props.message.content?.toLowerCase().includes("update");
 
         if (shouldAddUpdateButton) {
@@ -318,7 +316,7 @@ export default definePlugin({
             }
         }
 
-        if (props.channel.parent_id === KNOWN_ISSUES_CHANNEL_ID || (props.channel.parent_id === SUPPORT_CATEGORY_ID && props.message.author.id === LIMEYBOT_USER_ID)) {
+        if (props.channel.parent_id === SUPPORT_CATEGORY_ID && props.message.author.id === LIMEYBOT_USER_ID) {
             const match = CodeBlockRe.exec(props.message.content || props.message.embeds[0]?.rawDescription || "");
             if (match) {
                 buttons.push(
