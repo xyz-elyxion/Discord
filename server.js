@@ -1395,6 +1395,45 @@ const server = http.createServer(async (req, res) => {
 // ------------------------------------------------------------------
 // Limebot (Discord bot, limebot/) — optional, enabled when LIMEBOT_TOKEN is set
 // ------------------------------------------------------------------
+// Validate the limebot proxy (if configured) by GETting Discord's REST root
+// through it. Logs the result; does not block startup.
+async function checkLimebotProxy() {
+    const proxyUrl = process.env.LIMEBOT_PROXY;
+    if (!proxyUrl) {
+        console.log("[limebot] LIMEBOT_PROXY not set — bot will use direct Discord API access");
+        return;
+    }
+    if (!/^(https?|socks[45h?]):\/\/[^\s]+$/i.test(proxyUrl)) {
+        console.error("[limebot] LIMEBOT_PROXY is set but not a valid http(s)/socks5 URL — ignoring");
+        return;
+    }
+    try {
+        const started = Date.now();
+        if (/^socks/i.test(proxyUrl)) {
+            const { SocksProxyAgent } = await import("socks-proxy-agent");
+            const https = await import("node:https");
+            await new Promise((resolve, reject) => {
+                const req = https.get("https://discord.com/api/v10/gateway", { agent: new SocksProxyAgent(proxyUrl), timeout: 10_000 }, res => {
+                    res.resume();
+                    res.statusCode === 200 ? resolve() : reject(new Error(`HTTP ${res.statusCode}`));
+                });
+                req.on("timeout", () => req.destroy(new Error("timeout")));
+                req.on("error", reject);
+            });
+        } else {
+            const { ProxyAgent } = await import("undici");
+            const res = await fetch("https://discord.com/api/v10/gateway", {
+                dispatcher: new ProxyAgent(proxyUrl),
+                signal: AbortSignal.timeout(10_000)
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        }
+        console.log(`[limebot] proxy check OK (${Date.now() - started}ms): ${proxyUrl.replace(/\/\/[^@/]*@/, "//***@")}`);
+    } catch (err) {
+        console.error(`[limebot] proxy check FAILED: ${err.message} — the bot may still try to use it and fail`);
+    }
+}
+
 function startLimebot() {
     if (!process.env.LIMEBOT_TOKEN) {
         console.log("[limebot] LIMEBOT_TOKEN not set — bot disabled");
@@ -1404,6 +1443,8 @@ function startLimebot() {
         console.log("[limebot] dist/index.js not found — bot disabled (was it built?)");
         return;
     }
+
+    void checkLimebotProxy();
 
     const child = spawn(process.execPath, ["--enable-source-maps", "."], {
         cwd: join(ROOT, "limebot"),

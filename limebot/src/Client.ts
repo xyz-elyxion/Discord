@@ -1,4 +1,5 @@
 import { AnyTextableChannel, Client, Message } from "oceanic.js";
+import { ProxyAgent } from "undici";
 
 import { handleError } from ".";
 import { CommandContext, Commands } from "./Commands";
@@ -11,6 +12,57 @@ import { lobotomiseMaybe } from "./modules/moderation/lobotomy";
 import { Deduper } from "./util/Deduper";
 import { reply } from "./util/discord";
 import { silently } from "./util/functions";
+
+// Single proxy for Discord REST traffic, set via LIMEBOT_PROXY by the server.
+// Oceanic reads rest.options.agent on every request, so the proxy can be
+// swapped at runtime if it dies. Gateway WS traffic is not proxied.
+let proxyAgent: ProxyAgent | undefined;
+
+export function getProxyUrl(): string | undefined {
+    return process.env.LIMEBOT_PROXY || undefined;
+}
+
+export function applyProxy(url?: string) {
+    const proxyUrl = url ?? getProxyUrl();
+    if (proxyAgent) {
+        void proxyAgent.close().catch(() => {});
+        proxyAgent = undefined;
+    }
+    (Vaius.rest.options as { agent?: unknown }).agent = null;
+    if (!proxyUrl) {
+        console.log("[proxy] no proxy configured — Discord REST traffic is direct");
+        return false;
+    }
+    try {
+        proxyAgent = new ProxyAgent(proxyUrl);
+        (Vaius.rest.options as { agent?: unknown }).agent = proxyAgent;
+        const host = (() => { try { return new URL(proxyUrl).host; } catch { return "?"; } })();
+        console.log(`[proxy] Discord REST traffic routed through ${host}`);
+        return true;
+    } catch (err: any) {
+        console.error("[proxy] failed to create proxy agent:", err?.message);
+        return false;
+    }
+}
+
+/**
+ * Test a proxy by GETting Discord's REST root through it.
+ * Returns latency in ms, or throws.
+ */
+export async function testProxy(proxyUrl: string): Promise<number> {
+    const started = Date.now();
+    const agent = new ProxyAgent(proxyUrl);
+    try {
+        const res = await fetch("https://discord.com/api/v10/gateway", {
+            dispatcher: agent,
+            signal: AbortSignal.timeout(10_000)
+        } as any);
+        if (!res.ok) throw new Error(`HTTP ${res.status} via proxy`);
+        return Date.now() - started;
+    } finally {
+        void agent.close().catch(() => {});
+    }
+}
 
 export const Vaius = new Client({
     auth: "Bot " + Config.token,
@@ -26,6 +78,8 @@ export const Vaius = new Client({
         users: false
     }
 });
+
+applyProxy();
 
 export let OwnerId: string;
 Vaius.once("ready", async () => {

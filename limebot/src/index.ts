@@ -8,7 +8,7 @@ import {
     DiscordHTTPError
 } from "oceanic.js";
 
-import { Vaius } from "./Client";
+import { Vaius, applyProxy, getProxyUrl, testProxy } from "./Client";
 import { announceStatus } from "./modules/statusAnnouncer";
 import { PROD } from "./constants";
 
@@ -79,3 +79,31 @@ async function connectWithRetry(attempt = 1): Promise<void> {
 }
 
 connectWithRetry();
+
+// Proxy health check — every 5 minutes, test the configured proxy against
+// Discord's API. If it fails, log it; a subsequent successful check clears
+// the warning. The proxy is re-applied on each successful test so a flaky
+// agent gets a fresh connection.
+const PROXY_CHECK_MS = 5 * 60 * 1000;
+let proxyWasFailing = false;
+
+async function checkProxy() {
+    const url = getProxyUrl();
+    if (!url) return;
+
+    try {
+        const latency = await testProxy(url);
+        applyProxy(url);
+        if (proxyWasFailing) {
+            proxyWasFailing = false;
+            console.log(`[proxy] recovered (${latency}ms)`);
+        }
+    } catch (err: any) {
+        if (!proxyWasFailing) {
+            proxyWasFailing = true;
+            console.error(`[proxy] health check FAILED: ${err?.message} — traffic may fall back to direct`);
+        }
+    }
+}
+
+setInterval(checkProxy, PROXY_CHECK_MS).unref();
