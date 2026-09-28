@@ -9,7 +9,7 @@ import Config from "~/config";
 import { partition } from "~/util/arrays";
 import { sendDm } from "~/util/discord";
 import { fetchBuffer } from "~/util/fetch";
-import { run } from "~/util/functions";
+import { run, silently } from "~/util/functions";
 import { isNonNullish, isTruthy } from "~/util/guards";
 import { ActionRow, Button, ComponentMessage, Container, File, FileUpload, MediaGallery, MediaGalleryItem, ModalLabel, Section, Separator, StringOption, StringSelect, TextDisplay, TextInput, Thumbnail } from "~components";
 import { Vaius } from "../Client";
@@ -606,6 +606,76 @@ if (enabled) {
                 type: ActivityTypes.LISTENING,
                 name: "/modmail"
             }]);
+        }
+    });
+
+    // ---- DM relay ----
+    // The modmail conversation continues in the user's DMs, NOT in the forum
+    // thread (that's just the staff log/view). This is hooked before the
+    // generic prefix-command handler so a user chatting in DMs to modmail is
+    // never mistaken for other bot commands.
+    Vaius.on("messageCreate", async msg => {
+        if (msg.author.bot) return;
+        if (!msg.channel || msg.channel.type !== ChannelTypes.DM) return;
+
+        // find an open ticket for this user
+        const res = await db.selectFrom("tickets")
+            .where("userId", "=", msg.author.id)
+            .select(["channelId", "id"])
+            .executeTakeFirst();
+        if (!res || res.channelId === "0") {
+            await silently(msg.channel.createMessage({
+                content: "You don't have an open modmail ticket. Use `/modmail` in the Limey V1 server to open one."
+            }));
+            return;
+        }
+
+        const thread = Vaius.getChannel(res.channelId);
+        if (!thread) {
+            await silently(msg.channel.createMessage({ content: "Your ticket thread could not be found — it may have been closed." }));
+            return;
+        }
+
+        // reupload attachments (ephemeral CDN urls expire)
+        const files = await Promise.all((msg.attachments ?? []).map(async ({ url, filename, contentType }, i) => ({
+            name: `${i}-${filename}`,
+            contents: await fetchBuffer(url),
+            contentType
+        })));
+
+        await thread.createMessage({
+            content: `**${msg.author.tag} (DM):** ${msg.content}`.slice(0, 2000),
+            files
+        });
+    });
+
+    // Staff replies in the forum thread are relayed to the user's DMs.
+    Vaius.on("messageCreate", async msg => {
+        if (msg.author.bot) return;
+        if (!msg.inCachedGuildChannel()) return;
+        if (msg.channel.type !== ChannelTypes.PUBLIC_THREAD) return;
+        if (msg.channel.parentID !== FORUM_CHANNEL_ID) return;
+
+        // ignore the starter marker message
+        if (msg.member?.roles.includes(modRoleId) === false) return;
+
+        const res = await db.selectFrom("tickets")
+            .where("channelId", "=", msg.channel.id)
+            .select(["userId", "id"])
+            .executeTakeFirst();
+        if (!res) return;
+        if (msg.author.id === res.userId) return; // user's own staff-side message
+
+        const user = Vaius.users.get(res.userId) ?? await Vaius.rest.users.get(res.userId).catch(() => null);
+        if (!user) return;
+
+        const sent = await sendDm(user, {
+            content: `**Modmail — ${msg.author.tag}:** ${msg.content}`.slice(0, 2000)
+        });
+        if (!sent) {
+            await silently(msg.channel.createMessage({
+                content: `-# Could not DM ${user.tag} — their DMs are closed.`
+            }));
         }
     });
 }

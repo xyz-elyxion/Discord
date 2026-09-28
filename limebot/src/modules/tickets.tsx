@@ -56,10 +56,10 @@ async function createTicket(interaction: GuildInteraction, question?: string) {
         });
     }
 
-    // Hard-coded support ticket forum channel
-    const FORUM_CHANNEL_ID = "1553997335992995840";
-    const supportChannel = Vaius.getChannel(FORUM_CHANNEL_ID);
-    if (!supportChannel) throw new Error("Support ticket forum channel not found");
+    // Hard-coded support ticket category — private threads are created under it
+    const TICKET_CATEGORY_ID = "1553922850669334600";
+    const supportChannel = Vaius.getChannel(TICKET_CATEGORY_ID);
+    if (!supportChannel) throw new Error("Support ticket category not found");
 
     const { channelId, id } = await db.insertInto("tickets")
         .values({
@@ -80,10 +80,10 @@ async function createTicket(interaction: GuildInteraction, question?: string) {
         });
     }
 
-    // Forum channels require a starter message and only support public threads
-    const thread = await supportChannel.startThread({
+    const thread = await supportChannel.startThreadWithoutMessage({
+        type: ChannelTypes.PRIVATE_THREAD,
         name: `support-ticket-${id}`,
-        message: { content: `-# Support ticket (ID ${id})` }
+        invitable: false
     }) as PrivateThreadChannel;
 
     await db.updateTable("tickets")

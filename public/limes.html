@@ -149,6 +149,17 @@
         <h2 class="section-title">Perk tiers</h2>
         <p class="section-sub">Pay with Limes, monthly. Every tier includes a one-time free trial — no Limes needed.</p>
         <div class="tiers" id="tiersContainer"></div>
+
+        <h2 class="section-title">Donated? Redeem your rewards 🎁</h2>
+        <p class="section-sub">If you donated to Limey V1, enter the code you received to claim your Limes and/or perk tier. Log in first.</p>
+        <div class="wallet-card" style="display:block">
+            <label for="donationCode" class="wallet-meta" style="display:block;margin-bottom:8px">Donation code</label>
+            <div style="display:flex; gap:12px; align-items:center">
+                <input id="donationCode" placeholder="LIME-XXXXXX-XXXXXX" style="background:var(--bg-alt); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:10px 14px; font-size:1rem; flex:1; font-family:monospace; text-transform:uppercase" />
+                <button class="btn-lime" id="redeemBtn">Redeem</button>
+            </div>
+            <p id="redeemStatus" class="wallet-meta" style="margin-top:10px"></p>
+        </div>
     </main>
 
     <footer>
@@ -342,6 +353,32 @@
                 loadWallet();
             }
         }
+
+        // --- Donation code redemption ---
+        const redeemBtn = document.getElementById("redeemBtn");
+        redeemBtn.addEventListener("click", async () => {
+            if (!requireUser()) return;
+            const codeInput = document.getElementById("donationCode");
+            const code = codeInput.value.trim().toUpperCase();
+            const status = document.getElementById("redeemStatus");
+            if (!code) { status.textContent = "Enter your donation code first."; return; }
+
+            redeemBtn.disabled = true;
+            status.textContent = "Redeeming…";
+            try {
+                const data = await api("/v1/limes/donation-codes/redeem", { method: "POST", body: JSON.stringify({ code }) });
+                let msg = "Redeemed! 🎉";
+                if (data.limes != null) msg += ` +${data.limes} 🍋`;
+                if (data.tier) msg += ` — ${data.tier} perks active`;
+                status.textContent = msg;
+                codeInput.value = "";
+                loadWallet();
+            } catch (err) {
+                status.textContent = err.message || "Redemption failed.";
+            } finally {
+                redeemBtn.disabled = false;
+            }
+        });
 
         initLogin();
         if (sessionToken) loadWallet();

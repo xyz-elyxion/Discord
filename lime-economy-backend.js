@@ -95,7 +95,8 @@ function getTierBadges() {
 
 // db.wallets[userId] = { balance, streak, lastDaily, lastMessageDay, messagesToday, dayKey, voiceToday }
 // db.perks[userId]  = { tier, expiresAt, trialUsed: { [tier]: true } }
-let db = { wallets: {}, perks: {}, siteTokens: {}, users: {} };
+// db.donationCodes[code] = { createdAt, redeemedBy, redeemedAt, limes, tier }
+let db = { wallets: {}, perks: {}, siteTokens: {}, users: {}, donationCodes: {} };
 
 let saveTimer = null;
 function scheduleSave() {
@@ -117,6 +118,7 @@ function hydrate(parsed) {
     if (parsed.wallets && typeof parsed.wallets === "object") db.wallets = parsed.wallets;
     if (parsed.perks && typeof parsed.perks === "object") db.perks = parsed.perks;
     if (parsed.siteTokens && typeof parsed.siteTokens === "object") db.siteTokens = parsed.siteTokens;
+    if (parsed.donationCodes && typeof parsed.donationCodes === "object") db.donationCodes = parsed.donationCodes;
     if (parsed.users && typeof parsed.users === "object") db.users = parsed.users;
     console.log(`[limes] hydrated ${Object.keys(db.wallets).length} wallet(s), ${Object.keys(db.perks).length} perk subscription(s)`);
 }
@@ -586,6 +588,67 @@ async function handle(req, res, url) {
         const target = query.get("userId");
         if (!target) return json(res, 400, { error: "userId required" }), true;
         return json(res, 200, { wallet: getWallet(target), perks: getPerks(target) }), true;
+    }
+
+    // ---- Donation code redemption ----
+    // Admin generates codes for real-money donors; the donor redeems the code
+    // on the Limes page (while logged in) for Limes and/or a perk tier.
+
+    // POST /v1/limes/admin/donation-codes { limes, tier, count }
+    if (sub === "/admin/donation-codes" && req.method === "POST") {
+        if (!isAdmin(req)) return json(res, 403, { error: "forbidden" }), true;
+        const limes = Math.floor(Number(req.body?.limes) || 0);
+        const tier = req.body?.tier ? TIERS[req.body.tier] : null;
+        if (req.body?.tier && !tier) return json(res, 400, { error: "unknown tier" }), true;
+        if (!limes && !tier) return json(res, 400, { error: "limes and/or tier required" }), true;
+        const count = Math.min(Math.max(Math.floor(Number(req.body?.count) || 1), 1), 50);
+
+        const codes = [];
+        for (let i = 0; i < count; i++) {
+            const code = "LIME-" + crypto.randomBytes(6).toString("hex").toUpperCase().match(/.{1,6}/g).join("-");
+            db.donationCodes[code] = {
+                createdAt: Date.now(),
+                limes,
+                tier: tier ? req.body.tier : null,
+                redeemedBy: null,
+                redeemedAt: null
+            };
+            codes.push(code);
+        }
+        scheduleSave();
+        return json(res, 200, { codes }), true;
+    }
+
+    // POST /v1/limes/donation-codes/redeem { code } — logged-in site session
+    if (sub === "/donation-codes/redeem" && req.method === "POST") {
+        if (!userId) return json(res, 401, { error: "login required" }), true;
+        const code = String(req.body?.code || "").trim().toUpperCase();
+        const entry = code && db.donationCodes[code];
+        if (!entry) return json(res, 404, { error: "unknown code" }), true;
+        if (entry.redeemedBy) return json(res, 409, { error: "code already redeemed" }), true;
+
+        entry.redeemedBy = userId;
+        entry.redeemedAt = Date.now();
+
+        const rewards = {};
+        if (entry.limes) rewards.limes = addLimes(userId, entry.limes, "donation code redemption");
+        if (entry.tier) {
+            const perks = db.perks[userId] || (db.perks[userId] = { tier: null, expiresAt: null, trialUsed: {} });
+            const tierDef = TIERS[entry.tier];
+            const current = activeTier(userId);
+            // stack onto remaining time of the same tier, otherwise replace
+            let duration = 30 * 24 * 60 * 60 * 1000;
+            if (current === entry.tier) {
+                duration += Math.max(0, (perks.expiresAt || 0) - Date.now());
+            }
+            perks.tier = entry.tier;
+            perks.expiresAt = Date.now() + duration;
+            rewards.tier = tierDef.name;
+            rewards.expiresAt = perks.expiresAt;
+        }
+        scheduleSave();
+        console.log(`[limes] donation code redeemed by ${userId}: ${entry.limes || 0} limes${entry.tier ? ` + ${entry.tier} tier` : ""}`);
+        return json(res, 200, { ok: true, ...rewards }), true;
     }
 
     if (sub === "/admin/stats" && req.method === "GET") {
