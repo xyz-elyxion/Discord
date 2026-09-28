@@ -101,19 +101,31 @@ Vaius.on("interactionCreate", async interaction => {
     } catch (e) {
         handleError("Error handling interaction", e);
 
+        // Interactions expire 3 seconds after they are sent. If the bot was
+        // slow (rate limits, proxy latency, restarts), Discord has already
+        // invalidated the interaction/webhook token — nothing to reply to.
+        const isExpired = (e as any)?.code === 10062 /* Unknown interaction */
+            || (e as any)?.code === 10015 /* Unknown webhook */;
+        if (isExpired) return;
+
         if (interaction.type === InteractionTypes.APPLICATION_COMMAND) {
             const message = "oop, that didn't go well 💥";
 
-            if (interaction.acknowledged) {
-                await interaction.createFollowup({
-                    content: message,
-                    flags: MessageFlags.EPHEMERAL
-                });
-            } else {
-                await interaction.createMessage({
-                    content: message,
-                    flags: MessageFlags.EPHEMERAL
-                });
+            try {
+                if (interaction.acknowledged) {
+                    await interaction.createFollowup({
+                        content: message,
+                        flags: MessageFlags.EPHEMERAL
+                    });
+                } else {
+                    await interaction.createMessage({
+                        content: message,
+                        flags: MessageFlags.EPHEMERAL
+                    });
+                }
+            } catch (replyErr: any) {
+                if (replyErr?.code !== 10062 && replyErr?.code !== 10015)
+                    throw replyErr;
             }
         }
     }
