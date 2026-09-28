@@ -235,13 +235,13 @@ export function parseEditContent(content: string, message: Message) {
 }
 
 export default definePlugin({
+    name: "MessageLogger",
     permissions: [{
         id: "storeMessageHistory",
         title: "Keep a local copy of all messages",
         description: "Records edited and deleted messages in memory and caches them so you can inspect them later.",
         risk: "Deleted messages remain on your disk/memory even after the sender removes them, which may include private data."
     }],
-    name: "MessageLogger",
     description: "Temporarily logs deleted and edited messages.",
     tags: ["Chat", "Utility"],
     authors: [Devs.rushii, Devs.Ven, Devs.AutumnVN, Devs.Nickyux, Devs.Kyuuhachi, Devs.sadan],

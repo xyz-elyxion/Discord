@@ -100,13 +100,13 @@ function wrapOrbsBalance(balance: String): JSX.Element {
 }
 
 export default definePlugin({
+    name: "Questify",
     permissions: [{
         id: "questProgressAutomation",
         title: "Automate Discord quest progress",
         description: "Talks to Discord's activity proxy endpoints to report progress for quests you accept.",
         risk: "Automated progress reporting violates Discord's quest terms and could flag your account."
     }],
-    name: "Questify",
     description: "Enhance specific Quest features, disable annoyances, or completely remove Quests.",
     authors: [Devs.Etorix],
     dependencies: ["ServerListAPI"],

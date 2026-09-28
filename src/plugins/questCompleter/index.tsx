@@ -444,13 +444,13 @@ function makeQuestsCommand(): Command {
 }
 
 export default definePlugin({
+    name: "QuestCompleter",
     permissions: [{
         id: "questCompletionSpoofing",
         title: "Authorize and spoof quest completions",
         description: "Performs OAuth authorization for activity applications and reports full quest completion without playing.",
         risk: "This is against Discord's terms of service and may result in quest rewards being revoked or account action."
     }],
-    name: "QuestCompleter",
     description: "Automatically enrolls in and completes Discord quests (video, play-on-desktop, activity, achievement) and optionally claims the rewards.",
     tags: ["Utility", "Fun"],
     authors: [Devs.Limey],

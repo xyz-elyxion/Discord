@@ -239,13 +239,13 @@ function loadAndCacheShortcut(key: string, val: any, forceLoad: boolean) {
 const webpackModulesProbablyLoaded = Webpack.onceReady.then(() => sleep(1000));
 
 export default definePlugin({
+    name: "ConsoleShortcuts",
     permissions: [{
         id: "nativeCodeExecution",
         title: "Execute code in the main process",
         description: "Registers a devtools shortcut that can access Limey V1 internals and native APIs directly from the console.",
         risk: "Anything run from the console with this plugin acts with full client-mod privileges on your machine."
     }],
-    name: "ConsoleShortcuts",
     description: "Adds shorter Aliases for many things on the window. Run `shortcutList` for a list.",
     authors: [Devs.Ven],
     tags: ["Developers", "Console", "Shortcuts", "Utility"],

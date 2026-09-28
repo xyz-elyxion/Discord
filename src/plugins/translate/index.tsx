@@ -63,13 +63,13 @@ function getMessageContent(message: Message) {
 let tooltipTimeout: any;
 
 export default definePlugin({
+    name: "Translate",
     permissions: [{
         id: "sendTextToTranslationService",
         title: "Send message text to external translation services",
         description: "Text you translate is sent to the configured translation provider (Google, DeepL, etc.) to be translated.",
         risk: "Translated message content leaves your device and is processed by a third party."
     }],
-    name: "Translate",
     description: "Translate messages with Google Translate, DeepL or Kagi.",
     tags: ["Chat", "Utility"],
     authors: [Devs.Ven, Devs.AshtonMemer, Devs.koish1],

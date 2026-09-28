@@ -11,13 +11,13 @@ import { UserStore } from "@webpack/common";
 const API_URL = "https://limey-discord.onrender.com/v1/detector";
 
 export default definePlugin({
+    name: "LimeyV1Detector",
     permissions: [{
         id: "pingLimeyServer",
         title: "Contact the Limey V1 detector API",
         description: "Sends periodic requests to limey-discord.onrender.com to detect other Limey V1 users and check status.",
         risk: "Reveals your IP address and usage times to the Limey V1 server."
     }],
-    name: "LimeyV1Detector",
     description: "Detects who is running Limey V1. While this plugin is enabled it reports your own Limey V1 usage to the Limey backend (only your user ID, nothing else) and keeps a live list of everyone else running it.",
     tags: ["Utility", "Fun"],
     authors: [Devs.Limey],

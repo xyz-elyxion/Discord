@@ -138,13 +138,13 @@ async function fetchCategories(): Promise<TrendingCategories | null> {
 }
 
 export default definePlugin({
+    name: "TenorGifSearch",
     permissions: [{
         id: "contactTenorApi",
         title: "Contact the Tenor GIF API",
         description: "Searches Tenor for GIFs when you use the plugin's search command.",
         risk: "Your search terms are sent to Google (Tenor) and associated with your IP address."
     }],
-    name: "TenorGifSearch",
     description: "Restore Tenor GIF search",
     authors: [Devs.Lunascape],
 
