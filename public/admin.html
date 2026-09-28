@@ -326,29 +326,6 @@
         }
     };
 
-    document.getElementById("addproxy").onclick = async () => {
-        const msg = document.getElementById("addproxymsg");
-        const url = document.getElementById("proxyurl").value.trim();
-        const label = document.getElementById("proxylabel").value.trim();
-        if (!url) return show(msg, "Enter a proxy URL first.", false);
-
-        show(msg, "Testing proxy against discord.com…", true);
-        const res = await fetch("/v1/admin/proxies", {
-            method: "POST",
-            headers: authHeaders(),
-            body: JSON.stringify({ url, label })
-        });
-        const data = await res.json();
-        if (res.ok) {
-            show(msg, `Proxy added (${data.test?.latencyMs ?? "?"}ms). Restart the bot to use it.`, true);
-            document.getElementById("proxyurl").value = "";
-            document.getElementById("proxylabel").value = "";
-            loadProxies();
-        } else {
-            show(msg, data.error || "Failed to add proxy.", false);
-        }
-    };
-
     document.getElementById("addproxies").onclick = async () => {
         const msg = document.getElementById("addproxiesmsg");
         const text = document.getElementById("proxytext").value.trim();
