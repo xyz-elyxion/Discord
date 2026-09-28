@@ -528,7 +528,7 @@ function saveAiTokens() {
     }
 }
 
- {
+function nextToken(provider) {
     const pool = aiTokens.tokens.filter(t => !provider || t.provider === provider || provider === "any");
     if (!pool.length) return null;
     // Round-robin over the (optionally provider-filtered) pool
