@@ -20,7 +20,7 @@ const Config = {
         "dev": "1033680203433660458",
 
         // used as default for the not-support command and some other features
-        "support": "1026515880080842772",
+        "support": "1553920145804628058",
 
         // channels where support commands are allowed.
         // always includes channels.dev and channels.support

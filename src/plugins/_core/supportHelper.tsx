@@ -354,7 +354,7 @@ export default definePlugin({
             <Card variant="warning" className={Margins.top8} defaultPadding>
                 Please do not private message Limey V1 plugin developers for support!
                 <br />
-                Instead, use the Limey V1 support channel: {Parser.parse("https://discord.com/channels/1015060230222131221/1026515880080842772")}
+                Instead, use the Limey V1 support channel: {Parser.parse("https://discord.com/channels/1015060230222131221/1553920145804628058")}
                 {!ChannelStore.getChannel(SUPPORT_CHANNEL_ID) && " (Click the link to join)"}
             </Card>
         );
