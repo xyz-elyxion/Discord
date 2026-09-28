@@ -35,6 +35,7 @@
         "parse-duration": "^2.1.5",
         "sharp": "^0.35.3",
         "tesseract.js": "^7.0.0",
+        "undici": "^6.29.0",
         "valibot": "^1.2.0",
         "ws": "^8.18.3"
     },

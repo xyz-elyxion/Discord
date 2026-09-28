@@ -431,14 +431,19 @@ async function kvGet(key) {
 async function hydrateKv() {
     if (!KV_ENABLED) return;
     try {
-        const [usrbg, aiTokens, detector, reviewdbData, badges] = await Promise.all([
+        const [usrbg, aiTokens, detector, reviewdbData, badges, proxyData] = await Promise.all([
             kvGet("limey:usrbg"),
             kvGet("limey:ai-tokens"),
             kvGet("limey:detector"),
             kvGet("limey:reviewdb"),
-            kvGet("limey:badges")
+            kvGet("limey:badges"),
+            kvGet("limey:proxies")
         ]);
         if (usrbg) usrbgData = JSON.parse(usrbg);
+        if (proxyData) {
+            const parsed = JSON.parse(proxyData);
+            if (Array.isArray(parsed.proxies)) proxiesData = { proxies: parsed.proxies };
+        }
         if (aiTokens) {
             const parsed = JSON.parse(aiTokens);
             if (Array.isArray(parsed.tokens)) aiTokensData = { tokens: parsed.tokens, next: parsed.next || 0 };
@@ -526,6 +531,74 @@ function saveAiTokens() {
     } catch (err) {
         console.error("[ai-tokens] failed to persist data:", err.message);
     }
+}
+
+// ------------------------------------------------------------------
+// Proxy pool — admin-managed HTTP(S)/SOCKS proxies used by limebot for
+// Discord API traffic. Avoids IP-based rate limiting on shared hosting.
+// ------------------------------------------------------------------
+const PROXIES_FILE = join(ROOT, "data", "proxies.json");
+
+// { proxies: [{ id, url, label, addedAt, enabled, lastTest: { at, ok, latencyMs, error } }] }
+let proxiesData = { proxies: [] };
+try {
+    const parsed = JSON.parse(readFileSync(PROXIES_FILE, "utf-8"));
+    if (Array.isArray(parsed.proxies)) proxiesData = { proxies: parsed.proxies };
+} catch { /* empty */ }
+const proxies = { get list() { return proxiesData.proxies; }, set list(v) { proxiesData.proxies = v; } };
+
+function saveProxies() {
+    void kvSet("limey:proxies", { proxies: proxiesData.proxies });
+    try {
+        mkdirSync(join(ROOT, "data"), { recursive: true });
+        writeFileSync(PROXIES_FILE, JSON.stringify({ proxies: proxiesData.proxies }, null, 2));
+    } catch (err) {
+        console.error("[proxies] failed to persist data:", err.message);
+    }
+}
+
+const PROXY_URL_RE = /^(https?|socks[45h?]):\/\/[^\s]+$/i;
+
+function maskProxyUrl(url) {
+    try {
+        const u = new URL(url);
+        if (u.username || u.password) {
+            const user = u.username ? u.username.slice(0, 2) + "…" : "";
+            return `${u.protocol}//${user}:${u.password ? "…" : ""}@${u.host}`;
+        }
+        return `${u.protocol}//${u.host}`;
+    } catch {
+        return "invalid url";
+    }
+}
+
+// Test a proxy by GETting Discord's REST root through it.
+async function testProxy(proxyUrl) {
+    const started = Date.now();
+    if (/^socks/i.test(proxyUrl)) {
+        const mod = await import("socks-proxy-agent").then(m => m.SocksProxyAgent).catch(() => null);
+        if (!mod) throw new Error("SOCKS proxies require the socks-proxy-agent package (not installed)");
+        const { SocksProxyAgent } = await import("socks-proxy-agent");
+        const { agent } = { agent: new SocksProxyAgent(proxyUrl) };
+        const https = await import("node:https");
+        await new Promise((resolve, reject) => {
+            const req = https.get("https://discord.com/api/v10/gateway", { agent, timeout: 10_000 }, res => {
+                res.resume();
+                res.statusCode === 200 ? resolve() : reject(new Error(`HTTP ${res.statusCode} via proxy`));
+            });
+            req.on("timeout", () => req.destroy(new Error("timeout")));
+            req.on("error", reject);
+        });
+        return { ok: true, latencyMs: Date.now() - started };
+    }
+
+    const { ProxyAgent } = await import("undici");
+    const res = await fetch("https://discord.com/api/v10/gateway", {
+        dispatcher: new ProxyAgent(proxyUrl),
+        signal: AbortSignal.timeout(10_000)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} via proxy`);
+    return { ok: true, latencyMs: Date.now() - started };
 }
 
 function nextToken(provider) {
@@ -688,9 +761,9 @@ async function handleScan(req, res, url) {
     return json(res, 502, { error: `all AI tokens failed (${lastErr?.message || "unknown error"})` }), true;
 }
 
-// Admin API for the AI token pool (admin.html uses this)
+// Admin API for the AI token pool + proxy pool (admin.html uses this)
 async function handleAdmin(req, res, url) {
-    if (!url.startsWith("/v1/admin/ai")) return false;
+    if (!url.startsWith("/v1/admin/ai") && !url.startsWith("/v1/admin/proxies")) return false;
 
     if (req.method === "OPTIONS") {
         res.writeHead(204, {
@@ -751,6 +824,98 @@ async function handleAdmin(req, res, url) {
         aiTokens.tokens = aiTokens.tokens.filter(t => t.id !== delMatch[1]);
         if (aiTokens.tokens.length === before) return json(res, 404, { error: "token not found" }), true;
         saveAiTokens();
+        return json(res, 200, { ok: true }), true;
+    }
+
+    // ------------------------- proxy pool -------------------------
+
+    // List proxies (URL credentials are masked)
+    if (req.method === "GET" && url === "/v1/admin/proxies") {
+        return json(res, 200, {
+            proxies: proxies.list.map(p => ({
+                id: p.id,
+                label: p.label || "",
+                preview: maskProxyUrl(p.url),
+                addedAt: p.addedAt,
+                enabled: p.enabled !== false,
+                lastTest: p.lastTest || null
+            }))
+        }), true;
+    }
+
+    // Add a proxy
+    if (req.method === "POST" && url === "/v1/admin/proxies") {
+        let body;
+        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const proxyUrl = String(body.url || "").trim();
+        const label = String(body.label || "").trim().slice(0, 60);
+        if (!proxyUrl) return json(res, 400, { error: "url is required" }), true;
+        if (proxyUrl.length > 300) return json(res, 400, { error: "url too long" }), true;
+        if (!PROXY_URL_RE.test(proxyUrl)) return json(res, 400, { error: "invalid proxy url (expected http(s):// or socks5://)" }), true;
+
+        // Sanity-test before saving so broken proxies never enter the pool
+        let test;
+        try {
+            test = await testProxy(proxyUrl);
+        } catch (err) {
+            return json(res, 400, { error: `proxy test failed: ${err.message}` }), true;
+        }
+
+        const entry = {
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            url: proxyUrl,
+            label,
+            addedAt: new Date().toISOString(),
+            enabled: true,
+            lastTest: { at: new Date().toISOString(), ...test }
+        };
+        proxies.list.push(entry);
+        saveProxies();
+        console.log(`[proxies] added ${maskProxyUrl(proxyUrl)} (${test.latencyMs}ms)`);
+        return json(res, 200, { ok: true, id: entry.id, test }), true;
+    }
+
+    // Test an existing proxy
+    const proxyTestMatch = /^\/v1\/admin\/proxies\/([a-z0-9]+)\/test$/.exec(url);
+    if (req.method === "POST" && proxyTestMatch) {
+        const proxy = proxies.list.find(p => p.id === proxyTestMatch[1]);
+        if (!proxy) return json(res, 404, { error: "proxy not found" }), true;
+
+        try {
+            const test = await testProxy(proxy.url);
+            proxy.lastTest = { at: new Date().toISOString(), ...test };
+            saveProxies();
+            return json(res, 200, { ok: true, test }), true;
+        } catch (err) {
+            proxy.lastTest = { at: new Date().toISOString(), ok: false, error: err.message };
+            saveProxies();
+            return json(res, 502, { ok: false, error: err.message }), true;
+        }
+    }
+
+    // Enable/disable a proxy
+    const proxyEnabledMatch = /^\/v1\/admin\/proxies\/([a-z0-9]+)\/enabled$/.exec(url);
+    if (req.method === "PUT" && proxyEnabledMatch) {
+        const proxy = proxies.list.find(p => p.id === proxyEnabledMatch[1]);
+        if (!proxy) return json(res, 404, { error: "proxy not found" }), true;
+        let body;
+        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        proxy.enabled = Boolean(body.enabled);
+        saveProxies();
+        return json(res, 200, { ok: true, enabled: proxy.enabled }), true;
+    }
+
+    // Remove a proxy
+    const proxyDelMatch = /^\/v1\/admin\/proxies\/([a-z0-9]+)$/.exec(url);
+    if (req.method === "DELETE" && proxyDelMatch) {
+        const before = proxies.list.length;
+        proxies.list = proxies.list.filter(p => p.id !== proxyDelMatch[1]);
+        if (proxies.list.length === before) return json(res, 404, { error: "proxy not found" }), true;
+        saveProxies();
         return json(res, 200, { ok: true }), true;
     }
 
@@ -1355,6 +1520,15 @@ const server = http.createServer(async (req, res) => {
 // ------------------------------------------------------------------
 // Limebot (Discord bot, limebot/) — optional, enabled when LIMEBOT_TOKEN is set
 // ------------------------------------------------------------------
+// Enabled proxies are passed to the bot via env; the bot round-robins them.
+function buildLimebotProxyEnv() {
+    const enabled = proxies.list.filter(p => p.enabled !== false);
+    if (!enabled.length) return {};
+    console.log(`[limebot] routing Discord API traffic through ${enabled.length} prox${enabled.length === 1 ? "y" : "ies"}`);
+    if (enabled.length === 1) return { LIMEBOT_PROXY: enabled[0].url };
+    return { LIMEBOT_PROXIES_JSON: JSON.stringify(enabled.map(p => p.url)) };
+}
+
 function startLimebot() {
     if (!process.env.LIMEBOT_TOKEN) {
         console.log("[limebot] LIMEBOT_TOKEN not set — bot disabled");
@@ -1367,7 +1541,7 @@ function startLimebot() {
 
     const child = spawn(process.execPath, ["--enable-source-maps", "."], {
         cwd: join(ROOT, "limebot"),
-        env: { ...process.env, LIMEBOT: "1" },
+        env: { ...process.env, LIMEBOT: "1", ...buildLimebotProxyEnv() },
         stdio: "inherit"
     });
     child.on("error", err => console.error("[limebot] failed to start:", err.message));

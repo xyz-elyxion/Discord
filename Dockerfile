@@ -65,7 +65,10 @@ RUN pnpm buildWeb
 # runtime server can serve /v1/install/desktop as built without compiling.
 RUN pnpm build
 # Stage fflate (used by server.js to package the extension zip in-process)
-RUN mkdir -p /app/runtime_deps/node_modules && cp -rL /app/node_modules/fflate /app/runtime_deps/node_modules/
+# and undici (used by server.js to test http(s) proxies via ProxyAgent)
+RUN mkdir -p /app/runtime_deps/node_modules \
+    && cp -rL /app/node_modules/fflate /app/runtime_deps/node_modules/ \
+    && cp -rL /app/node_modules/undici /app/runtime_deps/node_modules/
 # Generate the plugin catalog data for /plugins/
 RUN pnpm generatePluginJson public/plugins.json public/readmes.json
 

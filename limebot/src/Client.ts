@@ -1,4 +1,5 @@
 import { AnyTextableChannel, Client, Message } from "oceanic.js";
+import { ProxyAgent } from "undici";
 
 import { handleError } from ".";
 import { CommandContext, Commands } from "./Commands";
@@ -12,6 +13,25 @@ import { Deduper } from "./util/Deduper";
 import { reply } from "./util/discord";
 import { silently } from "./util/functions";
 
+// Optional proxy for Discord REST traffic — set by server.js from the
+// admin-managed proxy pool (LIMEBOT_PROXY for one, LIMEBOT_PROXIES_JSON for
+// several; one is picked at random per process start). Gateway WS traffic is
+// not proxied — only REST, which is what gets IP rate limited.
+const PROXY_URLS: string[] = (() => {
+    try {
+        if (process.env.LIMEBOT_PROXIES_JSON) {
+            const parsed = JSON.parse(process.env.LIMEBOT_PROXIES_JSON);
+            if (Array.isArray(parsed)) return parsed.filter(x => typeof x === "string" && x);
+        }
+    } catch (err: any) {
+        console.error("[proxy] failed to parse LIMEBOT_PROXIES_JSON:", err?.message);
+    }
+    return process.env.LIMEBOT_PROXY ? [process.env.LIMEBOT_PROXY] : [];
+})();
+const proxyUrl = PROXY_URLS.length
+    ? PROXY_URLS[Math.floor(Math.random() * PROXY_URLS.length)]
+    : undefined;
+
 export const Vaius = new Client({
     auth: "Bot " + Config.token,
     gateway: {
@@ -19,6 +39,7 @@ export const Vaius = new Client({
             ? ["ALL_NON_PRIVILEGED", "MESSAGE_CONTENT", "GUILD_MEMBERS"]
             : ["ALL_NON_PRIVILEGED", "GUILD_MEMBERS"]
     },
+    rest: proxyUrl ? { agent: new ProxyAgent(proxyUrl) as Client["rest"]["options"]["agent"] } : {},
     allowedMentions: {
         everyone: false,
         repliedUser: false,
@@ -26,6 +47,11 @@ export const Vaius = new Client({
         users: false
     }
 });
+
+if (proxyUrl) {
+    const host = (() => { try { return new URL(proxyUrl).host; } catch { return "?"; } })();
+    console.log(`[proxy] routing Discord REST through proxy (${PROXY_URLS.length} in pool): ${host}`);
+}
 
 export let OwnerId: string;
 Vaius.once("ready", async () => {
