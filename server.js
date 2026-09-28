@@ -317,6 +317,15 @@ function startBuildIfMissing() {
 const PGKV = require("./pgkv");
 const KV_ENABLED = PGKV.pgEnabled();
 
+function kvSet(key, value) {
+    if (!KV_ENABLED) return;
+    void PGKV.pgSet(key, value);
+}
+
+async function kvGet(key) {
+    return PGKV.pgGet(key);
+}
+
 // Hydrate the in-memory stores from PostgreSQL at startup (local files are
 // only used as a fallback when DATABASE_URL is not configured).
 async function hydrateKv() {
