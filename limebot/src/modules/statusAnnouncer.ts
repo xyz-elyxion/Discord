@@ -5,7 +5,8 @@ import Config from "../config";
 // server's public /v1/status endpoint (which the site banner and the
 // Limey V1 client mod display), and clears it when things recover.
 
-const WEBHOOK_URL = process.env.LIMEBOT_STATUS_WEBHOOK || "";
+// Status webhook (hard-coded)
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1553963229087277077/nvr3y2bekC6clU7QOkFA50MU6rUMaBpp3nfy-AfpbEOO6o_kijPuRMhXFTpqA1kN9kFe";
 
 let currentMessage = "";
 
