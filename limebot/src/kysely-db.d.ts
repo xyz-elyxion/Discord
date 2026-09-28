@@ -53,6 +53,15 @@ export interface Tickets {
         xp: number;
     }
 
+    export interface Warnings {
+        id: Generated<number>;
+        userId: string;
+        guildId: string;
+        moderator: string;
+        reason: string;
+        createdAt: string;
+    }
+
     export interface DB {
         tickets: Tickets;
         expressions: Expressions;
@@ -61,5 +70,6 @@ export interface Tickets {
         linkedGitHubs: LinkedGitHubs;
         userAvatarEmojis: UserAvatarEmojis;
         xp: Xp;
+        warnings: Warnings;
     }
 }

@@ -44,3 +44,14 @@ CREATE TABLE IF NOT EXISTS xp (
     userId  TEXT PRIMARY KEY NOT NULL,
     xp      INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS warnings (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    userId    TEXT NOT NULL,
+    guildId   TEXT NOT NULL,
+    moderator TEXT NOT NULL,
+    reason    TEXT NOT NULL,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS warnings_userId_idx ON warnings (userId);

@@ -53,6 +53,8 @@ async function log(data: {
 }) {
     const { color, user, title, viewLink, footer } = data;
 
+    if (!logChannelId) return;
+
     return Vaius.rest.channels.createMessage(logChannelId,
         <ComponentMessage>
             <Container accentColor={color}>
@@ -72,7 +74,10 @@ async function log(data: {
                 </ActionRow>
             </Container>
         </ComponentMessage>
-    );
+    ).catch((e: unknown) => {
+        console.error("[modmail] failed to log to mod-log channel:", e instanceof Error ? e.message : e);
+        return null;
+    });
 }
 
 // Hard-coded modmail forum channel — modmail threads are forum posts here.
