@@ -699,6 +699,24 @@
     flex-grow: 1;
 }
 
+.vc-better-forums-custom-input-wrapper input {
+    background-color: var(--input-background-default, var(--background-base-lowest, var(--background-secondary)));
+    color: var(--text-default, var(--text-normal));
+    border: 1px solid var(--input-border-default, var(--background-tertiary));
+    border-radius: var(--radius-sm, 4px);
+    outline: none;
+    padding: 8px 10px;
+}
+
+.vc-better-forums-custom-input-wrapper input::placeholder {
+    color: var(--text-muted, var(--interactive-muted));
+}
+
+.vc-better-forums-custom-input-wrapper input:focus {
+    border-color: var(--text-link, var(--blurple-330));
+    background-color: var(--input-background-active, var(--background-base-low, var(--background-secondary-alt)));
+}
+
 .vc-better-forums-custom-input {
     transition:
         box-shadow 0.2s,
