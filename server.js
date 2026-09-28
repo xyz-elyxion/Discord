@@ -843,6 +843,65 @@ async function handleAdmin(req, res, url) {
         }), true;
     }
 
+    // List proxies with full URLs — consumed by limebot for the runtime
+    // pool refresh. Requires the same admin token; never used by the UI.
+    if (req.method === "GET" && url === "/v1/admin/proxies/full") {
+        return json(res, 200, {
+            proxies: proxies.list
+                .filter(p => p.enabled !== false)
+                .map(p => ({ id: p.id, url: p.url, label: p.label || "" }))
+        }), true;
+    }
+
+    // Bulk-add proxies (one per line, `label url` or just `url`).
+    // Returns per-line results; valid lines are saved (after test), invalid ones reported.
+    if (req.method === "POST" && url === "/v1/admin/proxies/bulk") {
+        let body;
+        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const lines = String(body.text || "").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (!lines.length) return json(res, 400, { error: "no proxies provided" }), true;
+        if (lines.length > 100) return json(res, 400, { error: "too many lines (max 100)" }), true;
+
+        const results = [];
+        for (const line of lines) {
+            // Support "label http://..." (whitespace-separated) or just the url
+            const parts = line.split(/\s+/);
+            const proxyUrl = parts[parts.length - 1];
+            const label = parts.length > 1 ? parts.slice(0, -1).join(" ").slice(0, 60) : "";
+
+            if (!PROXY_URL_RE.test(proxyUrl)) {
+                results.push({ line, ok: false, error: "invalid proxy url" });
+                continue;
+            }
+            if (proxies.list.some(p => p.url === proxyUrl)) {
+                results.push({ line, ok: false, error: "already in pool" });
+                continue;
+            }
+
+            try {
+                const test = await testProxy(proxyUrl);
+                const entry = {
+                    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                    url: proxyUrl,
+                    label,
+                    addedAt: new Date().toISOString(),
+                    enabled: true,
+                    lastTest: { at: new Date().toISOString(), ...test }
+                };
+                proxies.list.push(entry);
+                results.push({ line, ok: true, id: entry.id, latencyMs: test.latencyMs });
+            } catch (err) {
+                results.push({ line, ok: false, error: `test failed: ${err.message}` });
+            }
+        }
+        saveProxies();
+        const added = results.filter(r => r.ok).length;
+        console.log(`[proxies] bulk add: ${added}/${lines.length} passed`);
+        return json(res, 200, { ok: true, added, total: lines.length, results }), true;
+    }
+
     // Add a proxy
     if (req.method === "POST" && url === "/v1/admin/proxies") {
         let body;
@@ -1541,7 +1600,7 @@ function startLimebot() {
 
     const child = spawn(process.execPath, ["--enable-source-maps", "."], {
         cwd: join(ROOT, "limebot"),
-        env: { ...process.env, LIMEBOT: "1", ...buildLimebotProxyEnv() },
+        env: { ...process.env, LIMEBOT: "1", LIMEBOT_ADMIN_TOKEN: process.env.USRBG_ADMIN_TOKEN, ...buildLimebotProxyEnv() },
         stdio: "inherit"
     });
     child.on("error", err => console.error("[limebot] failed to start:", err.message));

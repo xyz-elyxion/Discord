@@ -6,6 +6,9 @@ const Config = {
     // "development" | "production"
     "mode": "development",
 
+    // base URL of the limey web server (used for the admin proxy pool refresh)
+    "limeyApiBase": process.env.LIMEY_API_BASE || "http://127.0.0.1:" + (process.env.PORT || 3000),
+
     "channels": {
         // channel where limebot will post automatic moderation logs, leave empty to disable
         "autoModLog": "1156349646965325824",

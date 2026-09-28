@@ -13,11 +13,14 @@ import { Deduper } from "./util/Deduper";
 import { reply } from "./util/discord";
 import { silently } from "./util/functions";
 
-// Optional proxy for Discord REST traffic — set by server.js from the
-// admin-managed proxy pool (LIMEBOT_PROXY for one, LIMEBOT_PROXIES_JSON for
-// several; one is picked at random per process start). Gateway WS traffic is
-// not proxied — only REST, which is what gets IP rate limited.
-const PROXY_URLS: string[] = (() => {
+// Optional proxy pool for Discord REST traffic, managed via the admin API.
+// The bot receives the pool at startup (LIMEBOT_PROXY / LIMEBOT_PROXIES_JSON)
+// and can also hot-swap proxies at runtime by polling the server's admin API
+// (LIMEBOT_ADMIN_TOKEN) — no restart needed. One proxy is picked at random and
+// swapped every POLL_MS. Gateway WS traffic is not proxied — only REST, which
+// is what gets IP rate limited.
+const POLL_MS = 5 * Millis.MINUTE;
+let proxyUrls: string[] = (() => {
     try {
         if (process.env.LIMEBOT_PROXIES_JSON) {
             const parsed = JSON.parse(process.env.LIMEBOT_PROXIES_JSON);
@@ -28,9 +31,25 @@ const PROXY_URLS: string[] = (() => {
     }
     return process.env.LIMEBOT_PROXY ? [process.env.LIMEBOT_PROXY] : [];
 })();
-const proxyUrl = PROXY_URLS.length
-    ? PROXY_URLS[Math.floor(Math.random() * PROXY_URLS.length)]
-    : undefined;
+let currentProxy: ProxyAgent | undefined;
+
+function pickProxy(): string | undefined {
+    return proxyUrls.length ? proxyUrls[Math.floor(Math.random() * proxyUrls.length)] : undefined;
+}
+
+function setProxy(url?: string) {
+    if (currentProxy) currentProxy.close().catch(() => {});
+    currentProxy = url ? new ProxyAgent(url) : undefined;
+    // Oceanic reads rest.options.agent on every request, so swapping it here
+    // takes effect immediately — no client restart needed.
+    (Vaius.rest.options as { agent?: unknown }).agent = currentProxy ?? null;
+    if (url) {
+        const host = (() => { try { return new URL(url).host; } catch { return "?"; } })();
+        console.log(`[proxy] routing Discord REST through ${host} (${proxyUrls.length} in pool)`);
+    } else {
+        console.log("[proxy] pool empty — Discord REST traffic now direct");
+    }
+}
 
 export const Vaius = new Client({
     auth: "Bot " + Config.token,
@@ -39,7 +58,7 @@ export const Vaius = new Client({
             ? ["ALL_NON_PRIVILEGED", "MESSAGE_CONTENT", "GUILD_MEMBERS"]
             : ["ALL_NON_PRIVILEGED", "GUILD_MEMBERS"]
     },
-    rest: proxyUrl ? { agent: new ProxyAgent(proxyUrl) as Client["rest"]["options"]["agent"] } : {},
+    rest: {},
     allowedMentions: {
         everyone: false,
         repliedUser: false,
@@ -48,10 +67,7 @@ export const Vaius = new Client({
     }
 });
 
-if (proxyUrl) {
-    const host = (() => { try { return new URL(proxyUrl).host; } catch { return "?"; } })();
-    console.log(`[proxy] routing Discord REST through proxy (${PROXY_URLS.length} in pool): ${host}`);
-}
+if (proxyUrls.length) setProxy(pickProxy());
 
 export let OwnerId: string;
 Vaius.once("ready", async () => {
@@ -74,6 +90,39 @@ Vaius.once("ready", async () => {
             .catch(() => Vaius.rest.channels.createMessage(channelId, { content: "hiiii :3" }));
     }
 });
+
+// Hot-swap the proxy pool at runtime: fetch the current enabled pool from the
+// server's admin API every POLL_MS and apply it if it changed.
+async function refreshProxyPool() {
+    const adminToken = process.env.LIMEBOT_ADMIN_TOKEN;
+    if (!adminToken) return;
+
+    try {
+        const res = await fetch(`${Config.limeyApiBase}/v1/admin/proxies`, {
+            headers: { Authorization: `Bearer ${adminToken}` },
+            signal: AbortSignal.timeout(15_000)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const urls: string[] = (data.proxies || [])
+            .filter((p: any) => p.enabled !== false)
+            .map((p: any) => p.url)
+            .filter(Boolean);
+
+        const changed = urls.length !== proxyUrls.length || urls.some((u, i) => u !== proxyUrls[i]);
+        if (changed) {
+            proxyUrls = urls;
+            setProxy(pickProxy());
+        }
+    } catch (err: any) {
+        console.error("[proxy] failed to refresh pool:", err?.message);
+    }
+}
+
+if (process.env.LIMEBOT_ADMIN_TOKEN) {
+    setInterval(refreshProxyPool, POLL_MS);
+    void refreshProxyPool();
+}
 
 const whitespaceRe = /\s+/;
 const GEN_AI_ID = "974297735559806986";

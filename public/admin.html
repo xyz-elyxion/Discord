@@ -156,14 +156,11 @@
         </div>
 
         <div class="card">
-            <h2>Add proxy</h2>
-            <p class="sub" style="margin-bottom:8px">HTTP(S) or SOCKS5 proxy used by limebot for Discord API traffic. The proxy is tested against discord.com before it is saved. Changes apply on the next bot restart.</p>
-            <label for="proxylabel">Label (optional)</label>
-            <input type="text" id="proxylabel" placeholder="e.g. resi-us-1" maxlength="60" />
-            <label for="proxyurl">Proxy URL</label>
-            <input type="password" id="proxyurl" placeholder="http://user:pass@host:port or socks5://host:port" autocomplete="off" />
-            <button id="addproxy">Add &amp; test proxy</button>
-            <div class="msg" id="addproxymsg"></div>
+            <h2>Add proxies</h2>
+            <p class="sub" style="margin-bottom:8px">One proxy per line (<code>label url</code> or just <code>url</code>). HTTP(S) or SOCKS5. Each is tested against discord.com before it is saved. The bot picks up pool changes automatically within ~5 minutes — no restart needed.</p>
+            <textarea id="proxytext" rows="5" style="width:100%;box-sizing:border-box;background:#0d0f13;color:#e6e6e6;border:1px solid #343842;border-radius:6px;padding:10px 12px;font-size:13px;font-family:monospace" placeholder="us-1 http://user:pass@host:port&#10;us-2 http://user:pass@host:port&#10;socks5://host:port"></textarea>
+            <button id="addproxies">Add &amp; test proxies</button>
+            <div class="msg" id="addproxiesmsg"></div>
         </div>
 
         <div class="card">
@@ -349,6 +346,36 @@
             loadProxies();
         } else {
             show(msg, data.error || "Failed to add proxy.", false);
+        }
+    };
+
+    document.getElementById("addproxies").onclick = async () => {
+        const msg = document.getElementById("addproxiesmsg");
+        const text = document.getElementById("proxytext").value.trim();
+        if (!text) return show(msg, "Enter at least one proxy first.", false);
+
+        show(msg, "Testing proxies against discord.com…", true);
+        const btn = document.getElementById("addproxies");
+        btn.disabled = true;
+        try {
+            const res = await fetch("/v1/admin/proxies/bulk", {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({ text })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                const failed = (data.results || []).filter(r => !r.ok);
+                let text = `Added ${data.added}/${data.total} proxies.`;
+                if (failed.length) text += " Failed: " + failed.map(f => `${f.line} — ${f.error}`).join("; ");
+                show(msg, text, failed.length === 0);
+                if (data.added > 0) document.getElementById("proxytext").value = "";
+                loadProxies();
+            } else {
+                show(msg, data.error || "Failed to add proxies.", false);
+            }
+        } finally {
+            btn.disabled = false;
         }
     };
 
