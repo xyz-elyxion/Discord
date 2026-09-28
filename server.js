@@ -21,10 +21,9 @@ const CLOUD_PORT = Number(process.env.CLOUD_PORT) || 3099;
 const CLOUD_HOST = "127.0.0.1";
 
 // ------------------------------------------------------------------
-// Persistent storage — Render Redis (RESP over TCP, zero dependencies).
-// Uses the same REDIS_URI env var as the Go LimeyCloud backend. When it
-// is not set, falls back to local JSON files in data/ (local dev).
-// ------------------------------------------------------------------
+// Persistent storage — PostgreSQL (Supabase) via the `pg` client.
+// Uses the DATABASE_URL env var. When it is not set, falls back to local
+// JSON files in data/ (local dev). See pgkv.js.
 const net = require("net");
 
 // ------------------------------------------------------------------
@@ -315,119 +314,11 @@ function startBuildIfMissing() {
     }
 }
 
-function parseRedisUri(uri) {
-    if (!uri) return null;
-    const m = /^redis[s]?:\/\/([^/?@]+@)?([^\/:?]+):(\d+)(?:\/?$|\?)/.exec(uri.trim());
-    if (!m) return null;
-    return { host: m[2], port: Number(m[3]), password: m[1] ? decodeURIComponent(m[1].slice(0, -1)) : null };
-}
+const PGKV = require("./pgkv");
+const KV_ENABLED = PGKV.pgEnabled();
 
-const REDIS_CONF = parseRedisUri(process.env.REDIS_URI);
-const KV_ENABLED = Boolean(REDIS_CONF);
-
-let redisSock = null;
-let redisBuf = Buffer.alloc(0);
-let redisWaiters = []; // { resolve, reject, isBulk }
-let redisQueue = []; // pending { cmd, resolve, reject, isBulk }
-let redisConnected = false;
-
-function redisSendRaw(cmdParts, isBulk) {
-    return new Promise((resolve, reject) => {
-        const entry = { cmd: cmdParts, resolve, reject, isBulk };
-        if (redisConnected && redisSock) {
-            writeRedisCommand(entry);
-        } else {
-            redisQueue.push(entry);
-            connectRedis();
-        }
-    });
-}
-
-function writeRedisCommand(entry) {
-    const parts = entry.cmd.map(s => {
-        const b = Buffer.from(String(s));
-        return `$${b.length}\r\n${b}\r\n`;
-    });
-    const payload = Buffer.from(`*${entry.cmd.length}\r\n` + parts.join(""));
-    // Waiters are FIFO; attach this entry as the next waiter
-    redisWaiters.push(entry);
-    redisSock.write(payload);
-}
-
-function connectRedis() {
-    if (redisSock || !REDIS_CONF) return;
-    const sock = net.createConnection({ host: REDIS_CONF.host, port: REDIS_CONF.port });
-    sock.setNoDelay(true);
-    redisSock = sock;
-
-    sock.on("connect", () => {
-        redisConnected = true;
-        if (REDIS_CONF.password) {
-            redisWaiters.push({ resolve: () => {}, reject: () => {}, isBulk: false });
-            sock.write(Buffer.from(`*2\r\n$4\r\nAUTH\r\n$${Buffer.byteLength(REDIS_CONF.password)}\r\n${REDIS_CONF.password}\r\n`));
-        }
-        const queued = redisQueue.splice(0);
-        for (const entry of queued) writeRedisCommand(entry);
-    });
-
-    sock.on("data", chunk => {
-        redisBuf = Buffer.concat([redisBuf, chunk]);
-        let nl;
-        while ((nl = redisBuf.indexOf("\r\n")) !== -1) {
-            const line = redisBuf.slice(0, nl).toString();
-            const type = line[0];
-            const body = line.slice(1);
-            const waiter = redisWaiters.shift();
-
-            if (type === "$") {
-                const len = Number(body);
-                if (len === -1) {
-                    redisBuf = redisBuf.slice(nl + 2);
-                    waiter?.resolve(null);
-                    continue;
-                }
-                const need = nl + 2 + len + 2;
-                if (redisBuf.length < need) {
-                    // Wait for more data — put the waiter back
-                    if (waiter) redisWaiters.unshift(waiter);
-                    return;
-                }
-                const data = redisBuf.slice(nl + 2, nl + 2 + len).toString();
-                redisBuf = redisBuf.slice(need);
-                waiter?.resolve(data);
-                continue;
-            }
-
-            redisBuf = redisBuf.slice(nl + 2);
-            if (type === "-") waiter?.reject(new Error(body));
-            else waiter?.resolve(body);
-        }
-    });
-
-    function fail(err) {
-        redisConnected = false;
-        redisSock = null;
-        redisBuf = Buffer.alloc(0);
-        const waiters = redisWaiters.splice(0);
-        for (const w of waiters) w.reject?.(err);
-    }
-
-    sock.on("error", () => fail(new Error("redis connection error")));
-    sock.on("close", () => fail(new Error("redis connection closed")));
-}
-
-function kvSet(key, value) {
-    if (!KV_ENABLED) return;
-    redisSendRaw(["SET", key, JSON.stringify(value)], false)
-        .catch(err => console.error(`[kv] set ${key} failed:`, err.message));
-}
-
-async function kvGet(key) {
-    return redisSendRaw(["GET", key], true);
-}
-
-// Hydrate the in-memory stores from Redis at startup (local files are
-// only used as a fallback when Redis is not configured).
+// Hydrate the in-memory stores from PostgreSQL at startup (local files are
+// only used as a fallback when DATABASE_URL is not configured).
 async function hydrateKv() {
     if (!KV_ENABLED) return;
     try {
@@ -453,7 +344,7 @@ async function hydrateKv() {
                 if (typeof parsed === "object" && !Array.isArray(parsed)) badgesData = parsed;
             } catch { }
         }
-        console.log(`[kv] hydrated stores from Redis (${REDIS_CONF.host}:${REDIS_CONF.port})`);
+        console.log(`[kv] hydrated stores from PostgreSQL`);
     } catch (err) {
         console.error("[kv] failed to hydrate from Redis:", err.message);
     }
@@ -1117,11 +1008,10 @@ async function handleDetector(req, res, url) {
     return false;
 }
 
-// The Go redis client wants a bare host:port; accept full redis:// URLs too.
+// Persistence is now handled by PostgreSQL (pgkv.js); the Go cloud backend
+// still takes a REDIS_URI for its own use.
 function normalizeRedisUri(uri) {
-    if (!uri) return uri;
-    const conf = parseRedisUri(uri);
-    return conf ? `${conf.host}:${conf.port}` : uri.trim();
+    return uri ? uri.trim() : uri;
 }
 
 // ------------------------------------------------------------------
@@ -1132,7 +1022,7 @@ try {
     reviewdb = require("./reviewdb-backend");
     // Let the reviewdb backend mirror its persisted database to Redis
     global.__reviewdbKvSet = kvSet;
-    console.log("[reviewdb] backend loaded (redis persistence: " + KV_ENABLED + ")");
+    console.log("[reviewdb] backend loaded (postgres persistence: " + KV_ENABLED + ")");
 } catch (err) {
     console.error("[reviewdb] failed to load backend:", err.message);
 }
@@ -1461,7 +1351,7 @@ startBuildIfMissing();
 startCloud();
 startLimebot();
 
-// Wait for Redis hydration (if configured) before accepting requests
+// Wait for PostgreSQL hydration (if configured) before accepting requests
 hydrateKv().then(() => {
     return kvGet("limey:status");
 }).then(stored => {
@@ -1470,6 +1360,6 @@ hydrateKv().then(() => {
     }
 }).finally(() => {
     server.listen(PORT, HOST, () => {
-        console.log(`Limey V1 web server running at http://${HOST}:${PORT} (persistent storage: ${KV_ENABLED ? `Redis ${REDIS_CONF.host}:${REDIS_CONF.port}` : "local files"})`);
+        console.log(`Limey V1 web server running at http://${HOST}:${PORT} (persistent storage: ${KV_ENABLED ? "PostgreSQL" : "local files"})`);
     });
 });
