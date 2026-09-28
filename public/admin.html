@@ -155,18 +155,7 @@
             <div id="toklist"></div>
         </div>
 
-        <div class="card">
-            <h2>Add proxies</h2>
-            <p class="sub" style="margin-bottom:8px">One proxy per line (<code>label url</code> or just <code>url</code>). HTTP(S) or SOCKS5. Each is tested against discord.com before it is saved. The bot picks up pool changes automatically within ~5 minutes — no restart needed.</p>
-            <textarea id="proxytext" rows="5" style="width:100%;box-sizing:border-box;background:#0d0f13;color:#e6e6e6;border:1px solid #343842;border-radius:6px;padding:10px 12px;font-size:13px;font-family:monospace" placeholder="us-1 http://user:pass@host:port&#10;us-2 http://user:pass@host:port&#10;socks5://host:port"></textarea>
-            <button id="addproxies">Add &amp; test proxies</button>
-            <div class="msg" id="addproxiesmsg"></div>
-        </div>
 
-        <div class="card">
-            <h2>Proxy pool <span id="proxycount" class="badge">0</span></h2>
-            <div id="proxylist"></div>
-        </div>
     </div>
 </div>
 
@@ -220,69 +209,6 @@
         document.getElementById("poolcount").textContent = (data.tokens || []).length;
     }
 
-    async function loadProxies() {
-        const res = await fetch("/v1/admin/proxies", { headers: authHeaders() });
-        if (!res.ok) return;
-        const data = await res.json();
-        const list = document.getElementById("proxylist");
-        list.innerHTML = "";
-        (data.proxies || []).forEach(p => {
-            const row = document.createElement("div");
-            row.className = "token-row";
-
-            const meta = document.createElement("div");
-            meta.className = "token-meta";
-            const test = p.lastTest
-                ? (p.lastTest.ok ? `✅ ${p.lastTest.latencyMs}ms` : `❌ ${p.lastTest.error || "failed"}`)
-                : "untested";
-            meta.innerHTML =
-                `<span class="token-id">${escapeHtml(p.label || "proxy")}</span>` +
-                `<span class="badge ${p.enabled ? "" : "hf"}">${p.enabled ? "enabled" : "disabled"}</span>` +
-                `<div class="token-sub">${escapeHtml(p.preview)} · last test: ${escapeHtml(test)} · added ${new Date(p.addedAt).toLocaleDateString()}</div>`;
-            row.appendChild(meta);
-
-            const btns = document.createElement("div");
-            btns.style.display = "flex";
-            btns.style.gap = "6px";
-
-            const testBtn = document.createElement("button");
-            testBtn.className = "danger";
-            testBtn.textContent = "Test";
-            testBtn.onclick = async () => {
-                testBtn.disabled = true;
-                testBtn.textContent = "…";
-                await fetch(`/v1/admin/proxies/${p.id}/test`, { method: "POST", headers: authHeaders() });
-                loadProxies();
-            };
-
-            const toggle = document.createElement("button");
-            toggle.className = "danger";
-            toggle.textContent = p.enabled ? "Disable" : "Enable";
-            toggle.onclick = async () => {
-                await fetch(`/v1/admin/proxies/${p.id}/enabled`, {
-                    method: "PUT",
-                    headers: authHeaders(),
-                    body: JSON.stringify({ enabled: !p.enabled })
-                });
-                loadProxies();
-            };
-
-            const del = document.createElement("button");
-            del.className = "danger";
-            del.textContent = "Remove";
-            del.onclick = async () => {
-                if (!confirm("Remove this proxy from the pool?")) return;
-                await fetch(`/v1/admin/proxies/${p.id}`, { method: "DELETE", headers: authHeaders() });
-                loadProxies();
-            };
-
-            btns.append(testBtn, toggle, del);
-            row.appendChild(btns);
-            list.appendChild(row);
-        });
-        document.getElementById("proxycount").textContent = (data.proxies || []).length;
-    }
-
     function escapeHtml(s) {
         return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     }
@@ -296,7 +222,6 @@
             document.getElementById("content").classList.remove("hidden");
             show(document.getElementById("lockmsg"), "", true);
             loadTokens();
-            loadProxies();
         } else {
             show(document.getElementById("lockmsg"), "Wrong admin token.", false);
         }
@@ -326,36 +251,6 @@
         }
     };
 
-    document.getElementById("addproxies").onclick = async () => {
-        const msg = document.getElementById("addproxiesmsg");
-        const text = document.getElementById("proxytext").value.trim();
-        if (!text) return show(msg, "Enter at least one proxy first.", false);
-
-        show(msg, "Testing proxies against discord.com…", true);
-        const btn = document.getElementById("addproxies");
-        btn.disabled = true;
-        try {
-            const res = await fetch("/v1/admin/proxies/bulk", {
-                method: "POST",
-                headers: authHeaders(),
-                body: JSON.stringify({ text })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                const failed = (data.results || []).filter(r => !r.ok);
-                let text = `Added ${data.added}/${data.total} proxies.`;
-                if (failed.length) text += " Failed: " + failed.map(f => `${f.line} — ${f.error}`).join("; ");
-                show(msg, text, failed.length === 0);
-                if (data.added > 0) document.getElementById("proxytext").value = "";
-                loadProxies();
-            } else {
-                show(msg, data.error || "Failed to add proxies.", false);
-            }
-        } finally {
-            btn.disabled = false;
-        }
-    };
-
     if (adminToken) {
         // Try restoring the session
         fetch("/v1/admin/ai/tokens", { headers: authHeaders() }).then(res => {
@@ -363,7 +258,6 @@
                 document.getElementById("lockbox").classList.add("hidden");
                 document.getElementById("content").classList.remove("hidden");
                 loadTokens();
-                loadProxies();
             }
         });
     }

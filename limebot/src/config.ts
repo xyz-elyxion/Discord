@@ -6,7 +6,7 @@ const Config = {
     // "development" | "production"
     "mode": "development",
 
-    // base URL of the limey web server (used for the admin proxy pool refresh)
+    // base URL of the limey web server (used to update the public status endpoint)
     "limeyApiBase": process.env.LIMEY_API_BASE || "http://127.0.0.1:" + (process.env.PORT || 3000),
 
     "channels": {

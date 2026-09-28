@@ -9,6 +9,7 @@ import {
 } from "oceanic.js";
 
 import { Vaius } from "./Client";
+import { announceStatus } from "./modules/statusAnnouncer";
 import { PROD } from "./constants";
 
 import { initModListeners } from "./modules/moderation/listeners";
@@ -58,13 +59,21 @@ async function connectWithRetry(attempt = 1): Promise<void> {
     try {
         await Vaius.connect();
         console.log("Connected to Discord gateway");
+        await announceStatus("", false);
     } catch (err: any) {
-        // If Discord rate-limited us, wait exactly as long as it asks (+ buffer)
+        const isRateLimit = err?.cause?.name === "RateLimitedError" || err?.cause?.delay != null;
         const rateLimitDelay: number | undefined = err?.cause?.delay;
         const delay = rateLimitDelay != null
-            ? rateLimitDelay + 10_000
+            ? Math.min(rateLimitDelay + 10_000, 5 * 60_000)
             : Math.min(2 ** attempt * 60_000, 10 * 60_000);
         console.error(`Failed to connect to Discord gateway (attempt ${attempt}), retrying in ${Math.round(delay / 1000)}s:`, err);
+        if (isRateLimit) {
+            await announceStatus(
+                `The bot hit Discord's IP rate limit while connecting (retry in ~${Math.round(delay / 1000)}s). ` +
+                "Limey V1 itself is unaffected — installing and updating still work.",
+                true
+            );
+        }
         setTimeout(() => connectWithRetry(attempt + 1), delay).unref();
     }
 }

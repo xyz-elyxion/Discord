@@ -89,6 +89,18 @@ body {
     color: var(--lime);
 }
 
+/* Status banner (bot-driven outage/rate-limit notice) */
+.status-banner {
+    background: #3a2c10;
+    color: #ffd479;
+    border-bottom: 1px solid #6b531c;
+    padding: 10px 16px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+}
+.status-banner.hidden { display: none; }
+
 /* Hero */
 .hero {
     padding: 96px 0 80px;

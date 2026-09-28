@@ -29,4 +29,18 @@
     if (footer) {
         footer.innerHTML = footer.innerHTML.replace("GPL-3.0", `GPL-3.0 &copy; ${new Date().getFullYear()}`);
     }
+
+    // Status banner — filled by limebot when Discord rate limits are ongoing
+    const banner = document.getElementById("status-banner");
+    if (banner) {
+        fetch("/v1/status")
+            .then(res => res.json())
+            .then(status => {
+                if (status && status.active && status.message) {
+                    banner.textContent = "⚠️ " + status.message;
+                    banner.classList.remove("hidden");
+                }
+            })
+            .catch(() => { /* status endpoint unreachable — no banner */ });
+    }
 })();
