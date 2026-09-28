@@ -8,12 +8,9 @@ import { FluxStore } from "@limeyV1/discord-types";
 import { Devs } from "@utils/constants";
 import { sleep } from "@utils/misc";
 import definePlugin from "@utils/types";
-import { findStoreLazy } from "@webpack";
-import { NotificationSettingsStore, RelationshipStore } from "@webpack/common";
+import { GuildReadStateStore, NotificationSettingsStore, RelationshipStore } from "@webpack/common";
 
 import managedStyle from "./styles.css?managed";
-
-const GuildReadStateStore: FluxStore & { getTotalMentionCount: () => number; hasAnyUnread: () => boolean; } = findStoreLazy("GuildReadStateStore");
 
 let _keybinds: Record<string, { onTrigger: () => any; }>;
 
