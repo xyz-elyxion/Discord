@@ -71,6 +71,9 @@ export const Vaius = new Client({
             ? ["ALL_NON_PRIVILEGED", "MESSAGE_CONTENT", "GUILD_MEMBERS"]
             : ["ALL_NON_PRIVILEGED", "GUILD_MEMBERS"]
     },
+    // Default is 15s, which is too tight when REST traffic goes through a
+    // proxy (observed ~10s round trips).
+    rest: { requestTimeout: 45_000 },
     allowedMentions: {
         everyone: false,
         repliedUser: false,
