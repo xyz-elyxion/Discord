@@ -42,6 +42,14 @@ let previousCache: PreviousChannel | undefined;
 
 export default definePlugin({
     name: "KeepCurrentChannel",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     description: "Attempt to navigate to the channel you were in before switching accounts or loading Discord.",
     tags: ["Utility", "Organisation"],
     authors: [Devs.Nuckyz],

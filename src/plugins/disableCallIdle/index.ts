@@ -21,6 +21,14 @@ import definePlugin from "@utils/types";
 
 export default definePlugin({
     name: "DisableCallIdle",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Disables automatically getting kicked from a DM voice call after 3 minutes and being moved to an AFK voice channel.",
     tags: ["Voice", "Utility"],
     authors: [Devs.Nuckyz],

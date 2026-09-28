@@ -156,6 +156,14 @@ function GameActivityToggleButton(props: { nameplate?: any; }) {
 
 export default definePlugin({
     name: "GameActivityToggle",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds a button next to the mic and deafen button to toggle game activity. Right click it to toggle Spotify activity.",
     tags: ["Activity", "Shortcuts"],
     authors: [Devs.Nuckyz, Devs.RuukuLada],

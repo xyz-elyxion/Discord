@@ -219,6 +219,14 @@ function OtherUserPlatformIndicators({ user, small = false }: { user: User; smal
 
 export default definePlugin({
     name: "PlatformIndicators",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds platform indicators (Desktop, Mobile, Web...) to users",
     tags: ["Appearance"],
     authors: [Devs.kemo, Devs.TheSun, Devs.Nuckyz, Devs.Ven],

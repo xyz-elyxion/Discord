@@ -33,6 +33,14 @@ function getCounterColor(percentage: number) {
 
 export default definePlugin({
     name: "CharacterCounter",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds a character counter to the chat input",
     authors: [Devs.thororen, Devs.creations],
     tags: ["Utility"],

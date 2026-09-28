@@ -24,6 +24,14 @@ let ERROR_CODES: Record<string, string> | undefined;
 
 export default definePlugin({
     name: "ReactErrorDecoder",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: 'Replaces "Minified React Error" with the actual error.',
     tags: ["Developers"],
     authors: [Devs.Cyn, Devs.maisymoe],

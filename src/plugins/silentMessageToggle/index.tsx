@@ -102,6 +102,14 @@ const SilentMessageToggle: ChatBarButtonFactory = ({ isMainChat }) => {
 
 export default definePlugin({
     name: "SilentMessageToggle",
+    permissions: [
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        }
+    ],
     authors: [Devs.Nuckyz, Devs.CatNoir],
     description: "Adds a button to the chat bar to toggle sending a silent message.",
     tags: ["Chat", "Utility"],

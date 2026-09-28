@@ -35,6 +35,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "OnePingPerDM",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "If unread messages are sent by a user in DMs multiple times, you'll only receive one audio ping. Read the messages to reset the limit",
     tags: ["Notifications", "Customisation"],
     authors: [Devs.ProffDea],

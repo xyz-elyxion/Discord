@@ -204,6 +204,14 @@ function parseKeybind(raw: string): ParsedKeybind | null {
 
 export default definePlugin({
     name: "FakeDeafen",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Appear muted, deafened, or streaming to others while your local audio is unaffected.",
     authors: [Devs.Vencipher],
     settings,

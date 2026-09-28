@@ -43,6 +43,12 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "NoTrack",
+    permissions: [{
+        id: "suppressTelemetry",
+        title: "Block Discord telemetry",
+        description: "Intercepts outbound tracking/analytics requests and drops them.",
+        risk: "Minimal - it only removes outbound tracking traffic."
+    }],
     description: "Disable Discord's tracking (analytics/'science'), metrics and Sentry crash reporting",
     authors: [Devs.Cyn, Devs.Ven, Devs.Nuckyz, Devs.Arrow],
     required: true,

@@ -67,6 +67,14 @@ export const settings = definePluginSettings({
 
 export default definePlugin({
     name: "PinDMs",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Allows you to pin private channels to the top of your DM list. To pin/unpin or re-order pins, right click DMs",
     tags: ["Friends", "Organisation"],
     authors: [Devs.Ven, Devs.Aria],

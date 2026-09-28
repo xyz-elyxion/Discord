@@ -26,6 +26,14 @@ export interface AvatarDecoration {
 
 export default definePlugin({
     name: "Decor",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Create and use your own custom avatar decorations, or pick your favorite from the presets.",
     tags: ["Appearance", "Customisation"],
     authors: [Devs.FieryFlames],

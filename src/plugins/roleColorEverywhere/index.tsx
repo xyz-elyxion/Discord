@@ -73,6 +73,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "RoleColorEverywhere",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.KingFish, Devs.lewisakura, Devs.AutumnVN, Devs.Kyuuhachi, Devs.jamesbt365],
     description: "Adds the top role color anywhere possible",
     tags: ["Roles", "Appearance"],

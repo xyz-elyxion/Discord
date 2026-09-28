@@ -54,6 +54,14 @@ async function toggleHide(channelId: string, messageId: string) {
 
 export default definePlugin({
     name: "HideMedia",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     description: "Hide attachments and embeds for individual messages via hover button",
     tags: ["Chat", "Appearance"],
     authors: [Devs.Ven],

@@ -129,6 +129,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "WhoReacted",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Renders the avatars of users who reacted to a message",
     tags: ["Reactions", "Chat", "Appearance"],
     authors: [Devs.Ven, Devs.KannaDev, Devs.newwares, Devs.paige],

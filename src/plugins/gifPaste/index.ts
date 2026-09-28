@@ -23,6 +23,14 @@ import { ExpressionPickerStore } from "@webpack/common";
 
 export default definePlugin({
     name: "GifPaste",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Makes picking a gif in the gif picker insert a link into the chatbox instead of instantly sending it",
     tags: ["Media", "Chat"],
     authors: [Devs.Ven],

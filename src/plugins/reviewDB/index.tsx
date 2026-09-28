@@ -71,6 +71,14 @@ const userContextPatch: NavContextMenuPatchCallback = (children, { user }: { use
 
 export default definePlugin({
     name: "ReviewDB",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Review other users (Adds a new settings to profiles)",
     tags: ["Friends", "Servers"],
     authors: [Devs.mantikafasi, Devs.Ven],

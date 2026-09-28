@@ -567,6 +567,14 @@ const { ModalRoot, ModalContent, ModalFooter } = Modals as any;
 
 export default definePlugin({
     name: "GifCaptioner",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Add a caption or speech bubble to GIFs (attachments, gif links and link previews) and send the result as a new gif. Converted from the BetterDiscord plugin by TheLazySquid.",
     tags: ["Fun", "Utility"],
     authors: [Devs.Limey],

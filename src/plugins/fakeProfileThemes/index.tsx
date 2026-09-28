@@ -195,6 +195,14 @@ function SettingsAboutComponent() {
 
 export default definePlugin({
     name: "FakeProfileThemes",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Allows profile theming by hiding the colors in your bio thanks to invisible 3y3 encoding",
     tags: ["Appearance", "Customisation"],
     authors: [Devs.Alyxia, Devs.Remty],

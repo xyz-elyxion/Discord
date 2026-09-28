@@ -52,6 +52,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "BetterSessions",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     description: "Enhances the sessions (devices) menu. Allows you to view exact timestamps, give each session a custom name, and receive notifications about new sessions.",
     authors: [Devs.amia],
     tags: ["Notifications", "Customisation", "Utility"],

@@ -46,6 +46,14 @@ const UserContextMenuPatch: NavContextMenuPatchCallback = (children, { user }: U
 
 export default definePlugin({
     name: "CopyUserURLs",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.castdrian],
     description: "Adds a 'Copy User URL' option to the user context menu.",
     tags: ["Utility", "Friends"],

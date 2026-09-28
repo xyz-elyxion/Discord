@@ -58,6 +58,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "MessageClickActions",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Hold Backspace and click to delete, double click to edit/reply",
     tags: ["Chat", "Shortcuts"],
     authors: [Devs.Ven],

@@ -85,6 +85,26 @@ function Flag({ id }: { id: string; }) {
 
 export default definePlugin({
     name: "UserFlags",
+    permissions: [
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        },
+        {
+            id: "registerCommands",
+            title: "Register chat commands",
+            description: "Adds slash-style commands that can read your input and send messages on your behalf.",
+            risk: "Command input and any messages sent through them are handled by this plugin."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     description: 'Add "flags" to users that will always show under their messages',
     authors: [Devs.nin0dev],
     dependencies: ["MessageAccessoriesAPI"],

@@ -126,6 +126,14 @@ const PreviewButton: ChatBarButtonFactory = ({ isAnyChat, isEmpty, type: { attac
 
 export default definePlugin({
     name: "PreviewMessage",
+    permissions: [
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        }
+    ],
     description: "Lets you preview your message before sending it.",
     tags: ["Chat", "Utility"],
     authors: [Devs.Aria],

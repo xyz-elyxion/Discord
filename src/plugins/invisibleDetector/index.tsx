@@ -215,6 +215,14 @@ const onPresenceUpdate = (e: any) => {
 
 export default definePlugin({
     name: "InvisibleDetector",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Marks users with ❗ who appear offline but show activity. Highlights them in the member list and chat.",
     authors: [Devs.Vencipher],
     settings,

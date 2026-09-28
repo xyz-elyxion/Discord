@@ -23,6 +23,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "FixImagesQuality",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Improves quality of images by loading them at their original resolution",
     tags: ["Media", "Appearance"],
     authors: [Devs.Nuckyz, Devs.Ven],

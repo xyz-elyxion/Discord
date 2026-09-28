@@ -90,6 +90,20 @@ export function registerTagCommand(tag: Tag) {
 migratePluginSettings("CustomCommands", "MessageTags");
 export default definePlugin({
     name: "CustomCommands",
+    permissions: [
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        },
+        {
+            id: "registerCommands",
+            title: "Register chat commands",
+            description: "Adds slash-style commands that can read your input and send messages on your behalf.",
+            risk: "Command input and any messages sent through them are handled by this plugin."
+        }
+    ],
     description: "Allows you to create custom slash commands / tags",
     searchTerms: ["MessageTags"],
     authors: [Devs.Ven, Devs.Luna,],

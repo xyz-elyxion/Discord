@@ -22,6 +22,14 @@ import { moment } from "@webpack/common";
 
 export default definePlugin({
     name: "DontRoundMyTimestamps",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.Lexi],
     description: "Always rounds relative timestamps down, so 7.6y becomes 7y instead of 8y",
     tags: ["Appearance", "Utility"],

@@ -73,6 +73,14 @@ function buildSpeedCss(speed: number): string {
 
 export default definePlugin({
     name: "BetterAnimations",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Change Discord's loading animations: pick a different spinner style and adjust the animation speed. Converted from the BetterDiscord plugin by arg0NNY.",
     tags: ["Appearance", "Utility"],
     authors: [Devs.Limey],

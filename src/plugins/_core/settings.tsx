@@ -99,6 +99,12 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "Settings",
+    permissions: [{
+        id: "uiPatches",
+        title: "Patch Discord's settings UI",
+        description: "Builds the Limey V1 settings panel and injects it into Discord's user settings.",
+        risk: "Internal Limey V1 component; bugs can break the settings page until fixed."
+    }],
     description: "Adds Settings UI and debug info",
     authors: [Devs.Ven, Devs.Megu],
     required: true,

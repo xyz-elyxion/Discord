@@ -21,6 +21,14 @@ import definePlugin from "@utils/types";
 
 export default definePlugin({
     name: "NoDevtoolsWarning",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Disables the 'HOLD UP' banner in the console. As a side effect, also prevents Discord from hiding your token, which prevents random logouts.",
     authors: [Devs.Ven],
     tags: ["Developers", "Console"],

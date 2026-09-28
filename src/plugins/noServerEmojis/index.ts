@@ -24,6 +24,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "NoServerEmojis",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.UlyssesZhan],
     description: "Do not show server emojis in the autocomplete menu.",
     tags: ["Emotes", "Servers"],

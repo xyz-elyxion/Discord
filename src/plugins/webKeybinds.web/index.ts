@@ -39,6 +39,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "WebKeybinds",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Re-adds keybinds missing in the web version of Discord. Only works fully on Vesktop/Legcord, not inside your browser",
     tags: ["Shortcuts"],
     authors: [Devs.Ven, Devs.Davri],

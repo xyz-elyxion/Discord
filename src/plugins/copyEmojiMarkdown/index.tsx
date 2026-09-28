@@ -51,6 +51,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "CopyEmojiMarkdown",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Allows you to copy emojis as formatted string (<:blobcatcozy:1026533070955872337>)",
     tags: ["Emotes", "Utility"],
     authors: [Devs.HappyEnderman, Devs.Vishnya],

@@ -35,6 +35,14 @@ const settings = definePluginSettings(
 
 export default definePlugin({
     name: "ImplicitRelationships",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Shows your implicit relationships in the Friends tab.",
     tags: ["Friends", "Servers"],
     authors: [Devs.Dolfies],

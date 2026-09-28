@@ -9,6 +9,14 @@ import definePlugin from "@utils/types";
 
 export default definePlugin({
     name: "ImageLink",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Never hide image links in messages, even if it's the only content",
     tags: ["Media", "Appearance"],
     authors: [Devs.Kyuuhachi, Devs.Sqaaakoi],

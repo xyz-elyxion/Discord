@@ -49,6 +49,14 @@ interface StreamData {
 
 export default definePlugin({
     name: "VolumeBooster",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     authors: [Devs.Nuckyz, Devs.sadan],
     description: "Allows you to set the user and stream volume above the default maximum",
     tags: ["Voice", "Utility"],

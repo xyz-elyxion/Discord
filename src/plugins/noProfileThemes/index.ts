@@ -22,6 +22,14 @@ import { UserStore } from "@webpack/common";
 
 export default definePlugin({
     name: "NoProfileThemes",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Completely removes Nitro profile themes from everyone but yourself",
     tags: ["Appearance"],
     authors: [Devs.TheKodeToad],

@@ -11,6 +11,14 @@ import definePlugin from "@utils/types";
 
 export default definePlugin({
     name: "VoiceDownload",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds a download to voice messages. (Opens a new browser tab)",
     tags: ["Voice", "Media"],
     authors: [Devs.puv],

@@ -21,6 +21,14 @@ import definePlugin from "@utils/types";
 
 export default definePlugin({
     name: "iLoveSpam",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Do not hide messages from 'likely spammers'",
     tags: ["Utility", "Chat"],
     authors: [Devs.botato, Devs.Nyako],

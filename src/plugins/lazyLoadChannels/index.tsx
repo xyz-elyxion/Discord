@@ -188,6 +188,14 @@ const STYLE = `#lazyLoader {
 
 export default definePlugin({
     name: "LazyLoadChannels",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     description: "Lets you choose whether to load a channel. Converted from the BetterDiscord plugin by Skamt.",
     tags: ["Utility"],
     authors: [Devs.Limey],

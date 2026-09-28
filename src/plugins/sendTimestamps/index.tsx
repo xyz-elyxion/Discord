@@ -152,6 +152,14 @@ const SendTimestampButton: ChatBarButtonFactory = ({ isAnyChat }) => {
 
 export default definePlugin({
     name: "SendTimestamps",
+    permissions: [
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        }
+    ],
     description: "Send timestamps easily via chat box button & text shortcuts. Read the extended description!",
     tags: ["Chat", "Commands"],
     authors: [Devs.Ven, Devs.Tyler, Devs.Grzesiek11],

@@ -165,6 +165,12 @@ function DevBuildConfirmModal(props: RenderModalProps) {
 
 export default definePlugin({
     name: "SupportHelper",
+    permissions: [{
+        id: "collectSupportInfo",
+        title: "Collect client debug info",
+        description: "Gathers plugin list, versions and store dumps when you open a support thread.",
+        risk: "Debug dumps can contain server IDs and user IDs - review before posting publicly."
+    }],
     required: true,
     description: "Helps us provide support to you",
     authors: [Devs.Ven],

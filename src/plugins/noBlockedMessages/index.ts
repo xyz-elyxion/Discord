@@ -48,6 +48,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "NoBlockedMessages",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Hides all blocked/ignored messages from chat completely",
     authors: [Devs.rushii, Devs.Samu, Devs.jamesbt365],
     tags: ["Accessibility", "Chat"],

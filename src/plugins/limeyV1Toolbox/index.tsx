@@ -79,6 +79,14 @@ function LimeyV1PopoutButton() {
 
 export default definePlugin({
     name: "LimeyV1Toolbox",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds a button to the titlebar that houses Limey V1 quick actions",
     tags: ["Utility", "Developers"],
     authors: [Devs.Ven, Devs.AutumnVN],

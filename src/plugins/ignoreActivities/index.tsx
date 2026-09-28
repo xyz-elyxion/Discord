@@ -284,6 +284,14 @@ function isActivityTypeIgnored(type: number, id?: string) {
 
 export default definePlugin({
     name: "IgnoreActivities",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.Nuckyz, Devs.Kylie],
     description: "Ignore activities from showing up on your status ONLY. You can configure which ones are specifically ignored from the Registered Games and Activities tabs, or use the general settings below",
     tags: ["Activity", "Privacy", "Customisation"],

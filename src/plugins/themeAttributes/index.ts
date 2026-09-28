@@ -13,6 +13,14 @@ import { UserStore } from "@webpack/common";
 
 export default definePlugin({
     name: "ThemeAttributes",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds data attributes to various elements for theming purposes",
     tags: ["Appearance", "Customisation"],
     authors: [Devs.Ven, Devs.Board],

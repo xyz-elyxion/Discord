@@ -227,6 +227,14 @@ const messageContextMenu: NavContextMenuPatchCallback = (children, props) => {
 
 export default definePlugin({
     name: "Quoter",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Right-click a message to generate a stylish quote image (avatar + text + attribution) and send it to the channel. Converted from the BetterDiscord plugin by Kaan.",
     tags: ["Fun", "Utility"],
     authors: [Devs.Limey],

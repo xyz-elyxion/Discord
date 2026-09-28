@@ -32,6 +32,14 @@ import { clearStyles } from "./utils/createStyle";
 
 export default definePlugin({
     name: "ShikiCodeblocks",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Brings vscode-style codeblocks into Discord, powered by Shiki",
     tags: ["Appearance", "Chat", "Customisation"],
     authors: [Devs.Vap],

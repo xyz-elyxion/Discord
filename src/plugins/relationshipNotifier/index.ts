@@ -25,6 +25,14 @@ import { syncAndRunChecks, syncFriends, syncGroups, syncGuilds } from "./utils";
 
 export default definePlugin({
     name: "RelationshipNotifier",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Notifies you when a friend, group chat, or server removes you.",
     tags: ["Friends", "Notifications"],
     authors: [Devs.nick],

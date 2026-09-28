@@ -33,6 +33,14 @@ export const settings = definePluginSettings({
 
 export default definePlugin({
     name: "ProfileSets",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Allows you to save and load different profile presets, via the Profile Section in Settings.",
     authors: [Devs.omaw, Devs.justjxke],
     tags: ["Customisation"],

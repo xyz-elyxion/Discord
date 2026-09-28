@@ -27,6 +27,20 @@ const FriendInvites = findByPropsLazy("createFriendInvite");
 
 export default definePlugin({
     name: "FriendInvites",
+    permissions: [
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        },
+        {
+            id: "registerCommands",
+            title: "Register chat commands",
+            description: "Adds slash-style commands that can read your input and send messages on your behalf.",
+            risk: "Command input and any messages sent through them are handled by this plugin."
+        }
+    ],
     description: "Create and manage friend invite links via slash commands (/create friend invite, /view friend invites, /revoke friend invites) and adds a Friend Codes panel to the Add Friends page.",
     tags: ["Friends", "Commands"],
     authors: [Devs.afn, Devs.Dziurwa, Devs.domibtnr],

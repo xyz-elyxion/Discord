@@ -97,6 +97,14 @@ const TypingUser = ErrorBoundary.wrap(function TypingUser({ user, guildId }: Typ
 
 export default definePlugin({
     name: "TypingTweaks",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Show avatars and role colours in the typing indicator",
     tags: ["Appearance", "Customisation"],
     authors: [Devs.zt, Devs.sadan],

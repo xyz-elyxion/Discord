@@ -154,6 +154,14 @@ function CompactConnectionComponent({ connection, theme }: { connection: Connect
 
 export default definePlugin({
     name: "ShowConnections",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Show connected accounts in user popouts",
     tags: ["Friends", "Appearance"],
     authors: [Devs.TheKodeToad],

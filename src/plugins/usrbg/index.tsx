@@ -47,6 +47,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "USRBG",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Displays user banners from USRBG, allowing anyone to get a banner without Nitro",
     tags: ["Appearance", "Customisation"],
     authors: [Devs.AutumnVN, Devs.katlyn, Devs.pylix, Devs.TheKodeToad],

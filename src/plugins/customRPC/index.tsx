@@ -212,6 +212,14 @@ export async function setRpc(disable?: boolean) {
 
 export default definePlugin({
     name: "CustomRPC",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Add a fully customisable Rich Presence (Game status) to your Discord profile",
     tags: ["Activity", "Customisation"],
     authors: [Devs.captain, Devs.AutumnVN, Devs.nin0dev],

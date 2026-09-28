@@ -208,6 +208,14 @@ const GroupDMContext: NavContextMenuPatchCallback = (children, { channel }: Grou
 
 export default definePlugin({
     name: "ViewIcons",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.Ven, Devs.TheKodeToad, Devs.Nuckyz, Devs.nyx],
     description: "Makes avatars and banners in user profiles clickable, adds View Icon/Banner/Avatar Decoration entries in the user, server and group channel context menu.",
     tags: ["Media", "Servers", "Appearance"],

@@ -29,6 +29,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "OverrideForumDefaults",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Allows you to override default forum layout/sort order. you can still change it on a per-channel basis",
     tags: ["Servers", "Organisation", "Customisation"],
     authors: [Devs.Inbestigator],

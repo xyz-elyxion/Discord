@@ -23,6 +23,14 @@ import { GuildStore } from "@webpack/common";
 
 export default definePlugin({
     name: "ForceOwnerCrown",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Force the owner crown next to usernames even if the server is large.",
     authors: [Devs.D3SOX, Devs.Nickyux],
     tags: ["Roles", "Appearance", "Servers"],

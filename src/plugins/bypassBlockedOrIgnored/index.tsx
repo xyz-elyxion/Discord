@@ -15,6 +15,14 @@ const { getBlockedUsersForVoiceChannel, getIgnoredUsersForVoiceChannel } = findB
 
 export default definePlugin({
     name: "BypassBlockedOrIgnored",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Bypass the blocked or ignored user modal if is present in voice channels.",
     authors: [Devs.nicola02nb],
     settings,

@@ -231,6 +231,14 @@ function clearSpoof() {
 
 export default definePlugin({
     name: "Device Spoofer",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Spoofs your device fingerprint: user agent, platform, CPU cores, RAM, languages and timezone.",
     authors: [Devs.Vencipher],
     settings,

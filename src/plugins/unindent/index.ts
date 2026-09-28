@@ -22,6 +22,14 @@ import definePlugin from "@utils/types";
 
 export default definePlugin({
     name: "Unindent",
+    permissions: [
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        }
+    ],
     description: "Trims leading indentation from codeblocks",
     tags: ["Chat", "Utility"],
     authors: [Devs.Ven],

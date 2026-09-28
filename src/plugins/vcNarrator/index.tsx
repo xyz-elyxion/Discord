@@ -155,6 +155,14 @@ function playSample(type: string) {
 
 export default definePlugin({
     name: "VcNarrator",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Announces when users join, leave, or move voice channels via narrator",
     tags: ["Voice", "Accessibility"],
     authors: [Devs.Ven],

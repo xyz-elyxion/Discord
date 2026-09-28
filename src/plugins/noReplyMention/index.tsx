@@ -61,6 +61,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "NoReplyMention",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Disables reply pings by default",
     tags: ["Chat", "Notifications"],
     authors: [Devs.DustyAngel47, Devs.rae, Devs.pylix, Devs.outfoxxed],

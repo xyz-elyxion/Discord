@@ -57,6 +57,14 @@ function ReplyTimestamp({
 
 export default definePlugin({
     name: "ReplyTimestamp",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Shows a timestamp on replied-message previews",
     tags: ["Chat", "Appearance"],
     authors: [Devs.Kyuuhachi],

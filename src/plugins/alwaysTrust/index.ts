@@ -37,6 +37,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "AlwaysTrust",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Removes the annoying untrusted domain and suspicious file popup",
     tags: ["Utility"],
     authors: [Devs.zt, Devs.Trwy],

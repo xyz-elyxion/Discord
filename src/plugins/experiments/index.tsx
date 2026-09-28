@@ -34,6 +34,14 @@ const altKey = IS_MAC ? "opt" : "alt";
 
 export default definePlugin({
     name: "Experiments",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Enable Access to Experiments & other dev-only features in Discord!",
     tags: ["Developers", "Utility"],
     authors: [

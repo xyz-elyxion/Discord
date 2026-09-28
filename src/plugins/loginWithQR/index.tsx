@@ -17,6 +17,14 @@ import openQrModal from "./ui/modals/QrModal";
 
 export default definePlugin({
     name: "LoginWithQR",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Allows you to login to another device by scanning a login QR code, just like on mobile!",
     authors: [Devs.Nexpid],
 

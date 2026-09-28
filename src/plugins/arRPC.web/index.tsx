@@ -39,6 +39,14 @@ async function lookupApp(applicationId: string): Promise<string> {
 let ws: WebSocket;
 export default definePlugin({
     name: "WebRichPresence (arRPC)",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Client plugin for arRPC to enable RPC on Discord Web (experimental)",
     tags: ["Activity", "Utility"],
     authors: [Devs.Ducko],

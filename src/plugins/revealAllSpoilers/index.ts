@@ -25,6 +25,14 @@ const MessagesClasses = findCssClassesLazy("messagesWrapper", "navigationDescrip
 
 export default definePlugin({
     name: "RevealAllSpoilers",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Reveal all spoilers in a message by Ctrl-clicking a spoiler, or in the chat with Ctrl+Shift-click",
     authors: [Devs.whqwert],
     tags: ["Accessibility", "Chat", "Shortcuts", "Utility"],

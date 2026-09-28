@@ -21,6 +21,14 @@ const CheckMarkIcon = () => {
 
 export default definePlugin({
     name: "CopyFileContents",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds a button to text file attachments to copy their contents",
     tags: ["Utility"],
     authors: [Devs.Obsidian, Devs.Nuckyz],

@@ -21,6 +21,14 @@ import definePlugin from "@utils/types";
 
 export default definePlugin({
     name: "NoF1",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Disables F1 help bind.",
     tags: ["Utility"],
     authors: [Devs.Cyn],

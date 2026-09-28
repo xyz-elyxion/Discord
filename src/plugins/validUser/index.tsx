@@ -174,6 +174,14 @@ function MentionWrapper({ data, UserMention, RoleMention, parse, props }: Mentio
 
 export default definePlugin({
     name: "ValidUser",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Fix mentions for unknown users showing up as '@unknown-user' (hover over a mention to fix it)",
     tags: ["Chat", "Utility"],
     authors: [Devs.Ven, Devs.Dolfies],

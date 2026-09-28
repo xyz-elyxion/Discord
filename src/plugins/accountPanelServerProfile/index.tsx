@@ -61,6 +61,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "AccountPanelServerProfile",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Right click your account panel in the bottom left to view your profile in the current server",
     tags: ["Appearance", "Servers"],
     authors: [Devs.Nuckyz, Devs.relitrix],

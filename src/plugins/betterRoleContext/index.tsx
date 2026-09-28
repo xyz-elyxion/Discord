@@ -199,6 +199,14 @@ export function openRoleContextMenu(event: React.MouseEvent<HTMLElement>, { guil
 
 export default definePlugin({
     name: "BetterRoleContext",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds options to copy role color / edit role / view role icon when right clicking roles in the user profile or in the member list",
     tags: ["Roles", "Appearance"],
     authors: [Devs.Ven, Devs.goodbee, Devs.nightmaresan],

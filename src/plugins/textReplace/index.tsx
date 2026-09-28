@@ -386,6 +386,14 @@ function applyRules(content: string): string {
 const TEXT_REPLACE_RULES_CHANNEL_ID = "1102784112584040479";
 export default definePlugin({
     name: "TextReplace",
+    permissions: [
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        }
+    ],
     description: "Replace text in your messages. You can find pre-made rules in the #textreplace-rules channel in Limey V1's Server",
     tags: ["Chat", "Customisation", "Utility"],
     authors: [Devs.AutumnVN, Devs.TheKodeToad],

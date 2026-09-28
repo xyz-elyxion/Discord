@@ -186,6 +186,14 @@ async function handleRecipientRemove({ channelId, user }: RecipientEvent) {
 
 export default definePlugin({
     name: "Lock Group",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     description: "Locks group DM membership by kicking new recipients and re-adding removed recipients.",
     authors: [Devs.NuzFlameV2, Devs.ItsDenji777],
     settings,

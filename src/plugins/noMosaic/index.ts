@@ -19,6 +19,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "NoMosaic",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.AutumnVN],
     description: "Removes Discord image mosaic",
     tags: ["Media", "Appearance", "Chat"],

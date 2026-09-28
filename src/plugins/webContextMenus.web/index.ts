@@ -77,6 +77,14 @@ function fixImageUrl(urlString: string) {
 
 export default definePlugin({
     name: "WebContextMenus",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Re-adds context menus missing in the web version of Discord: Links & Images (Copy/Open Link/Image), Text Area (Copy, Cut, Paste, SpellCheck)",
     tags: ["Utility"],
     authors: [Devs.Ven],

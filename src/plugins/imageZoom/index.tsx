@@ -155,6 +155,14 @@ const imageContextMenuPatch: NavContextMenuPatchCallback = (children, props) => 
 
 export default definePlugin({
     name: "ImageZoom",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Lets you zoom in to images and gifs. Use scroll wheel to zoom in and shift + scroll wheel to increase lens radius / size",
     tags: ["Media", "Utility"],
     authors: [Devs.Aria],

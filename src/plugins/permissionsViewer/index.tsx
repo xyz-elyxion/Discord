@@ -160,6 +160,14 @@ function makeContextMenuPatch(childId: string | string[], type?: MenuItemParentT
 
 export default definePlugin({
     name: "PermissionsViewer",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "View the permissions a user or channel has, and the roles of a server",
     tags: ["Servers", "Roles", "Utility"],
     authors: [Devs.Nuckyz, Devs.Ven],

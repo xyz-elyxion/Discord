@@ -58,6 +58,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "QuickReply",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.fawn, Devs.Ven, Devs.pylix],
     description: "Reply to (ctrl + up/down) and edit (ctrl + shift + up/down) messages via keybinds",
     tags: ["Chat", "Shortcuts"],

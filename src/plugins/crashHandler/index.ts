@@ -59,6 +59,14 @@ let shouldAttemptRecover = true;
 
 export default definePlugin({
     name: "CrashHandler",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     description: "Utility plugin for handling and possibly recovering from crashes without a restart",
     authors: [Devs.Nuckyz],
     tags: ["Utility", "Developers"],

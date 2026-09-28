@@ -50,6 +50,14 @@ function toggleHoverControls(value: boolean) {
 
 export default definePlugin({
     name: "SpotifyControls",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds a Spotify player above the account panel",
     tags: ["Media", "Activity"],
     authors: [Devs.Ven, Devs.afn, Devs.KraXen72, Devs.Av32000, Devs.nin0dev],

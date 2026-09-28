@@ -56,6 +56,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "LoadingQuotes",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Replace Discords loading quotes",
     tags: ["Appearance", "Fun", "Customisation"],
     authors: [Devs.Ven, Devs.KraXen72, Devs.UlyssesZhan],

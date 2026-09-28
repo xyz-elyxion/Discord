@@ -27,6 +27,14 @@ export const settings = definePluginSettings({
 
 export default definePlugin({
     name: "ClientTheme",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.Nuckyz],
     description: "Recreation of the old client theme experiment. Add a color to your Discord client theme",
     tags: ["Appearance", "Customisation"],

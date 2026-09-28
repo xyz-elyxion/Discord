@@ -266,6 +266,14 @@ const disableStreamPreviews = getUserSettingLazy<boolean>("voiceAndVideo", "disa
 
 export default definePlugin({
     name: "WebScreenShare",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.ThaUnknown],
     description: "Adds a screenshare options menu. Allows for changing resolution, framerate, encoding hints, and system audio settings.",
     tags: ["Voice", "Utility"],

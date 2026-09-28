@@ -49,6 +49,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "UserVoiceShow",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Shows an indicator when a user is in a Voice Channel",
     tags: ["Voice", "Appearance", "Friends"],
     authors: [Devs.Nuckyz, Devs.LordElias],

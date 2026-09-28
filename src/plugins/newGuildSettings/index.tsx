@@ -118,6 +118,14 @@ function applyDefaultSettings(guildId: string | null) {
 
 export default definePlugin({
     name: "NewGuildSettings",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Automatically mute new servers and change various other settings upon joining",
     tags: ["Servers", "Customisation"],
     searchTerms: ["MuteNewGuild", "mute", "server"],

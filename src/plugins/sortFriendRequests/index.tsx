@@ -51,6 +51,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "SortFriendRequests",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.Megu],
     description: "Sorts friend requests by date of receipt",
     tags: ["Friends", "Organisation"],

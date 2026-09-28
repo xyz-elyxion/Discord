@@ -94,6 +94,14 @@ function interceptSendMessage(channelId: string, data: any, ...rest: any[]) {
 }
 export default definePlugin({
     name: "HoldYourTongue",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Stop yourself from saying things in chat! Blocks sending messages that contain your flagged keywords",
     authors: [Devs.Limey],
     settings,

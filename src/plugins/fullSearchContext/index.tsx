@@ -80,6 +80,14 @@ const contextMenuPatch: NavContextMenuPatchCallback = (children, props: MessageA
 migratePluginSettings("FullSearchContext", "SearchReply");
 export default definePlugin({
     name: "FullSearchContext",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Makes the message context menu in message search results have all options you'd expect",
     tags: ["Utility"],
     authors: [Devs.Ven, Devs.Aria],

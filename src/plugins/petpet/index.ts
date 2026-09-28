@@ -107,6 +107,26 @@ function applyPaletteTransparent(data: Uint8Array | Uint8ClampedArray, palette: 
 
 export default definePlugin({
     name: "petpet",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        },
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        },
+        {
+            id: "registerCommands",
+            title: "Register chat commands",
+            description: "Adds slash-style commands that can read your input and send messages on your behalf.",
+            risk: "Command input and any messages sent through them are handled by this plugin."
+        }
+    ],
     description: "Adds a /petpet slash command to create headpet gifs from any image",
     tags: ["Fun", "Commands"],
     authors: [Devs.Ven, Devs.u32],

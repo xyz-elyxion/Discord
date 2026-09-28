@@ -32,6 +32,14 @@ const createMessageRecord = findByCodeLazy(".createFromServer(", ".isBlockedForM
 
 export default definePlugin({
     name: "ValidReply",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: 'Fixes "Message could not be loaded" upon hovering over the reply',
     tags: ["Chat", "Utility"],
     authors: [Devs.newwares],

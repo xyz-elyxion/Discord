@@ -37,6 +37,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "SpotifyCrack",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Free listen along, no auto-pausing in voice chat, and allows activity to continue playing when idling",
     tags: ["Media", "Utility", "Activity"],
     authors: [Devs.Cyn, Devs.Nuckyz],

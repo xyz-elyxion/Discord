@@ -28,6 +28,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "CustomIdle",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Allows you to set the time before Discord goes idle (or disable auto-idle)",
     tags: ["Activity", "Customisation"],
     authors: [Devs.newwares],

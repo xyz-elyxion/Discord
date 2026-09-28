@@ -37,6 +37,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "ShowHiddenThings",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     searchTerms: ["ShowTimeouts", "ShowInvitesPaused", "ShowModView", "DisableDiscoveryFilters"],
     description: "Displays various hidden & moderator-only things regardless of permissions.",
     tags: ["Servers", "Utility"],

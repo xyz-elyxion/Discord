@@ -49,6 +49,20 @@ interface RuleSet {
 
 export default definePlugin({
     name: "ClearURLs",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        },
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        }
+    ],
     description: "Automatically removes tracking elements from URLs you send",
     tags: ["Privacy", "Utility"],
     authors: [Devs.adryd, Devs.thororen],

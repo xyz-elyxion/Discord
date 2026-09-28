@@ -113,6 +113,14 @@ function handlePaste(e: ClipboardEvent) {
 
 export default definePlugin({
     name: "AddAttachments",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Allows you to add new attachments while editing messages",
     authors: [Devs.Lumap],
 

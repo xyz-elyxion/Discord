@@ -141,6 +141,14 @@ const GRID_STYLE_NAME = "vc-betterFolders-sidebar-grid";
 
 export default definePlugin({
     name: "BetterFolders",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Shows server folders on dedicated sidebar and adds folder related improvements",
     authors: [Devs.juby, Devs.AutumnVN, Devs.Nuckyz],
     tags: ["Organisation", "Servers", "Appearance"],

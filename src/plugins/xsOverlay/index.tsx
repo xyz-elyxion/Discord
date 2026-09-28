@@ -190,6 +190,20 @@ const Native = LimeyV1Native.pluginHelpers.XSOverlay as PluginNative<typeof impo
 
 export default definePlugin({
     name: "XSOverlay",
+    permissions: [
+        {
+            id: "nativeCodeExecution",
+            title: "Execute code in the main process",
+            description: "Uses native Electron APIs (executeJavaScript/IPC) inside embedded views or the main process.",
+            risk: "Runs code outside the normal sandbox; a bug or malicious content could act with full client privileges."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Forwards discord notifications to XSOverlay, for easy viewing in VR",
     tags: ["Notifications"],
     authors: [Devs.Nyako],

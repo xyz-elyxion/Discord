@@ -77,6 +77,14 @@ function Layer({ mode, baseLayer = false, ...props }: LayerProps) {
 
 export default definePlugin({
     name: "BetterSettings",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Enhances your settings-menu-opening experience",
     authors: [Devs.Kyuuhachi],
     tags: ["Appearance", "Customisation", "Organisation"],

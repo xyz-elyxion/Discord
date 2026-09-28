@@ -35,6 +35,14 @@ interface EmojiAutocompleteState {
 
 export default definePlugin({
     name: "FavoriteEmojiFirst",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     authors: [Devs.Aria, Devs.Ven],
     description: "Puts your favorite emoji first in the emoji autocomplete.",
     tags: ["Emotes", "Customisation"],

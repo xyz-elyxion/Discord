@@ -26,6 +26,14 @@ import { settings } from "./settings";
 migratePluginSettings("UserMessagesPronouns", "PronounDB");
 export default definePlugin({
     name: "UserMessagesPronouns",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.Tyman, Devs.TheKodeToad, Devs.Ven, Devs.Elvyra],
     description: "Adds pronouns to chat user messages",
     tags: ["Chat", "Appearance"],

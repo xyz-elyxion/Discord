@@ -10,6 +10,12 @@ import { setColorPicker, setCreateScroller, setRoleMemberPopout } from "@webpack
 
 export default definePlugin({
     name: "ConcatenatedComponentExtractor",
+    permissions: [{
+        id: "uiPatches",
+        title: "Patch Discord's internals",
+        description: "Developer tool that extracts concatenated webpack components for plugin development.",
+        risk: "Developer-only tool; runs webpack inspection inside your client."
+    }],
     description: "Extract components that have been concatenated by the bundler",
     authors: [Devs.sadan],
 

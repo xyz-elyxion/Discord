@@ -26,6 +26,14 @@ import StartupTimingPage from "./StartupTimingPage";
 
 export default definePlugin({
     name: "StartupTimings",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds Startup Timings to the Settings menu",
     tags: ["Developers"],
     authors: [Devs.Megu],

@@ -15,6 +15,14 @@ let lastMessage = "";
 
 export default definePlugin({
     name: "LimeyV1Status",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Shows a notification when Limey V1's backend or the limebot is experiencing issues (e.g. Discord rate limiting), and when they are resolved.",
     tags: ["Utility"],
     authors: [Devs.Limey],

@@ -97,6 +97,26 @@ function makeCommand(name: string, formatUrl: (track: Track) => string): Command
 
 export default definePlugin({
     name: "SpotifyShareCommands",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Makes network requests to Discord, CDNs and web APIs as part of normal operation.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        },
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        },
+        {
+            id: "registerCommands",
+            title: "Register chat commands",
+            description: "Adds slash-style commands that can read your input and send messages on your behalf.",
+            risk: "Command input and any messages sent through them are handled by this plugin."
+        }
+    ],
     description: "Share your current Spotify track, album or artist via slash command (/track, /album, /artist)",
     tags: ["Media", "Commands"],
     authors: [Devs.katlyn],

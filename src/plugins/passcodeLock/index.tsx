@@ -351,6 +351,12 @@ const V1Plugin = {
     description: "Protect your Discord with a passcode. Converted from the BetterDiscord plugin by arg0NNY.",
     tags: ["Utility", "Privacy"],
     authors: [Devs.Limey],
+    permissions: [{
+        id: "localDataStore",
+        title: "Store data locally",
+        description: "Stores a salted hash of your passcode locally so the lock can be verified without storing the passcode itself.",
+        risk: "Data persists on your device between sessions."
+    }],
     settings,
 
     managedStyle: css,

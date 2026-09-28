@@ -151,6 +151,14 @@ function GreetMenu({ channel, message }: { message: Message, channel: Channel; }
 
 export default definePlugin({
     name: "GreetStickerPicker",
+    permissions: [
+        {
+            id: "modifyMessages",
+            title: "Read and modify messages you send",
+            description: "Intercepts messages before sending to transform their content (URLs, prefixes, timestamps, attachments).",
+            risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
+        }
+    ],
     description: "Allows you to use any greet sticker instead of only the random one by right-clicking the 'Wave to say hi!' button",
     tags: ["Emotes", "Customisation"],
     authors: [Devs.Ven],

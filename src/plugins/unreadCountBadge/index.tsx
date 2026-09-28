@@ -33,6 +33,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "UnreadCountBadge",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.Joona],
     description: "Shows unread message count badges on channels in the channel list",
     settings,
