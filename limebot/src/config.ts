@@ -167,6 +167,14 @@ const Config = {
         ],
     },
 
+    // trainable AI moderation (Gemini). enable via /aimod toggle; requires GEMINI_API_KEY
+    "aiMod": {
+        "apiKey": process.env.GEMINI_API_KEY || "",
+        "model": "gemini-2.0-flash",
+        // minimum confidence (0-1) required before the bot acts on a verdict
+        "confidenceThreshold": 0.7,
+    },
+
     // vfable command. Uses gemini's allowedRoles and bannedRoles. Leave apiKey empty to disable.
     "anthropic": {
         "apiKey": "", // Anthropic Platform API key

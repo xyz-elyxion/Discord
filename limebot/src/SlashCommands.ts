@@ -134,6 +134,14 @@ Vaius.on("interactionCreate", async interaction => {
 
 const SlashCommands = [] as CreateGuildApplicationCommandOptions[];
 
+/** Discord requires required options to come before optional ones (error 50035). */
+function sortOptions<T extends { required?: boolean; options?: T[] }>(options: T[] | undefined): T[] | undefined {
+    if (!options?.length) return options;
+    return [...options]
+        .map(o => (o.options ? { ...o, options: sortOptions(o.options) } : o))
+        .sort((a, b) => Number(b.required ?? false) - Number(a.required ?? false));
+}
+
 export function registerMessageCommand(handler: NamedCommandInteractionHandler) {
     SlashCommands.push({
         type: ApplicationCommandTypes.MESSAGE,
@@ -149,7 +157,8 @@ export function registerChatInputCommand(options: ChatInputCommandOptions, handl
     SlashCommands.push({
         type: ApplicationCommandTypes.CHAT_INPUT,
         ...options,
-        description: options.description || "No description provided"
+        description: options.description || "No description provided",
+        options: sortOptions(options.options as any)
     });
 
     handleCommandInteraction({
@@ -207,7 +216,7 @@ function activateBridges() {
             type: ApplicationCommandTypes.CHAT_INPUT,
             name: cmdName,
             description: cmd.description.slice(0, 100) || "No description provided",
-            options: options.map(o => ({
+            options: sortOptions(options.map(o => ({
                 type: o.type === "user" ? ApplicationCommandOptionTypes.USER
                     : o.type === "int" ? ApplicationCommandOptionTypes.INTEGER
                     : o.type === "channel" ? ApplicationCommandOptionTypes.CHANNEL
@@ -216,7 +225,7 @@ function activateBridges() {
                 description: o.description.slice(0, 100),
                 required: o.type === "raw" ? (o.required ?? false) : (o.required ?? false),
                 ...(o.type === "int" ? { minValue: o.min, maxValue: o.max } : {}),
-            }))
+            })))
         } as any);
 
         handleCommandInteraction({

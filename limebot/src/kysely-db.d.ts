@@ -62,6 +62,20 @@ export interface Tickets {
         createdAt: string;
     }
 
+    export interface AiTrainingExamples {
+        id: Generated<number>;
+        content: string;
+        verdict: "ok" | "warn" | "mute" | "ban";
+        reason: string;
+        addedBy: string;
+        createdAt: string;
+    }
+
+    export interface AiModSettings {
+        key: string;
+        value: string;
+    }
+
     export interface ScheduledUnbans {
         userId: string;
         guildId: string;
@@ -80,5 +94,7 @@ export interface Tickets {
         xp: Xp;
         warnings: Warnings;
         scheduledUnbans: ScheduledUnbans;
+        aiTrainingExamples: AiTrainingExamples;
+        aiModSettings: AiModSettings;
     }
 }
