@@ -5,7 +5,7 @@ import Config from "~/config";
 import { silently } from "~/util/functions";
 import { toCodeblock } from "~/util/text";
 
-import { getHighestRolePosition, logUserRestriction, ModerationColor, parseUserIdsAndReason } from "./utils";
+import { getHighestRolePosition, logUserRestriction, ModerationColor, parseUserIdsAndReason, STAFF_ROLES } from "./utils";
 
 async function kickExecutor({ msg, reply }: CommandContext<true>, args: string[]) {
     let { ids, reason, hasCustomReason } = parseUserIdsAndReason(args);
@@ -78,6 +78,6 @@ defineCommand({
     description: "Kick one or more users with an optional reason",
     usage: "<user> [user...] [reason]",
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     execute: (ctx, ...args) => kickExecutor(ctx, args),
 });

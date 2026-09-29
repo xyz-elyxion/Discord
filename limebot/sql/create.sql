@@ -55,3 +55,12 @@ CREATE TABLE IF NOT EXISTS warnings (
 );
 
 CREATE INDEX IF NOT EXISTS warnings_userId_idx ON warnings (userId);
+
+CREATE TABLE IF NOT EXISTS scheduledUnbans (
+    userId    TEXT NOT NULL,
+    guildId   TEXT NOT NULL,
+    unbanAt   TEXT NOT NULL, -- ISO 8601
+    reason    TEXT NOT NULL,
+    moderator TEXT NOT NULL,
+    PRIMARY KEY (userId, guildId)
+);

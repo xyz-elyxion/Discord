@@ -1,10 +1,20 @@
 import { ButtonStyles, Member, SeparatorSpacingSize, User } from "oceanic.js";
 import { Colors } from "~/constants";
+import Config from "~/config";
 import { getUserEmoji } from "~/modules/userEmojis";
 
 import { getHighestRole, ID_REGEX } from "~/util/discord";
 import { logModerationAction } from "~/util/logAction";
 import { ActionRow, Button, ComponentMessage, ComponentMessageProps, Container, Section, Separator, TextDisplay, Thumbnail } from "~components";
+
+/**
+ * All staff roles that may use moderation commands (whole staff hierarchy).
+ */
+export const STAFF_ROLES = Config.roles.staffRoles;
+
+export function isStaff(member: Member) {
+    return member.roles.some(r => STAFF_ROLES.includes(r));
+}
 
 export function hasHigherRoleThan(roleId: string, member: Member) {
     const g = member.guild;

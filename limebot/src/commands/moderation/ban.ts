@@ -7,7 +7,7 @@ import { toCodeblock } from "~/util/text";
 
 import { getEmoji } from "~/modules/emojiManager";
 import { USER_MENTION_REGEX } from "~/util/discord";
-import { getHighestRolePosition, logUserRestriction, ModerationColor, parseUserIdsAndReason } from "./utils";
+import { getHighestRolePosition, logUserRestriction, ModerationColor, parseUserIdsAndReason, STAFF_ROLES } from "./utils";
 
 function parseCrap(msg: Message<AnyTextableGuildChannel>, args: string[], isSoft: boolean) {
     let possibleDays = Number(args[0]) || 0;
@@ -130,7 +130,7 @@ defineCommand({
     usage: "[daysToDelete] <user> [user...] [reason]",
     aliases: ["yeet", "🍌"],
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     execute: (ctx, ...args) => banExecutor(ctx, args, false)
 });
 
@@ -140,6 +140,6 @@ defineCommand({
     usage: "<daysToDelete> <user> [user...] [reason]",
     aliases: ["sb"],
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     execute: (ctx, ...args) => banExecutor(ctx, args, true)
 });

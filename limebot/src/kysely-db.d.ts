@@ -62,6 +62,14 @@ export interface Tickets {
         createdAt: string;
     }
 
+    export interface ScheduledUnbans {
+        userId: string;
+        guildId: string;
+        unbanAt: string;
+        reason: string;
+        moderator: string;
+    }
+
     export interface DB {
         tickets: Tickets;
         expressions: Expressions;
@@ -71,5 +79,6 @@ export interface Tickets {
         userAvatarEmojis: UserAvatarEmojis;
         xp: Xp;
         warnings: Warnings;
+        scheduledUnbans: ScheduledUnbans;
     }
 }

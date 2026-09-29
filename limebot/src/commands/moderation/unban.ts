@@ -1,7 +1,7 @@
 import { defineCommand } from "~/Commands";
 
 import Config from "~/config";
-import { logUserRestriction, ModerationColor, parseUserIdsAndReason } from "./utils";
+import { logUserRestriction, ModerationColor, parseUserIdsAndReason, STAFF_ROLES } from "./utils";
 
 defineCommand({
     name: "unban",
@@ -9,7 +9,7 @@ defineCommand({
     usage: "<user> [user...] [reason]",
     aliases: ["unyeet", "🍌💥"],
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     async execute({ msg, reply }, ...args) {
         const { ids, reason } = parseUserIdsAndReason(args);
 

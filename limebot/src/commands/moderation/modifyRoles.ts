@@ -7,7 +7,7 @@ import { makeConstants } from "~/util/objects";
 import { toCodeblock } from "~/util/text";
 
 import Config from "~/config";
-import { hasHigherRoleThan } from "./utils";
+import { hasHigherRoleThan, STAFF_ROLES } from "./utils";
 
 const Aliases = makeConstants({
     donor: Config.roles.donor,
@@ -60,7 +60,7 @@ defineCommand({
     description: "Add a role to one or more users",
     usage: "<role> <user> [user...]",
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     async execute({ msg, react, reply }, ...args) {
         const { role, users } = parseArgs(msg, args);
         if (!role) return react(Emoji.QuestionMark);
@@ -84,7 +84,7 @@ defineCommand({
     description: "Remove a role from one or more users",
     usage: "<role> <user> [user...]",
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     async execute({ msg, reply, react }, ...args) {
         const { role, users } = parseArgs(msg, args);
         if (!role) return react(Emoji.QuestionMark);

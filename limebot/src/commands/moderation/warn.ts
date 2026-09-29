@@ -8,7 +8,7 @@ import { Paginator } from "~/util/Paginator";
 import { silently } from "~/util/functions";
 import { toCodeblock } from "~/util/text";
 
-import { logUserRestriction, ModerationColor, parseUserIdsAndReason } from "./utils";
+import { logUserRestriction, ModerationColor, parseUserIdsAndReason, STAFF_ROLES } from "./utils";
 
 export async function addWarning(guildId: string, userId: string, moderatorId: string, reason: string) {
     await db
@@ -133,7 +133,7 @@ defineCommand({
     usage: "<warningId>",
     aliases: ["removewarn", "clearwarn"],
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     async execute({ msg, reply }: CommandContext<true>, idArg?: string) {
         const id = Number(idArg);
         if (!id) return reply("Gimme a warning id silly");

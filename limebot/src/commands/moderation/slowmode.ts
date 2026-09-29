@@ -1,6 +1,7 @@
 import { defineCommand } from "~/Commands";
 import Config from "~/config";
 import { Emoji } from "~/constants";
+import { STAFF_ROLES } from "./utils";
 import { reply } from "~/util/discord";
 
 defineCommand({
@@ -9,7 +10,7 @@ defineCommand({
     description: "Set the slowmode for the channel",
     usage: "<seconds>",
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     async execute({ msg, react }, secondsArg) {
         if (secondsArg === "off") secondsArg = "0";
 

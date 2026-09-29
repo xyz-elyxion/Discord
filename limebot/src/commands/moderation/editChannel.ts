@@ -1,6 +1,7 @@
 import { defineCommand } from "~/Commands";
 import Config from "~/config";
 import { Emoji } from "~/constants";
+import { STAFF_ROLES } from "./utils";
 import { reply } from "~/util/discord";
 
 defineCommand({
@@ -9,7 +10,7 @@ defineCommand({
     usage: "<value>",
     aliases: ["setname", "sn", "rename"],
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     rawContent: true,
     async execute({ msg, react }, value) {
         if (!value)
@@ -29,7 +30,7 @@ defineCommand({
     usage: "<value>",
     aliases: ["settopic"],
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     rawContent: true,
     async execute({ msg, react, reply }, value) {
         if (!value)

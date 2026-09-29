@@ -4,6 +4,7 @@ import { Vaius } from "~/Client";
 import { defineCommand } from "~/Commands";
 import Config from "~/config";
 import { Emoji } from "~/constants";
+import { STAFF_ROLES } from "./utils";
 import { BotState } from "~/db/botState";
 import { resolveChannel } from "~/util/resolvers";
 
@@ -13,7 +14,7 @@ defineCommand({
     description: "Watches your threads to make sure they always stay open! Specify a channel to watch all threads in that channel.",
     usage: "<[w]atch|[u]nwatch|[l]ist> [thread|channel]",
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
 
     async execute({ reply, react, msg }, action = "list", threadOrChannelResolvable = msg.channelID) {
         action = action.toLowerCase();

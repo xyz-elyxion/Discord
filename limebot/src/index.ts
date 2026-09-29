@@ -13,12 +13,16 @@ import { announceStatus } from "./modules/statusAnnouncer";
 import { PROD } from "./constants";
 
 import { initModListeners } from "./modules/moderation/listeners";
+import { initAutoMod } from "./modules/moderation/autoMod";
+import { initScheduledUnbans } from "./commands/moderation/tempban";
 import { silently } from "./util/functions";
 import { inspect } from "./util/inspect";
 import { logDevDebug } from "./util/logAction";
 import { toCodeblock } from "./util/text";
 
 initModListeners();
+initAutoMod();
+initScheduledUnbans();
 
 export async function handleError(title: string, err: unknown) {
     if (err instanceof DiscordHTTPError && err.status >= 500)

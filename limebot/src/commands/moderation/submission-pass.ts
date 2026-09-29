@@ -5,6 +5,7 @@ import { defineCommand } from "~/Commands";
 import Config from "~/config";
 import { Emoji } from "~/constants";
 import { resolveUserId } from "~/util/resolvers";
+import { STAFF_ROLES } from "./utils";
 
 const { categoryId, enabled, passRoleId } = Config.submissionPass;
 
@@ -32,7 +33,7 @@ defineCommand({
     description: "Allow this user to post one submission",
     usage: "<user>",
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     async execute({ msg, react, reply }, user) {
         const id = resolveUserId(user);
         if (!id)
@@ -52,7 +53,7 @@ defineCommand({
     description: "Remove this user's submission pass",
     usage: "<user>",
     guildOnly: true,
-    allowedRoles: [Config.roles.mod],
+    allowedRoles: STAFF_ROLES,
     async execute({ msg, react, reply }, user) {
         const id = resolveUserId(user);
         if (!id)
