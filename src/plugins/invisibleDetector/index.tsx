@@ -21,7 +21,7 @@ import { addMemberListDecorator, removeMemberListDecorator } from "@api/MemberLi
 import { addMessageDecoration, removeMessageDecoration } from "@api/MessageDecorations";
 import { openModal } from "@utils/modal";
 import { Devs } from "@utils/constants";
-import { FluxDispatcher, PresenceStore, useState, useEffect, Button, Forms, Modal } from "@webpack/common";
+import { FluxDispatcher, PresenceStore, UserStore, useState, useEffect, Button, Forms, Modal } from "@webpack/common";
 import definePlugin, { OptionType } from "@utils/types";
 
 const GITHUB_PAGE = "https://github.com/Vencipher/vencord-customplugins";
@@ -97,8 +97,28 @@ function isOffline(userId: string): boolean {
     return !s || s === "offline";
 }
 
+// Discord system message types (recipients, pins, joins, calls, auto-mod, etc.)
+// Per Discord API: 1=RECIPIENT_ADD 2=RECIPIENT_REMOVE 3=CALL 4=CHANNEL_NAME_CHANGE
+// 5=CHANNEL_ICON_CHANGE 6=CHANNEL_PINNED_MESSAGE 7=GUILD_MEMBER_JOIN 8..25=other system
+const SYSTEM_MESSAGE_TYPES = new Set<number>([
+    1, 2, 3, 4, 5, 6, 7,
+    ...Array.from({ length: 18 }, (_, i) => i + 8), // 8-25: user joins, thread starters, auto-mod, etc.
+]);
+
+function isBotOrSystemAuthor(author: any, type?: number): boolean {
+    if (!author) return true;
+    // Bots, webhooks, and interaction/system responses (e.g. slash command replies)
+    if (author.bot || author.webhookId || author.system || author.id === "1") return true;
+    const user = UserStore?.getUser?.(author.id);
+    if (user?.bot) return true;
+    if (type != null && SYSTEM_MESSAGE_TYPES.has(type)) return true;
+    return false;
+}
+
 function recordActivity(userId: string | undefined | null) {
     if (!userId) return;
+    // Never track bots
+    if (UserStore?.getUser?.(userId)?.bot) return;
     if (!isOffline(userId)) return;
     invisibleUsers.set(userId, Date.now());
     emitter.emit(userId);
@@ -190,13 +210,22 @@ function ChatDecoration({ message }: { message?: { author?: { id: string; }; }; 
 }
 
 const onTypingStart = (e: any) => { recordActivity(e.userId); };
-const onMessageCreate = (e: any) => { recordActivity(e.message?.author?.id ?? e.author?.id); };
+const onMessageCreate = (e: any) => {
+    const message = e.message ?? e;
+    if (isBotOrSystemAuthor(message?.author, message?.type)) return;
+    recordActivity(message?.author?.id);
+};
 const onVoiceStateUpdate = (e: any) => {
     const userId = e.userId ?? e.voiceState?.userId ?? e.user?.id;
     const channelId = e.channelId ?? e.voiceState?.channelId;
     if (userId && channelId) recordActivity(userId);
 };
-const onMessageReactionAdd = (e: any) => { recordActivity(e.userId ?? e.user?.id); };
+const onMessageReactionAdd = (e: any) => {
+    const userId = e.userId ?? e.user?.id;
+    if (e.member?.user?.bot) return;
+    if (UserStore?.getUser?.(userId)?.bot) return;
+    recordActivity(userId);
+};
 const onCallUpdate = (e: any) => { (e.ringing ?? []).forEach(recordActivity); };
 const onThreadMemberUpdate = (e: any) => { recordActivity(e.member?.userId ?? e.member?.user?.id ?? e.userId); };
 const onThreadListSync = (e: any) => { (e.members ?? []).forEach((m: any) => recordActivity(m.userId ?? m.user?.id)); };

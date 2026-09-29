@@ -347,8 +347,17 @@ if (enabled) {
         },
         {
             guildOnly: true,
-            allowedRoles: [modRoleId],
             async handle(interaction) {
+                // Check the role here (instead of via allowedRoles) so that
+                // unauthorized users get a visible response instead of the
+                // interaction silently expiring with "didn't respond in time".
+                if (!interaction.member.roles.includes(modRoleId)) {
+                    return interaction.createMessage({
+                        content: "Only moderators can post the modmail panel.",
+                        flags: MessageFlags.EPHEMERAL
+                    });
+                }
+
                 await interaction.defer(MessageFlags.EPHEMERAL);
 
                 await Vaius.rest.channels.createMessage(interaction.channelID, (await buildPanel())!);
