@@ -61,3 +61,19 @@
 *:focus-visible {
     outline-color: var(--sl-color-gray-2);
 }
+
+/* Light-mode base overrides load after ours — re-assert monochrome */
+:root[data-theme="light"],
+[data-theme="light"] ::backdrop {
+    --sl-color-accent-high: #09090b;
+    --sl-color-accent: #18181b;
+    --sl-color-accent-low: #f4f4f5;
+    --sl-color-text-accent: #09090b;
+    --sl-color-bg-accent: #f4f4f5;
+}
+
+/* Code blocks: monochrome syntax surfaces */
+.astro-code {
+    border: 1px solid var(--sl-color-gray-6);
+    border-radius: var(--radius, 0.625rem);
+}
