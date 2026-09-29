@@ -18,6 +18,11 @@ import { Colors, Emoji, MANAGEABLE_ROLES, PROD } from "../constants";
 import { getUserEmoji } from "./userEmojis";
 
 const { banRoleId, channelId, enabled, modRoleId } = Config.modmail;
+
+// Roles allowed to use the modmail staff panel — the whole staff hierarchy,
+// not just the moderator role the bot pings in tickets.
+const panelAllowedRoles = [...Config.roles.staffRoles, modRoleId]
+    .filter((v, i, a) => a.indexOf(v) === i);
 // Modmail threads live in the modmail forum, which is already a permanent,
 // staff-visible record — a separate log-channel mirror is optional. Leave
 // modmail.logChannelId empty to disable it (recommended).
@@ -348,12 +353,12 @@ if (enabled) {
         {
             guildOnly: true,
             async handle(interaction) {
-                // Check the role here (instead of via allowedRoles) so that
+                // Check the roles here (instead of via allowedRoles) so that
                 // unauthorized users get a visible response instead of the
                 // interaction silently expiring with "didn't respond in time".
-                if (!interaction.member.roles.includes(modRoleId)) {
+                if (!panelAllowedRoles.some(r => interaction.member.roles.includes(r))) {
                     return interaction.createMessage({
-                        content: "Only moderators can post the modmail panel.",
+                        content: "Only staff members can post the modmail panel.",
                         flags: MessageFlags.EPHEMERAL
                     });
                 }
