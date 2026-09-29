@@ -187,7 +187,70 @@ type SlashOptionSpec =
     | { type: "channel"; name: string; description: string; required?: boolean }
     | { type: "raw"; name: string; description: string; required?: boolean }; // rest of args as one string (rawContent commands)
 
-const BridgeCommands = new Map<string, { options: SlashOptionSpec[]; dmAllowed: boolean; }>();
+const PendingBridges: Array<{ cmdName: string; options: SlashOptionSpec[]; dmAllowed: boolean; }> = [];
+
+export function bridgeSlashCommand(cmdName: string, options: SlashOptionSpec[], dmAllowed = false) {
+    PendingBridges.push({ cmdName, options, dmAllowed });
+}
+
+function activateBridges() {
+    for (const { cmdName, options, dmAllowed } of PendingBridges) {
+        const cmd = Commands[cmdName];
+        if (!cmd) {
+            console.error(`Cannot bridge "/${cmdName}": no such prefix command, skipping`);
+            continue;
+        }
+
+        const isRaw = options.some(o => o.type === "raw");
+
+        SlashCommands.push({
+            type: ApplicationCommandTypes.CHAT_INPUT,
+            name: cmdName,
+            description: cmd.description.slice(0, 100) || "No description provided",
+            options: options.map(o => ({
+                type: o.type === "user" ? ApplicationCommandOptionTypes.USER
+                    : o.type === "int" ? ApplicationCommandOptionTypes.INTEGER
+                    : o.type === "channel" ? ApplicationCommandOptionTypes.CHANNEL
+                    : ApplicationCommandOptionTypes.STRING,
+                name: o.name,
+                description: o.description.slice(0, 100),
+                required: o.type === "raw" ? (o.required ?? false) : (o.required ?? false),
+                ...(o.type === "int" ? { minValue: o.min, maxValue: o.max } : {}),
+            }))
+        } as any);
+
+        handleCommandInteraction({
+            name: cmdName,
+            guildOnly: !dmAllowed,
+            allowedRoles: cmd.allowedRoles,
+            ownerOnly: cmd.ownerOnly,
+            async handle(interaction) {
+                // defer immediately so slow executors never hit the 3s window
+                if (!interaction.acknowledged)
+                    await interaction.defer().catch(() => null);
+
+                const args = convertInteractionOptionsToArgs(options, interaction as CommandInteraction<AnyTextableGuildChannel>);
+
+                const context = new CommandContext(
+                    null as any, // no message — replies go through the interaction
+                    "/",
+                    cmdName,
+                );
+
+                // Route the context's replies through the interaction webhooks so
+                // slash replies work without an originating message.
+                (context as any).msg = makeInteractionMessageShim(interaction as CommandInteraction<AnyTextableGuildChannel>);
+
+                await (isRaw
+                    ? cmd.execute(context, args.join(" "))
+                    : cmd.execute(context, ...args));
+            }
+        });
+    }
+    PendingBridges.length = 0;
+}
+
+Vaius.once("ready", activateBridges);
 
 function convertInteractionOptionsToArgs(specs: SlashOptionSpec[], interaction: CommandInteraction<AnyTextableGuildChannel>) {
     const args: string[] = [];
@@ -209,56 +272,7 @@ function convertInteractionOptionsToArgs(specs: SlashOptionSpec[], interaction: 
     return args;
 }
 
-export function bridgeSlashCommand(cmdName: string, options: SlashOptionSpec[], dmAllowed = false) {
-    const cmd = Commands[cmdName];
-    if (!cmd) throw new Error(`Cannot bridge "${cmdName}": no such command`);
 
-    BridgeCommands.set(cmdName, { options, dmAllowed });
-
-    const isRaw = options.some(o => o.type === "raw");
-
-    SlashCommands.push({
-        type: ApplicationCommandTypes.CHAT_INPUT,
-        name: cmdName,
-        description: cmd.description.slice(0, 100) || "No description provided",
-        options: options.map(o => ({
-            type: o.type === "user" ? ApplicationCommandOptionTypes.USER
-                : o.type === "int" ? ApplicationCommandOptionTypes.INTEGER
-                : o.type === "channel" ? ApplicationCommandOptionTypes.CHANNEL
-                : ApplicationCommandOptionTypes.STRING,
-            name: o.name,
-            description: o.description.slice(0, 100),
-            required: o.type === "raw" ? false : (o.required ?? false),
-            ...(o.type === "int" ? { minValue: o.min, maxValue: o.max } : {}),
-        }))
-    } as any);
-
-    handleCommandInteraction({
-        name: cmdName,
-        guildOnly: !dmAllowed,
-        allowedRoles: cmd.allowedRoles,
-        ownerOnly: cmd.ownerOnly,
-        async handle(interaction) {
-            const args = convertInteractionOptionsToArgs(options, interaction as CommandInteraction<AnyTextableGuildChannel>);
-
-            const context = new CommandContext(
-                null as any, // no message — replies go through the interaction
-                "/",
-                cmdName,
-            );
-
-            // Route the context's replies through the interaction webhooks so
-            // slash replies work without an originating message.
-            (context as any).msg = makeInteractionMessageShim(interaction as CommandInteraction<AnyTextableGuildChannel>);
-
-            await (isRaw
-                ? cmd.execute(context, args.join(" "))
-                : cmd.execute(context, ...args));
-        }
-    });
-}
-
-// minimal Message shim: only what CommandContext.reply/react need
 function makeInteractionMessageShim(interaction: CommandInteraction) {
     return {
         id: interaction.id,

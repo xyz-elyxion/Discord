@@ -134,72 +134,11 @@ async function handleIntroduction(msg: Message) {
     }
 }
 
+// Prefix commands were removed — everything is slash-only now (see SlashCommands.ts).
 async function handleMessage(msg: Message, isEdit: boolean) {
     if (msg.inCachedGuildChannel() && await lobotomiseMaybe(msg)) return;
     if (msg.author.bot && msg.author.id !== GEN_AI_ID) return;
 
     moderateMessage(msg, isEdit);
     handleIntroduction(msg);
-
-    await emojiCacheReady;
-
-    const lowerContent = msg.content.toLowerCase();
-
-    const prefix = Config.prefixes.find(p => lowerContent.startsWith(p));
-    if (!prefix) return;
-
-    const content = msg.content.slice(prefix.length).trim();
-    const args = content.split(whitespaceRe);
-
-    const cmdName = args.shift()?.toLowerCase()!;
-    const cmd = Commands[cmdName];
-    if (!cmd) return;
-
-    if (cmd.ownerOnly && msg.author.id !== OwnerId)
-        return;
-
-    if (cmd.guildOnly && msg.inDirectMessageChannel())
-        return reply(msg, { content: "This command can only be used in servers" });
-
-    if (cmd.permissions) {
-        if (!msg.inCachedGuildChannel()) return;
-
-        const memberPerms = msg.channel.permissionsOf(msg.member);
-        if (cmd.permissions.some(perm => !memberPerms.has(perm)))
-            return;
-    }
-
-    if (cmd.allowedRoles) {
-        if (!msg.inCachedGuildChannel()) return;
-
-        if (!cmd.allowedRoles.some(role => msg.member.roles.includes(role)))
-            return silently(msg.createReaction(Emoji.Anger));
-    }
-
-    const noRateLimit = msg.member?.permissions.has("MANAGE_MESSAGES");
-
-    if (!noRateLimit && cmd.rateLimits.getOrAdd(msg.author.id)) {
-        silently(msg.createReaction("🛑"));
-        silently(msg.createReaction(getEmojiForReaction("snailcat")));
-        return;
-    }
-
-    if (!msg.channel)
-        await msg.client.rest.channels.get(msg.channelID);
-
-    const context = new CommandContext(
-        msg as Message<AnyTextableChannel>,
-        prefix,
-        cmdName
-    );
-
-    try {
-        if (cmd.rawContent)
-            await cmd.execute(context, content.slice(cmdName.length).trim());
-        else
-            await cmd.execute(context, ...args);
-    } catch (e) {
-        handleError(`Failed to run ${cmd.name}`, e);
-        silently(reply(msg, { content: "oop, that didn't go well 💥" }));
-    }
 }

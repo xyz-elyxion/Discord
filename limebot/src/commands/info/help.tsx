@@ -15,24 +15,12 @@ defineCommand({
     description: "List all commands or get help for a specific command",
     usage: "[command]",
     async execute(ctx, commandName) {
-        const { prefix, reply } = ctx;
+        const cmd = commandName && Commands[commandName];
 
-        if (!commandName)
+        if (!commandName || !cmd)
             return await createCommandList(ctx);
 
-        let cmd = Commands[commandName];
-        if (!cmd && commandName.startsWith(prefix))
-            cmd = Commands[commandName.slice(prefix.length)];
-
-        const content = cmd
-            ? commandHelp(cmd, ctx)
-            : (
-                <ComponentMessage>
-                    <TextDisplay>{`Command ${toInlineCode(commandName)} not found.`}</TextDisplay>
-                </ComponentMessage>
-            );
-
-        return reply(content);
+        return commandHelp(cmd, ctx);
     },
 });
 
@@ -53,8 +41,7 @@ function JumpToCategory({ pages, paginator }: { pages: string[], paginator: Pagi
 
 async function renderTableOfContents(pages: string[], { prefix, commandName }: CommandContext, paginator: PaginatorCv2<FullCommand>) {
     const description = stripIndent`
-        My ${Config.prefixes.length === 1 ? "prefix is" : "prefixes are"} ${Config.prefixes.map(toInlineCode).join(", ")}.
-        Use \`${prefix}${commandName} <command>\` for more information on a specific command!
+        All my commands are slash commands — type ${toInlineCode("/")} and pick one!
 
         You can find my source code [here](${await getGitRemote()}).
     `;
@@ -75,7 +62,7 @@ function renderHelpPage(Commands: FullCommand[], { prefix, commandName }: Comman
         return `\`${i === 0 ? ZWSP : ""} ${paddedName}\`${makeEmbedSpaces(3)}${description}`;
     }).join("\n");
 
-    const footer = `Use \`${prefix}${commandName} <command>\` for more information on a specific command!`;
+    const footer = `Use ${toInlineCode("/help <command>")} for more information on a specific command!`;
 
     return (
         <>

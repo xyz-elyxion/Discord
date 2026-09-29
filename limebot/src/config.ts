@@ -1,6 +1,6 @@
 const Config = {
     "token": process.env.LIMEBOT_TOKEN || "",
-    "prefixes": ["v!", "v?", "v.", "v"],
+    // commands are slash-only; prefixes were removed
     // id of the home guild of the bot. used for registering commands, etc
     "homeGuildId": "1550709562267672607",
     // "development" | "production"
