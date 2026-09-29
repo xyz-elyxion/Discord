@@ -1,4 +1,4 @@
-import { ActivityTypes, AnyTextableGuildChannel, ButtonStyles, ChannelTypes, CommandInteraction, ComponentInteraction, ComponentTypes, InteractionTypes, MessageFlags, ModalSubmitInteraction, PrivateThreadChannel, SeparatorSpacingSize, TextChannel, TextInputStyles, User } from "oceanic.js";
+import { ActivityTypes, AnyTextableGuildChannel, ButtonStyles, ChannelTypes, CommandInteraction, ComponentInteraction, ComponentTypes, InteractionTypes, MessageFlags, ModalSubmitInteraction, PublicThreadChannel, SeparatorSpacingSize, TextChannel, TextInputStyles, User } from "oceanic.js";
 
 import { db } from "~/db";
 import { handleComponentInteraction, handleInteraction, registerChatInputCommand } from "~/SlashCommands";
@@ -320,7 +320,7 @@ if (enabled) {
                 const thread = await getThreadParent().startThread({
                     name: `${channelName}-${id}`,
                     message: { content: `-# Modmail thread (ID ${id})` }
-                }) as PrivateThreadChannel;
+                }) as PublicThreadChannel;
 
                 await t.updateTable("tickets")
                     .set("channelId", thread.id)
@@ -440,7 +440,8 @@ if (enabled) {
         guildOnly: true,
         isMatch: i => i.data.customID.startsWith("modmail:close:") || i.data.customID.startsWith("modmail:close-ban:"),
         async handle(interaction) {
-            if (interaction.channel.type !== ChannelTypes.PRIVATE_THREAD || interaction.channel.threadMetadata.archived)
+            // modmail threads are forum posts, which are PUBLIC threads
+            if (interaction.channel.type !== ChannelTypes.PUBLIC_THREAD || interaction.channel.threadMetadata.archived)
                 return;
 
             const isBan = interaction.data.customID.startsWith("modmail:close-ban:");
