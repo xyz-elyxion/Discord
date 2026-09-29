@@ -1,29 +1,63 @@
-/* Dark mode colors — Limey green accent */
+/*
+ * Limey V1 Docs — black & white (shadcn/ui-style neutral monochrome).
+ * Overrides Starlight's CSS custom properties only; no accent hue anywhere.
+ */
+
+/* Dark mode (default) */
 :root {
-    --sl-color-accent-low: #0d2b12;
-    --sl-color-accent: #4ade4a;
-    --sl-color-accent-high: #bbf7c6;
-    --sl-color-white: #ffffff;
-    --sl-color-gray-1: #eeeeee;
-    --sl-color-gray-2: #c2c2c2;
-    --sl-color-gray-3: #8b8b8b;
-    --sl-color-gray-4: #585858;
-    --sl-color-gray-5: #383838;
-    --sl-color-gray-6: #272727;
-    --sl-color-black: #181818;
+    --sl-color-accent-low: #111111;
+    --sl-color-accent: #e4e4e7;
+    --sl-color-accent-high: #fafafa;
+
+    --sl-color-white: #fafafa;
+    --sl-color-gray-1: #e4e4e7;
+    --sl-color-gray-2: #c4c4c8;
+    --sl-color-gray-3: #8b8b92;
+    --sl-color-gray-4: #5a5a60;
+    --sl-color-gray-5: #3a3a3f;
+    --sl-color-gray-6: #232326;
+    --sl-color-black: #0a0a0a;
+
+    /* shadcn-style surfaces */
+    --sl-color-bg: #000000;
+    --sl-color-bg-sidebar: #0a0a0a;
+    --sl-color-bg-nav: color-mix(in srgb, #000000 85%, transparent);
+    --sl-color-bg-accent: #171717;
+    --sl-color-text-accent: #fafafa;
 }
-/* Light mode colors. */
+
+/* Light mode */
 :root[data-theme="light"] {
-    --sl-color-accent-low: #d3f8d3;
-    --sl-color-accent: #16a316;
-    --sl-color-accent-high: #0b5e0b;
-    --sl-color-white: #181818;
-    --sl-color-gray-1: #272727;
-    --sl-color-gray-2: #383838;
-    --sl-color-gray-3: #585858;
-    --sl-color-gray-4: #8b8b8b;
-    --sl-color-gray-5: #c2c2c2;
-    --sl-color-gray-6: #eeeeee;
-    --sl-color-gray-7: #f6f6f6;
-    --sl-color-black: #ffffff;
+    --sl-color-accent-low: #f4f4f5;
+    --sl-color-accent: #18181b;
+    --sl-color-accent-high: #09090b;
+
+    --sl-color-white: #18181b;
+    --sl-color-gray-1: #3f3f46;
+    --sl-color-gray-2: #52525b;
+    --sl-color-gray-3: #71717a;
+    --sl-color-gray-4: #a1a1aa;
+    --sl-color-gray-5: #d4d4d8;
+    --sl-color-gray-6: #e4e4e7;
+    --sl-color-black: #fafafa;
+
+    --sl-color-bg: #ffffff;
+    --sl-color-bg-sidebar: #fafafa;
+    --sl-color-bg-accent: #f4f4f5;
+    --sl-color-text-accent: #09090b;
+}
+
+/* Primary buttons/links: white-on-black in dark, black-on-white in light */
+.sl-link-button.primary {
+    background: var(--sl-color-white);
+    color: var(--sl-color-black);
+    border: 1px solid var(--sl-color-white);
+}
+.sl-link-button.primary:hover {
+    background: color-mix(in srgb, var(--sl-color-white) 88%, var(--sl-color-bg));
+}
+
+/* Kill any residual colored focus rings/shadows */
+*:focus-visible {
+    outline-color: var(--sl-color-gray-2);
 }
