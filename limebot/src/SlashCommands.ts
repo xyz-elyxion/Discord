@@ -1,7 +1,8 @@
-import { AnyInteractionChannel, AnyInteractionGateway, AnyTextableGuildChannel, ApplicationCommandTypes, ApplicationIntegrationTypes, AutocompleteInteraction, CommandInteraction, ComponentInteraction, ComponentTypes, CreateGuildApplicationCommandOptions, CreateGuildChatInputApplicationCommandOptions, InteractionContextTypes, InteractionTypes, MessageFlags, ModalSubmitInteraction, SelectMenuTypes } from "oceanic.js";
+import { AnyInteractionChannel, AnyInteractionGateway, AnyTextableGuildChannel, ApplicationCommandOptionTypes, ApplicationCommandTypes, ApplicationIntegrationTypes, AutocompleteInteraction, CommandInteraction, ComponentInteraction, ComponentTypes, CreateGuildApplicationCommandOptions, CreateGuildChatInputApplicationCommandOptions, InteractionContextTypes, InteractionTypes, MessageFlags, ModalSubmitInteraction, SelectMenuTypes } from "oceanic.js";
 
 import { SetOptional } from "type-fest";
 import { handleError } from ".";
+import { CommandContext, Commands } from "./Commands";
 import { OwnerId, Vaius } from "./Client";
 import Config from "./config";
 
@@ -170,3 +171,105 @@ Vaius.once("ready", async () => {
         console.error("Failed to register slash commands (is the bot in homeGuildId with the applications.commands scope?)", e);
     }
 });
+
+// ---------------------------------------------------------------------------
+// Prefix command → slash command bridge
+//
+// Lets any prefix command be used as a slash command without rewriting its
+// executor: the interaction is adapted into a CommandContext and the slash
+// options are flattened back into the string args the executor expects.
+// ---------------------------------------------------------------------------
+
+type SlashOptionSpec =
+    | { type: "user"; name: string; description: string; required?: boolean }
+    | { type: "string"; name: string; description: string; required?: boolean }
+    | { type: "int"; name: string; description: string; required?: boolean; min?: number; max?: number }
+    | { type: "channel"; name: string; description: string; required?: boolean }
+    | { type: "raw"; name: string; description: string; required?: boolean }; // rest of args as one string (rawContent commands)
+
+const BridgeCommands = new Map<string, { options: SlashOptionSpec[]; dmAllowed: boolean; }>();
+
+function convertInteractionOptionsToArgs(specs: SlashOptionSpec[], interaction: CommandInteraction<AnyTextableGuildChannel>) {
+    const args: string[] = [];
+    const opts = interaction.data.options;
+
+    for (const spec of specs) {
+        let value: string | number | undefined;
+        switch (spec.type) {
+            case "user": value = opts.getUser(spec.name)?.id; break;
+            case "int": value = opts.getNumber(spec.name); break;
+            case "channel": value = opts.getChannel(spec.name)?.id; break;
+            case "raw":
+            case "string": value = opts.getString(spec.name); break;
+        }
+
+        if (value != null) args.push(String(value));
+    }
+
+    return args;
+}
+
+export function bridgeSlashCommand(cmdName: string, options: SlashOptionSpec[], dmAllowed = false) {
+    const cmd = Commands[cmdName];
+    if (!cmd) throw new Error(`Cannot bridge "${cmdName}": no such command`);
+
+    BridgeCommands.set(cmdName, { options, dmAllowed });
+
+    const isRaw = options.some(o => o.type === "raw");
+
+    SlashCommands.push({
+        type: ApplicationCommandTypes.CHAT_INPUT,
+        name: cmdName,
+        description: cmd.description.slice(0, 100) || "No description provided",
+        options: options.map(o => ({
+            type: o.type === "user" ? ApplicationCommandOptionTypes.USER
+                : o.type === "int" ? ApplicationCommandOptionTypes.INTEGER
+                : o.type === "channel" ? ApplicationCommandOptionTypes.CHANNEL
+                : ApplicationCommandOptionTypes.STRING,
+            name: o.name,
+            description: o.description.slice(0, 100),
+            required: o.type === "raw" ? false : (o.required ?? false),
+            ...(o.type === "int" ? { minValue: o.min, maxValue: o.max } : {}),
+        }))
+    } as any);
+
+    handleCommandInteraction({
+        name: cmdName,
+        guildOnly: !dmAllowed,
+        allowedRoles: cmd.allowedRoles,
+        ownerOnly: cmd.ownerOnly,
+        async handle(interaction) {
+            const args = convertInteractionOptionsToArgs(options, interaction as CommandInteraction<AnyTextableGuildChannel>);
+
+            const context = new CommandContext(
+                null as any, // no message — replies go through the interaction
+                "/",
+                cmdName,
+            );
+
+            // Route the context's replies through the interaction webhooks so
+            // slash replies work without an originating message.
+            (context as any).msg = makeInteractionMessageShim(interaction as CommandInteraction<AnyTextableGuildChannel>);
+
+            await (isRaw
+                ? cmd.execute(context, args.join(" "))
+                : cmd.execute(context, ...args));
+        }
+    });
+}
+
+// minimal Message shim: only what CommandContext.reply/react need
+function makeInteractionMessageShim(interaction: CommandInteraction) {
+    return {
+        id: interaction.id,
+        channelID: interaction.channelID,
+        guildID: interaction.guildID,
+        jumpLink: null,
+        author: interaction.user,
+        member: interaction.member,
+        guild: interaction.guild,
+        client: interaction.client,
+        content: "",
+        createReaction: async () => { },
+    } as any;
+}
