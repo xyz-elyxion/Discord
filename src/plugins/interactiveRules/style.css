@@ -1,18 +1,21 @@
 /*
  * Limey V1 — InteractiveRules plugin
  * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Styles intentionally use Discord's own theme variables (with legacy +
+ * hard fallbacks) so the browser automatically matches whatever theme the
+ * user has — dark, light, custom client themes, and system sync included.
  */
 
 .limey-interactive-rules-host {
     position: absolute;
     inset: 0;
     z-index: 100;
-    /* opaque fallbacks in case theme vars are missing */
-    background-color: var(--background-primary, #313338);
+    background-color: var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #313338)));
 }
 
 .theme-light .limey-interactive-rules-host {
-    background-color: var(--background-primary, #ffffff);
+    background-color: var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #ffffff)));
 }
 
 .limey-interactive-rules-root {
@@ -20,23 +23,21 @@
     inset: 0;
     display: flex;
     flex-direction: column;
-    background-color: var(--background-primary, #313338);
-}
-
-.theme-light .limey-interactive-rules-root {
-    background-color: var(--background-primary, #ffffff);
+    color: var(--text-default, var(--text-normal, #dbdee1));
+    font-family: var(--font-primary, "gg sans", "Noto Sans", sans-serif);
+    background-color: transparent; /* host provides the opaque layer */
 }
 
 .limey-ir-header {
     padding: 20px 24px 12px;
-    border-bottom: 1px solid var(--background-modifier-accent, #3f4147);
+    border-bottom: 1px solid var(--border-subtle, var(--background-modifier-accent, #3f4147));
     flex-shrink: 0;
 }
 
 .limey-ir-title {
     font-size: 20px;
     font-weight: 700;
-    color: var(--header-primary, #f2f3f5);
+    color: var(--text-default, var(--header-primary, #f2f3f5));
 }
 
 .limey-ir-subtitle {
@@ -56,13 +57,13 @@
     flex: 1;
     height: 6px;
     border-radius: 3px;
-    background: var(--background-modifier-accent, #3f4147);
+    background: var(--border-subtle, var(--background-modifier-accent, #3f4147));
     overflow: hidden;
 }
 
 .limey-ir-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #3ba55c, #00a8fc);
+    background: linear-gradient(90deg, var(--status-positive, #23a55a), var(--brand-500, #5865f2));
     transition: width 0.3s ease;
 }
 
@@ -87,7 +88,7 @@
     background: var(--background-modifier-hover, #4e5058);
     border: none;
     border-radius: 999px;
-    color: var(--interactive-normal, #b5bac1);
+    color: var(--text-default, var(--interactive-normal, #b5bac1));
     cursor: pointer;
     font-size: 12px;
     font-weight: 600;
@@ -95,9 +96,13 @@
     transition: background 0.15s;
 }
 
+.limey-ir-chip:hover {
+    background: var(--background-modifier-hover, #5d5e68);
+}
+
 .limey-ir-chip.limey-ir-chip-active {
     background: var(--brand-500, #5865f2);
-    color: #fff;
+    color: var(--white, #fff);
 }
 
 .limey-ir-list {
@@ -107,13 +112,17 @@
 }
 
 .limey-ir-card {
-    background: var(--background-secondary, #2b2d31);
-    border: 1px solid var(--background-modifier-accent, #3f4147);
+    background: var(--bg-base-secondary, var(--background-secondary, #2b2d31));
+    border: 1px solid var(--border-subtle, var(--background-modifier-accent, #3f4147));
     border-radius: 10px;
     cursor: pointer;
     margin-bottom: 8px;
     overflow: hidden;
     transition: border-color 0.15s;
+}
+
+.limey-ir-card:hover {
+    border-color: var(--border-strong, var(--background-modifier-hover, #5d5e68));
 }
 
 .limey-ir-card-header {
@@ -126,7 +135,7 @@
 .limey-ir-num {
     background: #747f8d;
     border-radius: 8px;
-    color: #fff;
+    color: var(--white, #fff);
     flex-shrink: 0;
     font-size: 13px;
     font-weight: 700;
@@ -136,7 +145,7 @@
 }
 
 .limey-ir-card-title {
-    color: var(--header-primary, #f2f3f5);
+    color: var(--text-default, var(--header-primary, #f2f3f5));
     font-size: 15px;
     font-weight: 600;
 }
@@ -144,7 +153,7 @@
 .limey-ir-card-title.limey-ir-read {
     color: var(--text-muted, #949ba4);
     text-decoration: line-through;
-    text-decoration-color: var(--status-green-560, #23a55a);
+    text-decoration-color: var(--status-positive, var(--status-green-560, #23a55a));
 }
 
 .limey-ir-card-summary {
@@ -154,14 +163,14 @@
 }
 
 .limey-ir-chevron {
-    color: var(--interactive-muted, #4e5058);
+    color: var(--text-muted, var(--interactive-muted, #4e5058));
     font-size: 12px;
     transition: transform 0.2s;
 }
 
 .limey-ir-details {
-    border-top: 1px solid var(--background-modifier-accent, #3f4147);
-    color: var(--text-normal, #dbdee1);
+    border-top: 1px solid var(--border-subtle, var(--background-modifier-accent, #3f4147));
+    color: var(--text-default, var(--text-normal, #dbdee1));
     font-size: 14px;
     line-height: 1.6;
     list-style: none;
@@ -187,14 +196,14 @@
 }
 
 .limey-ir-footer a {
-    color: var(--text-link, #00a8fc);
+    color: var(--text-link, var(--info-warning-foreground, #00a8fc));
 }
 
 .limey-ir-close {
     background: var(--background-modifier-hover, #4e5058);
     border: none;
     border-radius: 8px;
-    color: var(--interactive-normal, #b5bac1);
+    color: var(--text-default, var(--interactive-normal, #b5bac1));
     cursor: pointer;
     font-size: 16px;
     padding: 6px 12px;
