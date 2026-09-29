@@ -10,6 +10,8 @@
  * rules message, so the channel works for everyone.
  */
 
+import "./style.css";
+
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { createRoot, SelectedChannelStore } from "@webpack/common";
@@ -52,8 +54,7 @@ function mount(channelId: string) {
         host ??= (() => {
             const el = document.createElement("div");
             el.id = OVERLAY_ID;
-            el.style.cssText = "position:absolute;inset:0;z-index:20;";
-            chat.style.position ||= "relative";
+            el.className = "limey-interactive-rules-host";
             chat.appendChild(el);
             return el;
         })();

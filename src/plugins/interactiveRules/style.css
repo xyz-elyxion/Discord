@@ -1,0 +1,201 @@
+/*
+ * Limey V1 — InteractiveRules plugin
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.limey-interactive-rules-host {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    /* opaque fallbacks in case theme vars are missing */
+    background-color: var(--background-primary, #313338);
+}
+
+.theme-light .limey-interactive-rules-host {
+    background-color: var(--background-primary, #ffffff);
+}
+
+.limey-interactive-rules-root {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--background-primary, #313338);
+}
+
+.theme-light .limey-interactive-rules-root {
+    background-color: var(--background-primary, #ffffff);
+}
+
+.limey-ir-header {
+    padding: 20px 24px 12px;
+    border-bottom: 1px solid var(--background-modifier-accent, #3f4147);
+    flex-shrink: 0;
+}
+
+.limey-ir-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--header-primary, #f2f3f5);
+}
+
+.limey-ir-subtitle {
+    font-size: 13px;
+    color: var(--text-muted, #949ba4);
+    margin-top: 2px;
+}
+
+.limey-ir-progress-track {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.limey-ir-progress-bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--background-modifier-accent, #3f4147);
+    overflow: hidden;
+}
+
+.limey-ir-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3ba55c, #00a8fc);
+    transition: width 0.3s ease;
+}
+
+.limey-ir-progress-label {
+    font-size: 12px;
+    color: var(--text-muted, #949ba4);
+    white-space: nowrap;
+}
+
+.limey-ir-search {
+    margin-top: 12px;
+}
+
+.limey-ir-chips {
+    margin-top: 10px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.limey-ir-chip {
+    background: var(--background-modifier-hover, #4e5058);
+    border: none;
+    border-radius: 999px;
+    color: var(--interactive-normal, #b5bac1);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    transition: background 0.15s;
+}
+
+.limey-ir-chip.limey-ir-chip-active {
+    background: var(--brand-500, #5865f2);
+    color: #fff;
+}
+
+.limey-ir-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 24px 24px;
+}
+
+.limey-ir-card {
+    background: var(--background-secondary, #2b2d31);
+    border: 1px solid var(--background-modifier-accent, #3f4147);
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+}
+
+.limey-ir-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+}
+
+.limey-ir-num {
+    background: #747f8d;
+    border-radius: 8px;
+    color: #fff;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 700;
+    min-width: 32px;
+    padding: 4px 0;
+    text-align: center;
+}
+
+.limey-ir-card-title {
+    color: var(--header-primary, #f2f3f5);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.limey-ir-card-title.limey-ir-read {
+    color: var(--text-muted, #949ba4);
+    text-decoration: line-through;
+    text-decoration-color: var(--status-green-560, #23a55a);
+}
+
+.limey-ir-card-summary {
+    color: var(--text-muted, #949ba4);
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+.limey-ir-chevron {
+    color: var(--interactive-muted, #4e5058);
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+
+.limey-ir-details {
+    border-top: 1px solid var(--background-modifier-accent, #3f4147);
+    color: var(--text-normal, #dbdee1);
+    font-size: 14px;
+    line-height: 1.6;
+    list-style: none;
+    margin: 0;
+    padding: 12px 16px 14px 60px;
+}
+
+.limey-ir-details li {
+    margin-bottom: 4px;
+}
+
+.limey-ir-empty {
+    color: var(--text-muted, #949ba4);
+    padding: 32px;
+    text-align: center;
+}
+
+.limey-ir-footer {
+    color: var(--text-muted, #949ba4);
+    font-size: 12px;
+    margin-top: 16px;
+    text-align: center;
+}
+
+.limey-ir-footer a {
+    color: var(--text-link, #00a8fc);
+}
+
+.limey-ir-close {
+    background: var(--background-modifier-hover, #4e5058);
+    border: none;
+    border-radius: 8px;
+    color: var(--interactive-normal, #b5bac1);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 6px 12px;
+}
