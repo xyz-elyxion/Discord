@@ -47,7 +47,7 @@
             cursor: pointer;
             transition: background 0.15s;
         }
-        .btn-lime:hover { background: var(--lime-strong); color: #0c1208; }
+        .btn-lime:hover { background: var(--lime-strong); color: var(--primary-foreground); }
         .btn-lime:disabled { opacity: 0.5; cursor: default; }
 
         .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; padding-bottom: 64px; }
@@ -61,10 +61,10 @@
             gap: 12px;
             position: relative;
         }
-        .tier-card.featured { border-color: var(--lime); box-shadow: 0 0 24px rgba(163, 230, 53, 0.12); }
+        .tier-card.featured { border-color: var(--lime); box-shadow: 0 0 24px rgba(255, 255, 255, 0.06); }
         .tier-badge {
             position: absolute; top: -12px; right: 20px;
-            background: var(--lime); color: #0c1208;
+            background: var(--lime); color: var(--primary-foreground);
             font-size: 0.75rem; font-weight: 700;
             padding: 3px 10px; border-radius: 999px;
         }

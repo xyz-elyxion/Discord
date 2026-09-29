@@ -1,20 +1,49 @@
+/*
+ * Limey V1 site — shadcn/ui-inspired design system, black & white theme.
+ * Tokens follow the shadcn/ui CSS-variable convention (background, foreground,
+ * card, muted, primary, border, ring, radius) in neutral monochrome.
+ */
+
 :root {
-    --bg: #0c1208;
-    --bg-alt: #101a0c;
-    --surface: #16220f;
-    --surface-hover: #1c2b14;
-    --border: #26381c;
-    --text: #e6f2dd;
-    --text-dim: #9db58e;
-    --lime: #a3e635;
-    --lime-strong: #84cc16;
-    --lime-dark: #3f6212;
+    --background: #000000;
+    --foreground: #fafafa;
+    --card: #0a0a0a;
+    --card-foreground: #fafafa;
+    --popover: #0a0a0a;
+    --popover-foreground: #fafafa;
+    --primary: #fafafa;
+    --primary-foreground: #09090b;
+    --secondary: #1a1a1a;
+    --secondary-foreground: #fafafa;
+    --muted: #171717;
+    --muted-foreground: #a1a1aa;
+    --accent: #262626;
+    --accent-foreground: #fafafa;
+    --destructive: #7f1d1d;
+    --destructive-foreground: #fef2f2;
+    --border: #262626;
+    --input: #262626;
+    --ring: #d4d4d8;
+
+    --radius: 0.625rem;
+
+    /* Legacy aliases used by page-level styles */
+    --bg: var(--background);
+    --bg-alt: var(--card);
+    --surface: var(--card);
+    --surface-hover: var(--secondary);
+    --text: var(--foreground);
+    --text-dim: var(--muted-foreground);
+    --lime: var(--primary);
+    --lime-strong: #e4e4e7;
+    --lime-dark: var(--secondary);
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    border-color: var(--border);
 }
 
 html {
@@ -22,10 +51,16 @@ html {
 }
 
 body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
 }
 
 .container {
@@ -38,12 +73,12 @@ body {
     max-width: 720px;
 }
 
-/* Nav */
+/* Nav — shadcn-style bordered header */
 .nav {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: rgba(12, 18, 8, 0.85);
+    background: color-mix(in srgb, var(--background) 85%, transparent);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--border);
 }
@@ -61,7 +96,7 @@ body {
     gap: 10px;
     font-weight: 700;
     font-size: 1.15rem;
-    color: var(--text);
+    color: var(--foreground);
     text-decoration: none;
 }
 
@@ -69,8 +104,8 @@ body {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: var(--lime);
-    box-shadow: 0 0 12px var(--lime);
+    background: var(--primary);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 60%, transparent);
 }
 
 .nav-links {
@@ -79,21 +114,21 @@ body {
 }
 
 .nav-links a {
-    color: var(--text-dim);
+    color: var(--muted-foreground);
     text-decoration: none;
     font-size: 0.95rem;
     transition: color 0.15s;
 }
 
 .nav-links a:hover {
-    color: var(--lime);
+    color: var(--foreground);
 }
 
-/* Status banner (bot-driven outage/rate-limit notice) */
+/* Status banner (bot-driven outage/rate-limit notice) — destructive-muted */
 .status-banner {
-    background: #3a2c10;
-    color: #ffd479;
-    border-bottom: 1px solid #6b531c;
+    background: var(--secondary);
+    color: var(--foreground);
+    border-bottom: 1px solid var(--border);
     padding: 10px 16px;
     text-align: center;
     font-size: 14px;
@@ -101,20 +136,20 @@ body {
 }
 .status-banner.hidden { display: none; }
 
-/* Hero */
+/* Hero — monochrome, no glow gradients */
 .hero {
     padding: 96px 0 80px;
     text-align: center;
     background:
-        radial-gradient(ellipse 60% 50% at 50% -10%, rgba(163, 230, 53, 0.12), transparent),
-        var(--bg);
+        radial-gradient(ellipse 60% 50% at 50% -10%, color-mix(in srgb, var(--primary) 6%, transparent), transparent),
+        var(--background);
 }
 
 .eyebrow {
     text-transform: uppercase;
     letter-spacing: 0.12em;
     font-size: 0.8rem;
-    color: var(--lime);
+    color: var(--muted-foreground);
     margin-bottom: 16px;
 }
 
@@ -122,17 +157,17 @@ body {
     font-size: clamp(2.4rem, 6vw, 4rem);
     line-height: 1.1;
     margin-bottom: 20px;
+    letter-spacing: -0.02em;
 }
 
 .accent {
-    color: var(--lime);
-    text-shadow: 0 0 24px rgba(163, 230, 53, 0.4);
+    color: var(--muted-foreground);
 }
 
 .lede {
     max-width: 640px;
     margin: 0 auto 32px;
-    color: var(--text-dim);
+    color: var(--muted-foreground);
     font-size: 1.1rem;
 }
 
@@ -146,40 +181,43 @@ body {
 .hint {
     margin-top: 16px;
     font-size: 0.85rem;
-    color: var(--text-dim);
+    color: var(--muted-foreground);
 }
 
-/* Buttons */
+/* Buttons — shadcn Button (default + outline variants) */
 .btn {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 14px 28px;
-    border-radius: 10px;
+    border-radius: var(--radius);
     font-weight: 600;
-    text-decoration: none;
     font-size: 1rem;
-    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+    cursor: pointer;
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--lime), var(--lime-strong));
-    color: #14210a;
-    box-shadow: 0 4px 20px rgba(163, 230, 53, 0.35);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border: 1px solid var(--primary);
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 28px rgba(163, 230, 53, 0.45);
+    background: color-mix(in srgb, var(--primary) 88%, var(--background));
+    border-color: color-mix(in srgb, var(--primary) 88%, var(--background));
 }
 
 .btn-ghost {
-    color: var(--text);
-    border: 1px solid var(--border);
-    background: var(--surface);
+    color: var(--foreground);
+    border: 1px solid var(--input);
+    background: transparent;
 }
 
 .btn-ghost:hover {
-    background: var(--surface-hover);
-    border-color: var(--lime-dark);
+    background: var(--accent);
+    color: var(--accent-foreground);
 }
 
 /* Sections */
@@ -188,7 +226,7 @@ body {
 }
 
 .section.alt {
-    background: var(--bg-alt);
+    background: var(--card);
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
 }
@@ -197,6 +235,7 @@ body {
     font-size: 2rem;
     margin-bottom: 32px;
     text-align: center;
+    letter-spacing: -0.02em;
 }
 
 .grid {
@@ -205,27 +244,30 @@ body {
     gap: 20px;
 }
 
+/* Cards — shadcn Card */
 .card {
-    background: var(--surface);
+    background: var(--card);
+    color: var(--card-foreground);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: var(--radius);
     padding: 24px;
-    transition: border-color 0.15s, transform 0.15s;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+    transition: border-color 0.15s, background 0.15s;
 }
 
 .card:hover {
-    border-color: var(--lime-dark);
-    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--foreground) 25%, var(--border));
 }
 
 .card h3 {
-    color: var(--lime);
+    color: var(--foreground);
     font-size: 1.1rem;
     margin-bottom: 8px;
+    font-weight: 600;
 }
 
 .card p {
-    color: var(--text-dim);
+    color: var(--muted-foreground);
     font-size: 0.95rem;
 }
 
@@ -240,16 +282,16 @@ body {
 
 .steps li {
     counter-increment: step;
-    background: var(--surface);
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: var(--radius);
     padding: 24px 24px 24px 72px;
     position: relative;
-    color: var(--text-dim);
+    color: var(--muted-foreground);
 }
 
 .steps li strong {
-    color: var(--text);
+    color: var(--foreground);
 }
 
 .steps li::before {
@@ -259,9 +301,10 @@ body {
     top: 22px;
     width: 36px;
     height: 36px;
-    border-radius: 50%;
-    background: var(--lime-dark);
-    color: var(--lime);
+    border-radius: 9999px;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    color: var(--foreground);
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -269,15 +312,17 @@ body {
 }
 
 .steps a {
-    color: var(--lime);
+    color: var(--foreground);
+    text-decoration: underline;
+    text-underline-offset: 4px;
 }
 
 .note {
     font-size: 0.85rem;
-    color: var(--text-dim);
-    background: var(--surface);
+    color: var(--muted-foreground);
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--radius);
     padding: 16px;
 }
 
@@ -285,12 +330,13 @@ body {
 .footer {
     padding: 40px 0;
     text-align: center;
-    color: var(--text-dim);
+    color: var(--muted-foreground);
     font-size: 0.9rem;
+    border-top: 1px solid var(--border);
 }
 
 .footer a {
-    color: var(--lime);
+    color: var(--foreground);
     text-decoration: none;
 }
 
