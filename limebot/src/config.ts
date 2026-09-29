@@ -41,14 +41,36 @@ const Config = {
     },
 
     "roles": {
-        // anyone with this role can execute moderation commands
+        // staff hierarchy (new Limey V1 server roles)
+        "owner": "1552126541607993354",
+        "developer": "1551886339203534865",
+        // given to users who contributed and joined the server
+        "contributor": "1554395361114718218",
+        "headAdministrator": "1554394487353114624",
+        "administrator": "1554394441786331146",
+        "trialAdministrator": "1554394541564366858",
+        "headModerator": "1554394646891855982",
+        "moderator": "1554394807961387060",
+        "trialModerator": "1554394923057287208",
+
+        // anyone with any of these roles can execute moderation commands
+        "staffRoles": [
+            "1552126541607993354", // owner
+            "1551886339203534865", // developer
+            "1554394487353114624", // head administrator
+            "1554394441786331146", // administrator
+            "1554394541564366858", // trial administrator
+            "1554394646891855982", // head moderator
+            "1554394807961387060", // moderator
+            "1554394923057287208", // trial moderator
+        ],
+
+        // legacy roles (kept for reference/backwards compatibility)
         "mod": "1026509424686284924",
         // anyone with this role has limited access to moderation commands like mute
         "helper": "1244313853357981787",
         // used for github linking and some other things
         "donor": "1042507929485586532",
-        // used for github linking and some other things
-        "contributor": "1026534353167208489",
         // used for regular cotd
         "regular": "1026504932959977532",
 
@@ -162,7 +184,7 @@ const Config = {
         // modmail logs go to the shared mod-log channel (channels.modLog) like other moderation actions
         "logChannelId": "",
         // role that will be mentioned (without ping) in new tickets to pull everyone into the thread
-        "modRoleId": "1273266391449079858",
+        "modRoleId": "1554394807961387060",
         // role that will be given to ban users from opening tickets
         "banRoleId": "1161815552919076867"
     },
