@@ -1,0 +1,72 @@
+.limey-interactive-verify-host {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    background-color: var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #313338)));
+}
+
+.theme-light .limey-interactive-verify-host {
+    background-color: var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #ffffff)));
+}
+
+.limey-interactive-verify-root {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-default, var(--text-normal, #dbdee1));
+    font-family: var(--font-primary, "gg sans", "Noto Sans", sans-serif);
+}
+
+.limey-iv-card {
+    background: var(--bg-base-secondary, var(--background-secondary, #2b2d31));
+    border: 1px solid var(--border-subtle, var(--background-modifier-accent, #3f4147));
+    border-radius: 16px;
+    max-width: 420px;
+    width: calc(100% - 48px);
+    padding: 40px 32px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+}
+
+.limey-iv-logo { font-size: 48px; }
+
+.limey-iv-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-default, var(--header-primary, #f2f3f5));
+}
+
+.limey-iv-subtitle {
+    font-size: 14px;
+    color: var(--text-muted, #949ba4);
+    line-height: 1.5;
+}
+
+.limey-iv-error {
+    font-size: 13px;
+    color: var(--text-danger, #f23f43);
+}
+
+.limey-iv-alt {
+    font-size: 13px;
+    color: var(--text-link, #00a8fc);
+    text-decoration: none;
+}
+
+.limey-iv-alt:hover { text-decoration: underline; }
+
+.limey-iv-fine {
+    font-size: 11px;
+    color: var(--text-muted, #949ba4);
+    margin-top: 8px;
+    line-height: 1.5;
+}
+
+.limey-iv-fine a {
+    color: var(--text-link, #00a8fc);
+}

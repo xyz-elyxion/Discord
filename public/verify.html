@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify — Limey V1</title>
+    <meta name="description" content="Verify your Discord account to join the Limey V1 community.">
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .verify-wrap {
+            min-height: calc(100vh - 200px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 24px;
+        }
+        .verify-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            max-width: 480px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+        .verify-card .logo { font-size: 48px; }
+        .verify-card h1 { margin: 16px 0 8px; }
+        .verify-card p { color: var(--text-dim); line-height: 1.6; }
+        .verify-status { font-size: 1.05rem; font-weight: 600; margin: 20px 0; min-height: 28px; }
+        .verify-status.ok { color: #3ba55c; }
+        .verify-status.err { color: #f04747; }
+        .verify-status.busy { color: var(--text-dim); }
+        .btn-lime {
+            display: inline-block;
+            background: var(--lime);
+            color: var(--bg);
+            font-weight: 700;
+            padding: 12px 28px;
+            border-radius: 10px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        .btn-lime:hover { transform: translateY(-2px); }
+        .btn-lime:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .spinner {
+            display: inline-block;
+            width: 20px; height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--lime);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: -4px;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .fine { font-size: 0.8rem; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <a href="/plugins/">Plugins</a>
+                <a href="/rules.html">Rules</a>
+                <a href="/download">Install</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="verify-wrap">
+        <div class="verify-card">
+            <div class="logo">🍋</div>
+            <h1>Verify your account</h1>
+            <p id="intro">Confirm that you're human to unlock the Limey V1 server.</p>
+            <div id="status" class="verify-status busy"></div>
+            <div id="actions"></div>
+            <p class="fine">Verifying grants you the verified role and agrees you'll follow the <a href="/rules.html">community rules</a>.</p>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Limey V1 — GPL-3.0 &middot; <a href="/">Back to home</a></p>
+            <p class="fine">Discord is a trademark of Discord Inc. This project is not affiliated with or endorsed by Discord Inc.</p>
+        </div>
+    </footer>
+
+<script>
+    // The website proxies /v1/verify/* to the bot's API, so same-origin works
+    // in production. In local dev the bot API runs on :8152 directly.
+    const API_BASE = window.location.port === "3000" || window.location.port === "10000"
+        ? "" // same-origin (server.js proxies /v1/verify/*)
+        : "http://127.0.0.1:8152"; // local dev hitting the bot directly
+
+    const statusEl = document.getElementById("status");
+    const actionsEl = document.getElementById("actions");
+    const introEl = document.getElementById("intro");
+
+    const params = new URLSearchParams(location.search);
+    const token = params.get("t");
+
+    function setStatus(text, cls) {
+        statusEl.textContent = text;
+        statusEl.className = "verify-status " + (cls || "");
+    }
+
+    async function redeem(t) {
+        setStatus("Verifying you…", "busy");
+        statusEl.innerHTML = '<span class="spinner"></span>Verifying you…';
+        try {
+            const res = await fetch(API_BASE + "/v1/verify/token/" + encodeURIComponent(t), { method: "POST" });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.ok) {
+                setStatus("✅ You're verified! You can head back to Discord — your role has been granted.", "ok");
+                introEl.textContent = "Welcome to Limey V1 🍋";
+                actionsEl.innerHTML = '<a class="btn-lime" href="https://discord.com/channels/1550709562267672607">Back to Discord</a>';
+            } else if (res.status === 410) {
+                setStatus("❌ This link was already used or has expired.", "err");
+                introEl.textContent = "Ask the bot in the verification channel for a fresh link.";
+                actionsEl.innerHTML = '<a class="btn-lime" href="https://discord.com/channels/1550709562267672607/1554636290211971092">Back to #rules</a>';
+            } else {
+                setStatus("❌ " + (data.error || "Verification failed. Try again from Discord."), "err");
+            }
+        } catch (e) {
+            setStatus("❌ Could not reach the verification service. Please try again shortly.", "err");
+        }
+    }
+
+    async function checkToken(t) {
+        setStatus("Checking your link…", "busy");
+        try {
+            const res = await fetch(API_BASE + "/v1/verify/token/" + encodeURIComponent(t));
+            if (res.status === 404) {
+                setStatus("❌ This verification link is invalid.", "err");
+                return;
+            }
+            const data = await res.json();
+            if (data.used) {
+                setStatus("❌ This link was already used. Request a new one from the bot.", "err");
+                return;
+            }
+            // valid — show confirm button (prevents accidental role grants from link previews)
+            setStatus("Link valid — one click to go.", "busy");
+            actionsEl.innerHTML = '<button class="btn-lime" id="confirm">Verify Now</button>';
+            document.getElementById("confirm").onclick = () => redeem(t);
+        } catch (e) {
+            setStatus("❌ Could not reach the verification service.", "err");
+        }
+    }
+
+    if (token) {
+        checkToken(token);
+    } else {
+        setStatus("No verification link detected.", "err");
+        introEl.textContent = "Open the verification channel in Discord and click \"Verify on Website\" there, or use the Instant Verify button if you have the Limey V1 mod.";
+        actionsEl.innerHTML = '<a class="btn-lime" href="https://discord.com/channels/1550709562267672607/1554636290211971092">Go to #verification</a>';
+    }
+</script>
+</body>
+</html>

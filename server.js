@@ -1096,6 +1096,22 @@ function startCloud() {
     }, 1000);
 }
 
+function proxyLimebot(req, res, overridePath) {
+    const opts = {
+        host: "127.0.0.1",
+        port: 8152,
+        path: overridePath || req.url,
+        method: req.method,
+        headers: { ...req.headers, host: "127.0.0.1:8152" }
+    };
+    const upstream = http.request(opts, upRes => {
+        res.writeHead(upRes.statusCode || 502, upRes.headers);
+        upRes.pipe(res);
+    });
+    upstream.on("error", () => json(res, 503, { error: "verification service unavailable" }));
+    req.pipe(upstream);
+}
+
 function proxyCloud(req, res, overridePath) {
     if (!cloudUp) return send(res, 503, "Cloud backend unavailable");
 
@@ -1210,8 +1226,18 @@ function serveAdminPage(res, url) {
 const server = http.createServer(async (req, res) => {
     const url = decodeURIComponent((req.url || "/").split("?")[0]);
 
-    // Named pages (plugins, download, install, 404)
+    // Discord domain verification
+    if (url === "/.well-known/discord") {
+        res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+        return res.end("dh=be6cbb1bb153e2f8344c6f99acbf1b55a62389ec"), true;
+    }
+
+    // Named pages (plugins, download, install, 404, verify)
+    if (url === "/verify") return serveFile(res, join(PUBLIC, "verify.html")), true;
     if (serveNamedPage(res, url)) return;
+
+    // Proxy the verification API to the limebot fastify server (port 8152)
+    if (url.startsWith("/v1/verify/")) return proxyLimebot(req, res);
 
     // Donor badges JSON for the BadgeAPI plugin
     if (handleBadges(req, res, url)) return;
@@ -1238,6 +1264,13 @@ const server = http.createServer(async (req, res) => {
         if (params.get("state") === "limes" && limeEconomy) {
             // Exchange the code server-side and bounce the session to the site page
             if (await limeEconomy.handle(req, res, "/v1/limes/callback" + (query ? "?" + query : ""))) return;
+        }
+        // state=verify: the Go backend returns { userId } for the verify flow,
+        // but ONLY the bot's own origin is allowed to call it with that state.
+        // Hand the exchange to the limebot, which owns the verify role.
+        if (params.get("state") === "verify" || params.get("clientMod") === "verify") {
+            const clean = new URLSearchParams(params);
+            return proxyLimebot(req, Object.assign(res, {}), "/v1/verify/oauth/callback" + (clean.toString() ? "?" + clean.toString() : ""));
         }
         // default: settings sync cloud (Go backend owns this route);
         // strip our client-side state so the Go callback sees a clean request

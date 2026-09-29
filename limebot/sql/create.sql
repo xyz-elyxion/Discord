@@ -70,6 +70,13 @@ CREATE TABLE IF NOT EXISTS aiModSettings (
     value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS verificationTokens (
+    token     TEXT PRIMARY KEY NOT NULL,
+    userId    TEXT NOT NULL,
+    used      INTEGER NOT NULL DEFAULT 0,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS scheduledUnbans (
     userId    TEXT NOT NULL,
     guildId   TEXT NOT NULL,

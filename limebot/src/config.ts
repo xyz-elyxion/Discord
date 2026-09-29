@@ -138,6 +138,19 @@ const Config = {
         "rulesChannelId": "1015074670963335219"
     },
 
+    // verification channel. members must verify (via the website or the
+    // InteractiveVerification plugin) before getting the verified role
+    "verification": {
+        "enabled": true,
+        "channelId": "1554636290211971092",
+        // role granted on successful verification
+        "verifiedRoleId": "1554395361114718218", // contributor role — CHANGE to your verified/members role
+        // public URL of the site hosting the verification page
+        "siteUrl": process.env.LIMEY_SITE_URL || "https://limey-discord.onrender.com",
+        // client id used for the website OAuth flow (same app as the bot)
+        "clientId": "1514929209158402078",
+    },
+
     // known issue command
     "knownIssues": {
         "enabled": true,

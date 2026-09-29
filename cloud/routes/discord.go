@@ -80,6 +80,14 @@ func GETOAuthCallback(c *fiber.Ctx) error {
 
 	userId := userResult.Id
 
+	// Verification flow (clientMod=verify / state=verify): the caller only
+	// needs the Discord user id so the limebot can grant the verified role.
+	if c.Query("state") == "verify" || c.Query("clientMod") == "verify" {
+		return c.JSON(&fiber.Map{
+			"userId": userId,
+		})
+	}
+
 	if g.ALLOWED_USERS != nil && !g.ALLOWED_USERS[userId] {
 		return c.Status(403).JSON(&fiber.Map{
 			"error": "User is not whitelisted",

@@ -5,6 +5,7 @@ import Config from "./config";
 import { PROD } from "./constants";
 import { getGitRemote } from "./util/git";
 import { makeLazy } from "./util/lazy";
+import { consumeToken, getTokenInfo, grantVerifiedRole, isVerified, mintToken } from "./modules/verification";
 
 const { enabled, port } = Config.httpServer;
 
@@ -30,6 +31,113 @@ if (enabled) {
             .send(await getIndex());
 
 
+    });
+
+    // ------------------------------------------------------------------
+    // Verification API (used by public/verify.html and the
+    // InteractiveVerification plugin)
+    // ------------------------------------------------------------------
+    const verifyCors = (req: any, res: any) => {
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.header("Access-Control-Allow-Headers", "Content-Type");
+    };
+
+    fastify.options("/v1/verify/*", async (req, res) => {
+        verifyCors(req, res);
+        return res.code(204).send();
+    });
+
+    // token status — used by the website page to show who it's for
+    fastify.get("/v1/verify/token/:token", async (req, res) => {
+        verifyCors(req, res);
+        const { token } = req.params as { token: string };
+        const info = await getTokenInfo(token);
+        if (!info) return res.code(404).send({ error: "invalid token" });
+        return { userId: info.userId, used: !!info.used };
+    });
+
+    // consume token → grant role
+    fastify.post("/v1/verify/token/:token", async (req, res) => {
+        verifyCors(req, res);
+        const { token } = req.params as { token: string };
+        const userId = await consumeToken(token);
+        if (!userId) return res.code(410).send({ error: "token already used or invalid" });
+
+        try {
+            await grantVerifiedRole(userId);
+            return { ok: true, userId };
+        } catch (e: any) {
+            console.error("[verify] failed to grant role:", e);
+            return res.code(500).send({ error: "failed to grant role" });
+        }
+    });
+
+    // OAuth fast-track: bot already authenticated the user in-client via
+    // Discord OAuth, so it can mint a fresh token and verify instantly
+    fastify.post("/v1/verify/oauth/:userId", async (req, res) => {
+        verifyCors(req, res);
+        const { userId } = req.params as { userId: string };
+        if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
+
+        if (await isVerified(userId))
+            return { ok: true, alreadyVerified: true };
+
+        try {
+            await grantVerifiedRole(userId);
+            return { ok: true };
+        } catch (e: any) {
+            console.error("[verify] failed to grant role (oauth):", e);
+            return res.code(500).send({ error: "failed to grant role" });
+        }
+    });
+
+    // mint a token for a user (used by the plugin's DM fallback flow)
+    fastify.post("/v1/verify/mint/:userId", async (req, res) => {
+        verifyCors(req, res);
+        const { userId } = req.params as { userId: string };
+        if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
+        const token = await mintToken(userId);
+        return { token, url: `${Config.verification.siteUrl}/verify?t=${token}` };
+    });
+
+    // OAuth callback fast-track: the server.js dispatcher forwards state=verify
+    // here with ?code=...; we exchange the code with Discord ourselves and
+    // grant the verified role to the authenticated user.
+    fastify.get("/v1/verify/oauth/callback", async (req, res) => {
+        verifyCors(req, res);
+        const { code } = req.query as { code?: string };
+        if (!code) return res.code(400).send({ error: "missing code" });
+
+        try {
+            const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    client_id: Config.verification.clientId,
+                    client_secret: process.env.DISCORD_CLIENT_SECRET || "",
+                    grant_type: "authorization_code",
+                    code,
+                    redirect_uri: `${Config.verification.siteUrl}/v1/oauth/callback`,
+                    scope: "identify"
+                })
+            });
+            if (!tokenRes.ok) throw new Error(`token exchange failed (${tokenRes.status})`);
+            const { access_token } = await tokenRes.json() as { access_token: string };
+
+            const userRes = await fetch("https://discord.com/api/users/@me", {
+                headers: { Authorization: `Bearer ${access_token}` }
+            });
+            if (!userRes.ok) throw new Error("failed to fetch user");
+            const { id } = await userRes.json() as { id: string };
+
+            if (await isVerified(id)) return { ok: true, userId: id, alreadyVerified: true };
+            await grantVerifiedRole(id);
+            return { ok: true, userId: id };
+        } catch (e: any) {
+            console.error("[verify] oauth callback failed:", e);
+            return res.code(500).send({ error: e.message ?? "verification failed" });
+        }
     });
 
     // defer listen to allow for fastify plugins to be registered before starting the server

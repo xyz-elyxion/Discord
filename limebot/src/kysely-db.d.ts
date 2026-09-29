@@ -76,6 +76,13 @@ export interface Tickets {
         value: string;
     }
 
+    export interface VerificationTokens {
+        token: string;
+        userId: string;
+        used: number;
+        createdAt: string;
+    }
+
     export interface ScheduledUnbans {
         userId: string;
         guildId: string;
@@ -94,6 +101,7 @@ export interface Tickets {
         xp: Xp;
         warnings: Warnings;
         scheduledUnbans: ScheduledUnbans;
+        verificationTokens: VerificationTokens;
         aiTrainingExamples: AiTrainingExamples;
         aiModSettings: AiModSettings;
     }
