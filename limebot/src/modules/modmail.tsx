@@ -18,8 +18,10 @@ import { Colors, Emoji, MANAGEABLE_ROLES, PROD } from "../constants";
 import { getUserEmoji } from "./userEmojis";
 
 const { banRoleId, channelId, enabled, modRoleId } = Config.modmail;
-// Fall back to the shared mod-log channel (same place bans/mutes/warns log)
-const logChannelId = Config.modmail.logChannelId || Config.channels.modLog;
+// Modmail threads live in the modmail forum, which is already a permanent,
+// staff-visible record — a separate log-channel mirror is optional. Leave
+// modmail.logChannelId empty to disable it (recommended).
+const { logChannelId } = Config.modmail;
 
 const enum Ids {
     OPEN_TICKET = "modmail:open_ticket",
