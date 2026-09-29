@@ -17,7 +17,9 @@ import { defineCommand } from "../Commands";
 import { Colors, Emoji, MANAGEABLE_ROLES, PROD } from "../constants";
 import { getUserEmoji } from "./userEmojis";
 
-const { banRoleId, channelId, enabled, logChannelId, modRoleId } = Config.modmail;
+const { banRoleId, channelId, enabled, modRoleId } = Config.modmail;
+// Fall back to the shared mod-log channel (same place bans/mutes/warns log)
+const logChannelId = Config.modmail.logChannelId || Config.channels.modLog;
 
 const enum Ids {
     OPEN_TICKET = "modmail:open_ticket",

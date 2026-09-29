@@ -141,7 +141,7 @@ const Config = {
         ],
         "bannedRoles": [
             "1427368278866792669", // no ai
-            "1018310742874791977"  // brain rot
+            "1018310742874791977" // brain rot
         ],
     },
 
@@ -159,7 +159,8 @@ const Config = {
         "enabled": true,
         // category/channel where modmail threads are created
         "channelId": "1553920145804628058",
-        "logChannelId": "1161449871182659655",
+        // modmail logs go to the shared mod-log channel (channels.modLog) like other moderation actions
+        "logChannelId": "",
         // role that will be mentioned (without ping) in new tickets to pull everyone into the thread
         "modRoleId": "1273266391449079858",
         // role that will be given to ban users from opening tickets
