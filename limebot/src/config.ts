@@ -144,7 +144,7 @@ const Config = {
         "enabled": true,
         "channelId": "1554636290211971092",
         // role granted on successful verification
-        "verifiedRoleId": "1554395361114718218", // contributor role — CHANGE to your verified/members role
+        "verifiedRoleId": "1550709703493812254", // verified
         // public URL of the site hosting the verification page
         "siteUrl": process.env.LIMEY_SITE_URL || "https://limey-discord.onrender.com",
         // client id used for the website OAuth flow (same app as the bot)

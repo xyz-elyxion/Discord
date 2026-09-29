@@ -1226,12 +1226,6 @@ function serveAdminPage(res, url) {
 const server = http.createServer(async (req, res) => {
     const url = decodeURIComponent((req.url || "/").split("?")[0]);
 
-    // Discord domain verification
-    if (url === "/.well-known/discord") {
-        res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-        return res.end("dh=be6cbb1bb153e2f8344c6f99acbf1b55a62389ec"), true;
-    }
-
     // Named pages (plugins, download, install, 404, verify)
     if (url === "/verify") return serveFile(res, join(PUBLIC, "verify.html")), true;
     if (serveNamedPage(res, url)) return;
