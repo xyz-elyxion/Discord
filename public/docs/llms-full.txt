@@ -1,0 +1,1307 @@
+<SYSTEM>This is the full developer documentation for Vencord Docs</SYSTEM>
+
+# Welcome to the Vencord Docs!
+
+> The cutest documentation
+
+Powerful plugin API
+
+Quickly add context menus, slash commands, message action buttons, message accessories (like embeds or bot buttons), and much more!
+
+Typescript, JSX, CSS, modular
+
+Plugins can make use of Typescript, JSX syntax, import css files and modularise their code! Vencord and many Discord modules are fully typed for your convenience.
+
+RegExp code patches
+
+Rewrite Discord’s code in place using RegExp replacements instead of boring old monkey patches.
+
+Native Capabilities
+
+Plugins can define native functions that have full access to Node.js apis without compromising on security.
+
+# Introduction
+
+> An introduction to navigating and understanding Discord's code.
+
+To understand how to do things in Vencord, you will sooner or later have to reverse engineer Discord’s code.
+
+Websites are made in javascript, so you can just open the developer tools in your browser and start inspecting the code.
+
+However, Discord is a complex app, and its code is minified, so you will have to learn how to read and understand minified JavaScript code.
+
+# Finding Code
+
+> How to find code relevant to your needs within Discord's codebase.
+
+Finding the right code is crucial for patches and understanding how to do specific things.
+
+Whenever you need to find something, think about whether there is a UI element inside Discord that does what you want. For example, let’s say you want to know how to delete a message with code. All you have to do is inspect what the “Delete Message” button or context menu option do.
+
+There are multiple methods for finding the relevant code. I’ll demonstrate all of them via a practical example:
+
+* [Searching by text](#searching-by-text)
+* [React Developer Tools](#react-developer-tools)
+
+## React Developer Tools
+
+[Section titled “React Developer Tools”](#react-developer-tools)
+
+React DevTools are like the Element inspector, but for React components. They allow you to inspect the component hierarchy, view props and state, and understand how the UI is structured and behaves. We can use it to inspect any element and see its inner workings, which is especially useful for inspecting interactive elements and accessing their event handlers like onClick, onContextMenu, etc.
+
+First, you need to enable it.
+
+1. Open `Settings > Vencord`
+2. Enable the `Enable React Developer Tools` switch.
+3. Restart Discord.
+4. In the top bar of DevTools, you will now have a new “Components” tab. It may be hidden behind the `>>` overflow menu if your window is not wide enough.
+
+Note
+
+Currently Electron has a bug which may cause this tab to not show up. In that case, reload Discord once via `CTRL + R` and it should show up.
+
+***
+
+As practical example, let’s use React DevTools to find out how to join a voice channel programmatically.
+
+The most obvious UI element for this are voice channels in the channel list. Clicking them causes you to join.
+
+Use the Element Picker to select the voice channel element in the Discord UI. ![](/docs/_astro/rdt-picker.CWTFP84-_aH7TI.webp)
+
+This will highlight the corresponding React component tree in the DevTools. Now click around a bit to find the exact component that contains the onClick handler. While doing this, pay attention to the Discord UI to see which element gets highlighted to ensure you’re not going too far.
+
+![](/docs/_astro/rdt-onClick.D5FmslXI_Z21uOP3.webp) ![](/docs/_astro/rdt-highlight.uRqRVsq6_Z2s3pzN.webp)
+
+Then click the `onClick` to jump to the corresponding javascript code. You can now read the surrounding code to understand how the action is implemented.
+
+It also really helps to
+
+* set a breakpoint in the `onClick` handler
+* click the voice channel element to trigger the handler
+* now execution should pause and you should be able to inspect all variables, the call stack, etc.
+
+### Full Demonstration
+
+[Section titled “Full Demonstration”](#full-demonstration)
+
+[](/docs/_astro/rdt-demo.aFJunfhg.mkv)
+
+## Searching by text
+
+[Section titled “Searching by text”](#searching-by-text)
+
+The Sources tab in the DevTools allows you to search for text within the entire javascript codebase. To do so, open the Sources tab and press `CTRL + SHIFT + F` (or `CMD + SHIFT + F` on Mac).
+
+Often times, it’s easy to find relevant code by searching for either
+
+* [Strings](#searching-by-strings) — the text displayed in the UI (e.g., button labels, menu items)
+* [CSS Classes](#searching-by-css-classes--ids) — class names used on elements
+
+### Searching by Strings
+
+[Section titled “Searching by Strings”](#searching-by-strings)
+
+As an example, let’s find the “Share my activity” setting.
+
+![The “Share my activity” settings UI](/docs/_astro/share-my-activity.DCkbjibk_1Y54D.webp) ![“Share my activity” search results](/docs/_astro/share-my-activity2.CNbRgEzb_Z2wN2EL.webp)
+
+The first search result is an unrelated String.
+
+`"WhdCGP":["Share my activity"]` is our target string. Since Discord supports multiple languages, each string is stored in a central place with a unique ID; In this case `"WhdCGP"`.
+
+Next we will search for this ID to locate where this string is used in the code. You can then jump to the results and see the code and set breakpoints.
+
+![“WhdCGP” search results](/docs/_astro/share-my-activity3.taMGN6ri_Z1IxSXP.webp) ![](/docs/_astro/share-my-activity4.5JXZnGkL_1cBVEL.webp) ![](/docs/_astro/share-my-activity5.DTSWJOHG_1OxVG5.webp)
+
+Note
+
+You may see duplicate results, with one being called something like `WebpackModule867730` and the other one being called something like `e4ca9ba2f914abc4.js`.
+
+What this means is that the [module](/discord-code/modules#modules) this code is in was patched by a plugin. Whenever a module is patched, it is extracted into its own file called `WebpackModuleXXXXXX`.
+
+So the first result is the actual module in use. The second result is the [chunk](/discord-code/modules#chunks) this module was contained in. However the module in this chunk is no longer used.
+
+### Searching by CSS Classes / IDs
+
+[Section titled “Searching by CSS Classes / IDs”](#searching-by-css-classes--ids)
+
+Sometimes it’s helpful to search for CSS classes or IDs. This is especially useful for Context Menus, which all have an ID.
+
+Use the DevTools Element Picker in the top left to select the element you want to inspect. Look for a unique CSS class or ID that you can search for in the Sources tab
+
+![An element is selected — the “profileButtons\_\_9c3be” class is highlighted](/docs/_astro/class-search.CNzm5ehb_2vRorT.webp)
+
+Now search for this CSS class or ID in the Sources tab. You might find a `.css` file — ignore it. Instead, focus on the `.js` result.
+
+![](/docs/_astro/class-search2.CViW_Hfo_1gAhw7.webp) ![](/docs/_astro/class-search3.DgTAWC-u_IbKtv.webp)
+
+You will notice that this is only a small [module](/discord-code/modules#modules) which exports one or more css classes. The export names may be short one or two letter names. If so, take note of the mangled export name corresponding to the CSS class you are interested in.
+
+Now look for the ID of this module, in our case it’s `447538`. If you are confused, see the [modules](/discord-code/modules#modules) documentation for more information.
+
+Search for this ID to find other modules that import this module. In our case, there is one result, which imports the CSS module as `at`.
+
+![](/docs/_astro/class-search4.CZTSI8AD_1APlv4.webp)
+
+You can now combine the import name `at` with the export name `profileButtons` and search for that in the module.
+
+![“at.profileButtons” is highlighted](/docs/_astro/class-search5.Z32O0060_2c5pyB.webp)
+
+# Webpack Modules & Chunks
+
+> An overview of how Discord's code is organized into Webpack modules and chunks.
+
+Discord uses Webpack (actually [rspack](https://rspack.rs/)) to bundle its code into modules and chunks.
+
+Modules are individual files, while a chunk is a collection of modules that are loaded together.
+
+Webpack emulates a system quite similar to NodeJS’ CommonJS system, where each module has its own scope and can export and import functionality using `module.exports` and `require`. Instead of filenames, it uses numeric IDs. Each module has a unique ID which can be used to require it.
+
+## Chunks
+
+[Section titled “Chunks”](#chunks)
+
+Each `.js` source file loaded by Discord (e.g. <https://discord.com/assets/876d6c58026ec79c.js>) is a chunk.
+
+It looks like this:
+
+```js
+"use strict";
+(this.webpackChunkdiscord_app = this.webpackChunkdiscord_app || []).push([
+    ["808979"],
+    {
+        532446(i, n, r) {
+            r.d(n, {
+                M: () => c
+            });
+            var a = r(477900);
+            r(582128);
+            var t = r(331322);
+            function c(i) {
+                let { children: n } = i;
+                return (0, a.jsx)(t.B, {
+                    direction: "horizontal",
+                    gap: 8,
+                    align: "end",
+                    children: n
+                });
+            }
+        }
+    }
+]);
+```
+
+It pushes to the global `webpackChunkdiscord_app` array, which is webpack’s module loading system.
+
+Each chunk contains one or more modules in the form:
+
+```js
+moduleId(module, exports, require) {
+    require.defineExports(exports, {
+        exportName: () => value
+    });
+
+
+    const importedModule = require(otherModuleId);
+}
+```
+
+Specifically, this chunk pushes one single module with the ID `532446`.
+
+A bigger chunk could contain dozens or even hundreds of modules.
+
+Note
+
+`require` isn’t the require from Node.js that you might be used to, but an instance of [WebpackRequire](https://github.com/Vendicated/Vencord/blob/main/packages/discord-types/webpack/index.d.ts#L71)
+
+## Modules
+
+[Section titled “Modules”](#modules)
+
+Let’s look at the same module from above again.
+
+Switch between the different representations to understand how the minified code corresponds to the de-minified version and the potential source file.
+
+**Main things of note:**
+
+* Each module has this exact same structure:
+
+  * A function taking three variables, module, exports, and require.
+  * Exports are defined at the top. Export names are usually one or two letter names.[1](#user-content-fn-1)
+  * Next come imports. These use the require function to load other modules by their numeric IDs.
+  * Finally, the module’s actual code is executed.
+
+* This specific module
+
+  * exports a React component as `M`. You could access this component via `require(532446).M`
+
+  * imports three other modules:
+
+    1. `477900`: React JSX runtime
+    2. `582128`: React itself. Only imported for side effects and not directly used in the module.
+    3. `331322`: Module containing the `B` component that is used in the exported React component.
+
+* You might find this syntax odd: `(0, a.jsx)(...)`. It’s essentially the same as `a.jsx(...)` with a minor difference that doesn’t matter for us.[2](#user-content-fn-2)
+
+* `jsx(Component, props)` and `jsxs(Component, props)` are what `<Component {...props} />` is compiled to.
+
+- Minified
+
+  ```js
+  532446(i, n, r) {
+      r.d(n, {
+          M: () => c
+      });
+      var a = r(477900);
+      r(582128);
+      var t = r(331322);
+      function c(i) {
+          let { children: n } = i;
+          return (0, a.jsx)(t.B, {
+              direction: "horizontal",
+              gap: 8,
+              align: "end",
+              children: n
+          });
+      }
+  }
+  ```
+
+- De-minified
+
+  ```js
+  532446(module, exports, require) {
+      require.defineExports(exports, {
+          M: () => Component
+      });
+
+
+      var React = require(477900);
+      require(582128);
+      var ModuleWithComponent = require(331322);
+
+
+      function Component(props) {
+          let { children } = props;
+
+
+          return React.createElement(ModuleWithComponent.B, {
+              direction: "horizontal",
+              gap: 8,
+              align: "end",
+              children: n
+          });
+      }
+  }
+  ```
+
+- Potential Source File
+
+  HorizontalEndAlignedFlex.jsx
+
+  ```jsx
+  import { Flex } from "@components/Flex";
+
+
+  export function HorizontalEndAlignedFlex({ children }) {
+      return (
+          <Flex direction="horizontal" gap={8} align="end">
+              {children}
+          </Flex>;
+      );
+  }
+  ```
+
+***
+
+## Footnotes
+
+[Section titled “Footnotes”](#footnote-label)
+
+1. Sometimes you will see a module with human-readable module names. This is typically because the module is used in a way Webpack can’t statically analyze; therefore, it must preserve the original source names. eg: `let bar = something(); require("foo")[bar]` [↩](#user-content-fnref-1)
+
+2. ECMAScript modules require that `this` is `undefined` in strict mode. Webpack must ensure this is upheld when calling exported functions. `(0, obj.func)` is an indirect call that ensures `this` is `undefined` and not `obj`. [↩](#user-content-fnref-2)
+
+# Installing Vencord
+
+> How to install Vencord on your device
+
+## Prerequisites
+
+[Section titled “Prerequisites”](#prerequisites)
+
+Vencord is powered by Node.js, git and pnpm, so you will have to install all of those before you can get started:
+
+* [Download git](https://git-scm.com/downloads)
+* [Download Node.js](https://nodejs.org/en/download/)
+* [Download pnpm](https://pnpm.io/installation)
+
+Make sure that all of them are added to your PATH, you will need it.
+
+To verify correct installation, run the following commands. All 3 should print the version of the respective software without errors:
+
+```sh
+git --version
+node --version
+pnpm --version
+```
+
+## Cloning the Vencord Repository
+
+[Section titled “Cloning the Vencord Repository”](#cloning-the-vencord-repository)
+
+Next, you should check out the Vencord source code!
+
+Pick a convenient folder that you can remember, for example your Documents folder. Open a terminal and point it to the desired folder:
+
+```sh
+cd Documents
+```
+
+Then, clone the Vencord repository:
+
+```sh
+git clone https://github.com/Vendicated/Vencord
+```
+
+and finally point your terminal to the newly created Vencord folder:
+
+```sh
+cd Vencord
+```
+
+Tip
+
+Whenever you open a new terminal, you will have to navigate to the Vencord folder again. If you stuck to the example above, the command to do this would be:
+
+```sh
+cd Documents/Vencord
+```
+
+## Installing Dependencies
+
+[Section titled “Installing Dependencies”](#installing-dependencies)
+
+The next step is installing Vencord’s dependencies. We use the `pnpm` package manager. Please do not use `npm` or `yarn`!
+
+Issue the following command:
+
+```sh
+pnpm install --frozen-lockfile
+```
+
+Vencord might add, remove or update dependencies at any time. Thus, you might receive errors like `Cannot find package "foobar" imported from ...` after updating.
+
+If this happens, you should run the same command once again to update the installed dependencies.
+
+## Building Vencord
+
+[Section titled “Building Vencord”](#building-vencord)
+
+Now you’re almost done! The last step is compiling the Vencord code.
+
+The steps for this will differ depending on which platform you want to build for.
+
+* Discord Desktop
+
+  ```sh
+  pnpm build
+  ```
+
+* Vesktop
+
+  ```sh
+  pnpm build
+  ```
+
+* Web Browser
+
+  ```sh
+  pnpm buildWeb
+  ```
+
+Tip
+
+You can build a Development Build of Vencord by appending `--dev` to the build command, for example `pnpm build --dev`. This gives you access to development tools like PatchHelper.
+
+Caution
+
+Whenever you make changes to the source code, you will have to rebuild Vencord to apply your changes. To do so, simply run the same build command again.
+
+Since this becomes tedious quickly, we also provide a command that watches for changes and rebuilds automatically whenever you make changes. Simply add the `--watch` flag, for example `pnpm buildWeb --watch`!
+
+## Installing your custom build
+
+[Section titled “Installing your custom build”](#installing-your-custom-build)
+
+You’re done! Now you can install your custom build of Vencord.
+
+The installation process differs depending on the platform you want to install on.
+
+* Discord Desktop
+
+  Run
+
+  ```sh
+  pnpm inject
+  ```
+
+  This will launch the Vencord Installer. Just patch the desired Vencord install and you’re done!
+
+* Vesktop
+
+  1. Open Vesktop
+  2. Go to the Vesktop Settings category
+  3. Scroll down all the way to the `Open Developer Settings` button, and click it.
+  4. Under `Vencord Location`, Press `Change` and select the `dist` folder in your Vencord directory. For example, if you stuck to the example above, you would select `Documents/Vencord/dist`
+  5. Fully close and restart Vesktop and you’re done!
+
+  Caution
+
+  If you are using the Vesktop flatpak on Linux, the path might turn into `/run/1000/...`. This is a temporary path granted by the flatpak runtime and might break after a restart.
+
+  You should grant the Vesktop flatpak access to the Vencord directory to solve this issue, for example via
+
+  ```sh
+  flatpak override dev.vencord.Vesktop --filesystem="$HOME/Documents/Vencord"
+  ```
+
+* Web Browser
+
+  You will find three builds in the `dist` folder:
+
+  * **extension-chrome.zip**: Extension for Chrome and Chromium-based browsers. To install, head to `chrome://extensions`, enable Developer Mode and drag the zip file into the window
+  * **extension-firefox.zip**: Extension for Firefox. To install, head to `about:addons`, click the gear icon and select `Install Add-on From File...`
+  * **Vencord.user.js**: Userscript for Tampermonkey, Greasemonkey and other userscript managers. Just open it with your Browser and your userscript manager should automatically prompt you to install it
+
+# Installing custom plugins
+
+> How to install custom plugins in Vencord
+
+Danger
+
+These instructions are provided for **advanced users**.
+
+If you don’t understand these instructions, you should not attempt to install custom plugins.
+
+We do not provide support with custom plugins / installs, and you are responsible for any issues that may arise from using them.
+
+If you run into issues and can’t figure them out yourself, please stick to the [official Vencord build](https://vencord.dev/download).
+
+## Prerequisite
+
+[Section titled “Prerequisite”](#prerequisite)
+
+To add custom plugins, you need to build Vencord from source.
+
+If you haven’t already done so, first follow the [Installing from Source](/installing) guide.
+
+The following instructions assume you have already done so.
+
+## Adding plugins
+
+[Section titled “Adding plugins”](#adding-plugins)
+
+Open your Vencord folder. Inside it, you should find a folder called `src`. This folder houses all of Vencord’s source code.
+
+If you don’t have this folder, you have not read the previous instructions. Go back and first follow the [Installing from Source](/installing) guide.
+
+### Creating the `userplugins` folder
+
+[Section titled “Creating the userplugins folder”](#creating-the-userplugins-folder)
+
+All official plugins are stored in the `src/plugins` folder. However, unless you plan to [submit your plugin to the official repository](/plugins/submission), you should not put your plugin there, as you will run into conflicts.
+
+Instead, you will want to use the `src/userplugins` folder. This folder is reserved for custom / private plugins.
+
+This folder won’t exist yet, so you’ll have to first create it. Navigate to the `src` folder and create a new folder called `userplugins`.
+
+### Adding your plugin
+
+[Section titled “Adding your plugin”](#adding-your-plugin)
+
+Inside the `userplugins` folder, you can now add your plugin.
+
+Your plugin should be either a simple `myCoolPlugin.ts` or `myCoolPlugin.tsx` file, or a folder containing an `index.ts` or `index.tsx` file.
+
+Place it inside the previously created userplugins folder.
+
+Good
+
+* `src/userplugins/myCoolPlugin.ts`
+* `src/userplugins/myCoolPlugin/index.tsx`
+
+Bad
+
+* `src/userplugins/myCoolPlugin/myCoolPlugin.ts`
+* `src/userplugins/coolPlugins/myCoolPlugin/index.tsx`
+
+### Building Vencord
+
+[Section titled “Building Vencord”](#building-vencord)
+
+The last step is [rebuilding Vencord](/installing#building-vencord).
+
+Restart Discord and your plugin should show up in the plugins tab!
+
+Caution
+
+Be careful not to accidentally create an empty folder or an empty plugin file inside your `userplugins` folder.
+
+If you get a `TypeError: Cannot read properties of undefined (reading 'localeCompare')` error, this is why.
+
+# Setting up your Editor
+
+> Setting up your editor for Vencord development
+
+We use Visual Studio Code to develop Vencord, and our configs and extensions are tailored to it! As such, we highly recommend you use VSCode.
+
+If you don’t already have it, [install it](https://code.visualstudio.com/download).
+
+## Installing the recommended extensions
+
+[Section titled “Installing the recommended extensions”](#installing-the-recommended-extensions)
+
+Open your Vencord directory in VSCode and you should see a notification in the bottom right corner asking you if you want to install the recommended extensions.
+
+If you don’t see this notification, click the Extensions tab in the left side bar and there should be a Recommended section.
+
+Accept, and VSCode should install the following extensions:
+
+* [EditorConfig](https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig): This configures a few formatting settings to match our code style
+* [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint): This enforces consistent code style and catches common errors
+* [StyleLint](https://marketplace.visualstudio.com/items?itemName=stylelint.vscode-stylelint): Same as ESLint, but for CSS
+* [Vencord Companion](https://marketplace.visualstudio.com/items?itemName=Vendicated.vencord-companion): Our homemade extension that adds useful features and code snippets for Vencord development
+* [JSON2TS](https://marketplace.visualstudio.com/items?itemName=GregorBiswanger.json2ts): Tool to convert JSON objects to typescript interfaces, very useful for auto-generating types for Discord objects
+
+# Introduction
+
+> Learn everything about Vencord development!
+
+If you’re here, it probably means you’re trying to learn how to create Vencord plugins. You’ve come to the right place!
+
+If you’re actually just looking for Vencord download instructions, please [visit our main site](https://vencord.dev) instead!
+
+This documentation will cover topics like:
+
+* How to install Vencord from source, the prerequisite for adding custom plugins
+* How to setup your development environment
+* The plugin structure and all the available plugin APIs
+* How to reverse engineer and understand Discord code to find which functions you need to use or patch
+* And much more!
+
+# Basic Plugin Setup
+
+> How to create plugins for Vencord
+
+## Prerequisites
+
+[Section titled “Prerequisites”](#prerequisites)
+
+* A [development Vencord install](/installing)
+* VSCode with the extensions recommended by Vencord
+
+Other knowledge requirements include:
+
+* JavaScript/TypeScript knowledge
+* Basic regex knowledge
+* Basic knowledge of the command line
+* Basic knowledge of how to use chrome devtools
+* The ability to understand code from just reading it, without requiring documentation
+* Basic react knowledge (if you want to do anything with ui)
+
+## Plugin Setup
+
+[Section titled “Plugin Setup”](#plugin-setup)
+
+First, decide whether you want to use the `src/plugins` or `src/userplugins` folder.
+
+### Official Plugins vs UserPlugins
+
+[Section titled “Official Plugins vs UserPlugins”](#official-plugins-vs-userplugins)
+
+* Plugin
+
+  Plugins inside `src/plugins` are tracked via git and are included in the official Vencord releases.
+
+  Use this location if you intend to [submit your plugin for inclusion in Vencord](/plugins/submission).
+
+* UserPlugin
+
+  Plugins inside `src/userplugins` are private. They are not tracked via git.
+
+  Use this location if you don’t intend to submit your plugin for inclusion in Vencord.
+
+***
+
+Once you have decided, create a folder with the name of your plugin inside the chosen directory.
+
+The folder’s name should be in camelCase. For example `myFirstPlugin` (NOT `MyFirstPlugin` or `my first plugin`)
+
+### Plugin Structure
+
+[Section titled “Plugin Structure”](#plugin-structure)
+
+There are 3 special files you can create here:
+
+* index.ts(x)
+
+  Your plugin’s entry point. This is where most of your plugin’s code will live and where you define things like its name and description.
+
+  Code in this file runs in the browser, so you can use all browser APIs here. Node.js APIs like `fs` or `child_process` are not available here. If you need them, you can do so in the `native.ts` file.
+
+* README.md
+
+  Markdown documentation for your plugin. This file should contain a description of your plugin and instructions how to use it. Screenshots, videos or gifs are highly recommended. This will be used to generate a custom webpage for your plugin at <https://vencord.dev/plugins/YourPlugin>.
+
+* native.ts
+
+  Your plugin’s native entry point. This code will run inside NodeJS instead of the browser. You can use all Node.JS apis here, such as `fs` or `child_process`.
+
+  Browser APIs are not available here. If you need them, you can do so in the `index.ts` file.
+
+### Plugin Boilerplate
+
+[Section titled “Plugin Boilerplate”](#plugin-boilerplate)
+
+Start creating your plugin by adding an `index.ts` file inside your plugin’s folder.
+
+Type `vcPlugin` in the file, and you should automatically be suggested the “Define Plugin” template.
+
+Note
+
+If this doesn’t work for you, follow the [editor setup guide](/installing/editor-setup#installing-the-recommended-extensions) to install the Vencord Companion extension.
+
+Now that you’ve done this, the file should look like this:
+
+```ts
+import { Devs } from "@utils/constants";
+import definePlugin from "@utils/types";
+
+
+export default definePlugin({
+    name: "name",
+    description: "description",
+    authors: [Devs.author]
+});
+```
+
+Fill out the `name` and `description` fields in the `definePlugin` call.
+
+```ts
+export default definePlugin({
+    name: "MyCoolPlugin",
+    description: "I am very cute!",
+    authors: [Devs.author]
+});
+```
+
+For the authors property, how you do this will depend on whether you’re making a plugin or a userplugin.
+
+* Plugin
+
+  If this is your first time contributing, you will first have to add yourself to the `Devs` object. It should already be imported, so just jump to its definition and add yourself to the object. Now, set authors to the new property!
+
+  ```ts
+  export default definePlugin({
+      name: "MyCoolPlugin",
+      description: "I am very cute!",
+      authors: [Devs.YourName],
+  });
+  ```
+
+* UserPlugin
+
+  Just set it to a plain object with your info:
+
+  ```ts
+  export default definePlugin({
+      name: "MyCoolPlugin",
+      description: "I am very cute!",
+      authors: [{ name: "Your Name", id: 1234567890n }],
+  });
+  ```
+
+***
+
+Save your file and it should automatically format it and insert the following license header on the top.
+
+```ts
+/*
+* Vencord, a Discord client mod
+* Copyright (c) 2026 Vendicated and contributors*
+* SPDX-License-Identifier: GPL-3.0-or-later
+*/
+```
+
+If you want, you can change it from `Vendicated and contributors` to your own name. But this is not strictly necessary, you own the code either way (and are already included in the “contributors” part).
+
+Note
+
+If this doesn’t work for you, follow the [editor setup guide](/installing/editor-setup#installing-the-recommended-extensions) to set up linting.
+
+This is all of the boilerplate needed for a Vencord plugin. You can now start making your plugin!
+
+# Plugin API
+
+> Common patterns
+
+To make plugin development easier, Vencord provides convenient ways to add many elements to your plugin, such as commands, automatic settings management, and UI components.
+
+This doc’s purpose is to give a quick overview — It won’t explain how to use them in-depth. For more detailed information, look at other plugins that use these APIs.
+
+## Plugin Settings
+
+[Section titled “Plugin Settings”](#plugin-settings)
+
+Define a toggleable plugin setting which will allow users to toggle a feature in your plugin’s settings modal;
+
+```tsx
+// Define settings. This will return a reactive settings object.
+// - To read: `const enableFeature = settings.store.coolFeature`
+// - To write: `settings.store.coolFeature = false`
+const settings = definePluginSettings({
+    coolFeature: {
+        type: OptionType.BOOLEAN,
+        description: "Enable a very cool feature",
+        default: true
+    }
+});
+
+
+export default definePlugin({
+    name: "MyCoolPlugin",
+    // You MUST include your plugin settings in your plugin definition or you will get an error!
+    settings
+});
+
+
+function ReactComponent() {
+    // Reactive subscription that will automatically update your component when the setting changes
+    const { coolFeature } = settings.use(["coolFeature"]);
+
+
+    return <div>{coolFeature ? "Cool feature is enabled" : "Cool feature is disabled"}</div>;
+}
+```
+
+## Slash Commands
+
+[Section titled “Slash Commands”](#slash-commands)
+
+Register a slash command `/hello-world` that will send the text “Hello World!”. Supports most command features like arguments and sub-commands.
+
+```ts
+definePlugin({
+    name: "MyCoolPlugin",
+    commands: [
+        {
+            name: "hello-world",
+            description: "A simple hello world command",
+            execute: () => ({ content: "Hello World!" })
+        }
+    ]
+});
+```
+
+## Context Menus
+
+[Section titled “Context Menus”](#context-menus)
+
+Patch Discord’s context (right click) menus to add your own options.
+
+Each context menu type (message, user, channel, etc.) has its own ID. The example below targets the message context menu. Its ID is `message`.
+
+* index.ts(x)
+
+  ```ts
+  definePlugin({
+      name: "MyCoolPlugin",
+      contextMenus: {
+          message(children, props) {
+              children.push(
+                  <Menu.MenuItem
+                      id="vc-myCoolPlugin-logMessage"
+                      key="vc-myCoolPlugin-logMessage"
+                      label="Log Message to Console"
+                      action={() => console.log(props.message)}
+                  />
+              );
+          }
+      }
+  });
+  ```
+
+* Finding the ID
+
+  * Open Browser DevTools
+  * In Discord, right click to open the context menu you want to target
+  * Use Inspect Elements to reveal it in the Elements tab
+  * Look for its ID in the html
+
+  ![](/docs/_astro/context-id.DPmWYC2x_Z19V1mG.webp)
+
+* Screenshot
+
+  ![](/docs/_astro/context.Dvb76Zpc_Z1iarT3.webp)
+
+## Chat Bar Buttons
+
+[Section titled “Chat Bar Buttons”](#chat-bar-buttons)
+
+Add custom buttons in the chat bar (where Gift, Gif, Sticker and Emoji buttons are)
+
+![](/docs/_astro/chat-button.DmvECL2k_Z1agAex.webp)
+
+You define it via the `chatBarButton` property on your plugin object. The icon is used for `Settings > Vencord > Plugins > Manage Plugin UI Elements`.
+
+I’m not going to explain this further, just look at how the SilentTyping and Translate plugins use it.
+
+```ts
+definePlugin({
+    name: "MyCoolPlugin",
+    chatBarButton: {
+        icon: IconComponent,
+        render: ButtonComponent
+    }
+});
+```
+
+## Message Events
+
+[Section titled “Message Events”](#message-events)
+
+Run code whenever the current user
+
+* **clicks** a message: Define `onMessageClick` on your plugin object
+* **sends** a message: Define `onBeforeMessageSend` on your plugin object
+* **edits** a message: Define `onBeforeMessageEdit` on your plugin object
+
+## Message Popover Buttons
+
+[Section titled “Message Popover Buttons”](#message-popover-buttons)
+
+The message popover is the little bar that appears in the top-right corner of a message when you hover over it.
+
+![](/docs/_astro/popover.xXiYzm4s_Z2hMAEJ.webp)
+
+You define it via the `chatBarButton` property on your plugin object. The icon is used for `Settings > Vencord > Plugins > Manage Plugin UI Elements`.
+
+I’m not going to explain this further, just look at how the QuickMention plugin uses it.
+
+```ts
+definePlugin({
+    name: "MyCoolPlugin",
+    messagePopoverButton: {
+        icon: IconComponent,
+        render: ButtonComponent
+    }
+});
+```
+
+## Message Accessories
+
+[Section titled “Message Accessories”](#message-accessories)
+
+Message accessories are elements that appear below messages in chat, such as embeds.
+
+Define the `renderMessageAccessory` method on your plugin object to make use of this feature. This is the easiest way to add custom elements to messages.
+
+* index.ts(x)
+
+  ```tsx
+  definePlugin({
+      name: "MyCoolPlugin",
+      renderMessageAccessory(props) {
+          const { content } = props.message;
+
+
+          return (
+              <Paragraph size="sm" weight="bold">
+                  <div>Wow this is a great message!</div>
+                  {content.length > 1000 && <div>But wow it's long!!</div>}
+              </Paragraph>
+          );
+      }
+  });
+  ```
+
+* Screenshot
+
+  ![](/docs/_astro/accessory.C2ypFe48_cHWNg.webp)
+
+## Message Decorations
+
+[Section titled “Message Decorations”](#message-decorations)
+
+![](/docs/_astro/msg-decor.uoGTVL4F_AwxdP.webp)
+
+Message Decorations are quite similar to accessories. But instead of appearing below the message, they appear next to the author’s username, next to the clan tag, role icon, etc.
+
+Define the `renderMessageDecoration` method on your plugin object to make use of this feature.
+
+## Member List Decorations
+
+[Section titled “Member List Decorations”](#member-list-decorations)
+
+![](/docs/_astro/member-decor.9SANAKvz_Z2vlEm2.webp)
+
+Same as message decorations, except they appear next to members in the member list.
+
+Define the `renderMemberListDecorator` method on your plugin object to make use of this feature.
+
+# Native NodeJS Code
+
+> How to run code in NodeJS
+
+Plugins run in the browser sandbox by default. This means they only have access to web APIs as if they were running in a regular web browser.
+
+Sometimes plugins may need access to the NodeJS environment. Some examples include
+
+* Bypassing Content Security Policy (CSP) or Cross-Origin Resource Sharing (CORS) restrictions
+* Interfacing with other programs
+* Reading specific files from the filesystem
+
+However, this **should only be used as a last resort** if no other alternatives are available! For example, the following are not valid use cases:
+
+* Storing data — Instead, use Vencord Settings or IndexedDB (via DataStore API)
+* Reading or writing arbitrary files — This poses severe security risks. Use web file picker/saving instead
+
+## Defining Native Plugin Code
+
+[Section titled “Defining Native Plugin Code”](#defining-native-plugin-code)
+
+Plugin Natives are defined via the `native.ts` file in your plugin folder. This file will be ran in the NodeJS environment. This file can export functions to make them available via IPC.
+
+Any function exported from here
+
+* will be callable via VencordNative as demonstrated below
+* will always return a Promise
+* will receive the invoke event as first argument. You do not pass this event from the browser code.
+
+- native.ts
+
+  ```ts
+  export function add(event: IpcMainInvokeEvent, x: number, y: number) {
+      return x + y;
+  }
+  ```
+
+- index.ts(x)
+
+  ```js
+  import definePlugin, { PluginNative } from "@utils/types";
+
+
+  const Native = VencordNative.pluginHelpers.MyPluginName as PluginNative<typeof import("./native")>;
+
+
+  export default definePlugin({
+      name: "MyPluginName",
+      async start() {
+          console.log(await Native.add(1, 2)); // logs 3
+      }
+  })
+  ```
+
+Danger
+
+You should consider the browser process untrusted. Any data passed as arguments must be carefully validated and sanitized.
+
+Do not export overly broad APIs. Only export minimal, necessary functions. For example, if you need to read one specific file on the host, hardcode that specific file path **inside your native code** rather than accepting it as an argument from the browser.
+
+If you are accepting an argument and including it in a file path or a shell command, you must carefully validate and sanitize it to prevent security vulnerabilities like path traversal or command injection.
+
+Caution
+
+After making changes to the native.ts file, you will need to fully close and restart Discord for the changes to take effect.
+
+DO NOT import the `native.ts` file directly into your browser code, as this will cause errors! You can only access it via VencordNative global!
+
+Any value you pass as argument and return value must be [serializable via the structured clone algorithm](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm#supported_types).
+
+## Bypassing Content Security Policy (CSP) and Cross-Origin Resource Sharing (CORS)
+
+[Section titled “Bypassing Content Security Policy (CSP) and Cross-Origin Resource Sharing (CORS)”](#bypassing-content-security-policy-csp-and-cross-origin-resource-sharing-cors)
+
+[CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) and [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) are web security mechanisms that restrict which resources can be loaded and from which websites.
+
+They are pretty similar with one key difference:
+
+* **CSP** is set by the current website and enforced by the Browser. Discord tells the Browser “only allow resources from discord.com, tenor.com, …”. Then if code tries to load `example.com`, the browser blocks it
+* **CORS** is set by the server hosting the resource and enforced by the Browser. The server at `example.com` says “only allow example.com to access my resources”. Then the browser blocks discord.com from requesting it.
+
+In other words, CSP is controlled by us, while CORS is controlled by the server hosting the resource.
+
+### CSP
+
+[Section titled “CSP”](#csp)
+
+To bypass CSP, just add the target server to the CspPolicies in your native.ts file:
+
+* native.ts
+
+  ```ts
+  import { ConnectSrc, CspPolicies } from "@main/csp";
+
+
+  CspPolicies["example.com"] = ConnectSrc; // or MediaSrc, etc
+  ```
+
+* index.ts(x)
+
+  ```ts
+  const res = await fetch("https://example.com/endpoint"); // now allowed
+  ```
+
+### CORS
+
+[Section titled “CORS”](#cors)
+
+CORS however cannot be modified by us, as the Server controls it. Instead, you must send the request from your native code, as NodeJS does not enforce CORS:
+
+* native.ts
+
+  ```ts
+  const API_HOST = "https://example.com";
+
+
+  export async function fetchCoolAPI(_event, endpoint: string) {
+      // endpoint argument is untrusted! Validate it before using it.
+      const url = new URL(endpoint, API_HOST);
+      if (url.origin !== API_HOST) {
+          throw new Error("Invalid endpoint");
+      }
+
+
+      const res = await fetch(url.toString());
+      return await res.json();
+  }
+  ```
+
+* index.ts(x)
+
+  ```ts
+  import definePlugin, { PluginNative } from "@utils/types";
+
+
+  const Native = VencordNative.pluginHelpers.MyPluginName as PluginNative<typeof import("./native")>;
+
+
+  export default definePlugin({
+      name: "MyPluginName",
+      async start() {
+          console.log(await Native.fetchCoolAPI("/some-endpoint")); // logs the JSON response from https://example.com/some-endpoint
+      }
+  })
+  ```
+
+Danger
+
+Don’t export an overly broad fetch API from your native code as this completely undermines the security model and can expose sensitive data. Always restrict it to specific endpoints or domains.
+
+In the above example, the fetch API is restricted to the `https://example.com` domain, ensuring that only requests to this specific server are allowed.
+
+# Patches
+
+> Patch Discord's code to modify its behavior
+
+Note
+
+You may not need a patch. Vencord offers many [built-in APIs](/plugins/common) for modifying Discord’s behavior without needing to write a patch.
+
+Patches are [RegExp](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp) replacements applied to Discord’s JavaScript code at runtime. They allow you to rewrite Discord’s code in any way you want. For example, you can remove undesired code or checks, insert your own code, replace code with alternative implementations, etc.
+
+If you don’t know RegExp, you should first learn it before attempting to write patches.
+
+***
+
+Before writing a patch, you must understand [how modules work](/discord-code/modules).
+
+Writing a patch is a three step process:
+
+1. Find the part of Discord’s code you want to modify. See [Finding Code](/discord-code/find-code).
+2. Come up with the patch [**`find`**](#the-find) — a unique string contained in the module you want to patch
+3. Write a RegExp [**match**](#the-match) and [**replace**](#the-replace)
+
+Caution
+
+DevTools will pretty-print code and add extra whitespace. However, Discord’s code is minified and will **never** contain unnecessary whitespace. When writing a find or match, do not include whitespace.
+
+## The `find`
+
+[Section titled “The find”](#the-find)
+
+I will assume that you found the module you want to patch.
+
+The next step is to identify a unique sequence of code that is contained **only** in the module you want to patch. Avoid using minified variable names, as they may change between Discord updates.
+
+The best suited anchors for finds are
+
+* Intl strings like `S.intl.formatToPlainString(S.t["a9+V+V"]` — The ID `a9+V+V"` is stable and can be used. `S` is unstable and should not be used
+* Function/Method names — Non mangled names are a great choice
+* Unique strings — Any string that is unlikely to appear elsewhere in Discord’s code
+
+Combine that with surrounding code like `:`, `(`, `{`, etc., to make it more unique and less likely to appear elsewhere in Discord’s code.
+
+Some example finds from existing plugins:
+
+* `}renderStickersAccessories(` — A method defined inside our module
+* `.CREATE_FORUM_POST||` — A non-mangled property in our Module
+* `#{intl::PREMIUM_MESSAGE_LENGTH_UPSELL_TOOLTIP}` — An Intl message by non-hashed name. See [Intl Keys](#intl-keys) for more details.
+* `#{intl::a9+V+V::raw}` — An Intl message by hashed name. See [Intl Keys](#intl-keys) for more details. ( Once you picked a find, use global source search `CTRL + SHIFT + F`) to search for this find and ensure it’s only found in exactly one module.
+
+## The `match`
+
+[Section titled “The match”](#the-match)
+
+This is a RegExp which will operate on the module found by your `find`. Supports the following custom syntax:
+
+* `#{intl::KEY}` for non-hashed keys, see [Intl Keys](#intl-keys)
+* `#{intl::HASH::raw}` for hashed keys
+* `\i` to match minified javascript identifiers (names of variables, functions, etc)
+
+For example, to match
+
+```js
+t.type !== g.lp.ACTIVITY && _.A.selectParticipant(c, t.id);
+```
+
+you could use the following `match`:
+
+```js
+\i\.type!==\i\.\i\.ACTIVITY&&\i\.\i\.selectParticipant\(\i,\i\.id\)
+```
+
+If you want to refer to minified variables in your replacement, capture them using [capturing groups](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions/Groups_and_Ranges).
+
+For example, to capture the participant ID (`t.id`), you could use the following `match` — note the extra parentheses around it:
+
+```js
+\i\.type!==\i\.\i\.ACTIVITY&&\i\.\i\.selectParticipant\(\i,(\i\.id)\)
+```
+
+## The `replace`
+
+[Section titled “The replace”](#the-replace)
+
+This is the replacement string. Any code captured in the `match` **will be replaced** with this value.
+
+You can use many special identifiers here:
+
+* `$&` to refer to the entire RegExp match
+* `$1`, `$2`, etc. to refer to captured groups in the `match`
+* `$$` to refer to a literal `$` character
+* `$self` to insert your plugin instance. This allows you to call methods defined on your plugin.
+
+## Using plugin methods inside patches
+
+[Section titled “Using plugin methods inside patches”](#using-plugin-methods-inside-patches)
+
+Replacement strings should be as short as possible. Writing code in them is very prone to errors since it’s not validated by your Editor.
+
+Instead, define a method on your plugin and call it from the replacement string using `$self.methodName()`.
+
+### Example
+
+[Section titled “Example”](#example)
+
+You can call methods and render components from your plugin within the replacement strings.
+
+Components must always be wrapped in an error boundary to prevent crashes. If there is any chance that a method might throw an error, it should use a `try...catch` block to handle errors gracefully. This is always the case if you use Webpack modules, as they could break or change shape.
+
+```jsx
+definePlugin({
+    // ...
+
+
+    patches: [
+        {
+            find: "...",
+            replacement: [
+                {
+                    match: /.../,
+                    replace: "$self.doThing($1)"
+                },
+                {
+                    match: /.../,
+                    replace: "$self.renderComponent({ text: $1 })"
+                }
+            ]
+        }
+    ],
+
+
+    doThing(arg) {
+        try {
+            console.log(arg);
+        } catch (e) {
+            logger.error(e);
+        }
+    },
+
+
+    renderComponent: ErrorBoundary.wrap(props => <div>{props.text}</div>)
+});
+```
+
+## Patch Safety
+
+[Section titled “Patch Safety”](#patch-safety)
+
+It is always better for your patch to break after a change than to match the wrong code and potentially cause crashes.
+
+To achieve this, make sure that your patch is specific. Always try to anchor it on a non-mangled identifier to avoid unintended replacements. Use wildcards sparingly to minimize the risk of accidental matches.
+
+### Unsafe example
+
+[Section titled “Unsafe example”](#unsafe-example)
+
+This is an unsafe match because it is a very generic match. This could easily match unintended code and cause issues.
+
+```regexp
+ref:(\i),style:\i
+```
+
+### Safe example
+
+[Section titled “Safe example”](#safe-example)
+
+This still matches the same code, but we now anchor it to a specific context via a [lookahead](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Lookahead_assertion) for the relevant Intl key. The match is only accepted if the specified Intl key appears within the next 250 characters.
+
+```js
+ref:(\i),style:\i(?=.{0,250}#{intl::USER_PROFILE_ACCOUNT_POPOUT_BUTTON_A11Y_LABEL})
+```
+
+## Patch Performance
+
+[Section titled “Patch Performance”](#patch-performance)
+
+Some Discord modules are **huge**, and an inefficient Regular Expression can significantly impact performance. Debug builds of Vencord will log how long your patch took to the console.
+
+TODO - add guide
+
+## Intl Keys
+
+[Section titled “Intl Keys”](#intl-keys)
+
+User facing messages are stored as Intl messages. Each such message has a unique identifier:
+
+* In Discord’s source code, these identifiers have human-readable names like `PREMIUM_MESSAGE_LENGTH_UPSELL_TOOLTIP`.
+* In the minified code we are working with, these identifiers are instead replaced with hashed names like `a9+V+V`. These names are stable so you can use them in finds and matches. You can search for these keys via global source search (`CTRL + SHIFT + F`) to see what message they correspond to.
+
+We have a huge list of mappings which you can use to find human-readable names for a hash. You can download it from <https://sadan.zip/assets/key-mappings.json>.
+
+If there is no mapping for your hash, you can try to guess it based on the context if you want, but this is completely optional. You can hash an identifier using `Vencord.Util.runtimeHashMessageKey("KEYBIND_IN_BROSWER_NOTICE")` in the DevTools console.
+
+Intl messages are referenced in finds or matches using special syntax:
+
+* `#{intl::KEY}` for non-hashed keys
+* `#{intl::HASH::raw}` for hashed keys
+
+You can combine these with surrounding code, e.g. `#{intl::GUILD_OWNER}),children:`
+
+# Plugin Submission
+
+> How to submit your plugin to the official Vencord repository
+

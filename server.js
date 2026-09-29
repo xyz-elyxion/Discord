@@ -1133,6 +1133,7 @@ const MIME = {
     ".ttf": "font/ttf",
     ".map": "application/json",
     ".txt": "text/plain; charset=utf-8",
+    ".xml": "application/xml; charset=utf-8",
     ".zip": "application/zip"
 };
 
@@ -1180,6 +1181,7 @@ function serveFile(res, filePath, status = 200) {
 
 // Named static pages served at clean URLs
 const NAMED_PAGES = {
+    "/docs": "docs/index.html",
     "/plugins": "plugins.html",
     "/download": "download.html",
     "/install": "install.html",
