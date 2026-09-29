@@ -189,18 +189,6 @@ async function createModmailModal(interaction: GuildInteraction) {
 
 defineCommand({
     enabled,
-    name: "modmail:panel",
-    ownerOnly: true,
-    description: "Post the modmail staff panel (in the mod-log channel)",
-    usage: null,
-    async execute() {
-        if (!logChannelId) return "modmail.logChannelId is not configured — set it to a channel the bot can post in to use the panel";
-        return Vaius.rest.channels.createMessage(logChannelId, (await buildPanel())!);
-    }
-});
-
-defineCommand({
-    enabled,
     name: "modmail:post",
     ownerOnly: true,
     description: "Post the modmail message",
@@ -349,6 +337,32 @@ if (enabled) {
         {
             guildOnly: true,
             handle: createModmailModal
+        }
+    );
+
+    registerChatInputCommand(
+        {
+            name: "modmailpanel",
+            description: "Post the modmail staff panel in the mod-log channel",
+        },
+        {
+            ownerOnly: true,
+            async handle(interaction) {
+                if (!logChannelId)
+                    return interaction.createMessage({
+                        content: "`modmail.logChannelId` is not configured — set it to a channel the bot can post in to use the panel.",
+                        flags: MessageFlags.EPHEMERAL
+                    });
+
+                await interaction.defer(MessageFlags.EPHEMERAL);
+
+                await Vaius.rest.channels.createMessage(logChannelId, (await buildPanel())!);
+
+                await interaction.createFollowup({
+                    content: `Panel posted in <#${logChannelId}>.`,
+                    flags: MessageFlags.EPHEMERAL
+                });
+            }
         }
     );
 
