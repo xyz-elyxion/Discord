@@ -1,0 +1,163 @@
+---
+title: Basic Plugin Setup
+description: How to create plugins for Limey V1
+sidebar:
+    order: 1
+---
+
+import { Aside, Tabs, TabItem, Code } from "@astrojs/starlight/components";
+import RequiredStar from "@limey-docs/components/RequiredStar.astro";
+
+## Prerequisites
+
+- A [development Limey V1 install](/installing)
+- VSCode with the extensions recommended by Limey V1
+
+Other knowledge requirements include:
+
+- JavaScript/TypeScript knowledge
+- Basic regex knowledge
+- Basic knowledge of the command line
+- Basic knowledge of how to use chrome devtools
+- The ability to understand code from just reading it, without requiring documentation
+- Basic react knowledge (if you want to do anything with ui)
+
+## Plugin Setup
+
+First, decide whether you want to use the `src/plugins` or `src/userplugins` folder.
+
+### Official Plugins vs UserPlugins
+
+<Tabs syncKey="plugins-type">
+    <TabItem label="Plugin">
+        Plugins inside `src/plugins` are tracked via git and are included in the official Limey V1 releases.
+
+        Use this location if you intend to [submit your plugin for inclusion in Limey V1](/plugins/submission).
+    </TabItem>
+    <TabItem label="UserPlugin">
+        Plugins inside `src/userplugins` are private. They are not tracked via git.
+
+        Use this location if you don't intend to submit your plugin for inclusion in Limey V1.
+    </TabItem>
+
+</Tabs>
+
+---
+
+Once you have decided, create a folder with the name of your plugin inside the chosen directory.
+
+The folder's name should be in camelCase. For example `myFirstPlugin` (NOT `MyFirstPlugin` or `my first plugin`)
+
+### Plugin Structure
+
+There are 3 special files you can create here:
+
+<Tabs>
+    <TabItem label="index.ts(x)" icon="seti:react">
+        Your plugin's entry point. This is where most of your plugin's code will live and where you define things
+        like its name and description.
+
+        Code in this file runs in the browser, so you can use all browser APIs here.
+        Node.js APIs like `fs` or `child_process` are not available here.
+        If you need them, you can do so in the `native.ts` file.
+    </TabItem>
+    <TabItem label="README.md" icon="seti:markdown">
+        Markdown documentation for your plugin. This file should contain a description
+        of your plugin and instructions how to use it. Screenshots, videos or gifs
+        are highly recommended. This will be used to generate a custom webpage for your plugin at
+        https://limey-discord.onrender.com/plugins/YourPlugin.
+    </TabItem>
+    <TabItem label="native.ts" icon="seti:windows">
+        Your plugin's native entry point.
+        This code will run inside NodeJS instead of the browser.
+        You can use all Node.JS apis here, such as `fs` or `child_process`.
+
+        Browser APIs are not available here. If you need them, you can do so in the `index.ts` file.
+    </TabItem>
+
+</Tabs>
+
+### Plugin Boilerplate
+
+Start creating your plugin by adding an `index.ts` file inside your plugin's folder.
+
+Type `vcPlugin` in the file, and you should automatically be suggested the "Define Plugin" template.
+
+:::note
+If this doesn't work for you, follow the [editor setup guide](/installing/editor-setup#installing-the-recommended-extensions)
+to install the Limey V1 Companion extension.
+:::
+
+Now that you've done this, the file should look like this:
+
+```ts
+import { Devs } from "@utils/constants";
+import definePlugin from "@utils/types";
+
+export default definePlugin({
+    name: "name",
+    description: "description",
+    authors: [Devs.author]
+});
+```
+
+Fill out the `name` and `description` fields in the `definePlugin` call.
+
+```ts "MyCoolPlugin" "I am very cute!"
+export default definePlugin({
+    name: "MyCoolPlugin",
+    description: "I am very cute!",
+    authors: [Devs.author]
+});
+```
+
+For the authors property, how you do this will depend on whether you're making a plugin or a userplugin.
+
+<Tabs syncKey="plugins-type">
+    <TabItem label="Plugin">
+        If this is your first time contributing, you will first have to add yourself to the `Devs` object. 
+        It should already be imported, so just jump to its definition and add yourself to the object.
+        Now, set authors to the new property!
+        ```ts ins="Devs.YourName"
+        export default definePlugin({
+            name: "MyCoolPlugin",
+            description: "I am very cute!",
+            authors: [Devs.YourName],
+        });
+        ```
+    </TabItem>
+    <TabItem label="UserPlugin">
+        Just set it to a plain object with your info:
+        ```ts ins="{ name: \"Your Name\", id: 1234567890n }"
+        export default definePlugin({
+            name: "MyCoolPlugin",
+            description: "I am very cute!",
+            authors: [{ name: "Your Name", id: 1234567890n }],
+        });
+        ```
+    </TabItem>
+</Tabs>
+
+---
+
+Save your file and it should automatically format it and insert the following license header on the top.
+
+<Code
+    lang="ts"
+    mark={["xyz-elyxion and contributors"]}
+    code={`/*
+ * Limey V1, a Discord client mod
+ * Copyright (c) ${new Date().getFullYear()} xyz-elyxion and contributors*
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */`}
+/>
+
+If you want, you can change it from `xyz-elyxion and contributors` to your own name.
+But this is not strictly necessary, you own the code either way (and are already included in the "contributors" part).
+
+:::note
+If this doesn't work for you, follow the [editor setup guide](/installing/editor-setup#installing-the-recommended-extensions)
+to set up linting.
+:::
+
+This is all of the boilerplate needed for a Limey V1 plugin. You can now start making your plugin!

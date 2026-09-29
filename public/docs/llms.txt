@@ -1,9 +1,9 @@
-# Vencord Docs
+# Limey V1 Docs
 
 ## Documentation Sets
 
-- [Abridged documentation](https://limey-discord.onrender.com/docs/llms-small.txt): a compact version of the documentation for Vencord Docs, with non-essential content removed
-- [Complete documentation](https://limey-discord.onrender.com/docs/llms-full.txt): the full documentation for Vencord Docs
+- [Abridged documentation](https://limey-discord.onrender.com/docs/llms-small.txt): a compact version of the documentation for Limey V1 Docs, with non-essential content removed
+- [Complete documentation](https://limey-discord.onrender.com/docs/llms-full.txt): the full documentation for Limey V1 Docs
 
 ## Notes
 

@@ -1,6 +1,6 @@
-<SYSTEM>This is the full developer documentation for Vencord Docs</SYSTEM>
+<SYSTEM>This is the full developer documentation for Limey V1 Docs</SYSTEM>
 
-# Welcome to the Vencord Docs!
+# Welcome to the Limey V1 Docs!
 
 > The cutest documentation
 
@@ -10,7 +10,7 @@ Quickly add context menus, slash commands, message action buttons, message acces
 
 Typescript, JSX, CSS, modular
 
-Plugins can make use of Typescript, JSX syntax, import css files and modularise their code! Vencord and many Discord modules are fully typed for your convenience.
+Plugins can make use of Typescript, JSX syntax, import css files and modularise their code! Limey V1 and many Discord modules are fully typed for your convenience.
 
 RegExp code patches
 
@@ -24,7 +24,7 @@ Plugins can define native functions that have full access to Node.js apis withou
 
 > An introduction to navigating and understanding Discord's code.
 
-To understand how to do things in Vencord, you will sooner or later have to reverse engineer Discord’s code.
+To understand how to do things in Limey V1, you will sooner or later have to reverse engineer Discord’s code.
 
 Websites are made in javascript, so you can just open the developer tools in your browser and start inspecting the code.
 
@@ -51,7 +51,7 @@ React DevTools are like the Element inspector, but for React components. They al
 
 First, you need to enable it.
 
-1. Open `Settings > Vencord`
+1. Open `Settings > Limey V1`
 2. Enable the `Enable React Developer Tools` switch.
 3. Restart Discord.
 4. In the top bar of DevTools, you will now have a new “Components” tab. It may be hidden behind the `>>` overflow menu if your window is not wide enough.
@@ -129,7 +129,7 @@ Sometimes it’s helpful to search for CSS classes or IDs. This is especially us
 
 Use the DevTools Element Picker in the top left to select the element you want to inspect. Look for a unique CSS class or ID that you can search for in the Sources tab
 
-![An element is selected — the “profileButtons\_\_9c3be” class is highlighted](/docs/_astro/class-search.CNzm5ehb_2vRorT.webp)
+![An element is selected — the “profileButtons__9c3be” class is highlighted](/docs/_astro/class-search.CNzm5ehb_2vRorT.webp)
 
 Now search for this CSS class or ID in the Sources tab. You might find a `.css` file — ignore it. Instead, focus on the `.js` result.
 
@@ -212,7 +212,7 @@ A bigger chunk could contain dozens or even hundreds of modules.
 
 Note
 
-`require` isn’t the require from Node.js that you might be used to, but an instance of [WebpackRequire](https://github.com/Vendicated/Vencord/blob/main/packages/discord-types/webpack/index.d.ts#L71)
+`require` isn’t the require from Node.js that you might be used to, but an instance of [WebpackRequire](https://github.com/xyz-elyxion/Discord/blob/main/packages/discord-types/webpack/index.d.ts#L71)
 
 ## Modules
 
@@ -322,15 +322,15 @@ Switch between the different representations to understand how the minified code
 
 2. ECMAScript modules require that `this` is `undefined` in strict mode. Webpack must ensure this is upheld when calling exported functions. `(0, obj.func)` is an indirect call that ensures `this` is `undefined` and not `obj`. [↩](#user-content-fnref-2)
 
-# Installing Vencord
+# Installing Limey V1
 
-> How to install Vencord on your device
+> How to install Limey V1 on your device
 
 ## Prerequisites
 
 [Section titled “Prerequisites”](#prerequisites)
 
-Vencord is powered by Node.js, git and pnpm, so you will have to install all of those before you can get started:
+Limey V1 is powered by Node.js, git and pnpm, so you will have to install all of those before you can get started:
 
 * [Download git](https://git-scm.com/downloads)
 * [Download Node.js](https://nodejs.org/en/download/)
@@ -346,11 +346,11 @@ node --version
 pnpm --version
 ```
 
-## Cloning the Vencord Repository
+## Cloning the Limey V1 Repository
 
-[Section titled “Cloning the Vencord Repository”](#cloning-the-vencord-repository)
+[Section titled “Cloning the Limey V1 Repository”](#cloning-the-limey-v1-repository)
 
-Next, you should check out the Vencord source code!
+Next, you should check out the Limey V1 source code!
 
 Pick a convenient folder that you can remember, for example your Documents folder. Open a terminal and point it to the desired folder:
 
@@ -358,31 +358,31 @@ Pick a convenient folder that you can remember, for example your Documents folde
 cd Documents
 ```
 
-Then, clone the Vencord repository:
+Then, clone the Limey V1 repository:
 
 ```sh
-git clone https://github.com/Vendicated/Vencord
+git clone https://github.com/xyz-elyxion/Discord
 ```
 
-and finally point your terminal to the newly created Vencord folder:
+and finally point your terminal to the newly created Limey V1 folder:
 
 ```sh
-cd Vencord
+cd Limey V1
 ```
 
 Tip
 
-Whenever you open a new terminal, you will have to navigate to the Vencord folder again. If you stuck to the example above, the command to do this would be:
+Whenever you open a new terminal, you will have to navigate to the Limey V1 folder again. If you stuck to the example above, the command to do this would be:
 
 ```sh
-cd Documents/Vencord
+cd Documents/Limey V1
 ```
 
 ## Installing Dependencies
 
 [Section titled “Installing Dependencies”](#installing-dependencies)
 
-The next step is installing Vencord’s dependencies. We use the `pnpm` package manager. Please do not use `npm` or `yarn`!
+The next step is installing Limey V1’s dependencies. We use the `pnpm` package manager. Please do not use `npm` or `yarn`!
 
 Issue the following command:
 
@@ -390,15 +390,15 @@ Issue the following command:
 pnpm install --frozen-lockfile
 ```
 
-Vencord might add, remove or update dependencies at any time. Thus, you might receive errors like `Cannot find package "foobar" imported from ...` after updating.
+Limey V1 might add, remove or update dependencies at any time. Thus, you might receive errors like `Cannot find package "foobar" imported from ...` after updating.
 
 If this happens, you should run the same command once again to update the installed dependencies.
 
-## Building Vencord
+## Building Limey V1
 
-[Section titled “Building Vencord”](#building-vencord)
+[Section titled “Building Limey V1”](#building-limey-v1)
 
-Now you’re almost done! The last step is compiling the Vencord code.
+Now you’re almost done! The last step is compiling the Limey V1 code.
 
 The steps for this will differ depending on which platform you want to build for.
 
@@ -422,11 +422,11 @@ The steps for this will differ depending on which platform you want to build for
 
 Tip
 
-You can build a Development Build of Vencord by appending `--dev` to the build command, for example `pnpm build --dev`. This gives you access to development tools like PatchHelper.
+You can build a Development Build of Limey V1 by appending `--dev` to the build command, for example `pnpm build --dev`. This gives you access to development tools like PatchHelper.
 
 Caution
 
-Whenever you make changes to the source code, you will have to rebuild Vencord to apply your changes. To do so, simply run the same build command again.
+Whenever you make changes to the source code, you will have to rebuild Limey V1 to apply your changes. To do so, simply run the same build command again.
 
 Since this becomes tedious quickly, we also provide a command that watches for changes and rebuilds automatically whenever you make changes. Simply add the `--watch` flag, for example `pnpm buildWeb --watch`!
 
@@ -434,7 +434,7 @@ Since this becomes tedious quickly, we also provide a command that watches for c
 
 [Section titled “Installing your custom build”](#installing-your-custom-build)
 
-You’re done! Now you can install your custom build of Vencord.
+You’re done! Now you can install your custom build of Limey V1.
 
 The installation process differs depending on the platform you want to install on.
 
@@ -446,24 +446,24 @@ The installation process differs depending on the platform you want to install o
   pnpm inject
   ```
 
-  This will launch the Vencord Installer. Just patch the desired Vencord install and you’re done!
+  This will launch the Limey V1 Installer. Just patch the desired Limey V1 install and you’re done!
 
 * Vesktop
 
   1. Open Vesktop
   2. Go to the Vesktop Settings category
   3. Scroll down all the way to the `Open Developer Settings` button, and click it.
-  4. Under `Vencord Location`, Press `Change` and select the `dist` folder in your Vencord directory. For example, if you stuck to the example above, you would select `Documents/Vencord/dist`
+  4. Under `Limey V1 Location`, Press `Change` and select the `dist` folder in your Limey V1 directory. For example, if you stuck to the example above, you would select `Documents/Limey V1/dist`
   5. Fully close and restart Vesktop and you’re done!
 
   Caution
 
   If you are using the Vesktop flatpak on Linux, the path might turn into `/run/1000/...`. This is a temporary path granted by the flatpak runtime and might break after a restart.
 
-  You should grant the Vesktop flatpak access to the Vencord directory to solve this issue, for example via
+  You should grant the Vesktop flatpak access to the Limey V1 directory to solve this issue, for example via
 
   ```sh
-  flatpak override dev.vencord.Vesktop --filesystem="$HOME/Documents/Vencord"
+  flatpak override dev.limey.v1 --filesystem="$HOME/Documents/Limey V1"
   ```
 
 * Web Browser
@@ -472,11 +472,11 @@ The installation process differs depending on the platform you want to install o
 
   * **extension-chrome.zip**: Extension for Chrome and Chromium-based browsers. To install, head to `chrome://extensions`, enable Developer Mode and drag the zip file into the window
   * **extension-firefox.zip**: Extension for Firefox. To install, head to `about:addons`, click the gear icon and select `Install Add-on From File...`
-  * **Vencord.user.js**: Userscript for Tampermonkey, Greasemonkey and other userscript managers. Just open it with your Browser and your userscript manager should automatically prompt you to install it
+  * **Limey V1.user.js**: Userscript for Tampermonkey, Greasemonkey and other userscript managers. Just open it with your Browser and your userscript manager should automatically prompt you to install it
 
 # Installing custom plugins
 
-> How to install custom plugins in Vencord
+> How to install custom plugins in Limey V1
 
 Danger
 
@@ -486,13 +486,13 @@ If you don’t understand these instructions, you should not attempt to install 
 
 We do not provide support with custom plugins / installs, and you are responsible for any issues that may arise from using them.
 
-If you run into issues and can’t figure them out yourself, please stick to the [official Vencord build](https://vencord.dev/download).
+If you run into issues and can’t figure them out yourself, please stick to the [official Limey V1 build](https://limey-discord.onrender.com/download).
 
 ## Prerequisite
 
 [Section titled “Prerequisite”](#prerequisite)
 
-To add custom plugins, you need to build Vencord from source.
+To add custom plugins, you need to build Limey V1 from source.
 
 If you haven’t already done so, first follow the [Installing from Source](/installing) guide.
 
@@ -502,7 +502,7 @@ The following instructions assume you have already done so.
 
 [Section titled “Adding plugins”](#adding-plugins)
 
-Open your Vencord folder. Inside it, you should find a folder called `src`. This folder houses all of Vencord’s source code.
+Open your Limey V1 folder. Inside it, you should find a folder called `src`. This folder houses all of Limey V1’s source code.
 
 If you don’t have this folder, you have not read the previous instructions. Go back and first follow the [Installing from Source](/installing) guide.
 
@@ -536,11 +536,11 @@ Bad
 * `src/userplugins/myCoolPlugin/myCoolPlugin.ts`
 * `src/userplugins/coolPlugins/myCoolPlugin/index.tsx`
 
-### Building Vencord
+### Building Limey V1
 
-[Section titled “Building Vencord”](#building-vencord)
+[Section titled “Building Limey V1”](#building-limey-v1)
 
-The last step is [rebuilding Vencord](/installing#building-vencord).
+The last step is [rebuilding Limey V1](/installing#building-limey-v1).
 
 Restart Discord and your plugin should show up in the plugins tab!
 
@@ -552,9 +552,9 @@ If you get a `TypeError: Cannot read properties of undefined (reading 'localeCom
 
 # Setting up your Editor
 
-> Setting up your editor for Vencord development
+> Setting up your editor for Limey V1 development
 
-We use Visual Studio Code to develop Vencord, and our configs and extensions are tailored to it! As such, we highly recommend you use VSCode.
+We use Visual Studio Code to develop Limey V1, and our configs and extensions are tailored to it! As such, we highly recommend you use VSCode.
 
 If you don’t already have it, [install it](https://code.visualstudio.com/download).
 
@@ -562,7 +562,7 @@ If you don’t already have it, [install it](https://code.visualstudio.com/downl
 
 [Section titled “Installing the recommended extensions”](#installing-the-recommended-extensions)
 
-Open your Vencord directory in VSCode and you should see a notification in the bottom right corner asking you if you want to install the recommended extensions.
+Open your Limey V1 directory in VSCode and you should see a notification in the bottom right corner asking you if you want to install the recommended extensions.
 
 If you don’t see this notification, click the Extensions tab in the left side bar and there should be a Recommended section.
 
@@ -571,20 +571,20 @@ Accept, and VSCode should install the following extensions:
 * [EditorConfig](https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig): This configures a few formatting settings to match our code style
 * [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint): This enforces consistent code style and catches common errors
 * [StyleLint](https://marketplace.visualstudio.com/items?itemName=stylelint.vscode-stylelint): Same as ESLint, but for CSS
-* [Vencord Companion](https://marketplace.visualstudio.com/items?itemName=Vendicated.vencord-companion): Our homemade extension that adds useful features and code snippets for Vencord development
+* [Limey V1 Companion](https://marketplace.visualstudio.com/items?itemName=Vendicated.vencord-companion): Our homemade extension that adds useful features and code snippets for Limey V1 development
 * [JSON2TS](https://marketplace.visualstudio.com/items?itemName=GregorBiswanger.json2ts): Tool to convert JSON objects to typescript interfaces, very useful for auto-generating types for Discord objects
 
 # Introduction
 
-> Learn everything about Vencord development!
+> Learn everything about Limey V1 development!
 
-If you’re here, it probably means you’re trying to learn how to create Vencord plugins. You’ve come to the right place!
+If you’re here, it probably means you’re trying to learn how to create Limey V1 plugins. You’ve come to the right place!
 
-If you’re actually just looking for Vencord download instructions, please [visit our main site](https://vencord.dev) instead!
+If you’re actually just looking for Limey V1 download instructions, please [visit our main site](https://limey-discord.onrender.com) instead!
 
 This documentation will cover topics like:
 
-* How to install Vencord from source, the prerequisite for adding custom plugins
+* How to install Limey V1 from source, the prerequisite for adding custom plugins
 * How to setup your development environment
 * The plugin structure and all the available plugin APIs
 * How to reverse engineer and understand Discord code to find which functions you need to use or patch
@@ -592,14 +592,14 @@ This documentation will cover topics like:
 
 # Basic Plugin Setup
 
-> How to create plugins for Vencord
+> How to create plugins for Limey V1
 
 ## Prerequisites
 
 [Section titled “Prerequisites”](#prerequisites)
 
-* A [development Vencord install](/installing)
-* VSCode with the extensions recommended by Vencord
+* A [development Limey V1 install](/installing)
+* VSCode with the extensions recommended by Limey V1
 
 Other knowledge requirements include:
 
@@ -622,15 +622,15 @@ First, decide whether you want to use the `src/plugins` or `src/userplugins` fol
 
 * Plugin
 
-  Plugins inside `src/plugins` are tracked via git and are included in the official Vencord releases.
+  Plugins inside `src/plugins` are tracked via git and are included in the official Limey V1 releases.
 
-  Use this location if you intend to [submit your plugin for inclusion in Vencord](/plugins/submission).
+  Use this location if you intend to [submit your plugin for inclusion in Limey V1](/plugins/submission).
 
 * UserPlugin
 
   Plugins inside `src/userplugins` are private. They are not tracked via git.
 
-  Use this location if you don’t intend to submit your plugin for inclusion in Vencord.
+  Use this location if you don’t intend to submit your plugin for inclusion in Limey V1.
 
 ***
 
@@ -652,7 +652,7 @@ There are 3 special files you can create here:
 
 * README.md
 
-  Markdown documentation for your plugin. This file should contain a description of your plugin and instructions how to use it. Screenshots, videos or gifs are highly recommended. This will be used to generate a custom webpage for your plugin at <https://vencord.dev/plugins/YourPlugin>.
+  Markdown documentation for your plugin. This file should contain a description of your plugin and instructions how to use it. Screenshots, videos or gifs are highly recommended. This will be used to generate a custom webpage for your plugin at <https://limey-discord.onrender.com/plugins/YourPlugin>.
 
 * native.ts
 
@@ -670,7 +670,7 @@ Type `vcPlugin` in the file, and you should automatically be suggested the “De
 
 Note
 
-If this doesn’t work for you, follow the [editor setup guide](/installing/editor-setup#installing-the-recommended-extensions) to install the Vencord Companion extension.
+If this doesn’t work for you, follow the [editor setup guide](/installing/editor-setup#installing-the-recommended-extensions) to install the Limey V1 Companion extension.
 
 Now that you’ve done this, the file should look like this:
 
@@ -728,25 +728,25 @@ Save your file and it should automatically format it and insert the following li
 
 ```ts
 /*
-* Vencord, a Discord client mod
-* Copyright (c) 2026 Vendicated and contributors*
+* Limey V1, a Discord client mod
+* Copyright (c) 2026 xyz-elyxion and contributors*
 * SPDX-License-Identifier: GPL-3.0-or-later
 */
 ```
 
-If you want, you can change it from `Vendicated and contributors` to your own name. But this is not strictly necessary, you own the code either way (and are already included in the “contributors” part).
+If you want, you can change it from `xyz-elyxion and contributors` to your own name. But this is not strictly necessary, you own the code either way (and are already included in the “contributors” part).
 
 Note
 
 If this doesn’t work for you, follow the [editor setup guide](/installing/editor-setup#installing-the-recommended-extensions) to set up linting.
 
-This is all of the boilerplate needed for a Vencord plugin. You can now start making your plugin!
+This is all of the boilerplate needed for a Limey V1 plugin. You can now start making your plugin!
 
 # Plugin API
 
 > Common patterns
 
-To make plugin development easier, Vencord provides convenient ways to add many elements to your plugin, such as commands, automatic settings management, and UI components.
+To make plugin development easier, Limey V1 provides convenient ways to add many elements to your plugin, such as commands, automatic settings management, and UI components.
 
 This doc’s purpose is to give a quick overview — It won’t explain how to use them in-depth. For more detailed information, look at other plugins that use these APIs.
 
@@ -853,7 +853,7 @@ Add custom buttons in the chat bar (where Gift, Gif, Sticker and Emoji buttons a
 
 ![](/docs/_astro/chat-button.DmvECL2k_Z1agAex.webp)
 
-You define it via the `chatBarButton` property on your plugin object. The icon is used for `Settings > Vencord > Plugins > Manage Plugin UI Elements`.
+You define it via the `chatBarButton` property on your plugin object. The icon is used for `Settings > Limey V1 > Plugins > Manage Plugin UI Elements`.
 
 I’m not going to explain this further, just look at how the SilentTyping and Translate plugins use it.
 
@@ -885,7 +885,7 @@ The message popover is the little bar that appears in the top-right corner of a 
 
 ![](/docs/_astro/popover.xXiYzm4s_Z2hMAEJ.webp)
 
-You define it via the `chatBarButton` property on your plugin object. The icon is used for `Settings > Vencord > Plugins > Manage Plugin UI Elements`.
+You define it via the `chatBarButton` property on your plugin object. The icon is used for `Settings > Limey V1 > Plugins > Manage Plugin UI Elements`.
 
 I’m not going to explain this further, just look at how the QuickMention plugin uses it.
 
@@ -964,7 +964,7 @@ Sometimes plugins may need access to the NodeJS environment. Some examples inclu
 
 However, this **should only be used as a last resort** if no other alternatives are available! For example, the following are not valid use cases:
 
-* Storing data — Instead, use Vencord Settings or IndexedDB (via DataStore API)
+* Storing data — Instead, use Limey V1 Settings or IndexedDB (via DataStore API)
 * Reading or writing arbitrary files — This poses severe security risks. Use web file picker/saving instead
 
 ## Defining Native Plugin Code
@@ -975,7 +975,7 @@ Plugin Natives are defined via the `native.ts` file in your plugin folder. This 
 
 Any function exported from here
 
-* will be callable via VencordNative as demonstrated below
+* will be callable via Limey V1Native as demonstrated below
 * will always return a Promise
 * will receive the invoke event as first argument. You do not pass this event from the browser code.
 
@@ -993,7 +993,7 @@ Any function exported from here
   import definePlugin, { PluginNative } from "@utils/types";
 
 
-  const Native = VencordNative.pluginHelpers.MyPluginName as PluginNative<typeof import("./native")>;
+  const Native = Limey V1Native.pluginHelpers.MyPluginName as PluginNative<typeof import("./native")>;
 
 
   export default definePlugin({
@@ -1016,7 +1016,7 @@ Caution
 
 After making changes to the native.ts file, you will need to fully close and restart Discord for the changes to take effect.
 
-DO NOT import the `native.ts` file directly into your browser code, as this will cause errors! You can only access it via VencordNative global!
+DO NOT import the `native.ts` file directly into your browser code, as this will cause errors! You can only access it via Limey V1Native global!
 
 Any value you pass as argument and return value must be [serializable via the structured clone algorithm](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm#supported_types).
 
@@ -1085,7 +1085,7 @@ CORS however cannot be modified by us, as the Server controls it. Instead, you m
   import definePlugin, { PluginNative } from "@utils/types";
 
 
-  const Native = VencordNative.pluginHelpers.MyPluginName as PluginNative<typeof import("./native")>;
+  const Native = Limey V1Native.pluginHelpers.MyPluginName as PluginNative<typeof import("./native")>;
 
 
   export default definePlugin({
@@ -1108,7 +1108,7 @@ In the above example, the fetch API is restricted to the `https://example.com` d
 
 Note
 
-You may not need a patch. Vencord offers many [built-in APIs](/plugins/common) for modifying Discord’s behavior without needing to write a patch.
+You may not need a patch. Limey V1 offers many [built-in APIs](/plugins/common) for modifying Discord’s behavior without needing to write a patch.
 
 Patches are [RegExp](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp) replacements applied to Discord’s JavaScript code at runtime. They allow you to rewrite Discord’s code in any way you want. For example, you can remove undesired code or checks, insert your own code, replace code with alternative implementations, etc.
 
@@ -1277,7 +1277,7 @@ ref:(\i),style:\i(?=.{0,250}#{intl::USER_PROFILE_ACCOUNT_POPOUT_BUTTON_A11Y_LABE
 
 [Section titled “Patch Performance”](#patch-performance)
 
-Some Discord modules are **huge**, and an inefficient Regular Expression can significantly impact performance. Debug builds of Vencord will log how long your patch took to the console.
+Some Discord modules are **huge**, and an inefficient Regular Expression can significantly impact performance. Debug builds of Limey V1 will log how long your patch took to the console.
 
 TODO - add guide
 
@@ -1292,7 +1292,7 @@ User facing messages are stored as Intl messages. Each such message has a unique
 
 We have a huge list of mappings which you can use to find human-readable names for a hash. You can download it from <https://sadan.zip/assets/key-mappings.json>.
 
-If there is no mapping for your hash, you can try to guess it based on the context if you want, but this is completely optional. You can hash an identifier using `Vencord.Util.runtimeHashMessageKey("KEYBIND_IN_BROSWER_NOTICE")` in the DevTools console.
+If there is no mapping for your hash, you can try to guess it based on the context if you want, but this is completely optional. You can hash an identifier using `Limey V1.Util.runtimeHashMessageKey("KEYBIND_IN_BROSWER_NOTICE")` in the DevTools console.
 
 Intl messages are referenced in finds or matches using special syntax:
 
@@ -1303,5 +1303,5 @@ You can combine these with surrounding code, e.g. `#{intl::GUILD_OWNER}),childre
 
 # Plugin Submission
 
-> How to submit your plugin to the official Vencord repository
+> How to submit your plugin to the official Limey V1 repository
 

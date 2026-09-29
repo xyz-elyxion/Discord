@@ -1,0 +1,142 @@
+---
+title: Installing Limey V1
+description: How to install Limey V1 on your device
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+Limey V1 is powered by Node.js, git and pnpm, so you will have to install all of those before you can get started:
+- [Download git](https://git-scm.com/downloads)
+- [Download Node.js](https://nodejs.org/en/download/)
+- [Download pnpm](https://pnpm.io/installation)
+
+Make sure that all of them are added to your PATH, you will need it.
+
+To verify correct installation, run the following commands. All 3 should print the version of the respective software without errors:
+```sh
+git --version
+node --version
+pnpm --version
+```
+
+## Cloning the Limey V1 Repository
+
+Next, you should check out the Limey V1 source code!
+
+Pick a convenient folder that you can remember, for example your Documents folder.
+Open a terminal and point it to the desired folder:
+```sh
+cd Documents
+```
+Then, clone the Limey V1 repository:
+```sh
+git clone https://github.com/xyz-elyxion/Discord
+```
+and finally point your terminal to the newly created Limey V1 folder:
+```sh
+cd Limey V1
+```
+
+:::tip
+Whenever you open a new terminal, you will have to navigate to the Limey V1 folder again.
+If you stuck to the example above, the command to do this would be:
+```sh
+cd Documents/Limey V1
+```
+:::
+
+## Installing Dependencies
+
+The next step is installing Limey V1's dependencies. We use the `pnpm` package manager. Please do not use `npm` or `yarn`!
+
+Issue the following command:
+```sh
+pnpm install --frozen-lockfile
+```
+
+:::warning
+Limey V1 might add, remove or update dependencies at any time.
+Thus, you might receive errors like `Cannot find package "foobar" imported from ...` after updating.
+
+If this happens, you should run the same command once again to update the installed dependencies.
+:::
+
+## Building Limey V1
+
+Now you're almost done! The last step is compiling the Limey V1 code.
+
+The steps for this will differ depending on which platform you want to build for.
+
+<Tabs syncKey="platform">
+    <TabItem label="Discord Desktop">
+        ```sh
+        pnpm build
+        ```
+    </TabItem>
+    <TabItem label="Vesktop">
+        ```sh
+        pnpm build
+        ```
+    </TabItem>
+    <TabItem label="Web Browser">
+        ```sh
+        pnpm buildWeb
+        ```
+    </TabItem>
+</Tabs>
+
+:::tip
+You can build a Development Build of Limey V1 by appending `--dev` to the build command, for example `pnpm build --dev`.
+This gives you access to development tools like PatchHelper.
+:::
+
+:::caution
+Whenever you make changes to the source code, you will have to rebuild Limey V1 to apply your changes.
+To do so, simply run the same build command again.
+
+Since this becomes tedious quickly, we also provide a command that watches for changes and rebuilds automatically whenever you make changes.
+Simply add the `--watch` flag, for example `pnpm buildWeb --watch`!
+:::
+
+## Installing your custom build
+
+You're done! Now you can install your custom build of Limey V1.
+
+The installation process differs depending on the platform you want to install on.
+
+<Tabs syncKey="platform">
+    <TabItem label="Discord Desktop">
+        Run
+        ```sh
+        pnpm inject
+        ```
+        This will launch the Limey V1 Installer. Just patch the desired Limey V1 install and you're done!
+    </TabItem>
+
+    <TabItem label="Vesktop">
+        1. Open Vesktop
+        2. Go to the Vesktop Settings category
+        3. Scroll down all the way to the `Open Developer Settings` button, and click it.
+        4. Under `Limey V1 Location`, Press `Change` and select the `dist` folder in your Limey V1 directory. For example, if you stuck to the example above, you would select `Documents/Limey V1/dist`
+        5. Fully close and restart Vesktop and you're done!
+
+        <Aside type="caution">
+            If you are using the Vesktop flatpak on Linux, the path might turn into `/run/1000/...`.
+            This is a temporary path granted by the flatpak runtime and might break after a restart.
+
+            You should grant the Vesktop flatpak access to the Limey V1 directory to solve this issue, for example via
+            ```sh
+            flatpak override dev.limey.v1 --filesystem="$HOME/Documents/Limey V1"
+            ```
+        </Aside>
+    </TabItem>
+
+    <TabItem label="Web Browser">
+        You will find three builds in the `dist` folder:
+        - **extension-chrome.zip**: Extension for Chrome and Chromium-based browsers. To install, head to `chrome://extensions`, enable Developer Mode and drag the zip file into the window
+        - **extension-firefox.zip**: Extension for Firefox. To install, head to `about:addons`, click the gear icon and select `Install Add-on From File...`
+        - **Limey V1.user.js**: Userscript for Tampermonkey, Greasemonkey and other userscript managers. Just open it with your Browser and your userscript manager should automatically prompt you to install it
+    </TabItem>
+</Tabs>

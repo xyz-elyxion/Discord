@@ -1,0 +1,36 @@
+---
+title: Welcome to the Limey V1 Docs!
+description: Learn everything about Limey V1 development!
+template: splash
+hero:
+    tagline: The cutest documentation
+    image:
+        file: ../../assets/cute-logo.avif
+    actions:
+        - text: Get Started
+          link: /intro
+          icon: right-arrow
+          variant: primary
+        - text: Join our community
+          link: https://discord.gg/your-invite
+          icon: discord
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+<CardGrid stagger>
+    <Card title="Powerful plugin API" icon="rocket">
+        Quickly add context menus, slash commands, message action buttons, message accessories (like embeds or bot
+        buttons), and much more!
+    </Card>
+    <Card title="Typescript, JSX, CSS, modular" icon="seti:typescript">
+        Plugins can make use of Typescript, JSX syntax, import css files and modularise their code! Limey V1 and many
+        Discord modules are fully typed for your convenience.
+    </Card>
+    <Card title="RegExp code patches" icon="pencil">
+        Rewrite Discord's code in place using RegExp replacements instead of boring old monkey patches.
+    </Card>
+    <Card title="Native Capabilities" icon="node">
+        Plugins can define native functions that have full access to Node.js apis without compromising on security.
+    </Card>
+</CardGrid>
