@@ -26,6 +26,8 @@ const { logChannelId } = Config.modmail;
 const enum Ids {
     OPEN_TICKET = "modmail:open_ticket",
     OPEN_SUBMIT = "modmail:open_submit",
+    PANEL_REFRESH = "modmail:panel_refresh",
+    PANEL_POST = "modmail:panel_post",
 
     REASON_MONKEY = "modmail:iamamonkey",
     REASON_MOD = "modmail:mod",
@@ -187,6 +189,18 @@ async function createModmailModal(interaction: GuildInteraction) {
 
 defineCommand({
     enabled,
+    name: "modmail:panel",
+    ownerOnly: true,
+    description: "Post the modmail staff panel (in the mod-log channel)",
+    usage: null,
+    async execute() {
+        if (!logChannelId) return "modmail.logChannelId is not configured — set it to a channel the bot can post in to use the panel";
+        return Vaius.rest.channels.createMessage(logChannelId, (await buildPanel())!);
+    }
+});
+
+defineCommand({
+    enabled,
     name: "modmail:post",
     ownerOnly: true,
     description: "Post the modmail message",
@@ -241,6 +255,89 @@ defineCommand({
             </ComponentMessage>
         );
     }
+});
+
+// ---- Staff panel ----
+// A persistent panel posted in the mod-log channel listing all open modmail
+// tickets with quick links and a refresh button.
+
+function buildTicketList(ticketLines: string[]) {
+    return (
+        <TextDisplay>{ticketLines.slice(0, 40).join("\n")}</TextDisplay>
+    );
+}
+
+async function buildPanel() {
+    const openTickets = await db.selectFrom("tickets")
+        .select(["channelId", "userId", "id"])
+        .orderBy("id", "asc")
+        .execute();
+
+    const ticketLines = openTickets.map(t =>
+        `**#${t.id}** — <@${t.userId}> → <#${t.channelId}>`
+    );
+
+    return (
+        <ComponentMessage>
+            <Container accentColor={Colors.Banana}>
+                <Section accessory={<Thumbnail url={Vaius.user.avatarURL(undefined, 128)} />}>
+                    <TextDisplay>## Modmail Panel</TextDisplay>
+                    <TextDisplay>
+                        {openTickets.length
+                            ? `**${openTickets.length}** open ticket${openTickets.length === 1 ? "" : "s"}:`
+                            : "No open tickets. All quiet on the modmail front. 🎉"
+                        }
+                    </TextDisplay>
+                </Section>
+
+                {ticketLines.length > 0 ? (
+                    <>
+                        <Separator spacing={SeparatorSpacingSize.SMALL} />
+                        {buildTicketList(ticketLines)}
+                    </>
+                ) : null}
+
+                <Separator spacing={SeparatorSpacingSize.SMALL} />
+
+                <ActionRow>
+                    <Button style={ButtonStyles.PRIMARY} customID={Ids.PANEL_REFRESH} emoji={{ name: "🔄" }}>
+                        Refresh
+                    </Button>
+                    <Button
+                        style={ButtonStyles.LINK}
+                        emoji={{ name: "📬" }}
+                        url={`https://discord.com/channels/${Vaius.guilds.first()?.id}/${FORUM_CHANNEL_ID}`}
+                    >
+                        Open Modmail Forum
+                    </Button>
+                </ActionRow>
+                <ActionRow>
+                    <Button style={ButtonStyles.SECONDARY} customID={Ids.PANEL_POST} emoji={{ name: "🗣️" }} disabled={!openTickets.length}>
+                        Open a Ticket for a User
+                    </Button>
+                </ActionRow>
+            </Container>
+        </ComponentMessage>
+    );
+}
+
+handleComponentInteraction({
+    customID: Ids.PANEL_REFRESH,
+    guildOnly: true,
+    allowedRoles: [modRoleId],
+    async handle(interaction) {
+        await interaction.deferUpdate();
+        await interaction.editOriginal(
+            (await buildPanel())!
+        );
+    }
+});
+
+handleComponentInteraction({
+    customID: Ids.PANEL_POST,
+    guildOnly: true,
+    allowedRoles: [modRoleId],
+    handle: createModmailModal
 });
 
 if (enabled) {
@@ -371,13 +468,13 @@ if (enabled) {
                             {message}
                         </TextDisplay>
 
-                        {files.length > 0 && <Separator spacing={SeparatorSpacingSize.LARGE} divider={false} />}
+                        {files.length > 0 ? <Separator spacing={SeparatorSpacingSize.LARGE} divider={false} /> : null}
 
-                        {images.length > 0 && (
+                        {images.length > 0 ? (
                             <MediaGallery>
                                 {images.map(f => <MediaGalleryItem url={`attachment://${f.name}`} />)}
                             </MediaGallery>
-                        )}
+                        ) : null}
                         {otherFiles.map(f => <File filename={f.name} />)}
                     </Container>
 
