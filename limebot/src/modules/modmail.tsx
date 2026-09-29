@@ -343,23 +343,18 @@ if (enabled) {
     registerChatInputCommand(
         {
             name: "modmailpanel",
-            description: "Post the modmail staff panel in the mod-log channel",
+            description: "Post the modmail staff panel in this channel",
         },
         {
-            ownerOnly: true,
+            guildOnly: true,
+            allowedRoles: [modRoleId],
             async handle(interaction) {
-                if (!logChannelId)
-                    return interaction.createMessage({
-                        content: "`modmail.logChannelId` is not configured — set it to a channel the bot can post in to use the panel.",
-                        flags: MessageFlags.EPHEMERAL
-                    });
-
                 await interaction.defer(MessageFlags.EPHEMERAL);
 
-                await Vaius.rest.channels.createMessage(logChannelId, (await buildPanel())!);
+                await Vaius.rest.channels.createMessage(interaction.channelID, (await buildPanel())!);
 
                 await interaction.createFollowup({
-                    content: `Panel posted in <#${logChannelId}>.`,
+                    content: "Panel posted.",
                     flags: MessageFlags.EPHEMERAL
                 });
             }

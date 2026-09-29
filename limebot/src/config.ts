@@ -11,10 +11,10 @@ const Config = {
 
     "channels": {
         // channel where limebot will post automatic moderation logs, leave empty to disable
-        "autoModLog": "1156349646965325824",
+        "autoModLog": "1554326022252535918",
 
         // channel where limebot will post moderation logs (like ban, mute, etc), leave empty to disable
-        "modLog": "1156349646965325824",
+        "modLog": "1554326022252535918",
 
         // channel where limebot will post bot audit logs (badge changes, etc), leave empty to disable
         "botAuditLog": "1450180761679302676",
