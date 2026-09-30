@@ -22,7 +22,15 @@ export function VerifyCard() {
 
     function startOAuth() {
         setPhase("authorizing");
-        openModal(props =>
+        openModal(props => {
+            // If the user dismisses the OAuth modal without authorizing, reset
+            // back to idle instead of being stuck on "Verifying…" forever.
+            const origOnClose = props.onClose;
+            props.onClose = () => {
+                setPhase(p => (p === "done" || p === "error" ? p : "idle"));
+                origOnClose?.();
+            };
+            return (
             <OAuth2AuthorizeModal
                 {...props}
                 scopes={["identify"]}
@@ -51,7 +59,8 @@ export function VerifyCard() {
                     }
                 }}
             />
-        );
+            );
+        });
     }
 
     const busy = phase === "authorizing" || phase === "verifying";
