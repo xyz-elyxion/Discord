@@ -4,11 +4,52 @@
     display: flex;
     flex-direction: column;
     color: var(--text-default);
-    background-color: var(--background-base-low);
-    border-radius: 6px;
+    background-color: var(--background-base-low, var(--background-primary));
+    border: 1px solid var(--vc-notif-border, var(--background-modifier-accent));
+    border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
     width: 100%;
+    box-shadow: var(--shadow-low, 0 1px 2px rgba(0, 0, 0, 0.15));
+    --vc-notif-accent: var(--text-default);
+}
+
+/* translucent surfaces that blend with every theme (incl. pure-black Onyx) */
+.theme-dark .vc-notification-root {
+    --vc-notif-border: rgba(255, 255, 255, 0.09);
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.theme-dark .vc-notification-root:hover {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.theme-light .vc-notification-root {
+    --vc-notif-border: rgba(0, 0, 0, 0.09);
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.theme-light .vc-notification-root:hover {
+    background-color: rgba(0, 0, 0, 0.055);
+    border-color: rgba(0, 0, 0, 0.18);
+}
+
+/* variant accent colors (Discord theme tokens) */
+.vc-notification-root.vc-notification-variant-success {
+    --vc-notif-accent: var(--status-positive, #23a55a);
+}
+
+.vc-notification-root.vc-notification-variant-info {
+    --vc-notif-accent: var(--text-default);
+}
+
+.vc-notification-root.vc-notification-variant-warning {
+    --vc-notif-accent: var(--yellow-300, #f0b232);
+}
+
+.vc-notification-root.vc-notification-variant-error {
+    --vc-notif-accent: var(--red-400, #f23f43);
 }
 
 .vc-notification-root:not(.vc-notification-log-wrapper > .vc-notification-root) {
@@ -16,37 +57,44 @@
     z-index: 2147483647;
     right: 1rem;
     width: min(25vw, 400px);
-    min-height: 10vh;
+    min-height: 0;
 }
 
 .vc-notification {
     display: flex;
     flex-direction: row;
-    padding: 1.25rem;
-    gap: 1.25rem;
+    align-items: flex-start;
+    padding: 1rem;
+    gap: 0.75rem;
 }
 
 .vc-notification-content {
     width: 100%;
+    min-width: 0;
     overflow: hidden;
 }
 
 .vc-notification-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
 }
 
 .vc-notification-title {
     color: var(--text-strong);
-    font-size: 1rem;
+    font-size: 0.875rem;
     font-weight: 600;
     line-height: 1.25rem;
-    text-transform: uppercase;
 }
 
 .vc-notification-close-btn {
     all: unset;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border-radius: 4px;
     color: var(--interactive-icon-default);
     opacity: 0.5;
     transition: opacity 0.2s ease-in-out, color 0.2s ease-in-out;
@@ -57,10 +105,20 @@
     opacity: 1;
 }
 
+/* variant icon, tinted with the card's accent */
+.vc-notification-variant-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    color: var(--vc-notif-accent);
+}
+
 .vc-notification-icon {
-    height: 4rem;
-    width: 4rem;
+    height: 2.5rem;
+    width: 2.5rem;
     border-radius: 6px;
+    flex-shrink: 0;
 }
 
 .vc-notification-progressbar {
@@ -70,8 +128,10 @@
 }
 
 .vc-notification-p {
-    margin: 0.5rem 0 0;
-    line-height: 140%;
+    margin: 0.125rem 0 0;
+    font-size: 0.75rem;
+    line-height: 1.3rem;
+    color: var(--text-muted);
 }
 
 .vc-notification-img {

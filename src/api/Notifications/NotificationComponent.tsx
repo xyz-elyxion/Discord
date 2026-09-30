@@ -23,7 +23,44 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import { classes } from "@utils/misc";
 import { React, useEffect, useMemo, useState, useStateFromStores, WindowStore } from "@webpack/common";
 
-import { NotificationData } from "./Notifications";
+import { NotificationData, NotificationVariant } from "./Notifications";
+
+function VariantIcon({ variant }: { variant: NotificationVariant; }) {
+    const paths: Record<NotificationVariant, { d: string; circle?: string; }> = {
+        // lucide CircleCheck
+        success: { d: "M21.801 10A10 10 0 1 1 17 3.335 m9 11 3 3L22 4" },
+        // lucide Info
+        info: { d: "M12 16v-4", circle: "M12 8h.01" },
+        // lucide TriangleAlert
+        warning: { d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3M12 9v4M12 17h.01" },
+        // lucide CircleAlert
+        error: { d: "M12 8v4", circle: "M12 16h.01" },
+    };
+
+    const { d, circle } = paths[variant];
+    return (
+        <svg
+            className={`vc-notification-variant-icon vc-notification-variant-${variant}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d={d} />
+            {circle && <path d={circle} />}
+        </svg>
+    );
+}
+
+const VARIANT_CLASS: Record<NotificationVariant, string> = {
+    success: "vc-notification-variant-success",
+    info: "vc-notification-variant-info",
+    warning: "vc-notification-variant-warning",
+    error: "vc-notification-variant-error",
+};
 
 export default ErrorBoundary.wrap(function NotificationComponent({
     title,
@@ -31,6 +68,7 @@ export default ErrorBoundary.wrap(function NotificationComponent({
     richBody,
     color,
     icon,
+    variant,
     onClick,
     onClose,
     image,
@@ -64,7 +102,11 @@ export default ErrorBoundary.wrap(function NotificationComponent({
 
     return (
         <button
-            className={classes("vc-notification-root", className)}
+            className={classes(
+                "vc-notification-root",
+                variant && VARIANT_CLASS[variant],
+                className
+            )}
             style={position === "bottom-right" ? { bottom: "1rem" } : { top: "3rem" }}
             onClick={() => {
                 onClick?.();
@@ -80,12 +122,15 @@ export default ErrorBoundary.wrap(function NotificationComponent({
             onMouseLeave={() => setIsHover(false)}
         >
             <div className="vc-notification">
-                {icon && <img className="vc-notification-icon" src={icon} alt="" />}
+                {icon
+                    ? <img className="vc-notification-icon" src={icon} alt="" />
+                    : (variant && <VariantIcon variant={variant} />)}
                 <div className="vc-notification-content">
                     <div className="vc-notification-header">
                         <h2 className="vc-notification-title">{title}</h2>
                         <button
                             className="vc-notification-close-btn"
+                            aria-label="Dismiss"
                             onClick={e => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -93,14 +138,19 @@ export default ErrorBoundary.wrap(function NotificationComponent({
                             }}
                         >
                             <svg
-                                width="24"
-                                height="24"
+                                width="16"
+                                height="16"
                                 viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
                                 role="img"
                                 aria-labelledby="vc-notification-dismiss-title"
                             >
                                 <title id="vc-notification-dismiss-title">Dismiss Notification</title>
-                                <path fill="currentColor" d="M18.4 4L12 10.4L5.6 4L4 5.6L10.4 12L4 18.4L5.6 20L12 13.6L18.4 20L20 18.4L13.6 12L20 5.6L18.4 4Z" />
+                                <path d="M18 6 6 18M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
@@ -111,7 +161,7 @@ export default ErrorBoundary.wrap(function NotificationComponent({
             {timeout !== 0 && !permanent && (
                 <div
                     className="vc-notification-progressbar"
-                    style={{ width: `${(1 - timeoutProgress) * 100}%`, backgroundColor: color || "var(--brand-500)" }}
+                    style={{ width: `${(1 - timeoutProgress) * 100}%`, backgroundColor: color || "var(--vc-notif-accent, var(--brand-500))" }}
                 />
             )}
         </button>

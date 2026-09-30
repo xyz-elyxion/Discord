@@ -55,6 +55,11 @@ export interface NotificationData {
     onClick?(): void;
     onClose?(): void;
     color?: string;
+    /**
+     * Visual variant. Adds a themed accent icon next to the title when no
+     * custom `icon` is provided, and tints the progress bar / card accent.
+     */
+    variant?: NotificationVariant;
     /** Whether this notification should not have a timeout */
     permanent?: boolean;
     /** Whether this notification should not be persisted in the Notification Log */
@@ -62,6 +67,8 @@ export interface NotificationData {
     /** Whether this notification should be dismissed when clicked (defaults to true) */
     dismissOnClick?: boolean;
 }
+
+export type NotificationVariant = "success" | "info" | "warning" | "error";
 
 function _showNotification(notification: NotificationData, id: number) {
     const root = getRoot();
