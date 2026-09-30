@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { Button, FluxDispatcher, OAuth2AuthorizeModal, openModal, useState, UserStore } from "@webpack/common";
+import { Button } from "@components/Button";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@components/Item";
+import { FluxDispatcher, OAuth2AuthorizeModal, openModal, useState } from "@webpack/common";
 
-import { API_BASE, RULES_CHANNEL_ID } from "./shared";
+import { RULES_CHANNEL_ID } from "./shared";
 
 // The bot application is the OAuth app (same client id as the bot itself).
-// The Go cloud backend exposes the client id at /v1/oauth/settings — but to
-// keep verification self-contained we hardcode the bot's application id.
 const CLIENT_ID = "1514929209158402078";
 const REDIRECT_URI = "https://limey-discord.onrender.com/v1/oauth/callback";
 const SITE_ORIGIN = "https://limey-discord.onrender.com";
@@ -19,25 +19,6 @@ type Phase = "idle" | "authorizing" | "verifying" | "done" | "error";
 export function VerifyCard() {
     const [phase, setPhase] = useState<Phase>("idle");
     const [error, setError] = useState("");
-
-    async function verifyWithClientMod(response: { location: string }) {
-        setPhase("verifying");
-        try {
-            // Tag the shared OAuth callback so server.js dispatches the code
-            // exchange to the limebot, which verifies and returns {ok, userId}.
-            const url = new URL(response.location);
-            url.searchParams.append("clientMod", "verify");
-            url.searchParams.set("state", "verify");
-            const res = await fetch(url, { headers: { Accept: "application/json" } });
-            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? "authorization failed");
-            const data = await res.json();
-            if (!data.ok) throw new Error(data.error ?? "verification failed");
-            setPhase("done");
-        } catch (e: any) {
-            setError(String(e?.message ?? e));
-            setPhase("error");
-        }
-    }
 
     function startOAuth() {
         setPhase("authorizing");
@@ -52,7 +33,18 @@ export function VerifyCard() {
                 cancelCompletesFlow={false}
                 callback={async (response: { location: string }) => {
                     try {
-                        await verifyWithClientMod(response);
+                        setPhase("verifying");
+                        // Tag the shared OAuth callback so server.js dispatches
+                        // the code exchange to the limebot, which verifies and
+                        // returns {ok, userId}.
+                        const url = new URL(response.location);
+                        url.searchParams.append("clientMod", "verify");
+                        url.searchParams.set("state", "verify");
+                        const res = await fetch(url, { headers: { Accept: "application/json" } });
+                        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? "authorization failed");
+                        const data = await res.json();
+                        if (!data.ok) throw new Error(data.error ?? "verification failed");
+                        setPhase("done");
                     } catch (e: any) {
                         setError(String(e?.message ?? e));
                         setPhase("error");
@@ -66,44 +58,95 @@ export function VerifyCard() {
 
     return (
         <div className="limey-interactive-verify-root">
-            <div className="limey-iv-card">
-                <div className="limey-iv-logo">🍋</div>
-                <div className="limey-iv-title">
-                    {phase === "done" ? "You're verified!" : "Verify to join"}
-                </div>
-                <div className="limey-iv-subtitle">
-                    {phase === "done"
-                        ? "Your verified role has been granted — head back and enjoy the server."
-                        : "Prove you're human with your Limey V1 account. One click, no website."}
+            <div className="limey-iv-stack">
+                <div className="limey-iv-header">
+                    <div className="limey-iv-logo">🍋</div>
+                    <div className="limey-iv-title">
+                        {phase === "done" ? "You're verified!" : "Verify to join"}
+                    </div>
+                    <div className="limey-iv-subtitle">
+                        {phase === "done"
+                            ? "Your verified role has been granted — enjoy the server."
+                            : "Prove you're human with your Limey V1 account. One click, no website."}
+                    </div>
                 </div>
 
-                {phase === "done" ? (
-                    <Button onClick={() => FluxDispatcher.dispatch({ type: "CHANNEL_SELECT", channelId: RULES_CHANNEL_ID })}>
-                        Read the Rules
-                    </Button>
-                ) : phase === "error" ? (
-                    <>
-                        <div className="limey-iv-error">⚠ {error}</div>
-                        <Button onClick={() => { setPhase("idle"); setError(""); }}>Try Again</Button>
-                        <a className="limey-iv-alt" href={`${SITE_ORIGIN}/verify`} target="_blank" rel="noreferrer">
-                            Verify on the website instead
-                        </a>
-                    </>
-                ) : (
-                    <>
-                        <Button onClick={startOAuth} disabled={busy} color={Button.Colors.BRAND}>
-                            {busy ? "Verifying…" : "⚡ Instant Verify"}
+                {/* Main verification item */}
+                <Item variant="outline">
+                    <ItemContent>
+                        <ItemTitle>
+                            {phase === "error" ? "Verification failed" : "Instant verification"}
+                        </ItemTitle>
+                        <ItemDescription>
+                            {phase === "done" && "✅ Verified role granted. Welcome aboard!"}
+                            {phase === "error" && `⚠ ${error}`}
+                            {busy && "Waiting for Discord authorization…"}
+                            {phase === "idle" && "Authorize with Discord and you're in immediately."}
+                        </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                        {phase === "done" ? (
+                            <Button
+                                variant="secondary"
+                                size="small"
+                                onClick={() => FluxDispatcher.dispatch({ type: "CHANNEL_SELECT", channelId: RULES_CHANNEL_ID })}
+                            >
+                                Read the Rules
+                            </Button>
+                        ) : (
+                            <Button
+                                onClick={startOAuth}
+                                disabled={busy}
+                                size="small"
+                            >
+                                {busy ? "Verifying…" : "⚡ Verify"}
+                            </Button>
+                        )}
+                    </ItemActions>
+                </Item>
+
+                {/* Rules item */}
+                <Item variant="normal">
+                    <ItemMedia>📜</ItemMedia>
+                    <ItemContent>
+                        <ItemTitle>Read the community rules</ItemTitle>
+                        <ItemDescription>
+                            Verifying means you agree to follow the server guidelines.
+                        </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                        <Button
+                            variant="secondary"
+                            size="small"
+                            onClick={() => FluxDispatcher.dispatch({ type: "CHANNEL_SELECT", channelId: RULES_CHANNEL_ID })}
+                        >
+                            Open
                         </Button>
-                        <a className="limey-iv-alt" href={`${SITE_ORIGIN}/verify`} target="_blank" rel="noreferrer">
-                            Verify on the website instead
-                        </a>
-                    </>
-                )}
+                    </ItemActions>
+                </Item>
+
+                {/* Website fallback item */}
+                <Item variant="normal">
+                    <ItemMedia>🌐</ItemMedia>
+                    <ItemContent>
+                        <ItemTitle>Verify on the website</ItemTitle>
+                        <ItemDescription>
+                            Prefer the browser? Get a one-time link from the bot instead.
+                        </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                        <Button
+                            variant="link"
+                            size="small"
+                            onClick={() => window.open(`${SITE_ORIGIN}/verify`, "_blank")}
+                        >
+                            Visit
+                        </Button>
+                    </ItemActions>
+                </Item>
 
                 <div className="limey-iv-fine">
-                    Verifying grants the verified role and agrees you'll follow the{" "}
-                    <a href={`${SITE_ORIGIN}/rules.html`} target="_blank" rel="noreferrer">community rules</a>.
-                    Powered by Limey V1.
+                    Powered by Limey V1 · Verification grants the verified role
                 </div>
             </div>
         </div>

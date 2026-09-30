@@ -1,0 +1,58 @@
+/*
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2026 Limey and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.vc-item-base {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md, 10px);
+    background: var(--background-base-secondary, var(--background-secondary, #2b2d31));
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.vc-item-normal {
+    border: 1px solid var(--border-subtle, var(--background-modifier-accent, #3f4147));
+}
+
+.vc-item-outline {
+    border: 1px solid var(--border-strong, var(--background-modifier-hover, #5d5e68));
+}
+
+.vc-item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.vc-item-title {
+    color: var(--text-default, var(--header-primary, #f2f3f5));
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.vc-item-description {
+    color: var(--text-muted, #949ba4);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.vc-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.vc-item-media {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}

@@ -56,20 +56,6 @@ CREATE TABLE IF NOT EXISTS warnings (
 
 CREATE INDEX IF NOT EXISTS warnings_userId_idx ON warnings (userId);
 
-CREATE TABLE IF NOT EXISTS aiTrainingExamples (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    content   TEXT NOT NULL,
-    verdict   TEXT NOT NULL CHECK(verdict IN ('ok','warn','mute','ban')),
-    reason    TEXT NOT NULL,
-    addedBy   TEXT NOT NULL,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS aiModSettings (
-    key   TEXT PRIMARY KEY NOT NULL,
-    value TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS verificationTokens (
     token     TEXT PRIMARY KEY NOT NULL,
     userId    TEXT NOT NULL,

@@ -18,6 +18,7 @@ export * from "./Grid";
 export * from "./Heading";
 export * from "./Heart";
 export * from "./Icons";
+export * from "./Item";
 export * from "./Link";
 export * from "./margins";
 export * from "./Paragraph";

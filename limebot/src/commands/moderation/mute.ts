@@ -69,11 +69,7 @@ defineCommand({
             );
 
             await member.edit({ communicationDisabledUntil: until(duration), reason: reasonWithMod })
-                .then(() => {
-                    mutedUsers.push(`**${member.tag}** (${member.mention})`);
-                    // AI Mod self-learning: observe staff moderation
-                    silently(import("~/modules/moderation/aiModLearning").then(m => m.learnFromMute(msg.guildID, member.id, reason)));
-                })
+                .then(() => mutedUsers.push(`**${member.tag}** (${member.mention})`))
                 .catch(e => fails.push(`Failed to mute **${member.tag}** (${member.mention}): \`${String(e)}\``));
 
             logUserRestriction({
