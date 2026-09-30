@@ -200,13 +200,14 @@
         <div id="logged-in" style="display:none">
             <div id="banner" class="dash-banner">⚠️ <span id="banner-text"></span></div>
 
-            <div class="profile">
+                <div class="profile">
                 <img id="avatar" alt="Avatar">
                 <div>
                     <div class="name" id="display-name"></div>
                     <div class="tag" id="username"></div>
                 </div>
                 <div class="spacer"></div>
+                <span class="badge" id="banner-badge" style="display:none" title="You have a USRBG profile banner active in the client mod">🖼️ Banner</span>
                 <button class="btn-logout" id="logout-btn">Log out</button>
             </div>
 
@@ -273,6 +274,7 @@
                     <div class="kv-row"><span class="k">Web build</span><span class="v" id="st-web">—</span></div>
                     <div class="kv-row"><span class="k">Desktop build</span><span class="v" id="st-desktop">—</span></div>
                     <div class="kv-row"><span class="k">Settings sync</span><span class="v" id="st-cloud">—</span></div>
+                    <div class="kv-row"><span class="k">Detector online</span><span class="v" id="st-online">—</span></div>
                 </div>
 
                 <!-- quick links -->
@@ -462,6 +464,18 @@
         } catch { /* ignore */ }
     }
 
+    /* ---------- detector online count ---------- */
+    async function loadDetectorCount() {
+        try {
+            const res = await fetch(API_BASE + "/v1/detector/users");
+            const data = await res.json();
+            const n = (data.users || []).length;
+            $("st-online").innerHTML = `<span class="badge ${n > 0 ? "ok" : "warn"}">${n} user${n === 1 ? "" : "s"}</span>`;
+        } catch {
+            $("st-online").textContent = "—";
+        }
+    }
+
     /* ---------- render ---------- */
     function render(data, initial = true) {
         const user = data.user || {};
@@ -502,11 +516,25 @@
             $("daily-btn").textContent = "Wallet unavailable";
         }
 
+        // profile banner (USRBG) — public endpoint, 302 if the user has one
+        const bannerBadge = $("banner-badge");
+        bannerBadge.style.display = "none";
+        if (user.id) {
+            fetch(API_BASE + "/v1/usrbg/users/" + user.id, { redirect: "manual" })
+                .then(r => {
+                    if (r.type === "opaqueredirect" || r.status === 302) {
+                        bannerBadge.style.display = "";
+                    }
+                })
+                .catch(() => {});
+        }
+
         // site status
         const setSt = (id, ok, text) => { $(id).innerHTML = `<span class="badge ${ok ? "ok" : "warn"}">${text}</span>`; };
         setSt("st-web", data.build?.built, data.build?.built ? "Built" : "Missing");
         setSt("st-desktop", data.build?.desktop !== "failed", data.build?.desktop === "done" || data.build?.built ? "Ready" : data.build?.desktop);
         setSt("st-cloud", data.cloudSync, data.cloudSync ? "Online" : "Offline");
+        loadDetectorCount();
 
         show("logged-in");
         if (initial) {
