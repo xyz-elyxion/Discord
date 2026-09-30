@@ -55,7 +55,7 @@ export async function getTrainingExamples() {
 
 export async function addTrainingExample(content: string, verdict: Verdict, reason: string, addedBy: string) {
     await db.insertInto("aiTrainingExamples")
-        .values({ content, verdict, reason, addedBy })
+        .values({ content, verdict, reason, addedBy, createdAt: new Date().toISOString() })
         .execute();
 }
 
@@ -120,11 +120,11 @@ async function punish(msg: import("oceanic.js").Message, member: import("oceanic
 
     switch (c.verdict) {
         case "ban": {
-            await silently(msg.guild.banMember(member.id, 0, { reason: `AI Mod: ${c.reason}` }).catch(e =>
+            await silently(msg.guild!.createBan(member.id, { reason: `AI Mod: ${c.reason}` }).catch(e =>
                 console.error("[aimod] ban failed:", e)));
             logAutoModAction(`🔨 **Banned** <@${member.id}> — ${c.reason} (AI Mod, confidence ${c.confidence.toFixed(2)})`);
             break;
-        }
+ }
         case "mute": {
             const until = new Date(Date.now() + 60 * 60_000);
             await silently(member.edit({
@@ -135,7 +135,7 @@ async function punish(msg: import("oceanic.js").Message, member: import("oceanic
             break;
         }
         case "warn": {
-            await silently(addWarning(msg.guildID, member.id, Vaius.user.id, `AI Mod: ${c.reason}`));
+            await silently(addWarning(msg.guildID!, member.id, Vaius.user.id, `AI Mod: ${c.reason}`));
             await silently(member.user.createDM().then(dm => dm.createMessage({
                 content: `You were automatically warned on the Limey V1 Server.\n## Reason:\n${c.reason}`
             })).catch(() => null));

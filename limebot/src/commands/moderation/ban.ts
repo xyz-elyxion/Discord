@@ -77,6 +77,9 @@ async function banExecutor({ msg, reply }: CommandContext<true>, args: string[],
 
             await msg.guild.createBan(id, { reason: reasonWithMod, deleteMessageDays: daysToDelete as 0 });
 
+            // AI Mod self-learning: observe staff moderation
+            silently(import("~/modules/moderation/aiModLearning").then(m => m.learnFromBan(msg.guildID, id, reason)));
+
             bannedUsers.push(`**<@${id}>**`);
 
             logUserRestriction({

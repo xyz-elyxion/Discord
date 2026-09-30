@@ -68,25 +68,25 @@ export async function grantVerifiedRole(userId: string) {
 // native in-client verification UI for Limey V1 users.
 // ---------------------------------------------------------------------------
 
-function buildVerificationMessage(verifyButton = true) {
+function buildVerificationMessage() {
     return {
         content: `${MARKER}\n# ✅ Verify to join the server\nWelcome to **Limey V1**! To unlock the server you need to verify that you're human.\n\n**Option 1 — Website:**\nClick **Verify on Website** below, log in with Discord, and you're in.\n\n**Option 2 — Limey V1 users:**\nIf you have the Limey V1 mod, click **Instant Verify** — no website needed. 🍋\n\n-# Verification proves you're human and agree to the rules in <#1553937108107006043>.`,
         components: [
             {
                 type: 1,
                 components: [
-                    ...(verifyButton ? [{
+                    {
                         type: 2,
                         style: ButtonStyles.PRIMARY,
                         label: "Instant Verify",
                         customID: "verify:instant",
                         emoji: { name: "⚡" }
-                    }] : []),
+                    },
                     {
                         type: 2,
-                        style: ButtonStyles.LINK,
+                        style: ButtonStyles.SECONDARY,
                         label: "Verify on Website",
-                        url: `${siteUrl}/verify`,
+                        customID: "verify:website",
                         emoji: { name: "🌐" }
                     }
                 ]
@@ -107,7 +107,7 @@ async function ensureCard() {
     await Vaius.rest.channels.createMessage(channelId, buildVerificationMessage());
 }
 
-async function handleInstantVerify(interaction: import("oceanic.js").ComponentInteraction) {
+async function handleVerifyButton(interaction: import("oceanic.js").ComponentInteraction, instant: boolean) {
     // already verified? say so
     if (await isVerified(interaction.user.id)) {
         return void interaction.createMessage({
@@ -119,20 +119,30 @@ async function handleInstantVerify(interaction: import("oceanic.js").ComponentIn
     const token = await mintToken(interaction.user.id);
     const url = `${siteUrl}/verify?t=${token}`;
 
-    const dm = await interaction.user.createDM().catch(() => null);
-    if (dm) {
-        await dm.createMessage({
-            content: `🍋 **Verify your Limey V1 account**\n\nClick this one-time link to verify — it expires after use:\n${url}`
-        }).catch(() => null);
+    if (instant) {
+        // Instant Verify (Limey V1 users): DM a one-time link, fall back to
+        // an ephemeral message if DMs are blocked
+        const dm = await interaction.user.createDM().catch(() => null);
+        if (dm) {
+            await dm.createMessage({
+                content: `🍋 **Verify your Limey V1 account**\n\nClick this one-time link to verify — it expires after use:\n${url}`
+            }).catch(() => null);
+            return void interaction.createMessage({
+                content: "⚡ I sent you a **one-time verification link** in your DMs — click it to finish verifying.",
+                flags: 64
+            });
+        }
+
         return void interaction.createMessage({
-            content: "⚡ I sent you a **one-time verification link** in your DMs — click it to finish verifying.",
+            content: `⚡ Click this **one-time link** to verify:\n${url}\n-# This link works once and is only visible to you.`,
             flags: 64
         });
     }
 
-    // DMs blocked — fall back to ephemeral link
+    // Website verify: mint a fresh token and reply with the personalized
+    // link directly (ephemeral — only visible to the clicker)
     return void interaction.createMessage({
-        content: `⚡ Click this **one-time link** to verify:\n${url}\n-# This link works once and is only visible to you.`,
+        content: `🌐 **Here's your personal verification link:**\n${url}\n-# One-time use, only visible to you. Opens on limey-discord.onrender.com.`,
         flags: 64
     });
 }
@@ -163,13 +173,15 @@ export function initVerification() {
         }
     });
 
-    // Instant Verify button
+    // Verify buttons (Instant Verify + Verify on Website)
     Vaius.on("interactionCreate", async interaction => {
         try {
             if (interaction.type !== 3 /* COMPONENT */) return;
             const data = (interaction as import("oceanic.js").ComponentInteraction).data;
-            if (data.customID !== "verify:instant") return;
-            await handleInstantVerify(interaction as import("oceanic.js").ComponentInteraction);
+            if (data.customID === "verify:instant")
+                await handleVerifyButton(interaction as import("oceanic.js").ComponentInteraction, true);
+            else if (data.customID === "verify:website")
+                await handleVerifyButton(interaction as import("oceanic.js").ComponentInteraction, false);
         } catch (e) {
             console.error("[verify] interaction error:", e);
         }

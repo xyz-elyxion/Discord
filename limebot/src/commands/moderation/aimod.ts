@@ -10,6 +10,7 @@ import {
     setAiModEnabled,
     Verdict
 } from "~/modules/moderation/aiMod";
+import { learningEnabled, setLearningEnabled } from "~/modules/moderation/aiModLearning";
 import Config from "~/config";
 import { registerChatInputCommand } from "~/SlashCommands";
 
@@ -20,12 +21,11 @@ const VERDICT_CHOICES = [
     { name: "ban — extreme violation", value: "ban" },
 ];
 
-registerChatInputCommand({
-    name: "aimod",
-    description: "Manage the trainable AI moderation system",
-    guildOnly: true,
-    allowedRoles: Config.roles.staffRoles,
-    options: [
+registerChatInputCommand(
+    {
+        name: "aimod",
+        description: "Manage the trainable AI moderation system",
+        options: [
         {
             type: ApplicationCommandOptionTypes.SUB_COMMAND,
             name: "toggle",
@@ -95,8 +95,23 @@ registerChatInputCommand({
             name: "status",
             description: "Show AI moderation status"
         },
-    ],
-    async handle(interaction) {
+        {
+            type: ApplicationCommandOptionTypes.SUB_COMMAND,
+            name: "learning",
+            description: "Toggle self-learning from staff moderation actions",
+            options: [{
+                type: ApplicationCommandOptionTypes.BOOLEAN,
+                name: "enabled",
+                description: "Whether the AI should learn from staff actions",
+                required: true
+            }]
+        },
+        ]
+    },
+    {
+        guildOnly: true,
+        allowedRoles: Config.roles.staffRoles,
+        async handle(interaction) {
         const sub = interaction.data.options.getSubCommand()![0];
 
         if (!isAiModAvailable()) {
@@ -177,15 +192,27 @@ registerChatInputCommand({
                 });
             }
 
+            case "learning": {
+                const on = interaction.data.options.getBoolean("enabled", true)!;
+                await setLearningEnabled(on);
+                return void interaction.createMessage({
+                    content: `🧠 Self-learning is now **${on ? "on" : "off"}**. ${on ? "The AI will build its training data by watching how staff warn/mute/ban and delete messages." : ""}`,
+                    flags: 64
+                });
+            }
+
             case "status": {
                 const available = isAiModAvailable();
                 const enabled = await isAiModEnabled().catch(() => false);
+                const learning = await learningEnabled().catch(() => true);
                 const examples = await getTrainingExamples();
+                const learned = examples.filter(e => e.reason.includes("[learned from staff]")).length;
                 return void interaction.createMessage({
                     content: [
                         "**AI Moderation status**",
                         `API key: ${available ? "✅ configured" : "❌ missing (set GEMINI_API_KEY)"}`,
                         `Enabled: ${enabled ? "✅ on" : "❌ off"}`,
+                        `Self-learning: ${learning ? "✅ on" : "❌ off"} (${learned} auto-learned examples)`,
                         `Model: \`${Config.aiMod.model}\``,
                         `Confidence threshold: ${Config.aiMod.confidenceThreshold}`,
                         `Training examples: **${examples.length}**`,
@@ -194,5 +221,6 @@ registerChatInputCommand({
                 });
             }
         }
+        }
     }
-});
+);

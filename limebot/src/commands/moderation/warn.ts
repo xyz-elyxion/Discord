@@ -60,6 +60,9 @@ async function warnExecutor({ msg, reply }: CommandContext<true>, args: string[]
     for (const id of ids) {
         const count = await addWarning(msg.guildID, id, msg.author.id, reason);
 
+        // AI Mod self-learning: observe staff moderation as training data
+        silently(import("~/modules/moderation/aiModLearning").then(m => m.learnFromWarning(msg.guildID, id, reason)));
+
         logUserRestriction({
             title: `Warned User (#${count} total)`,
             user: msg.guild.members.get(id)?.user,

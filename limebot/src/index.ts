@@ -15,6 +15,7 @@ import { PROD } from "./constants";
 import { initModListeners } from "./modules/moderation/listeners";
 import { initAutoMod } from "./modules/moderation/autoMod";
 import { initAiMod } from "./modules/moderation/aiMod";
+import { initAiModLearning } from "./modules/moderation/aiModLearning";
 import { initRulesPage } from "./modules/rulesPage";
 import { initScheduledUnbans } from "./commands/moderation/tempban";
 import { silently } from "./util/functions";
@@ -25,6 +26,7 @@ import { toCodeblock } from "./util/text";
 initModListeners();
 initAutoMod();
 initAiMod();
+initAiModLearning();
 initRulesPage();
 initScheduledUnbans();
 
