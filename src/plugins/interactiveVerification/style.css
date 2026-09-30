@@ -2,11 +2,11 @@
     position: absolute;
     inset: 0;
     z-index: 100;
-    background-color: var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #313338)));
+    background-color: var(--bg-overlay-chat, var(--background-base-lower, #1e1f22));
 }
 
 .theme-light .limey-interactive-verify-host {
-    background-color: var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #ffffff)));
+    background-color: var(--bg-overlay-chat, var(--background-base-lower, #e3e5e8));
 }
 
 .limey-interactive-verify-root {
@@ -17,6 +17,10 @@
     justify-content: center;
     color: var(--text-default, var(--text-normal, #dbdee1));
     font-family: var(--font-primary, "gg sans", "Noto Sans", sans-serif);
+}
+
+.theme-light .limey-interactive-verify-root {
+    color: var(--text-default, var(--text-normal, #313338));
 }
 
 .limey-iv-stack {
@@ -48,6 +52,10 @@
     font-weight: 700;
     color: var(--text-default, var(--header-primary, #f2f3f5));
     letter-spacing: -0.02em;
+}
+
+.theme-light .limey-iv-title {
+    color: var(--text-default, var(--header-primary, #060607));
 }
 
 .limey-iv-subtitle {

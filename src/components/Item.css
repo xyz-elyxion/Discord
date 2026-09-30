@@ -2,7 +2,38 @@
  * Limey V1, a Discord client mod
  * Copyright (c) 2026 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Item component — colors declared per-theme (dark/light) with Discord's
+ * real palette values as fallbacks, so it matches the client in both modes
+ * even if a variable name changes. Theme vars come first so custom client
+ * themes still override everything.
  */
+
+/* ------------------------------ dark theme -------------------------------- */
+
+.theme-dark,
+.vc-item-dark {
+    --vc-item-bg: var(--background-base-secondary, #2b2d31);
+    --vc-item-bg-hover: var(--background-base-tertiary, #313338);
+    --vc-item-bg-raised: var(--background-base-tertiary, #313338);
+    --vc-item-border: var(--border-subtle, #3f4147);
+    --vc-item-border-hover: var(--border-strong, #6d6f78);
+    --vc-item-media-bg: var(--background-base-lower, #1e1f22);
+}
+
+/* ----------------------------- light theme -------------------------------- */
+
+.theme-light,
+.vc-item-light {
+    --vc-item-bg: #f2f3f5;
+    --vc-item-bg-hover: #ebedef;
+    --vc-item-bg-raised: #ffffff;
+    --vc-item-border: #dcdee1;
+    --vc-item-border-hover: #c4c9ce;
+    --vc-item-media-bg: #e3e5e8;
+}
+
+/* -------------------------------- component ------------------------------- */
 
 .vc-item-base {
     display: flex;
@@ -10,28 +41,20 @@
     gap: 12px;
     padding: 14px 16px;
     border-radius: var(--radius-md, 10px);
-    transition: border-color 0.15s, background 0.15s;
+    background: var(--vc-item-bg);
+    border: 1px solid var(--vc-item-border);
+    transition: background 0.15s, border-color 0.15s;
 }
 
-/* normal — standard Discord secondary surface */
-.vc-item-normal {
-    background: var(--background-base-secondary, var(--background-secondary, #2b2d31));
-    border: 1px solid var(--border-subtle, var(--background-modifier-accent, #3f4147));
+.vc-item-base:hover {
+    background: var(--vc-item-bg-hover);
+    border-color: var(--vc-item-border-hover);
 }
 
-.vc-item-normal:hover {
-    background: var(--background-base-secondary-hover, var(--background-secondary-alt, #313338));
-    border-color: var(--border-strong, #6d6f78);
-}
-
-/* outline — emphasized surface: brighter border, same neutral background */
+/* outline — emphasized: raised white/gray surface */
 .vc-item-outline {
-    background: var(--background-base-tertiary, var(--background-secondary-alt, #313338));
-    border: 1px solid var(--border-strong, #6d6f78);
-}
-
-.vc-item-outline:hover {
-    border-color: var(--text-muted, #949ba4);
+    background: var(--vc-item-bg-raised);
+    border-color: var(--vc-item-border-hover);
 }
 
 .vc-item-content {
@@ -70,7 +93,6 @@
     width: 36px;
     height: 36px;
     border-radius: 10px;
-    background: var(--background-base-lower, var(--background-primary, #313338));
-    border: 1px solid var(--border-subtle, #3f4147);
+    background: var(--vc-item-media-bg);
     font-size: 18px;
 }
