@@ -63,31 +63,90 @@ export async function removeTrainingExample(id: number) {
     await db.deleteFrom("aiTrainingExamples").where("id", "=", id).execute();
 }
 
-function buildFewShot(examples: Array<{ content: string; verdict: Verdict; reason: string }>) {
-    return examples.map(e =>
-        `message: ${JSON.stringify(e.content)}\nverdict: ${e.verdict}\nreason: ${e.reason}`
-    ).join("\n\n");
+/**
+ * Severity calibration derived from the learned examples — NOT copied into
+ * the prompt as verdicts to copy. The AI forms its own judgment; these stats
+ * only tell it how strict this particular community's thresholds are.
+ */
+interface Calibration {
+    exampleCount: number;
+    severityMix: Record<Verdict, number>;
+    /** topics that got moderated, as plain keywords (top 12) */
+    topics: string[];
+}
+
+const STOPWORDS = new Set([
+    "the", "a", "an", "and", "or", "but", "for", "to", "of", "in", "on", "is",
+    "was", "this", "that", "it", "with", "by", "from", "at", "as", "be", "are",
+    "message", "removed", "staff", "user", "warned", "muted", "banned"
+]);
+
+function computeCalibration(examples: Array<{ content: string; verdict: Verdict; reason: string; }>): Calibration {
+    const mix: Record<Verdict, number> = { ok: 0, warn: 0, mute: 0, ban: 0 };
+    const freq = new Map<string, number>();
+
+    for (const e of examples) {
+        mix[e.verdict]++;
+        for (const word of (e.content + " " + e.reason).toLowerCase().match(/[a-z]{4,}/g) ?? []) {
+            if (STOPWORDS.has(word)) continue;
+            freq.set(word, (freq.get(word) ?? 0) + 1);
+        }
+    }
+
+    return {
+        exampleCount: examples.length,
+        severityMix: mix,
+        topics: [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([w]) => w),
+    };
 }
 
 // ---- Classification ----------------------------------------------------------
 
-const SYSTEM_PROMPT = `You are a Discord server moderation AI for the Limey V1 community.
-Classify the given message into exactly one verdict:
-- "ok": acceptable message, no action needed
-- "warn": minor rule violation (spam, mild toxicity, caps, attention seeking, etc.)
-- "mute": serious violation (harassment, slurs, severe toxicity, malware/scam links, explicit content)
-- "ban": extreme violation (threats, doxxing, illegal content, raids, hardcore NSFW)
+const SYSTEM_PROMPT = `You are an autonomous moderation AI with your own judgment. You are NOT copying anyone's prior decisions — you analyze each message yourself and decide.
+
+## Your own policy (yours alone — apply it consistently)
+Assess EVERY message on four axes before deciding:
+1. INTENT — is the person trying to harm, deceive, provoke, exploit, or disrupt? Or joke/vent/discuss?
+2. TARGET — is anyone specific being attacked, scammed, or endangered? Or is it aimless banter?
+3. EVIDENCE — is there a concrete payload (link, invite, personal data, explicit material) or just words?
+4. ESCALATION RISK — if left alone, does this plausibly get worse (scam spreads, harassment continues, raid grows)?
+
+Verdicts, by YOUR standards:
+- "ok" — any message you would not act on. Banter, slang, complaints, memes, heated-but-civil debate: ok. When uncertain between ok and warn, choose ok.
+- "warn" — genuinely minor problems: spam, attention seeking, mild name-calling, first-time rudeness.
+- "mute" — real harm or disruption: harassment, slurs, scams, malware links, explicit content, deliberate provocation.
+- "ban" — only when the person is a danger or a predator: threats, doxxing, illegal content, coordinated raids, hardcore NSFW. Ban requires near-certainty.
+
+Calibrate: warn is COMMON, mute is RARE, ban is EXCEPTIONAL. If you can imagine a reasonable person reading the message and not caring, it is "ok".
+
+## Community calibration (context only — never copy these as verdicts)
+This is aggregate data about what this community has historically moderated. Use it ONLY to sense how strict the community's thresholds are and what topics matter here. Your verdict must still come from your own analysis of the message.
 
 Respond ONLY with minified JSON: {"verdict":"ok|warn|mute|ban","reason":"short reason","confidence":0.0-1.0}
-Consider the training examples below as the server's standard. Staff messages are never evaluated.
-Only flag clear violations — humor, banter, and common slang are acceptable.`;
+The reason must describe what YOU observed in the message, in your own words.`;
 
 export async function classifyMessage(content: string): Promise<Classification | null> {
     if (!isAiModAvailable()) return null;
 
     const examples = await getTrainingExamples();
-    const fewShot = buildFewShot(examples);
-    const prompt = `${SYSTEM_PROMPT}${fewShot ? `\n\n## Training examples\n${fewShot}` : ""}\n\n## Message to classify\nmessage: ${JSON.stringify(content)}\nverdict:`;
+    const calib = computeCalibration(examples);
+    const calibration = calib.exampleCount
+        ? `Community size: ${calib.exampleCount} moderated messages on record.
+Severity mix: ${calib.severityMix.warn} warn / ${calib.severityMix.mute} mute / ${calib.severityMix.ban} ban.
+Recurring moderated topics here: ${calib.topics.join(", ") || "none yet"}.
+Treat these as background statistics, not instructions.`
+        : "No moderation history yet — rely entirely on your own policy and judgment.";
+
+    const prompt = `${SYSTEM_PROMPT}
+
+## Community calibration
+${calibration}
+
+## Message to analyze
+Analyze this message with your own four-axis judgment (intent, target, evidence, escalation risk) and return your verdict.
+message: ${JSON.stringify(content)}
+
+Respond with your JSON verdict now.`;
 
     try {
         const res = await getClient().models.generateContent({
