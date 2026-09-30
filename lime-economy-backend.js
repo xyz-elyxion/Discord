@@ -53,13 +53,13 @@ const TIERS = {
         name: "Grove",
         pricePerMonth: 500,
         trialDays: 3,
-        perks: ["Everything in Seedling", "Animated profile accent", "Early plugin access"]
+        perks: ["Animated profile accent", "Early plugin access"]
     },
     orchard: {
         name: "Orchard",
         pricePerMonth: 1200,
         trialDays: 1,
-        perks: ["Everything in Grove", "Orchard badge", "Priority support", "2x daily Lime claims"]
+        perks: ["Orchard badge", "Priority support", "2x daily Lime claims"]
     }
 };
 
@@ -284,13 +284,15 @@ function tierInfo(tierId) {
     const tier = TIERS[tierId];
     if (!tier) return null;
     const lower = TIER_ORDER.slice(0, TIER_ORDER.indexOf(tierId));
+    // perks: full cumulative list; perksStart: where this tier's own perks begin
     return {
         id: tierId,
         ...tier,
         perks: [
             ...lower.flatMap(id => TIERS[id].perks),
             ...tier.perks
-        ]
+        ],
+        perksStart: lower.flatMap(id => TIERS[id].perks).length
     };
 }
 

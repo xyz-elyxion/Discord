@@ -303,19 +303,24 @@
                 const res = await fetch("/v1/limes/tiers");
                 const data = await res.json();
                 const featured = "grove";
-                tiersContainer.innerHTML = data.tiers.map(t => `
+                tiersContainer.innerHTML = data.tiers.map(t => {
+                    // Hide perks inherited from lower tiers — the page only
+                    // shows each tier's own additions on top of lower tiers.
+                    const ownPerks = t.perks.slice(t.perksStart ?? 0);
+                    return `
                     <div class="tier-card ${t.id === featured ? "featured" : ""}">
                         ${t.id === featured ? '<span class="tier-badge">Most popular</span>' : ""}
                         <div class="tier-name">${t.name}</div>
                         <div class="tier-price">${t.pricePerMonth} 🍋 <span>/ month</span></div>
-                        <div class="tier-trial">Free trial: ${t.trialDays} day${t.trialDays > 1 ? "s" : ""}</div>
-                        <ul class="tier-perks">${t.perks.map(p => `<li>${p}</li>`).join("")}</ul>
+                        <div class="tier-trial">Free trial: ${t.trialDays} day${t.trialDays > 1 ? "s" : ""}${t.id !== "seedling" ? " · includes everything in the lower tier" : ""}</div>
+                        <ul class="tier-perks">${ownPerks.map(p => `<li>${p}</li>`).join("")}</ul>
                         <div class="tier-actions">
                             <button class="btn-lime" onclick="startTrial('${t.id}')">Start free trial</button>
                             <button class="btn-lime" onclick="subscribe('${t.id}')" title="Loads your wallet first if needed">Subscribe</button>
                         </div>
                     </div>
-                `).join("");
+                `;
+                }).join("");
             } catch {
                 tiersContainer.innerHTML = "<p style='grid-column:1/-1;text-align:center;color:var(--text-dim)'>Could not load tiers. Is the backend up?</p>";
             }
