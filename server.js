@@ -1068,10 +1068,10 @@ try {
 // ------------------------------------------------------------------
 const DASH_SESSIONS_KEY = "limey:dashboard-sessions";
 const DISCORD_API_BASE = "https://discord.com/api/v10";
-const DASH_CLIENT_ID = process.env.DASHBOARD_CLIENT_ID || process.env.DISCORD_CLIENT_ID || "";
-const DASH_CLIENT_SECRET = process.env.DASHBOARD_CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
-const DASH_REDIRECT_URI = process.env.DASHBOARD_REDIRECT_URI || "https://limey-discord.onrender.com/v1/oauth/callback";
-const DASH_LOGIN_PAGE = process.env.DASHBOARD_PAGE || "https://limey-discord.onrender.com/dashboard.html";
+const DASH_CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
+const DASH_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
+const DASH_REDIRECT_URI = "https://limey-discord.onrender.com/v1/oauth/callback";
+const DASH_LOGIN_PAGE = "https://limey-discord.onrender.com/dashboard.html";
 
 // { token: { discordId, addedAt } } + cached Discord user profiles
 // hydrated from PostgreSQL in hydrateKv() when DATABASE_URL is set

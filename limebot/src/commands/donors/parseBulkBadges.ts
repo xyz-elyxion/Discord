@@ -1,5 +1,5 @@
 import { createUserContent } from "@google/genai";
-import { ai } from "../misc/gemini";
+import { getAi } from "../misc/gemini";
 
 export async function parseBulkBadges(text: string) {
     // Behold, the future of text parsing!
@@ -24,7 +24,7 @@ export async function parseBulkBadges(text: string) {
     Respond only with the JSON array, and do not include any other text or formatting. Do not wrap the output in code blocks or quotes.
     `;
 
-    const result = await ai.models.generateContent({
+    const result = await getAi().models.generateContent({
         model: "gemma-4-31b-it",
         contents: [
             createUserContent(prompt),

@@ -84,4 +84,4 @@ bridgeSlashCommand("threads", [
 ]);
 
 bridgeSlashCommand("unbanme", []);
-bridgeSlashCommand("whyBanne", [{ type: "user", name: "user", description: "User to look up", required: true }]);
+bridgeSlashCommand("whybanne", [{ type: "user", name: "user", description: "User to look up", required: true }]);

@@ -16,6 +16,14 @@ import { fetchFaq } from "../support/faq";
 
 const { apiKey, enabled, allowedRoles, bannedRoles } = Config.gemini;
 
+// Lazy-init so the SDK isn't constructed (and doesn't warn about a missing
+// API key) when the gemini command is disabled.
+let _ai: GoogleGenAI | null = null;
+export function getAi() {
+    if (!_ai) _ai = new GoogleGenAI({ apiKey });
+    return _ai;
+}
+
 const models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 const youtubeVideoRegex = /((?:https?:)\/\/)((?:www|m)\.)?((?:youtube(?:-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|v\/)?)([\w\-]+)(\S+)?/g;
 
@@ -46,13 +54,17 @@ const supportedMimeTypes = new Set([
     "audio/flac"
 ]);
 
-export const ai = new GoogleGenAI({ apiKey });
+export function ensureAiUsable(): GoogleGenAI | null {
+    if (!enabled) return null;
+    if (!apiKey) return null;
+    return getAi();
+}
 
 const getSystemPrompt = makeLazy(() => readFile(join(ASSET_DIR, "gemini-system-prompt.txt"), "utf-8"));
 
 export async function generateContent(params: Omit<GenerateContentParameters, "model">, model = models[0]) {
     try {
-        const response = await ai.models.generateContent({
+        const response = await getAi().models.generateContent({
             ...params,
             config: {
                 ...params.config,
@@ -112,7 +124,7 @@ async function uploadAttachments(msg: Message) {
                 return null as never; // we early return so this will never be consumed
             }
 
-            let upload = await ai.files.upload({
+            let upload = await getAi().files.upload({
                 file: await res.blob(),
                 config: {
                     displayName: `${a.filename} uploaded by ${msg.author.tag} (${a.id})`,
@@ -123,7 +135,7 @@ async function uploadAttachments(msg: Message) {
             // Note: The API doesn't provide events, so we need to poll
             while (upload.state === "STATE_UNSPECIFIED" || upload.state === "PROCESSING") {
                 await sleep(300);
-                upload = await ai.files.get({
+                upload = await getAi().files.get({
                     name: upload.name!
                 });
             }
@@ -304,7 +316,7 @@ Vaius.on("messageCreate", async msg => {
             createModelContent("Understood. I will respond concisely and only issue mutes when absolutely necessary. I will only mute if the latest message severely breaks the rules.")
         );
 
-        let { text } = await ai.models.generateContent({
+        let { text } = await getAi().models.generateContent({
             model: "gemma-4-31b-it",
             contents,
             config: {

@@ -84,6 +84,10 @@ export const Vaius = new Client({
 
 applyProxy();
 
+// We intentionally register many messageCreate listeners across modules;
+// raise the limit so Node doesn't warn about a possible leak.
+Vaius.setMaxListeners(50);
+
 export let OwnerId: string;
 Vaius.once("ready", async () => {
     ensureEmojis();
