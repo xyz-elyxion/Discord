@@ -1,11 +1,10 @@
-import { GoogleGenAI } from "@google/genai";
-
 import { Vaius } from "~/Client";
 import Config from "~/config";
 import { db } from "~/db";
 import { silently } from "~/util/functions";
 import { logAutoModAction } from "~/util/logAction";
 import { addWarning } from "~/commands/moderation/warn";
+import { classifyLocally } from "./aiModLocal";
 
 export type Verdict = "ok" | "warn" | "mute" | "ban";
 
@@ -15,7 +14,16 @@ interface Classification {
     confidence: number;
 }
 
+/**
+ * AI Mod works out of the box with the built-in local analysis engine —
+ * no API key required. If GEMINI_API_KEY is set, classifications are
+ * upgraded with the LLM for harder cases (falling back to local on error).
+ */
 export function isAiModAvailable() {
+    return true; // local engine is always available
+}
+
+export function hasLlmKey() {
     return !!Config.aiMod.apiKey;
 }
 
@@ -35,13 +43,15 @@ export async function setAiModEnabled(enabled: boolean) {
         .execute();
 }
 
-// ---- Gemini client (lazy so we never instantiate with an empty key) ---------
+// ---- Optional Gemini booster (lazy; only used when a key is set) -------------
 
-let client: GoogleGenAI | null = null;
+let client: import("@google/genai").GoogleGenAI | null = null;
 
-function getClient(): GoogleGenAI {
-    client ??= new GoogleGenAI({ apiKey: Config.aiMod.apiKey });
-    return client;
+function getClient(): import("@google/genai").GoogleGenAI {
+    const { GoogleGenAI } = require("@google/genai");
+    const c = client ?? new GoogleGenAI({ apiKey: Config.aiMod.apiKey });
+    client = c;
+    return c;
 }
 
 // ---- Training examples (few-shot prompt) ------------------------------------
@@ -125,9 +135,7 @@ This is aggregate data about what this community has historically moderated. Use
 Respond ONLY with minified JSON: {"verdict":"ok|warn|mute|ban","reason":"short reason","confidence":0.0-1.0}
 The reason must describe what YOU observed in the message, in your own words.`;
 
-export async function classifyMessage(content: string): Promise<Classification | null> {
-    if (!isAiModAvailable()) return null;
-
+async function classifyWithLlm(content: string): Promise<Classification | null> {
     const examples = await getTrainingExamples();
     const calib = computeCalibration(examples);
     const calibration = calib.exampleCount
@@ -163,13 +171,36 @@ Respond with your JSON verdict now.`;
         const verdict = ["ok", "warn", "mute", "ban"].includes(parsed.verdict ?? "") ? parsed.verdict as Verdict : "ok";
         return {
             verdict,
-            reason: String(parsed.reason ?? "No reason given").slice(0, 500),
+            reason: `[ai] ${String(parsed.reason ?? "No reason given").slice(0, 480)}`,
             confidence: Math.max(0, Math.min(1, Number(parsed.confidence ?? 0)))
         };
     } catch (e) {
-        console.error("[aimod] classification failed:", e);
+        console.error("[aimod] LLM classification failed, falling back to local:", e);
         return null;
     }
+}
+
+/**
+ * Classify a message. Always works — the local engine handles everything;
+ * when a Gemini key is configured, hard/borderline local cases are upgraded
+ * with the LLM for extra accuracy.
+ */
+export async function classifyMessage(content: string): Promise<Classification | null> {
+    // 1) local engine — instant, free, always available
+    const local = classifyLocally(content);
+
+    // confident local verdict (either way) → done, no API call
+    if (local.verdict !== "ok" && local.confidence >= 0.75) return local;
+    if (local.verdict === "ok" && local.confidence >= 0.8) return local;
+
+    // 2) hard/borderline case → optional LLM upgrade
+    if (hasLlmKey()) {
+        const llm = await classifyWithLlm(content);
+        if (llm) return llm;
+    }
+
+    // 3) no key or LLM failed → trust the local verdict
+    return local;
 }
 
 // ---- Punishment --------------------------------------------------------------

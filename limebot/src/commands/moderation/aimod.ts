@@ -11,6 +11,7 @@ import {
     Verdict
 } from "~/modules/moderation/aiMod";
 import { learningEnabled, setLearningEnabled } from "~/modules/moderation/aiModLearning";
+import { hasLlmKey } from "~/modules/moderation/aiMod";
 import Config from "~/config";
 import { registerChatInputCommand } from "~/SlashCommands";
 
@@ -114,31 +115,12 @@ registerChatInputCommand(
         async handle(interaction) {
         const sub = interaction.data.options.getSubCommand()![0];
 
-        if (!isAiModAvailable()) {
-            const enabled = await isAiModEnabled().catch(() => false);
-            if (sub !== "status" && sub !== "list" && sub !== "remove" && sub !== "train") {
-                return void interaction.createMessage({
-                    content: "❌ AI moderation is not configured. Set the `GEMINI_API_KEY` environment variable (or config `aiMod.apiKey`) and restart.",
-                    flags: 64
-                });
-            }
-            if (sub === "status" && !enabled) {
-                // fall through: status should still work without a key
-            }
-        }
-
         switch (sub) {
             case "toggle": {
-                if (!isAiModAvailable())
-                    return void interaction.createMessage({
-                        content: "❌ Cannot enable: no API key configured. Set the `GEMINI_API_KEY` environment variable first.",
-                        flags: 64
-                    });
-
                 const enabled = interaction.data.options.getBoolean("enabled", true)!;
                 await setAiModEnabled(enabled);
                 return void interaction.createMessage({
-                    content: `✅ AI moderation is now **${enabled ? "enabled" : "disabled"}**.`,
+                    content: `✅ AI moderation is now **${enabled ? "enabled" : "disabled"}**.${enabled && !hasLlmKey() ? "\n-# Running on the built-in local engine — set `GEMINI_API_KEY` anytime for harder-case upgrades." : ""}`,
                     flags: 64
                 });
             }
@@ -202,7 +184,6 @@ registerChatInputCommand(
             }
 
             case "status": {
-                const available = isAiModAvailable();
                 const enabled = await isAiModEnabled().catch(() => false);
                 const learning = await learningEnabled().catch(() => true);
                 const examples = await getTrainingExamples();
@@ -210,10 +191,9 @@ registerChatInputCommand(
                 return void interaction.createMessage({
                     content: [
                         "**AI Moderation status**",
-                        `API key: ${available ? "✅ configured" : "❌ missing (set GEMINI_API_KEY)"}`,
+                        `Engine: 🧠 built-in local analysis (no API needed)${hasLlmKey() ? " + Gemini upgrade for hard cases" : ""}`,
                         `Enabled: ${enabled ? "✅ on" : "❌ off"}`,
                         `Self-learning: ${learning ? "✅ on" : "❌ off"} (${learned} auto-learned examples)`,
-                        `Model: \`${Config.aiMod.model}\``,
                         `Confidence threshold: ${Config.aiMod.confidenceThreshold}`,
                         `Training examples: **${examples.length}**`,
                     ].join("\n"),
