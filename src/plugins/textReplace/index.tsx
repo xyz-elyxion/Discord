@@ -114,6 +114,19 @@ function stringToRegex(str: string) {
         : new RegExp(str); // Not a regex, return string
 }
 
+/**
+ * Builds a regex from a simple find string. `*` acts as a wildcard that
+ * matches any sequence of characters (including none), everything else is
+ * matched literally.
+ */
+function stringFindToRegex(find: string) {
+    const escaped = find.replace(/[.*+?^${}()|[\]\\]/g, c => (c === "*" ? "[\\s\\S]*" : `\\${c}`));
+    return new RegExp(escaped, "g");
+}
+
+/** Escapes `$` in a replacement string so it isn't treated as a regex replacement pattern */
+const escapeReplacement = (replace: string) => replace.replaceAll("$", "$$");
+
 function renderFindError(find: string) {
     try {
         stringToRegex(find);
@@ -275,7 +288,7 @@ function TextReplace({ title, description, rulesArray, isRegex = false }: TextRe
                                         />
                                         <TextRow
                                             label="Find"
-                                            description={isRegex ? "The regex pattern" : "The text to replace"}
+                                            description={isRegex ? "The regex pattern" : "The text to replace. Use * as a wildcard (ewew* matches anything starting with ewew)"}
                                             value={rule.find}
                                             onChange={e => onChange(e, index, "find")}
                                         />
@@ -364,7 +377,13 @@ function applyRules(content: string): string {
         if (!rule.find) continue;
         if (rule.onlyIfIncludes && !content.includes(rule.onlyIfIncludes)) continue;
 
-        content = ` ${content} `.replaceAll(rule.find, rule.replace.replaceAll("\\n", "\n")).replace(/^\s|\s$/g, "");
+        const replacement = rule.replace.replaceAll("\\n", "\n");
+        if (rule.find.includes("*")) {
+            // Wildcard find: `foo*` matches anything starting with foo
+            content = content.replace(stringFindToRegex(rule.find), escapeReplacement(replacement));
+        } else {
+            content = ` ${content} `.replaceAll(rule.find, replacement).replace(/^\s|\s$/g, "");
+        }
     }
 
     for (const rule of settings.store.regexRules) {

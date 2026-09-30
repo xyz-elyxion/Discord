@@ -24,7 +24,7 @@ import { MessageActions, Modal, Button, openModal } from "@webpack/common";
 
 const settings = definePluginSettings({
     keywords: {
-        description: "Keywords to watch for (one per line)",
+        description: "Keywords to watch for (one per line, * is a wildcard)",
         type: OptionType.STRING,
         multiline: true,
         default: "lipton green tea citrus"
@@ -44,9 +44,17 @@ function getKeywords(): string[] {
         .filter(Boolean);
 }
 
+/**
+ * Builds a regex from a keyword, where `*` acts as a wildcard matching any
+ * sequence of characters. Everything else is matched literally.
+ */
+function keywordToRegex(keyword: string) {
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, c => (c === "*" ? "[\\s\\S]*" : `\\${c}`));
+    return new RegExp(escaped, "i");
+}
+
 function check(content: string): { body: string } | false {
-    const lower = content.toLowerCase();
-    const found = getKeywords().filter(keyword => lower.includes(keyword.toLowerCase()));
+    const found = getKeywords().filter(keyword => keywordToRegex(keyword).test(content));
     if (found.length === 0) return false;
     return {
         body: settings.store.body.replace("{words}", found.join(", "))

@@ -332,7 +332,7 @@ function PasscodeLocker({ mode, onUnlock, onCancel }: {
                             <div className="v1-pcl-btn-dec">{dec}</div>
                         </div>
                     ))}
-                    <div className="v1-pcl-btn" onClick={onCancel}>⏎</div>
+                    <div className="v1-pcl-btn" onClick={() => (code ? accept() : onCancel())}>⏎</div>
                     <div className="v1-pcl-btn" onClick={() => append(0)}>
                         <div className="v1-pcl-btn-number">0</div>
                         <div className="v1-pcl-btn-dec">+</div>
@@ -366,12 +366,13 @@ const V1Plugin = {
     },
 
     settingsAboutComponent: () => {
-        const [has, setHas] = useState(hasPasscode());
+        // Read the store reactively so the label updates after setting a passcode
+        const { hash } = (settings as any).use(["hash"]);
         return (
             <Button
-                onClick={() => (V1Plugin as any).lock(has ? "default" : "editor")}
+                onClick={() => (V1Plugin as any).lock(hash ? "default" : "editor")}
             >
-                {has ? "Change Passcode" : "Set Passcode"}
+                {hash ? "Change Passcode" : "Set Passcode"}
             </Button>
         );
     },
