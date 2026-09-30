@@ -7,9 +7,9 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/imroc/req/v3"
-	"github.com/redis/go-redis/v9"
 
 	g "limeycloud/backend/globals"
+	"limeycloud/backend/kv"
 	"limeycloud/backend/util"
 )
 
@@ -94,9 +94,9 @@ func GETOAuthCallback(c *fiber.Ctx) error {
 		})
 	}
 
-	secret, err := g.RDB.Get(c.Context(), "secrets:"+util.Hash(g.PEPPER_SECRETS+userId)).Result()
+	secret, err := kv.Get("secrets:" + util.Hash(g.PEPPER_SECRETS+userId))
 
-	if err == redis.Nil {
+	if err == kv.ErrNotFound {
 		key := make([]byte, 48)
 
 		_, err := rand.Read(key)
@@ -108,7 +108,9 @@ func GETOAuthCallback(c *fiber.Ctx) error {
 		}
 
 		secret = hex.EncodeToString(key)
-		g.RDB.Set(c.Context(), "secrets:"+util.Hash(g.PEPPER_SECRETS+userId), secret, 0)
+		if err := kv.Set("secrets:"+util.Hash(g.PEPPER_SECRETS+userId), secret); err != nil {
+			panic(err)
+		}
 	} else if err != nil {
 		panic(err)
 	}

@@ -1,16 +1,14 @@
 package globals
 
-import (
-	"os"
-
-	"github.com/redis/go-redis/v9"
-)
+import "os"
 
 // environment variables
 var (
 	HOST = os.Getenv("HOST")
 	PORT = os.Getenv("PORT")
 
+	DATABASE_URL = os.Getenv("DATABASE_URL")
+	// legacy: still supported for backwards compatibility
 	REDIS_URI = os.Getenv("REDIS_URI")
 
 	ROOT_REDIRECT = os.Getenv("ROOT_REDIRECT")
@@ -25,10 +23,4 @@ var (
 	SIZE_LIMIT int // initialised in main
 
 	ALLOWED_USERS map[string]bool // initialised in main
-)
-
-// other app globals, initialised in main
-var (
-	// redis client
-	RDB *redis.Client
 )

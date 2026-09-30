@@ -17,8 +17,8 @@
 package main
 
 import (
-	"context"
 	"encoding/base64"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -29,9 +29,9 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/redis/go-redis/v9"
 
 	g "limeycloud/backend/globals"
+	"limeycloud/backend/kv"
 	"limeycloud/backend/routes"
 	"limeycloud/backend/util"
 )
@@ -45,7 +45,7 @@ func requireAuth(c *fiber.Ctx) error {
 		})
 	}
 
-	// decode base64 token and split by:
+	// decode base64 token and split by :
 	// token[0] = secret
 	// token[1] = user id
 	token, err := base64.StdEncoding.DecodeString(authToken)
@@ -74,9 +74,9 @@ func requireAuth(c *fiber.Ctx) error {
 		})
 	}
 
-	storedSecret, err := g.RDB.Get(c.Context(), "secrets:"+util.Hash(g.PEPPER_SECRETS+userId)).Result()
+	storedSecret, err := kv.Get("secrets:" + util.Hash(g.PEPPER_SECRETS+userId))
 
-	if err == redis.Nil {
+	if err == kv.ErrNotFound {
 		return c.Status(401).JSON(&fiber.Map{
 			"error": "Invalid authorization",
 		})
@@ -112,27 +112,22 @@ func main() {
 		ProxyHeader: os.Getenv("PROXY_HEADER"),
 	})
 
-	g.RDB = redis.NewClient(&redis.Options{
-		Addr: g.REDIS_URI,
-	})
+	// KV storage: Postgres (DATABASE_URL) preferred, Redis (REDIS_URI) legacy
+	if err := kv.Open(g.DATABASE_URL, g.REDIS_URI); err != nil {
+		log.Fatalf("[cloud] kv storage unavailable: %v", err)
+	}
+	log.Printf("[cloud] kv storage backend: %s", kv.Backend())
 
 	if os.Getenv("PROMETHEUS") == "true" {
 		promauto.NewGaugeFunc(prometheus.GaugeOpts{
 			Name: "limey_accounts_registered",
 			Help: "The total number of accounts registered",
 		}, func() float64 {
-			iter := g.RDB.Scan(context.Background(), 0, "secrets:*", 0).Iterator()
-			var count int64
-
-			for iter.Next(context.Background()) {
-				count++
+			keys, err := kv.ScanKeys("secrets:*")
+			if err != nil {
+				return 0
 			}
-
-			if err := iter.Err(); err != nil {
-				panic(err)
-			}
-
-			return float64(count)
+			return float64(len(keys))
 		})
 
 		prometheus := fiberprometheus.New("limey")

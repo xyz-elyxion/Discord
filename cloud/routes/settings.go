@@ -4,9 +4,9 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/redis/go-redis/v9"
 
 	g "limeycloud/backend/globals"
+	"limeycloud/backend/kv"
 	"limeycloud/backend/util"
 )
 
@@ -15,9 +15,9 @@ import (
 func HEADSettings(c *fiber.Ctx) error {
 	userId := c.Context().UserValue("userId").(string)
 
-	written, err := g.RDB.HGet(c.Context(), "settings:"+util.Hash(g.PEPPER_SETTINGS+userId), "written").Result()
+	written, err := kv.HGet("settings:"+util.Hash(g.PEPPER_SETTINGS+userId), "written")
 
-	if err == redis.Nil {
+	if err == kv.ErrNotFound {
 		return c.Status(404).Send(nil)
 	} else if err != nil {
 		panic(err)
@@ -30,9 +30,8 @@ func HEADSettings(c *fiber.Ctx) error {
 func GETSettings(c *fiber.Ctx) error {
 	userId := c.Context().UserValue("userId").(string)
 
-	settings, err := g.RDB.HMGet(c.Context(), "settings:"+util.Hash(g.PEPPER_SETTINGS+userId), "value", "written").Result()
+	settings, err := kv.HMGet("settings:"+util.Hash(g.PEPPER_SETTINGS+userId), "value", "written")
 
-	// we shouldn't expect an error here, HMGet doesn't return one
 	if err != nil {
 		panic(err)
 	}
@@ -70,10 +69,10 @@ func PUTSettings(c *fiber.Ctx) error {
 
 	now := time.Now().UnixMilli()
 
-	_, err := g.RDB.HSet(c.Context(), "settings:"+util.Hash(g.PEPPER_SETTINGS+userId), map[string]interface{}{
-		"value":   c.Body(),
+	err := kv.HSet("settings:"+util.Hash(g.PEPPER_SETTINGS+userId), map[string]any{
+		"value":   string(c.Body()),
 		"written": now,
-	}).Result()
+	})
 
 	if err != nil {
 		panic(err)
@@ -87,7 +86,7 @@ func PUTSettings(c *fiber.Ctx) error {
 func DELETESettings(c *fiber.Ctx) error {
 	userId := c.Context().UserValue("userId").(string)
 
-	g.RDB.Del(c.Context(), "settings:"+util.Hash(g.PEPPER_SETTINGS+userId))
+	_ = kv.Del("settings:" + util.Hash(g.PEPPER_SETTINGS + userId))
 
 	return c.SendStatus(204)
 }

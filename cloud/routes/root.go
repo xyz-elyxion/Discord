@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	g "limeycloud/backend/globals"
+	"limeycloud/backend/kv"
 	"limeycloud/backend/util"
 )
 
@@ -12,8 +13,8 @@ import (
 func DELETE(c *fiber.Ctx) error {
 	userId := c.Context().UserValue("userId").(string)
 
-	g.RDB.Del(c.Context(), "settings:"+util.Hash(g.PEPPER_SETTINGS+userId))
-	g.RDB.Del(c.Context(), "secrets:"+util.Hash(g.PEPPER_SECRETS+userId))
+	_ = kv.Del("settings:"+util.Hash(g.PEPPER_SETTINGS+userId))
+	_ = kv.Del("secrets:"+util.Hash(g.PEPPER_SECRETS+userId))
 
 	return c.SendStatus(204)
 }
