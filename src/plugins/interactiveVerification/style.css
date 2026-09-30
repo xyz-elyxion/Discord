@@ -2,11 +2,19 @@
     position: absolute;
     inset: 0;
     z-index: 100;
-    background-color: var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #313338)));
+    background:
+        radial-gradient(ellipse 70% 50% at 50% -10%,
+            color-mix(in srgb, var(--brand-500, #5865f2) 10%, transparent),
+            transparent),
+        var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #313338)));
 }
 
 .theme-light .limey-interactive-verify-host {
-    background-color: var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #ffffff)));
+    background:
+        radial-gradient(ellipse 70% 50% at 50% -10%,
+            color-mix(in srgb, var(--brand-500, #5865f2) 8%, transparent),
+            transparent),
+        var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #ffffff)));
 }
 
 .limey-interactive-verify-root {
@@ -22,7 +30,7 @@
 .limey-iv-stack {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     width: min(520px, calc(100% - 48px));
     max-height: calc(100% - 64px);
     overflow-y: auto;
@@ -35,15 +43,20 @@
     align-items: center;
     text-align: center;
     gap: 4px;
-    padding: 16px 0 4px;
+    padding: 16px 0 6px;
 }
 
-.limey-iv-logo { font-size: 44px; }
+.limey-iv-logo {
+    font-size: 44px;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 4px 14px color-mix(in srgb, var(--brand-500, #5865f2) 45%, transparent));
+}
 
 .limey-iv-title {
     font-size: 22px;
     font-weight: 700;
     color: var(--text-default, var(--header-primary, #f2f3f5));
+    letter-spacing: -0.02em;
 }
 
 .limey-iv-subtitle {
@@ -51,6 +64,11 @@
     color: var(--text-muted, #949ba4);
     line-height: 1.5;
     max-width: 380px;
+}
+
+/* success state glow */
+.limey-iv-header.limey-iv-success .limey-iv-logo {
+    filter: drop-shadow(0 4px 14px color-mix(in srgb, var(--status-positive, #23a55a) 55%, transparent));
 }
 
 .limey-iv-fine {

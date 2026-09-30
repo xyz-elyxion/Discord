@@ -10,22 +10,45 @@
     gap: 12px;
     padding: 14px 16px;
     border-radius: var(--radius-md, 10px);
-    background: var(--background-base-secondary, var(--background-secondary, #2b2d31));
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
 
+/* normal — soft tinted surface, barely-there border */
 .vc-item-normal {
-    border: 1px solid var(--border-subtle, var(--background-modifier-accent, #3f4147));
+    background: color-mix(in srgb, var(--background-base-secondary, var(--background-secondary, #2b2d31)) 100%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border-subtle, var(--background-modifier-accent, #3f4147)) 70%, transparent);
 }
 
+.vc-item-normal:hover {
+    border-color: color-mix(in srgb, var(--brand-500, #5865f2) 45%, var(--border-subtle, #3f4147));
+    background: color-mix(in srgb, var(--brand-500, #5865f2) 5%, var(--background-base-secondary, var(--background-secondary, #2b2d31)));
+}
+
+/* outline — the highlighted variant: brand-tinted with a glowing edge */
 .vc-item-outline {
-    border: 1px solid var(--border-strong, var(--background-modifier-hover, #5d5e68));
+    background:
+        linear-gradient(
+            color-mix(in srgb, var(--brand-500, #5865f2) 8%, transparent),
+            transparent 70%
+        ),
+        var(--background-base-secondary, var(--background-secondary, #2b2d31));
+    border: 1px solid color-mix(in srgb, var(--brand-500, #5865f2) 55%, transparent);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--brand-500, #5865f2) 12%, transparent),
+        0 4px 16px color-mix(in srgb, #000 25%, transparent);
+}
+
+.vc-item-outline:hover {
+    border-color: color-mix(in srgb, var(--brand-500, #5865f2) 80%, transparent);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--brand-500, #5865f2) 20%, transparent),
+        0 4px 20px color-mix(in srgb, var(--brand-500, #5865f2) 18%, transparent);
 }
 
 .vc-item-content {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
     flex: 1;
     min-width: 0;
 }
@@ -55,4 +78,9 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--brand-500, #5865f2) 12%, transparent);
+    font-size: 18px;
 }

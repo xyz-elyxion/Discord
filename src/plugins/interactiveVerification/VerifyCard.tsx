@@ -59,7 +59,7 @@ export function VerifyCard() {
     return (
         <div className="limey-interactive-verify-root">
             <div className="limey-iv-stack">
-                <div className="limey-iv-header">
+                <div className={`limey-iv-header${phase === "done" ? " limey-iv-success" : ""}`}>
                     <div className="limey-iv-logo">🍋</div>
                     <div className="limey-iv-title">
                         {phase === "done" ? "You're verified!" : "Verify to join"}
