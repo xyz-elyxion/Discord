@@ -1217,16 +1217,52 @@ async function handleDashboard(req, res, url) {
 
     // Claim the daily Limes from the dashboard (proxied to the economy backend
     // with the session's verified Discord id — no client-supplied userId)
-    if (url === "/v1/dashboard/daily" && req.method === "POST") {
-        if (!session) return json(res, 401, { error: "not logged in" }), true;
-        if (!limeEconomy) return json(res, 503, { error: "economy backend unavailable" }), true;
-        let status = 500, payload = { error: "claim failed" };
-        const fakeReq = { method: "POST", headers: { "x-limey-user-id": session.discordId }, socket: req.socket };
+    // Proxy a call into the lime economy backend on behalf of the logged-in
+    // dashboard user. The economy backend reads the body via stream events, so
+    // we feed it a minimal event-emitting stub request (never a plain object —
+    // that would never fire "end" and the handler would hang).
+    async function economyProxy(path, bodyObj) {
+        const fakeReq = Object.assign(new (require("events").EventEmitter)(), {
+            method: bodyObj === undefined ? "GET" : "POST",
+            headers: { "x-limey-user-id": session.discordId },
+            socket: req.socket
+        });
+        Promise.resolve().then(() => {
+            if (bodyObj !== undefined) fakeReq.emit("data", Buffer.from(JSON.stringify(bodyObj)));
+            fakeReq.emit("end");
+        });
+        let status = 500, payload = { error: "request failed" };
         const fakeRes = {
             writeHead: (s) => { status = s; },
             end: (body) => { try { payload = JSON.parse(body); } catch { /* keep default */ } }
         };
-        await limeEconomy.handle(fakeReq, fakeRes, "/v1/limes/earn/daily");
+        await limeEconomy.handle(fakeReq, fakeRes, path);
+        return { status, payload };
+    }
+
+    if (!limeEconomy) return json(res, 503, { error: "economy backend unavailable" }), true;
+
+    // Claim the daily Limes from the dashboard (proxied with the session's
+    // verified Discord id — no client-supplied userId)
+    if (url === "/v1/dashboard/daily" && req.method === "POST") {
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        const { status, payload } = await economyProxy("/v1/limes/earn/daily");
+        return json(res, status, payload), true;
+    }
+
+    // Wallet transaction history (proxied)
+    if (url === "/v1/dashboard/history" && req.method === "GET") {
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        const { status, payload } = await economyProxy("/v1/limes/history?userId=" + session.discordId);
+        return json(res, status, payload), true;
+    }
+
+    // Redeem a donation code (proxied)
+    if (url === "/v1/dashboard/redeem" && req.method === "POST") {
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        let body = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch { /* ignore */ }
+        const { status, payload } = await economyProxy("/v1/limes/donation-codes/redeem", { code: body.code });
         return json(res, status, payload), true;
     }
 

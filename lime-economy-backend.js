@@ -182,22 +182,20 @@ function tierMultiplier(userId) {
 function addLimes(userId, amount, reason) {
     const wallet = getWallet(userId);
     wallet.balance += amount;
+    recordLedger(wallet, amount, reason);
     scheduleSave();
     console.log(`[limes] +${amount} -> ${userId} (${reason}); balance=${wallet.balance}`);
     return wallet.balance;
 }
 
-function spendLimes(userId, amount) {
+function spendLimes(userId, amount, reason = "spend") {
     const wallet = getWallet(userId);
     if (wallet.balance < amount) return { ok: false, balance: wallet.balance };
     wallet.balance -= amount;
+    recordLedger(wallet, -amount, reason);
     scheduleSave();
     return { ok: true, balance: wallet.balance };
 }
-
-// ---------------------------------------------------------------------------
-// Route handlers
-// ---------------------------------------------------------------------------
 
 function getWalletFor(userId) {
     const wallet = getWallet(userId);
@@ -305,6 +303,14 @@ function tierInfo(tierId) {
         ],
         perksStart: lower.flatMap(id => TIERS[id].perks).length
     };
+}
+
+// Keep the last LEDGER_CAP balance changes on each wallet.
+const LEDGER_CAP = 25;
+function recordLedger(wallet, amount, reason) {
+    if (!Array.isArray(wallet.history)) wallet.history = [];
+    wallet.history.push({ at: Date.now(), amount, reason, balance: wallet.balance });
+    if (wallet.history.length > LEDGER_CAP) wallet.history = wallet.history.slice(-LEDGER_CAP);
 }
 
 async function handle(req, res, url) {
@@ -446,6 +452,14 @@ async function handle(req, res, url) {
         }), true;
     }
 
+    // ---- Wallet transaction history ----
+    if (sub === "/history" && req.method === "GET") {
+        const uid = getUser(req, query);
+        if (!uid) return json(res, 401, { error: "login required" }), true;
+        const wallet = getWallet(uid);
+        return json(res, 200, { history: (wallet.history || []).slice().reverse() }), true;
+    }
+
     // ---- Earning: message activity (called by the plugin, capped server-side) ----
     if (sub === "/earn/message" && req.method === "POST") {
         if (!userId) return json(res, 400, { error: "missing userId" }), true;
@@ -570,7 +584,7 @@ async function handle(req, res, url) {
             cost -= refund > 0 ? 0 : 0; // full price for the new tier; refund already credited
         }
 
-        const spend = spendLimes(userId, cost);
+        const spend = spendLimes(userId, cost, `subscribe ${tierId}`);
         if (!spend.ok) {
             return json(res, 402, { error: "not enough Limes", needed: cost, balance: spend.balance }), true;
         }
