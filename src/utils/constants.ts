@@ -705,6 +705,10 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         name: "justjxke",
         id: 852558183087472640n
     },
+    scattagain: {
+        name: "Amelia",
+        id: 1098234477626544180n
+    },
     Davri: {
         name: "Davri",
         id: 457579346282938368n
