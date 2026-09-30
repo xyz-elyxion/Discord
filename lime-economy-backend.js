@@ -199,6 +199,17 @@ function spendLimes(userId, amount) {
 // Route handlers
 // ---------------------------------------------------------------------------
 
+function getWalletFor(userId) {
+    const wallet = getWallet(userId);
+    return {
+        balance: wallet.balance,
+        streak: wallet.streak,
+        tier: activeTier(userId),
+        multiplier: tierMultiplier(userId),
+        nextDailyAt: wallet.lastDaily + EARNING.daily.cooldownMs
+    };
+}
+
 function readBody(req) {
     return new Promise(resolve => {
         let body = "";
@@ -666,4 +677,4 @@ async function handle(req, res, url) {
     return false; // not ours
 }
 
-module.exports = { handle, hydrate, TIERS, TIER_ORDER, EARNING, getTierBadges, _db: () => db };
+module.exports = { handle, hydrate, TIERS, TIER_ORDER, EARNING, getTierBadges, _db: () => db, getWalletFor };

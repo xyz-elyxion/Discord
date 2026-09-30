@@ -101,6 +101,15 @@ if (enabled) {
         return { token, url: `${Config.verification.siteUrl}/verify?t=${token}` };
     });
 
+    // verification status — used by the website dashboard to show a
+    // verified/not-verified badge for the logged-in user
+    fastify.get("/v1/verify/status/:userId", async (req, res) => {
+        verifyCors(req, res);
+        const { userId } = req.params as { userId: string };
+        if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
+        return { userId, verified: await isVerified(userId) };
+    });
+
     // OAuth callback fast-track: the server.js dispatcher forwards state=verify
     // here with ?code=...; we exchange the code with Discord ourselves and
     // grant the verified role to the authenticated user.

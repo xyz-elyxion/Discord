@@ -1068,10 +1068,6 @@ try {
 // ------------------------------------------------------------------
 const DASH_SESSIONS_KEY = "limey:dashboard-sessions";
 const DISCORD_API_BASE = "https://discord.com/api/v10";
-const DASH_CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
-const DASH_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
-const DASH_REDIRECT_URI = "https://limey-discord.onrender.com/v1/oauth/callback";
-const DASH_LOGIN_PAGE = "https://limey-discord.onrender.com/dashboard.html";
 
 // { token: { discordId, addedAt } } + cached Discord user profiles
 // hydrated from PostgreSQL in hydrateKv() when DATABASE_URL is set
@@ -1102,15 +1098,15 @@ function dashGetSession(req) {
 }
 
 async function dashExchangeCode(code) {
-    if (!DASH_CLIENT_ID || !DASH_CLIENT_SECRET) {
+    if (!process.env.DISCORD_CLIENT_ID || !process.env.DISCORD_CLIENT_SECRET) {
         throw Object.assign(new Error("dashboard OAuth is not configured (missing DISCORD_CLIENT_ID/SECRET)"), { status: 503 });
     }
     const body = new URLSearchParams({
-        client_id: DASH_CLIENT_ID,
-        client_secret: DASH_CLIENT_SECRET,
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
         grant_type: "authorization_code",
         code,
-        redirect_uri: DASH_REDIRECT_URI
+        redirect_uri: "https://limey-discord.onrender.com/v1/oauth/callback"
     });
     const tokenRes = await fetch(DISCORD_API_BASE + "/oauth2/token", {
         method: "POST",
@@ -1133,7 +1129,7 @@ async function dashExchangeCode(code) {
 // session, bounce back to the dashboard page with ?session=<token>.
 async function handleDashboardOAuth(query) {
     const code = query.get("code");
-    const target = new URL(DASH_LOGIN_PAGE);
+    const target = new URL("https://limey-discord.onrender.com/dashboard.html");
     if (!code) {
         target.searchParams.set("login", "missing_code");
         return target.toString();
@@ -1170,7 +1166,68 @@ async function handleDashboard(req, res, url) {
 
     if (url === "/v1/dashboard/me" && req.method === "GET") {
         if (!session) return json(res, 401, { error: "not logged in" }), true;
-        return json(res, 200, { user: dashPublicUser(session.user), loggedInAt: dashSessions[session.token].addedAt }), true;
+
+        // Enrich the basic session with live status from the rest of the stack
+        const discordId = session.discordId;
+        const [verified, limes] = await Promise.all([
+            // verification status comes from the limebot (proxied below)
+            new Promise(resolve => {
+                const upReq = http.request({ host: "127.0.0.1", port: 8152, path: `/v1/verify/status/${discordId}`, method: "GET", timeout: 4000 }, up => {
+                    let data = "";
+                    up.on("data", c => data += c);
+                    up.on("end", () => {
+                        try { resolve(JSON.parse(data).verified === true); } catch { resolve(null); }
+                    });
+                });
+                upReq.on("error", () => resolve(null));
+                upReq.on("timeout", () => { upReq.destroy(); resolve(null); });
+                upReq.end();
+            }),
+            // limes wallet from the economy backend
+            new Promise(async resolve => {
+                try {
+                    const wallet = await (limeEconomy?.getWalletFor
+                        ? limeEconomy.getWalletFor(discordId)
+                        : Promise.resolve(null));
+                    resolve(wallet);
+                } catch { resolve(null); }
+            })
+        ]);
+
+        return json(res, 200, {
+            user: dashPublicUser(session.user),
+            loggedInAt: dashSessions[session.token].addedAt,
+            verified,
+            limes: limes ? {
+                balance: limes.balance,
+                streak: limes.streak,
+                tier: limes.tier,
+                multiplier: limes.multiplier,
+                nextDailyAt: limes.nextDailyAt
+            } : null,
+            // site feature status
+            build: {
+                web: buildStatus.web.state,
+                desktop: buildStatus.desktop.state,
+                built: existsSync(join(DIST, "browser.js"))
+            },
+            cloudSync: cloudUp
+        }), true;
+    }
+
+    // Claim the daily Limes from the dashboard (proxied to the economy backend
+    // with the session's verified Discord id — no client-supplied userId)
+    if (url === "/v1/dashboard/daily" && req.method === "POST") {
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        if (!limeEconomy) return json(res, 503, { error: "economy backend unavailable" }), true;
+        let status = 500, payload = { error: "claim failed" };
+        const fakeReq = { method: "POST", headers: { "x-limey-user-id": session.discordId }, socket: req.socket };
+        const fakeRes = {
+            writeHead: (s) => { status = s; },
+            end: (body) => { try { payload = JSON.parse(body); } catch { /* keep default */ } }
+        };
+        await limeEconomy.handle(fakeReq, fakeRes, "/v1/limes/earn/daily");
+        return json(res, status, payload), true;
     }
 
     if (url === "/v1/dashboard/logout" && req.method === "POST") {
@@ -1438,6 +1495,16 @@ const server = http.createServer(async (req, res) => {
         if (reviewdb && url.startsWith("/v1/reviewdb/") && await reviewdb.handle(req, res, url)) return;
         // Lime Economy (virtual currency + perk tiers)
         if (limeEconomy && url.startsWith("/v1/limes/") && await limeEconomy.handle(req, res, url)) return;
+        // Public tiers list for the dashboard (no session needed)
+        if (url === "/v1/dashboard/tiers" && limeEconomy) {
+            let status = 500, body = JSON.stringify({ tiers: [] });
+            await limeEconomy.handle({ method: "GET", headers: {}, socket: req.socket }, {
+                writeHead: s => { status = s; },
+                end: b => { body = b; }
+            }, "/v1/limes/tiers");
+            res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" });
+            return res.end(body), true;
+        }
         return proxyCloud(req, res);
     }
 
