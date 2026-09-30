@@ -21,17 +21,17 @@
 
 .vc-item-normal:hover {
     background: var(--background-base-secondary-hover, var(--background-secondary-alt, #313338));
-    border-color: var(--border-strong, var(--background-modifier-hover, #5d5e68));
+    border-color: var(--border-strong, #6d6f78);
 }
 
 /* outline — emphasized surface: brighter border, same neutral background */
 .vc-item-outline {
     background: var(--background-base-tertiary, var(--background-secondary-alt, #313338));
-    border: 1px solid var(--border-strong, var(--background-modifier-active, #6d6f78));
+    border: 1px solid var(--border-strong, #6d6f78);
 }
 
 .vc-item-outline:hover {
-    border-color: var(--interactive-active, #fff);
+    border-color: var(--text-muted, #949ba4);
 }
 
 .vc-item-content {
@@ -71,6 +71,6 @@
     height: 36px;
     border-radius: 10px;
     background: var(--background-base-lower, var(--background-primary, #313338));
-    border: 1px solid var(--border-subtle, var(--background-modifier-accent, #3f4147));
+    border: 1px solid var(--border-subtle, #3f4147);
     font-size: 18px;
 }

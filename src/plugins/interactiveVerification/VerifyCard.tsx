@@ -48,13 +48,21 @@ export function VerifyCard() {
                         const url = new URL(response.location);
                         url.searchParams.append("clientMod", "verify");
                         url.searchParams.set("state", "verify");
-                        const res = await fetch(url, { headers: { Accept: "application/json" } });
+                        // Hard 15s timeout so a hung request can never leave the
+                        // UI stuck on "Verifying…"
+                        const res = await fetch(url, {
+                            headers: { Accept: "application/json" },
+                            signal: AbortSignal.timeout(15_000)
+                        });
                         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? "authorization failed");
                         const data = await res.json();
                         if (!data.ok) throw new Error(data.error ?? "verification failed");
                         setPhase("done");
                     } catch (e: any) {
-                        setError(String(e?.message ?? e));
+                        if (e?.name === "TimeoutError" || e?.name === "AbortError")
+                            setError("the verification service took too long to respond");
+                        else
+                            setError(String(e?.message ?? e));
                         setPhase("error");
                     }
                 }}
