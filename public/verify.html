@@ -96,11 +96,12 @@
     </footer>
 
 <script>
-    // The website proxies /v1/verify/* to the bot's API, so same-origin works
-    // in production. In local dev the bot API runs on :8152 directly.
-    const API_BASE = window.location.port === "3000" || window.location.port === "10000"
-        ? "" // same-origin (server.js proxies /v1/verify/*)
-        : "http://127.0.0.1:8152"; // local dev hitting the bot directly
+    // Same-origin in production (server.js proxies /v1/verify/*). Only hit
+    // the bot API directly when the page itself is served from localhost —
+    // never from the public site, or Chrome's Local Network Access prompt fires.
+    const API_BASE = window.location.hostname === "127.0.0.1" && window.location.port === "8152"
+        ? "http://127.0.0.1:8152"
+        : "";
 
     const statusEl = document.getElementById("status");
     const actionsEl = document.getElementById("actions");

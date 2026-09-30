@@ -227,10 +227,11 @@
     </footer>
 
 <script>
-    // Same-origin in production (server.js), bot API direct in local dev.
-    const API_BASE = window.location.port === "3000" || window.location.port === "10000"
-        ? ""
-        : "http://127.0.0.1:8152";
+    // Same-origin in production (server.js proxies /v1/*). Only hit the bot
+    // API directly when the page itself is served from the bot in local dev.
+    const API_BASE = window.location.hostname === "127.0.0.1" && window.location.port === "8152"
+        ? "http://127.0.0.1:8152"
+        : "";
 
     const params = new URLSearchParams(location.search);
     const SESSION_KEY = "limey_dashboard_session";
