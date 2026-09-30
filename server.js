@@ -353,6 +353,20 @@ async function hydrateKv() {
                 if (typeof parsed === "object" && !Array.isArray(parsed)) badgesData = parsed;
             } catch { }
         }
+        const storedDashSessions = await kvGet("limey:dashboard-sessions");
+        if (storedDashSessions) {
+            try {
+                const parsed = JSON.parse(storedDashSessions);
+                if (typeof parsed === "object" && !Array.isArray(parsed)) dashSessions = parsed;
+            } catch { }
+        }
+        const storedDashUsers = await kvGet("limey:dashboard-users");
+        if (storedDashUsers) {
+            try {
+                const parsed = JSON.parse(storedDashUsers);
+                if (typeof parsed === "object" && !Array.isArray(parsed)) dashUsers = parsed;
+            } catch { }
+        }
         console.log(`[kv] hydrated stores from PostgreSQL`);
     } catch (err) {
         console.error("[kv] failed to hydrate from Redis:", err.message);
@@ -1048,6 +1062,130 @@ try {
 }
 
 // ------------------------------------------------------------------
+// User dashboard — Discord OAuth login + session API (public/dashboard.html)
+// Uses the shared OAuth callback (state=dashboard) and persists sessions
+// via the same PostgreSQL kv store as the rest of the site.
+// ------------------------------------------------------------------
+const DASH_SESSIONS_KEY = "limey:dashboard-sessions";
+const DISCORD_API_BASE = "https://discord.com/api/v10";
+const DASH_CLIENT_ID = process.env.DASHBOARD_CLIENT_ID || process.env.DISCORD_CLIENT_ID || "";
+const DASH_CLIENT_SECRET = process.env.DASHBOARD_CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET || "";
+const DASH_REDIRECT_URI = process.env.DASHBOARD_REDIRECT_URI || "https://limey-discord.onrender.com/v1/oauth/callback";
+const DASH_LOGIN_PAGE = process.env.DASHBOARD_PAGE || "https://limey-discord.onrender.com/dashboard.html";
+
+// { token: { discordId, addedAt } } + cached Discord user profiles
+// hydrated from PostgreSQL in hydrateKv() when DATABASE_URL is set
+let dashSessions = {};
+let dashUsers = {};
+
+function dashAvatarUrl(user) {
+    if (!user) return "";
+    if (user.avatar) return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`;
+    try {
+        const index = (BigInt(user.id) >> 22n) % 6n;
+        return `https://cdn.discordapp.com/embed/avatars/${index}.png`;
+    } catch {
+        return "https://cdn.discordapp.com/embed/avatars/0.png";
+    }
+}
+
+function dashPublicUser(user) {
+    if (!user) return null;
+    return { id: user.id, username: user.username, globalName: user.global_name || user.username, avatar: dashAvatarUrl(user) };
+}
+
+function dashGetSession(req) {
+    const header = req.headers.authorization || "";
+    const token = header.replace(/^Bearer\s+/i, "").trim();
+    if (!token || !dashSessions[token]) return null;
+    return { token, discordId: dashSessions[token].discordId, user: dashUsers[dashSessions[token].discordId] || null };
+}
+
+async function dashExchangeCode(code) {
+    if (!DASH_CLIENT_ID || !DASH_CLIENT_SECRET) {
+        throw Object.assign(new Error("dashboard OAuth is not configured (missing DISCORD_CLIENT_ID/SECRET)"), { status: 503 });
+    }
+    const body = new URLSearchParams({
+        client_id: DASH_CLIENT_ID,
+        client_secret: DASH_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: DASH_REDIRECT_URI
+    });
+    const tokenRes = await fetch(DISCORD_API_BASE + "/oauth2/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body
+    });
+    if (!tokenRes.ok) {
+        const text = await tokenRes.text().catch(() => "");
+        throw Object.assign(new Error(`Discord token exchange failed (${tokenRes.status}): ${text.slice(0, 200)}`), { status: 401 });
+    }
+    const { access_token } = await tokenRes.json();
+    const meRes = await fetch(DISCORD_API_BASE + "/users/@me", {
+        headers: { Authorization: `Bearer ${access_token}` }
+    });
+    if (!meRes.ok) throw Object.assign(new Error("Discord @me failed"), { status: 401 });
+    return meRes.json();
+}
+
+// Shared OAuth callback dispatch target: exchange the code, create a
+// session, bounce back to the dashboard page with ?session=<token>.
+async function handleDashboardOAuth(query) {
+    const code = query.get("code");
+    const target = new URL(DASH_LOGIN_PAGE);
+    if (!code) {
+        target.searchParams.set("login", "missing_code");
+        return target.toString();
+    }
+    try {
+        const me = await dashExchangeCode(code);
+        const token = require("crypto").randomBytes(32).toString("hex");
+        dashSessions[token] = { discordId: me.id, addedAt: new Date().toISOString() };
+        dashUsers[me.id] = me;
+        void kvSet(DASH_SESSIONS_KEY, dashSessions);
+        void kvSet("limey:dashboard-users", dashUsers);
+        target.searchParams.set("session", token);
+    } catch (err) {
+        console.error("[dashboard] login failed:", err.message);
+        target.searchParams.set("login", "failed");
+    }
+    return target.toString();
+}
+
+// Dashboard session API: GET /v1/dashboard/me, POST /v1/dashboard/logout
+async function handleDashboard(req, res, url) {
+    if (!url.startsWith("/v1/dashboard")) return false;
+
+    if (req.method === "OPTIONS") {
+        res.writeHead(204, {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        });
+        return res.end(), true;
+    }
+
+    const session = dashGetSession(req);
+
+    if (url === "/v1/dashboard/me" && req.method === "GET") {
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        return json(res, 200, { user: dashPublicUser(session.user), loggedInAt: dashSessions[session.token].addedAt }), true;
+    }
+
+    if (url === "/v1/dashboard/logout" && req.method === "POST") {
+        if (session) {
+            delete dashSessions[session.token];
+            void kvSet(DASH_SESSIONS_KEY, dashSessions);
+        }
+        return json(res, 200, { ok: true }), true;
+    }
+
+    if (url.startsWith("/v1/dashboard")) return json(res, 404, { error: "not found" }), true;
+    return false;
+}
+
+// ------------------------------------------------------------------
 // LimeyCloud backend (Go) — settings sync API at /v1/*
 // ------------------------------------------------------------------
 let cloudUp = false;
@@ -1202,6 +1340,7 @@ const NAMED_PAGES = {
     "/download": "download.html",
     "/install": "install.html",
     "/limes": "limes.html",
+    "/dashboard": "dashboard.html",
     "/404": "404.html",
 };
 
@@ -1259,6 +1398,12 @@ const server = http.createServer(async (req, res) => {
             // Exchange the code server-side and bounce the session to the site page
             if (await limeEconomy.handle(req, res, "/v1/limes/callback" + (query ? "?" + query : ""))) return;
         }
+        if (params.get("state") === "dashboard") {
+            // Dashboard login: exchange the code and redirect with a session token
+            const dest = await handleDashboardOAuth(params);
+            res.writeHead(302, { Location: dest });
+            return res.end();
+        }
         // state=verify: the Go backend returns { userId } for the verify flow,
         // but ONLY the bot's own origin is allowed to call it with that state.
         // Hand the exchange to the limebot, which owns the verify role.
@@ -1285,6 +1430,8 @@ const server = http.createServer(async (req, res) => {
         if (await handleDetector(req, res, url)) return;
         // CORS-friendly media proxy for the GifCaptioner plugin
         if (await handleMediaProxy(req, res, url)) return;
+        // User dashboard session API (handled in-process)
+        if (await handleDashboard(req, res, url)) return;
         // Backend-provided install: freshly packaged extension zip + desktop install info
         if (handleInstall(req, res, url)) return;
         // Self-hosted ReviewDB API
@@ -1383,11 +1530,9 @@ function startLimebot() {
     child.on("exit", code => {
         if (code !== null) console.error(`[limebot] exited with code ${code}`);
     });
-}
-
-startBuildIfMissing();
-startCloud();
-startLimebot();
+}    startBuildIfMissing();
+    startCloud();
+    startLimebot();
 
 // Wait for PostgreSQL hydration (if configured) before accepting requests
 hydrateKv().then(() => {
