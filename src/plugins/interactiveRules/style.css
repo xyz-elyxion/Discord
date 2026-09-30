@@ -11,7 +11,7 @@
     position: absolute;
     inset: 0;
     z-index: 100;
-    background-color: var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #313338)));
+    background-color: var(--bg-overlay-chat, var(--background-base-lower, var(--background-primary, #1e1f22)));
 }
 
 .theme-light .limey-interactive-rules-host {
@@ -57,8 +57,12 @@
     flex: 1;
     height: 6px;
     border-radius: 3px;
-    background: var(--border-subtle, var(--background-modifier-accent, #3f4147));
+    background: rgba(255, 255, 255, 0.09);
     overflow: hidden;
+}
+
+.theme-light .limey-ir-progress-bar {
+    background: rgba(0, 0, 0, 0.09);
 }
 
 .limey-ir-progress-fill {
@@ -75,6 +79,10 @@
 
 .limey-ir-search {
     margin-top: 12px;
+}
+
+.theme-light .limey-ir-search input {
+    color: #313338;
 }
 
 .limey-ir-chips {
@@ -112,17 +120,28 @@
 }
 
 .limey-ir-card {
-    background: var(--bg-base-secondary, var(--background-secondary, #2b2d31));
-    border: 1px solid var(--border-subtle, var(--background-modifier-accent, #3f4147));
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 10px;
     cursor: pointer;
     margin-bottom: 8px;
     overflow: hidden;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, background 0.15s;
 }
 
 .limey-ir-card:hover {
-    border-color: var(--border-strong, var(--background-modifier-hover, #5d5e68));
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.theme-light .limey-ir-card {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.09);
+}
+
+.theme-light .limey-ir-card:hover {
+    background: rgba(0, 0, 0, 0.055);
+    border-color: rgba(0, 0, 0, 0.18);
 }
 
 .limey-ir-card-header {
@@ -169,7 +188,11 @@
 }
 
 .limey-ir-details {
-    border-top: 1px solid var(--border-subtle, var(--background-modifier-accent, #3f4147));
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.theme-light .limey-ir-details {
+    border-top: 1px solid rgba(0, 0, 0, 0.09);
     color: var(--text-default, var(--text-normal, #dbdee1));
     font-size: 14px;
     line-height: 1.6;

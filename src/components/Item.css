@@ -3,37 +3,30 @@
  * Copyright (c) 2026 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Item component — colors declared per-theme (dark/light) with Discord's
- * real palette values as fallbacks, so it matches the client in both modes
- * even if a variable name changes. Theme vars come first so custom client
- * themes still override everything.
+ * Item component — surfaces are translucent white/black overlays instead of
+ * opaque grays, so they blend naturally with ANY background, including pure
+ * black themes like Onyx. Theme vars still take priority when they resolve.
  */
-
-/* ------------------------------ dark theme -------------------------------- */
 
 .theme-dark,
 .vc-item-dark {
-    --vc-item-bg: var(--background-base-secondary, #2b2d31);
-    --vc-item-bg-hover: var(--background-base-tertiary, #313338);
-    --vc-item-bg-raised: var(--background-base-tertiary, #313338);
-    --vc-item-border: var(--border-subtle, #3f4147);
-    --vc-item-border-hover: var(--border-strong, #6d6f78);
-    --vc-item-media-bg: var(--background-base-lower, #1e1f22);
+    --vc-item-bg: rgba(255, 255, 255, 0.04);
+    --vc-item-bg-hover: rgba(255, 255, 255, 0.07);
+    --vc-item-bg-raised: rgba(255, 255, 255, 0.07);
+    --vc-item-border: rgba(255, 255, 255, 0.09);
+    --vc-item-border-hover: rgba(255, 255, 255, 0.18);
+    --vc-item-media-bg: rgba(0, 0, 0, 0.35);
 }
-
-/* ----------------------------- light theme -------------------------------- */
 
 .theme-light,
 .vc-item-light {
-    --vc-item-bg: #f2f3f5;
-    --vc-item-bg-hover: #ebedef;
+    --vc-item-bg: rgba(0, 0, 0, 0.03);
+    --vc-item-bg-hover: rgba(0, 0, 0, 0.055);
     --vc-item-bg-raised: #ffffff;
-    --vc-item-border: #dcdee1;
-    --vc-item-border-hover: #c4c9ce;
-    --vc-item-media-bg: #e3e5e8;
+    --vc-item-border: rgba(0, 0, 0, 0.09);
+    --vc-item-border-hover: rgba(0, 0, 0, 0.18);
+    --vc-item-media-bg: rgba(0, 0, 0, 0.05);
 }
-
-/* -------------------------------- component ------------------------------- */
 
 .vc-item-base {
     display: flex;
@@ -51,7 +44,7 @@
     border-color: var(--vc-item-border-hover);
 }
 
-/* outline — emphasized: raised white/gray surface */
+/* outline — emphasized: stronger surface + border */
 .vc-item-outline {
     background: var(--vc-item-bg-raised);
     border-color: var(--vc-item-border-hover);
