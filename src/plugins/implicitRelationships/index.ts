@@ -171,7 +171,7 @@ export default definePlugin({
             FluxDispatcher.dispatch({
                 type: "GUILD_MEMBERS_REQUEST",
                 guildIds: allGuildIds,
-                userIds: toRequest.slice(i, i + 100),
+                userIds: toRequest.slice(i, i + 100).map(e => e.otherUserId),
                 presences: true,
                 nonce: sentNonce,
             });
