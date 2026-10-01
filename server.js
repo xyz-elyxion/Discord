@@ -1449,6 +1449,7 @@ const NAMED_PAGES = {
     "/limes": "limes.html",
     "/dashboard": "dashboard.html",
     "/submit-plugin": "submit-plugin.html",
+    "/code": "code.html",
     "/404": "404.html",
 };
 
@@ -1559,6 +1560,15 @@ const server = http.createServer(async (req, res) => {
             return res.end(body), true;
         }
         return proxyCloud(req, res);
+    }
+
+    // Monaco editor bundle for the /code playground (built by buildWeb into dist/vendor/monaco)
+    if (url.startsWith("/vendor/monaco/")) {
+        const rel = normalize(url.slice("/vendor/monaco/".length)).replace(/^(\.\.[\/\\])+/, "");
+        const filePath = resolve(join(DIST, "vendor", "monaco"), rel);
+        if (!filePath.startsWith(join(DIST, "vendor", "monaco"))) return sendErrorPage(res, 403);
+        if (existsSync(filePath) && statSync(filePath).isFile()) return serveFile(res, filePath);
+        return sendErrorPage(res, 404);
     }
 
     // Serve dist/ files under /dist/*

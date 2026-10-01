@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code — Limey V1</title>
+    <meta name="description" content="Write and test CSS themes in your browser with the Limey V1 code editor.">
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .code-header {
+            padding: 48px 0 24px;
+            text-align: center;
+            background: radial-gradient(ellipse 60% 50% at 50% -10%, rgba(255, 255, 255, 0.06), transparent), var(--bg);
+        }
+        .code-header h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin-bottom: 10px; }
+        .code-header .lede { margin-bottom: 0; }
+
+        .editor-shell {
+            max-width: 1100px;
+            margin: 0 auto 72px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .editor-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+        .editor-bar .status {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        .editor-bar .status.saved { color: var(--lime); }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .btn:hover { border-color: var(--lime); color: var(--lime); }
+        .btn.primary { background: var(--lime); border-color: var(--lime); color: #1a1a1a; font-weight: 600; }
+        .btn.primary:hover { filter: brightness(1.1); color: #1a1a1a; }
+        #container {
+            height: 560px;
+            background: #1e1e1e;
+        }
+        .editor-note {
+            padding: 10px 16px;
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            border-top: 1px solid var(--border);
+        }
+        .editor-note code { color: var(--lime); }
+        #loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 560px;
+            color: var(--text-dim);
+        }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <a href="/plugins/">Plugins</a>
+                <a href="/code" aria-current="page">Code</a>
+                <a href="/usrbg.html">USRBG</a>
+                <a href="/download">Install</a>
+                <a href="/limes">Limes</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="code-header">
+        <div class="container">
+            <p class="eyebrow">Browser code editor</p>
+            <h1>Code <span class="accent">right here</span>.</h1>
+            <p class="lede">A full Monaco editor in your browser. Write CSS themes, then copy them into Limey V1's QuickCSS.</p>
+        </div>
+    </section>
+
+    <main class="container">
+        <div class="editor-shell">
+            <div class="editor-bar">
+                <button class="btn primary" id="saveBtn">Save</button>
+                <button class="btn" id="copyBtn">Copy</button>
+                <button class="btn" id="downloadBtn">Download .css</button>
+                <button class="btn" id="resetBtn">Reset</button>
+                <span class="status" id="status">Loading editor…</span>
+            </div>
+            <div id="loading">Loading editor…</div>
+            <div id="container" style="display:none"></div>
+            <div class="editor-note">
+                Your code is saved locally in this browser (<code>localStorage</code>). Paste it into
+                <strong>Settings → QuickCSS</strong> in Limey V1 to apply it to Discord.
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Limey V1 — GPL-3.0 &middot; <a href="/">Back to home</a></p>
+            <p class="fine">Discord is a trademark of Discord Inc. This project is not affiliated with or endorsed by Discord Inc.</p>
+        </div>
+    </footer>
+
+    <script>
+        const DEFAULT_CODE = `/* Limey V1 — QuickCSS playground
+   Write your CSS here, then copy it into
+   Settings -> QuickCSS in Limey V1. */
+
+:root {
+    --my-accent: #9ee850;
+}
+
+/* example: tint the chat background */
+[class*="chatContent"] {
+    background: rgba(158, 232, 80, 0.03) !important;
+}
+`;
+        const STORAGE_KEY = "limey-code-editor";
+        const container = document.getElementById("container");
+        const loading = document.getElementById("loading");
+        const statusEl = document.getElementById("status");
+        let editor = null;
+
+        function setStatus(text, ok) {
+            statusEl.textContent = text;
+            statusEl.className = "status" + (ok ? " saved" : "");
+        }
+
+        let pendingInit = 0;
+        function tryInit() {
+            if (typeof monaco === "undefined") {
+                if (++pendingInit > 100) {
+                    setStatus("Failed to load the editor (monaco bundle missing).", false);
+                    return;
+                }
+                setTimeout(tryInit, 100);
+                return;
+            }
+            loading.style.display = "none";
+            container.style.display = "block";
+            editor = monaco.editor.create(container, {
+                value: localStorage.getItem(STORAGE_KEY) ?? DEFAULT_CODE,
+                language: "css",
+                theme: "vs-dark",
+                minimap: { enabled: false },
+                fontSize: 14,
+                automaticLayout: true,
+                tabSize: 4
+            });
+            let t;
+            editor.onDidChangeModelContent(() => {
+                clearTimeout(t);
+                setStatus("Unsaved changes", false);
+                t = setTimeout(() => {
+                    localStorage.setItem(STORAGE_KEY, editor.getValue());
+                    setStatus("Saved locally ✓", true);
+                }, 600);
+            });
+            setStatus("Ready", true);
+        }
+
+        const script = document.createElement("script");
+        script.src = "/vendor/monaco/index.js";
+        script.onload = tryInit;
+        script.onerror = () => setStatus("Failed to load the editor bundle.", false);
+        document.body.appendChild(script);
+
+        const cssLink = document.createElement("link");
+        cssLink.rel = "stylesheet";
+        cssLink.href = "/vendor/monaco/index.css";
+        document.head.appendChild(cssLink);
+
+        document.getElementById("saveBtn").addEventListener("click", () => {
+            if (!editor) return;
+            localStorage.setItem(STORAGE_KEY, editor.getValue());
+            setStatus("Saved locally ✓", true);
+        });
+        document.getElementById("copyBtn").addEventListener("click", async e => {
+            if (!editor) return;
+            try {
+                await navigator.clipboard.writeText(editor.getValue());
+                e.target.textContent = "Copied!";
+                setTimeout(() => (e.target.textContent = "Copy"), 1200);
+            } catch { setStatus("Clipboard blocked — use Download instead.", false); }
+        });
+        document.getElementById("downloadBtn").addEventListener("click", () => {
+            if (!editor) return;
+            const blob = new Blob([editor.getValue()], { type: "text/css" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "limey-theme.css";
+            a.click();
+            URL.revokeObjectURL(a.href);
+        });
+        document.getElementById("resetBtn").addEventListener("click", () => {
+            if (!editor) return;
+            if (!confirm("Reset the editor to the starter code? Your saved copy will be replaced.")) return;
+            editor.setValue(DEFAULT_CODE);
+            localStorage.setItem(STORAGE_KEY, DEFAULT_CODE);
+            setStatus("Reset ✓", true);
+        });
+    </script>
+</body>
+</html>
