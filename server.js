@@ -246,10 +246,11 @@ function handleInstall(req, res, url) {
 }
 
 // ------------------------------------------------------------------
-// Backend-provided build: if the bundles are missing at startup
-// (e.g. fresh clone without a build), run `pnpm buildWeb` and/or
-// `pnpm build` in-process via spawn so the server itself produces
-// the browser extension and Discord Desktop App artifacts.
+// Backend-provided build: the server builds the browser extension,
+// userscript and Discord Desktop App bundles in the background while
+// the site runs. At startup missing artifacts trigger a build; a
+// daily rebuild keeps them in sync with the latest source, and an
+// admin endpoint allows forcing a rebuild on demand.
 // ------------------------------------------------------------------
 // Build status registry — lets /v1/build/status report exactly what the
 // backend has done, is doing, or failed to do.
@@ -259,10 +260,58 @@ const buildStatus = {
     startedAt: null,
 };
 
+const REBUILD_INTERVAL_MS = 24 * 60 * 60 * 1000; // daily rebuild
+const runningBuilds = new Set();
+
+// The builds need devDependencies (esbuild, typescript, ...). If this is a
+// repo checkout without node_modules yet, install them in-process first.
+function ensureDeps(cb) {
+    if (existsSync(join(ROOT, "node_modules", "esbuild"))) return cb();
+    console.log("[build] node_modules missing — running pnpm install...");
+    const child = spawn("pnpm", ["install", "--no-frozen-lockfile"], { cwd: ROOT, stdio: "inherit" });
+    child.on("error", err => {
+        console.error("[build] failed to spawn pnpm install:", err.message);
+        buildStatus.web.state = "failed";
+        buildStatus.desktop.state = "failed";
+    });
+    child.on("exit", code => {
+        if (code !== 0) {
+            console.error(`[build] pnpm install exited with code ${code}`);
+            buildStatus.web.state = "failed";
+            buildStatus.desktop.state = "failed";
+            return;
+        }
+        cb();
+    });
+}
+
+function runBuild(key, name, args) {
+    if (runningBuilds.has(key)) return;
+    runningBuilds.add(key);
+    buildStatus[key] = { state: "building", startedAt: new Date().toISOString() };
+    console.log(`[build] running pnpm ${name}...`);
+    const child = spawn("pnpm", args, { cwd: ROOT, stdio: "inherit" });
+    child.on("error", err => {
+        runningBuilds.delete(key);
+        buildStatus[key] = { state: "failed", error: err.message, finishedAt: new Date().toISOString() };
+        console.error(`[build] failed to spawn pnpm ${name}:`, err.message);
+    });
+    child.on("exit", code => {
+        runningBuilds.delete(key);
+        const ok = code === 0 && existsSync(join(DIST, key === "web" ? "browser.js" : "patcher.js"));
+        buildStatus[key] = {
+            state: ok ? "done" : "failed",
+            exitCode: code,
+            startedAt: buildStatus[key]?.startedAt,
+            finishedAt: new Date().toISOString(),
+        };
+        if (ok) console.log(`[build] pnpm ${name} finished`);
+        else console.error(`[build] pnpm ${name} exited with code ${code}`);
+    });
+}
+
 function startBuildIfMissing() {
-    // The runtime container has no source or root node_modules — builds happen
-    // in the Docker build stage. Only attempt to compile when source exists
-    // (i.e. running from a repo checkout, e.g. local dev).
+    // Only possible when running from a repo checkout with source available.
     const hasSource = existsSync(join(ROOT, "scripts", "build", "buildWeb.mjs"));
     if (!hasSource) {
         const missing = [
@@ -278,40 +327,53 @@ function startBuildIfMissing() {
         }
         return;
     }
-    const jobs = [];
-    if (!existsSync(join(DIST, "browser.js"))) {
-        console.log("[build] dist/browser.js missing — running pnpm buildWeb...");
-        buildStatus.web = { state: "building", startedAt: new Date().toISOString() };
-        jobs.push(["web", "buildWeb", ["buildWeb"]]);
-    }
-    if (!existsSync(join(DIST, "patcher.js"))) {
-        console.log("[build] dist/patcher.js missing — running pnpm build (Discord Desktop App)...");
-        buildStatus.desktop = { state: "building", startedAt: new Date().toISOString() };
-        jobs.push(["desktop", "build", ["build"]]);
-    }
-    if (!jobs.length) {
-        console.log("[build] dist bundles present — skipping build");
-        return;
-    }
+
     buildStatus.startedAt = new Date().toISOString();
-    for (const [key, name, args] of jobs) {
-        const child = spawn("pnpm", args, { cwd: ROOT, stdio: "inherit" });
-        child.on("error", err => {
-            buildStatus[key] = { state: "failed", error: err.message, finishedAt: new Date().toISOString() };
-            console.error(`[build] failed to spawn pnpm ${name}:`, err.message);
-        });
-        child.on("exit", code => {
-            const ok = code === 0 && existsSync(join(DIST, key === "web" ? "browser.js" : "patcher.js"));
-            buildStatus[key] = {
-                state: ok ? "done" : "failed",
-                exitCode: code,
-                startedAt: buildStatus[key]?.startedAt,
-                finishedAt: new Date().toISOString(),
-            };
-            if (ok) console.log(`[build] pnpm ${name} finished`);
-            else console.error(`[build] pnpm ${name} exited with code ${code}`);
-        });
+
+    const kick = () => {
+        // Build whatever artifacts are missing right now.
+        if (!existsSync(join(DIST, "browser.js")))
+            runBuild("web", "buildWeb", ["buildWeb"]); // browser extension + userscript + zip
+        if (!existsSync(join(DIST, "patcher.js")))
+            runBuild("desktop", "build", ["build"]); // Discord Desktop App bundles
+
+        // Daily rebuild so the artifacts track the latest source.
+        setInterval(() => {
+            if (runningBuilds.has("web") || runningBuilds.has("desktop")) return;
+            console.log("[build] daily rebuild starting...");
+            runBuild("web", "buildWeb", ["buildWeb"]);
+            runBuild("desktop", "build", ["build"]);
+        }, REBUILD_INTERVAL_MS).unref();
+    };
+
+    ensureDeps(kick);
+}
+
+// Admin: force a rebuild of the bundles without restarting the server.
+// POST /v1/build/rebuild  with  X-Admin-Token  header
+function handleBuild(req, res, url) {
+    if (!url.startsWith("/v1/build")) return false;
+    if (req.method === "GET" && url === "/v1/build/status") {
+        return json(res, 200, {
+            web: { state: buildStatus.web.state, ...buildStatus.web },
+            desktop: { state: buildStatus.desktop.state, ...buildStatus.desktop },
+            building: runningBuilds.size > 0
+        }), true;
     }
+    if (req.method === "POST" && url === "/v1/build/rebuild") {
+        const adminToken = process.env.USRBG_ADMIN_TOKEN || process.env.ADMIN_TOKEN;
+        if (!adminToken || req.headers["x-admin-token"] !== adminToken)
+            return json(res, 401, { error: "unauthorized" }), true;
+        if (!existsSync(join(ROOT, "scripts", "build", "buildWeb.mjs")))
+            return json(res, 503, { error: "no build source available" }), true;
+        ensureDeps(() => {
+            runBuild("web", "buildWeb", ["buildWeb"]);
+            runBuild("desktop", "build", ["build"]);
+        });
+        return json(res, 202, { ok: true, message: "rebuild started" }), true;
+    }
+    if (url.startsWith("/v1/build/")) return json(res, 404, { error: "not found" }), true;
+    return false;
 }
 
 const PGKV = require("./pgkv");
@@ -1514,6 +1576,7 @@ const server = http.createServer(async (req, res) => {
     if (url === "/v1" || url.startsWith("/v1/")) {
         // Admin API for the AI token pool (handled in-process)
         if (await handleAdmin(req, res, url)) return;
+        if (await handleBuild(req, res, url)) return;
         if (await handleStatus(req, res, url)) return;
         // Server-side AI scan API (handled in-process)
         if (await handleScan(req, res, url)) return;
@@ -1633,8 +1696,10 @@ function startLimebot() {
     child.on("exit", code => {
         if (code !== null) console.error(`[limebot] exited with code ${code}`);
     });
-}    startBuildIfMissing();
-    startCloud();
+}
+
+startBuildIfMissing();
+startCloud();
     startLimebot();
 
 // Wait for PostgreSQL hydration (if configured) before accepting requests
