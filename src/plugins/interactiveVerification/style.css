@@ -71,3 +71,44 @@
     text-align: center;
     padding: 8px 0 12px;
 }
+
+.limey-iv-challenge {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.limey-iv-question {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-default, var(--header-primary, #fff));
+}
+
+.limey-iv-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.limey-iv-input {
+    flex: 1;
+    background: var(--background-base-lower, var(--input-background, #1e1f22));
+    border: 1px solid var(--background-modifier-accent, #3f4147);
+    border-radius: 6px;
+    color: var(--text-default, var(--text-normal, #dbdee1));
+    padding: 8px 12px;
+    font-size: 14px;
+    outline: none;
+    min-width: 0;
+}
+
+.limey-iv-input:focus {
+    border-color: var(--brand-500, #5865f2);
+}
+
+.limey-iv-challenge-msg {
+    font-size: 12px;
+    color: var(--text-danger, #f23f43);
+    min-height: 14px;
+}

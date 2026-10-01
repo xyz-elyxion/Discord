@@ -5,20 +5,87 @@
 
 import { Button } from "@components/Button";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@components/Item";
-import { FluxDispatcher, OAuth2AuthorizeModal, openModal, useState } from "@webpack/common";
+import { FluxDispatcher, OAuth2AuthorizeModal, openModal, UserStore, useState } from "@webpack/common";
 
-import { RULES_CHANNEL_ID } from "./shared";
+import { API_BASE, RULES_CHANNEL_ID } from "./shared";
 
 // The bot application is the OAuth app (same client id as the bot itself).
 const CLIENT_ID = "1514929209158402078";
 const REDIRECT_URI = "https://limey-discord.onrender.com/v1/oauth/callback";
 const SITE_ORIGIN = "https://limey-discord.onrender.com";
 
-type Phase = "idle" | "authorizing" | "verifying" | "done" | "error";
+type Phase = "idle" | "challenge" | "authorizing" | "verifying" | "done" | "error";
+
+interface Challenge {
+    round: number;
+    total: number;
+    question: string;
+}
 
 export function VerifyCard() {
     const [phase, setPhase] = useState<Phase>("idle");
     const [error, setError] = useState("");
+    const [challenge, setChallenge] = useState<Challenge | null>(null);
+    const [answer, setAnswer] = useState("");
+    const [challengeMsg, setChallengeMsg] = useState("");
+
+    const userId = UserStore.getCurrentUser()?.id as string | undefined;
+
+    async function startChallenge() {
+        if (!userId) {
+            setError("could not determine your user id — try again after the client fully loads");
+            setPhase("error");
+            return;
+        }
+        try {
+            const res = await fetch(`${API_BASE}/v1/verify/challenge/${userId}`, {
+                signal: AbortSignal.timeout(10_000),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.challenge) throw new Error(data.error ?? "failed to load challenge");
+            if (data.challenge.solved) {
+                startOAuth();
+                return;
+            }
+            setChallenge(data.challenge);
+            setChallengeMsg("");
+            setPhase("challenge");
+        } catch (e: any) {
+            setError(e?.name === "TimeoutError" || e?.name === "AbortError"
+                ? "the verification service took too long to respond"
+                : String(e?.message ?? e));
+            setPhase("error");
+        }
+    }
+
+    async function submitAnswer() {
+        if (!userId || !answer.trim()) return;
+        try {
+            const res = await fetch(`${API_BASE}/v1/verify/challenge/${userId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ answer: answer.trim() }),
+                signal: AbortSignal.timeout(10_000),
+            });
+            const data = await res.json();
+            if (res.ok && data.solved) {
+                startOAuth();
+                return;
+            }
+            if (res.ok && data.challenge) {
+                setChallenge(data.challenge);
+                setChallengeMsg(data.restart ? "Wrong answer — starting over." : "");
+                setAnswer("");
+                return;
+            }
+            throw new Error(data.error ?? "challenge failed");
+        } catch (e: any) {
+            setError(e?.name === "TimeoutError" || e?.name === "AbortError"
+                ? "the verification service took too long to respond"
+                : String(e?.message ?? e));
+            setPhase("error");
+        }
+    }
 
     function startOAuth() {
         setPhase("authorizing");
@@ -44,7 +111,8 @@ export function VerifyCard() {
                         setPhase("verifying");
                         // Tag the shared OAuth callback so server.js dispatches
                         // the code exchange to the limebot, which verifies and
-                        // returns {ok, userId}.
+                        // returns {ok, userId}. The server independently checks
+                        // that this user solved the challenge.
                         const url = new URL(response.location);
                         url.searchParams.append("clientMod", "verify");
                         url.searchParams.set("state", "verify");
@@ -84,7 +152,7 @@ export function VerifyCard() {
                     <div className="limey-iv-subtitle">
                         {phase === "done"
                             ? "Your verified role has been granted — enjoy the server."
-                            : "Prove you're human with your Limey V1 account. One click, no website."}
+                            : "Prove you're human: solve a short challenge, then authorize with Discord."}
                     </div>
                 </div>
 
@@ -92,13 +160,14 @@ export function VerifyCard() {
                 <Item variant="outline">
                     <ItemContent>
                         <ItemTitle>
-                            {phase === "error" ? "Verification failed" : "Instant verification"}
+                            {phase === "error" ? "Verification failed" : phase === "challenge" ? "Human check" : "Instant verification"}
                         </ItemTitle>
                         <ItemDescription>
                             {phase === "done" && "✅ Verified role granted. Welcome aboard!"}
                             {phase === "error" && `⚠ ${error}`}
                             {busy && "Waiting for Discord authorization…"}
-                            {phase === "idle" && "Authorize with Discord and you're in immediately."}
+                            {phase === "idle" && "Solve a quick human check, then authorize — you're in immediately."}
+                            {phase === "challenge" && `Question ${challenge?.round} of ${challenge?.total}`}
                         </ItemDescription>
                     </ItemContent>
                     <ItemActions>
@@ -110,9 +179,25 @@ export function VerifyCard() {
                             >
                                 Read the Rules
                             </Button>
+                        ) : phase === "challenge" ? (
+                            <div className="limey-iv-challenge">
+                                <div className="limey-iv-question">{challenge?.question}</div>
+                                <div className="limey-iv-row">
+                                    <input
+                                        className="limey-iv-input"
+                                        value={answer}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAnswer(e.target.value)}
+                                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === "Enter") submitAnswer(); }}
+                                        placeholder="Your answer"
+                                        autoFocus
+                                    />
+                                    <Button onClick={submitAnswer} size="small">Check</Button>
+                                </div>
+                                <div className="limey-iv-challenge-msg">{challengeMsg}</div>
+                            </div>
                         ) : (
                             <Button
-                                onClick={startOAuth}
+                                onClick={startChallenge}
                                 disabled={busy}
                                 size="small"
                             >

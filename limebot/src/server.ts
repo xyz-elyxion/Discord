@@ -132,6 +132,41 @@ if (enabled) {
         return { userId, verified: await isVerified(userId) };
     });
 
+    // OAuth configuration for the website's tokenless "Verify with Discord"
+    // button (the /v1/verify/* prefix is proxied by server.js).
+    fastify.get("/v1/verify/oauth/settings", async (req, res) => {
+        verifyCors(req, res);
+        return { clientId: Config.verification.clientId, siteUrl: Config.verification.siteUrl };
+    });
+
+    // OAuth configuration for the website's tokenless "Verify with Discord"
+    // button (the /v1/verify/* prefix is proxied by server.js).
+    fastify.get("/v1/verify/oauth/settings", async (req, res) => {
+        verifyCors(req, res);
+        return { clientId: Config.verification.clientId, siteUrl: Config.verification.siteUrl };
+    });
+
+    // Human challenge for the in-client plugin flow (keyed by user id).
+    // The OAuth callback refuses to grant the role until this is solved.
+    fastify.get("/v1/verify/challenge/:userId", async (req, res) => {
+        verifyCors(req, res);
+        const { userId } = req.params as { userId: string };
+        if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
+        return { challenge: currentChallenge(`u:${userId}`) };
+    });
+
+    fastify.post("/v1/verify/challenge/:userId", async (req, res) => {
+        verifyCors(req, res);
+        const { userId } = req.params as { userId: string };
+        if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
+        const body = (req.body ?? {}) as { answer?: string };
+        if (typeof body.answer !== "string") return res.code(400).send({ error: "missing answer" });
+        const result = submitAnswer(`u:${userId}`, body.answer);
+        if (!result.done)
+            return { ok: false, restart: result.restart, challenge: { round: result.round, total: result.total, question: result.question } };
+        return { ok: true, solved: true };
+    });
+
     // OAuth callback fast-track: the server.js dispatcher forwards state=verify
     // here with ?code=...; we exchange the code with Discord ourselves and
     // grant the verified role to the authenticated user.
@@ -162,9 +197,16 @@ if (enabled) {
             if (!userRes.ok) throw new Error("failed to fetch user");
             const { id } = await userRes.json() as { id: string };
 
+            // the in-client plugin must have solved the human challenge first
+            if (!challengeSolved(`u:${id}`))
+                return res.code(403).send({ error: "challenge not solved — verify in the client first" });
+            clearChallenge(`u:${id}`);
+
             if (await isVerified(id)) return { ok: true, userId: id, alreadyVerified: true };
             await grantVerifiedRole(id);
-            return { ok: true, userId: id };
+            // browsers land here directly — bounce to a friendly page instead
+            // of showing raw JSON
+            return res.redirect(`${Config.verification.siteUrl}/verify?done=1`);
         } catch (e: any) {
             console.error("[verify] oauth callback failed:", e);
             return res.code(500).send({ error: e.message ?? "verification failed" });
