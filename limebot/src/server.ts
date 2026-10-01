@@ -139,13 +139,6 @@ if (enabled) {
         return { clientId: Config.verification.clientId, siteUrl: Config.verification.siteUrl };
     });
 
-    // OAuth configuration for the website's tokenless "Verify with Discord"
-    // button (the /v1/verify/* prefix is proxied by server.js).
-    fastify.get("/v1/verify/oauth/settings", async (req, res) => {
-        verifyCors(req, res);
-        return { clientId: Config.verification.clientId, siteUrl: Config.verification.siteUrl };
-    });
-
     // Human challenge for the in-client plugin flow (keyed by user id).
     // The OAuth callback refuses to grant the role until this is solved.
     fastify.get("/v1/verify/challenge/:userId", async (req, res) => {
