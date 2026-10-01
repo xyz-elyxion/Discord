@@ -160,6 +160,23 @@ if (enabled) {
         return { ok: true, solved: true };
     });
 
+    // Website flow: after solving the challenge post-OAuth, claim the role.
+    fastify.post("/v1/verify/challenge/:userId/claim", async (req, res) => {
+        verifyCors(req, res);
+        const { userId } = req.params as { userId: string };
+        if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
+        if (!challengeSolved(`u:${userId}`))
+            return res.code(403).send({ error: "challenge not solved" });
+        clearChallenge(`u:${userId}`);
+        try {
+            await grantVerifiedRole(userId);
+            return { ok: true };
+        } catch (e: any) {
+            console.error("[verify] failed to grant role (claim):", e);
+            return res.code(500).send({ error: "failed to grant role" });
+        }
+    });
+
     // OAuth callback fast-track: the server.js dispatcher forwards state=verify
     // here with ?code=...; we exchange the code with Discord ourselves and
     // grant the verified role to the authenticated user.
@@ -190,9 +207,11 @@ if (enabled) {
             if (!userRes.ok) throw new Error("failed to fetch user");
             const { id } = await userRes.json() as { id: string };
 
-            // the in-client plugin must have solved the human challenge first
+            // the in-client plugin must have solved the human challenge first;
+            // the website flow (no challenge yet) is bounced back to the page,
+            // which runs the challenge for this user and claims afterwards.
             if (!challengeSolved(`u:${id}`))
-                return res.code(403).send({ error: "challenge not solved — verify in the client first" });
+                return res.redirect(`${Config.verification.siteUrl}/verify?challenge=1&uid=${id}`);
             clearChallenge(`u:${id}`);
 
             if (await isVerified(id)) return { ok: true, userId: id, alreadyVerified: true };

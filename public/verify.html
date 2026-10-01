@@ -252,12 +252,121 @@
         }
     }
 
+    // ---- tokenless website flow: Discord OAuth, then challenge, then claim ----
+
+    async function sendUidAnswer(uid, answer) {
+        if (!answer) return;
+        const errEl = document.getElementById("cerr");
+        errEl.textContent = "";
+        document.getElementById("submit").disabled = true;
+        try {
+            const res = await fetch("/v1/verify/challenge/" + encodeURIComponent(uid), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ answer })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.solved) {
+                await claimVerify(uid);
+                return;
+            }
+            if (res.ok && data.challenge) {
+                document.getElementById("submit").disabled = false;
+                if (data.restart) errEl.textContent = "Wrong answer — starting over.";
+                challengeUIForUid(uid, data.challenge);
+                return;
+            }
+            document.getElementById("submit").disabled = false;
+            errEl.textContent = data.error || "Something went wrong. Try again.";
+        } catch (e) {
+            document.getElementById("submit").disabled = false;
+            errEl.textContent = "Could not reach the verification service.";
+        }
+    }
+
+    function challengeUIForUid(uid, ch) {
+        statusEl.className = "verify-status busy";
+        statusEl.textContent = "Prove you're human — short challenge (" + ch.round + " of " + ch.total + "):";
+        actionsEl.innerHTML =
+            '<div class="challenge-box">' +
+                '<div class="challenge-q"></div>' +
+                '<div class="challenge-row">' +
+                    '<input id="answer" type="text" autocomplete="off" spellcheck="false" placeholder="Your answer">' +
+                    '<button class="btn-lime" id="submit">Check</button>' +
+                '</div>' +
+                '<div class="challenge-err" id="cerr"></div>' +
+            '</div>';
+        actionsEl.querySelector(".challenge-q").textContent = ch.question;
+        const input = document.getElementById("answer");
+        input.focus();
+        const submit = () => sendUidAnswer(uid, input.value.trim());
+        document.getElementById("submit").onclick = submit;
+        input.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+    }
+
+    async function claimVerify(uid) {
+        setStatus("Granting your role…", "busy");
+        statusEl.innerHTML = '<span class="spinner"></span>Granting your role…';
+        try {
+            const res = await fetch("/v1/verify/challenge/" + encodeURIComponent(uid) + "/claim", { method: "POST" });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.ok) {
+                setStatus("✅ You're verified! Your role has been granted.", "ok");
+                introEl.textContent = "Welcome to Limey V1 🍋";
+                actionsEl.innerHTML = '<a class="btn-lime" href="https://discord.com/channels/1550709562267672607">Back to Discord</a>';
+            } else {
+                setStatus("❌ " + (data.error || "Could not grant the role. Try again."), "err");
+            }
+        } catch (e) {
+            setStatus("❌ Could not reach the verification service.", "err");
+        }
+    }
+
+    async function startDiscordVerify() {
+        statusEl.innerHTML = '<span class="spinner"></span>Loading…';
+        try {
+            const res = await fetch("/v1/verify/oauth/settings");
+            const { clientId } = await res.json();
+            if (!clientId) throw new Error("no client id");
+            const auth = new URL("https://discord.com/oauth2/authorize");
+            auth.searchParams.set("client_id", clientId);
+            auth.searchParams.set("response_type", "code");
+            auth.searchParams.set("redirect_uri", location.origin + "/v1/oauth/callback");
+            auth.searchParams.set("scope", "identify");
+            auth.searchParams.set("state", "verify");
+            location.href = auth.toString();
+        } catch (e) {
+            setStatus("❌ Could not reach the verification service.", "err");
+        }
+    }
+
     if (token) {
         checkToken(token);
+    } else if (params.get("done") === "1") {
+        setStatus("✅ You're verified! Your role has been granted.", "ok");
+        introEl.textContent = "Welcome to Limey V1 🍋";
+        actionsEl.innerHTML = '<a class="btn-lime" href="https://discord.com/channels/1550709562267672607">Back to Discord</a>';
+    } else if (params.get("challenge") === "1" && /^\d{17,20}$/.test(params.get("uid") || "")) {
+        // Discord OAuth done — now the human challenge, then the role is claimed
+        introEl.textContent = "Discord account confirmed. One last step: prove you're human.";
+        try {
+            const res = await fetch("/v1/verify/challenge/" + params.get("uid"));
+            const data = await res.json();
+            if (res.ok && data.challenge && !data.challenge.solved) {
+                challengeUIForUid(params.get("uid"), data.challenge);
+            } else if (res.ok && data.challenge && data.challenge.solved) {
+                await claimVerify(params.get("uid"));
+            } else {
+                setStatus("❌ Could not load the challenge. Reload to try again.", "err");
+            }
+        } catch (e) {
+            setStatus("❌ Could not reach the verification service.", "err");
+        }
     } else {
-        setStatus("No verification link detected.", "err");
-        introEl.textContent = "Open the verification channel in Discord and click \"Verify on Website\" there, or use the Instant Verify button if you have the Limey V1 mod.";
-        actionsEl.innerHTML = '<a class="btn-lime" href="https://discord.com/channels/1550709562267672607/1554636290211971092">Go to #verification</a>';
+        introEl.textContent = "Verify with your Discord account, or get a one-time link from the bot in the verification channel.";
+        actionsEl.innerHTML = '<button class="btn-lime" id="discord-verify">Verify with Discord</button>' +
+            '<p class="fine"><a href="https://discord.com/channels/1550709562267672607/1554636290211971092">Or go to #verification</a></p>';
+        document.getElementById("discord-verify").onclick = startDiscordVerify;
     }
 </script>
 </body>
