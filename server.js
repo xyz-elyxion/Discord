@@ -323,8 +323,13 @@ function runBuild(key, name, nodeArgs) {
     console.log(`[build] running ${name}...`);
     // Spawn the build scripts with node directly — pnpm at runtime triggers a
     // dependency auto-check that fails as a non-root user in the container.
-    // Heap is capped so esbuild + the server stay inside small memory limits.
-    const child = spawn(process.execPath, ["--max-old-space-size=256", ...nodeArgs], { cwd: ROOT, stdio: "inherit" });
+    // Heap is capped and configs build sequentially so esbuild + the server
+    // stay inside small memory limits.
+    const child = spawn(process.execPath, ["--max-old-space-size=256"], {
+        cwd: ROOT,
+        stdio: "inherit",
+        env: { ...process.env, LIMEY_SEQUENTIAL: "1", ESBUILD_WORKER_THREADS: "1" }
+    });
     child.on("error", err => {
         runningBuilds.delete(key);
         buildStatus[key] = { state: "failed", error: err.message, finishedAt: new Date().toISOString() };

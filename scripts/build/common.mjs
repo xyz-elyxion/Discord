@@ -83,6 +83,15 @@ export async function buildOrWatchAll(buildConfigs) {
         await Promise.all(buildConfigs.map(cfg =>
             context(cfg).then(ctx => ctx.watch())
         ));
+    } else if (process.env.LIMEY_SEQUENTIAL === "1") {
+        // Memory-constrained environments (e.g. 512MB containers): build one
+        // config at a time instead of all in parallel.
+        for (const cfg of buildConfigs) {
+            await build(cfg).catch(error => {
+                console.error(error.message);
+                process.exit(1);
+            });
+        }
     } else {
         await Promise.all(buildConfigs.map(cfg => build(cfg)))
             .catch(error => {
