@@ -1048,7 +1048,10 @@ function startCloud() {
             ...process.env,
             HOST: CLOUD_HOST,
             PORT: String(CLOUD_PORT),
-            REDIS_URI: normalizeRedisUri(process.env.REDIS_URI) || "127.0.0.1:6379",
+            // Only hand the backend a Redis URI if one is actually configured;
+            // a fake local fallback makes kv.Open fatally fail in prod where
+            // no Redis runs alongside the app.
+            REDIS_URI: normalizeRedisUri(process.env.REDIS_URI) || (process.env.DATABASE_URL ? "" : "127.0.0.1:6379"),
             ROOT_REDIRECT: process.env.ROOT_REDIRECT || "https://limey-discord.onrender.com",
             DISCORD_REDIRECT_URI: process.env.DISCORD_REDIRECT_URI || "https://limey-discord.onrender.com/v1/oauth/callback",
             PEPPER_SETTINGS: process.env.PEPPER_SETTINGS || "limeycloud-settings-pepper",
@@ -1062,6 +1065,13 @@ function startCloud() {
     child.on("exit", code => {
         cloudUp = false;
         if (code !== null) console.error(`[cloud] backend exited with code ${code}`);
+        // Respawn with backoff so a crash doesn't disable settings sync
+        // until the next deploy.
+        if (!startCloud.stopping) {
+            startCloud.backoff = Math.min((startCloud.backoff || 1000) * 2, 30000);
+            console.error(`[cloud] restarting backend in ${startCloud.backoff}ms`);
+            setTimeout(startCloud, startCloud.backoff);
+        }
     });
 
     // The Go server prints nothing on ready; probe until it answers.

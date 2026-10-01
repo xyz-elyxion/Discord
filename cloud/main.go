@@ -27,6 +27,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -139,6 +140,11 @@ func main() {
 		ExposeHeaders: "ETag",
 		AllowOrigins:  "https://discord.com,https://ptb.discord.com,https://canary.discord.com,https://discordapp.com,https://ptb.discordapp.com,https://canary.discordapp.com",
 	}))
+
+	// A panic in any handler must not take the whole backend down (that
+	// turns every later request into a connection-refused 502 until the
+	// next deploy); recover and answer 500 instead.
+	app.Use(recover.New())
 
 	// Add the docker health endpoint before the logger middleware, such that
 	// it doesn't spam the logs full with it
