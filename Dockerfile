@@ -99,6 +99,7 @@ COPY --from=build --chown=node:node /app/package.json /app/server.js ./
 COPY --from=build --chown=node:node /app/pgkv.js ./
 COPY --from=build --chown=node:node /app/reviewdb-backend.js ./
 COPY --from=build --chown=node:node /app/lime-economy-backend.js ./
+COPY --from=build --chown=node:node /app/lime-pluginstore-backend.js ./
 COPY --from=build --chown=node:node /app/runtime_deps/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/dist ./dist
