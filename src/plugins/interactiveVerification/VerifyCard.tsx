@@ -7,12 +7,15 @@ import { Button } from "@components/Button";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@components/Item";
 import { FluxDispatcher, OAuth2AuthorizeModal, openModal, UserStore, useState } from "@webpack/common";
 
-import { API_BASE, RULES_CHANNEL_ID } from "./shared";
+import { RULES_CHANNEL_ID } from "./shared";
 
 // The bot application is the OAuth app (same client id as the bot itself).
 const CLIENT_ID = "1514929209158402078";
 const REDIRECT_URI = "https://limey-discord.onrender.com/v1/oauth/callback";
 const SITE_ORIGIN = "https://limey-discord.onrender.com";
+// the client runs on discord.com — the verification API lives on the site,
+// so all API calls must be absolute (same-origin would hit discord.com)
+const API = `${SITE_ORIGIN}/v1/verify`;
 
 type Phase = "idle" | "challenge" | "authorizing" | "verifying" | "done" | "error";
 
@@ -38,7 +41,7 @@ export function VerifyCard() {
             return;
         }
         try {
-            const res = await fetch(`${API_BASE}/v1/verify/challenge/${userId}`, {
+            const res = await fetch(`${API}/challenge/${userId}`, {
                 signal: AbortSignal.timeout(10_000),
             });
             const text = await res.text();
@@ -63,7 +66,7 @@ export function VerifyCard() {
     async function submitAnswer() {
         if (!userId || !answer.trim()) return;
         try {
-            const res = await fetch(`${API_BASE}/v1/verify/challenge/${userId}`, {
+            const res = await fetch(`${API}/challenge/${userId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ answer: answer.trim() }),
