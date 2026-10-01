@@ -29,9 +29,9 @@ function newestMtime(paths) {
 const sourceFiles = ["src", "browser", "scripts/build", "package.json"];
 
 function isStale(artifacts) {
-    const built = newestMtime(artifacts);
-    if (!built) return true; // missing
-    return newestMtime(sourceFiles) > built;
+    // missing any artifact, or any source file newer than the newest artifact
+    if (artifacts.some(p => !existsSync(p))) return true;
+    return newestMtime(sourceFiles) > newestMtime(artifacts);
 }
 
 function run(cmd, args) {
@@ -57,16 +57,27 @@ if (!existsSync("node_modules/esbuild")) {
     run("pnpm", ["install", "--no-frozen-lockfile"]);
 }
 
+// Standalone builds use the HTTP updater (against this site) instead of git,
+// which installed clients don't have. Resolve the hash so builds are stamped
+// correctly (falls back to git locally, "unknown" otherwise).
+process.env.LIMEYV1_HASH ||= (() => {
+    try {
+        return require("node:child_process").execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
+    } catch {
+        return "unknown";
+    }
+})();
+
 let didBuild = false;
 if (isStale(WEB_ARTIFACTS)) {
-    run("pnpm", ["buildWeb"]); // browser extension + userscript + zip
+    run("pnpm", ["buildWeb", "--standalone"]); // browser extension + userscript + zip
     didBuild = true;
 } else {
     console.log("[prestart] web bundles up to date");
 }
 
 if (isStale(DESKTOP_ARTIFACTS)) {
-    run("pnpm", ["build"]); // Discord Desktop App bundles
+    run("pnpm", ["build", "--standalone"]); // Discord Desktop App bundles
     didBuild = true;
 } else {
     console.log("[prestart] desktop bundles up to date");
