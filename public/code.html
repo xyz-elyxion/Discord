@@ -200,6 +200,8 @@
         window.setCss = css => { if (activeFile()) { activeFile().content = css; scheduleSave(); } };
         // Monaco reads the host theme; always use the dark theme on the site.
         window.getTheme = () => "vs-dark";
+        // Monaco resolves its language workers against the host baseUrl.
+        window.baseUrl = new URL("/vendor/monaco/", location.origin).toString();
 
         const LS_KEY = "limey-workshop-v1";
         const BOILER = {
