@@ -2,10 +2,12 @@ package kv
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -113,7 +115,7 @@ func HGet(key, field string) (string, error) {
 		if err := json.Unmarshal([]byte(raw), &obj); err != nil {
 			return "", err
 		}
-		v, ok := obj[field].(string)
+		v, ok := decodeVal(obj[field]).(string)
 		if !ok {
 			return "", ErrNotFound
 		}
@@ -145,7 +147,7 @@ func HMGet(key string, fields ...string) ([]any, error) {
 		out := make([]any, len(fields))
 		for i, f := range fields {
 			if v, ok := obj[f]; ok {
-				out[i] = v
+				out[i] = decodeVal(v)
 			} else {
 				out[i] = nil
 			}
@@ -171,7 +173,7 @@ func HSet(key string, fields map[string]any) error {
 			obj = map[string]any{}
 		}
 		for k, v := range fields {
-			obj[k] = v
+			obj[k] = encodeVal(v)
 		}
 		blob, err := json.Marshal(obj)
 		if err != nil {
@@ -185,6 +187,33 @@ func HSet(key string, fields map[string]any) error {
 		return err
 	}
 	return redisHSet(key, fields)
+}
+
+// binaryTag wraps values that are not valid UTF-8 (e.g. the deflate-compressed
+// settings blob). JSONB columns cannot hold invalid Unicode escape sequences
+// (SQLSTATE 22P05), so such values are stored base64-encoded under this marker
+// and transparently decoded on read.
+const binaryTag = "__b64"
+
+func encodeVal(v any) any {
+	s, ok := v.(string)
+	if !ok || utf8.ValidString(s) {
+		return v
+	}
+	return map[string]any{
+		binaryTag: base64.StdEncoding.EncodeToString([]byte(s)),
+	}
+}
+
+func decodeVal(v any) any {
+	if m, ok := v.(map[string]any); ok {
+		if b64, ok := m[binaryTag].(string); ok {
+			if raw, err := base64.StdEncoding.DecodeString(b64); err == nil {
+				return string(raw)
+			}
+		}
+	}
+	return v
 }
 
 // Del deletes keys.

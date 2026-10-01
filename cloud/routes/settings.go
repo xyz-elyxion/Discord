@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -70,8 +71,10 @@ func PUTSettings(c *fiber.Ctx) error {
 	now := time.Now().UnixMilli()
 
 	err := kv.HSet("settings:"+util.Hash(g.PEPPER_SETTINGS+userId), map[string]any{
+		// value is raw deflate bytes (base64-wrapped by the Postgres kv layer);
+		// written must be a string to mirror the redis-era HMGet semantics
 		"value":   string(c.Body()),
-		"written": now,
+		"written": fmt.Sprintf("%d", now),
 	})
 
 	if err != nil {
