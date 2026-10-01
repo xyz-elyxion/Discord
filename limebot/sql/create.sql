@@ -56,8 +56,19 @@ CREATE TABLE IF NOT EXISTS warnings (
 
 CREATE INDEX IF NOT EXISTS warnings_userId_idx ON warnings (userId);
 
+CREATE TABLE IF NOT EXISTS verificationConfigs (
+    guildId TEXT PRIMARY KEY,
+    channelId TEXT NOT NULL,
+    roleId TEXT NOT NULL,
+    rulesChannelId TEXT,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    createdBy TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS verificationTokens (
     token     TEXT PRIMARY KEY NOT NULL,
+    guildId   TEXT NOT NULL DEFAULT '',
     userId    TEXT NOT NULL,
     used      INTEGER NOT NULL DEFAULT 0,
     createdAt TEXT NOT NULL DEFAULT (datetime('now'))

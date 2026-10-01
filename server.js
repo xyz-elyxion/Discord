@@ -851,7 +851,7 @@ function dashGetSession(req) {
     return { token, discordId: dashSessions[token].discordId, user: dashUsers[dashSessions[token].discordId] || null };
 }
 
-async function dashExchangeCode(code) {
+async function dashExchangeCode(code, withGuilds) {
     if (!process.env.DISCORD_CLIENT_ID || !process.env.DISCORD_CLIENT_SECRET) {
         throw Object.assign(new Error("dashboard OAuth is not configured (missing DISCORD_CLIENT_ID/SECRET)"), { status: 503 });
     }
@@ -876,23 +876,43 @@ async function dashExchangeCode(code) {
         headers: { Authorization: `Bearer ${access_token}` }
     });
     if (!meRes.ok) throw Object.assign(new Error("Discord @me failed"), { status: 401 });
-    return meRes.json();
+    const me = await meRes.json();
+    if (withGuilds) {
+        // guilds scope: capture the server ids the user is in so the setup
+        // page can list them (names/icons resolve via the bot later)
+        const gRes = await fetch(DISCORD_API_BASE + "/users/@me/guilds?with_counts=false", {
+            headers: { Authorization: `Bearer ${access_token}` }
+        }).catch(() => null);
+        if (gRes && gRes.ok) {
+            const guilds = await gRes.json().catch(() => []);
+            me.guildIds = Array.isArray(guilds) ? guilds.map(g => g.id) : [];
+        }
+    }
+    return me;
 }
 
 // Shared OAuth callback dispatch target: exchange the code, create a
 // session, bounce back to the dashboard page with ?session=<token>.
-async function handleDashboardOAuth(query) {
+async function handleDashboardOAuth(query, setupGuildId) {
     const code = query.get("code");
-    const target = new URL("https://limey-discord.onrender.com/dashboard.html");
+    const isSetup = query.get("state") === "setup";
+    const target = new URL(isSetup
+        ? "https://limey-discord.onrender.com/verify-setup"
+        : "https://limey-discord.onrender.com/dashboard.html");
     if (!code) {
         target.searchParams.set("login", "missing_code");
         return target.toString();
-    }
-    try {
-        const me = await dashExchangeCode(code);
-        const token = require("crypto").randomBytes(32).toString("hex");
-        dashSessions[token] = { discordId: me.id, addedAt: new Date().toISOString() };
-        dashUsers[me.id] = me;
+    }        try {
+            const me = await dashExchangeCode(code, isSetup);
+            const token = require("crypto").randomBytes(32).toString("hex");
+            dashSessions[token] = { discordId: me.id, addedAt: new Date().toISOString() };
+            if (me.guildIds) dashSessions[token].guildIds = me.guildIds;
+        if (isSetup) {
+            // remember which guild ids the user is in (from the guilds scope)
+            // so the setup page can offer the right servers
+            dashUsers[me.id] = Object.assign(dashUsers[me.id] || {}, me);
+            dashSessions[token].guildIds = me.guildIds || [];
+        }
         void kvSet(DASH_SESSIONS_KEY, dashSessions);
         void kvSet("limey:dashboard-users", dashUsers);
         target.searchParams.set("session", token);
@@ -906,6 +926,36 @@ async function handleDashboardOAuth(query) {
 // Dashboard session API: GET /v1/dashboard/me, POST /v1/dashboard/logout
 async function handleDashboard(req, res, url) {
     if (!url.startsWith("/v1/dashboard")) return false;
+
+    // Session-authenticated proxy for the per-guild verification setup API
+    // (limebot /v1/verify/guild/*). We verify the caller has an active
+    // dashboard session and append ?userId= so the bot can attribute the
+    // change. Guild membership/permission checks happen in the bot (which
+    // sees the live member list).
+    if (url.startsWith("/v1/dashboard/verify-guild/")) {
+        const session = dashGetSession(req);
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        const sub = url.slice("/v1/dashboard/verify-guild/".length);
+        const guildId = sub.split("/")[0];
+        if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
+        if (req.method === "OPTIONS") return res.end(), true;
+        const sep = url.includes("?") ? "&" : "?";
+        const upstreamUrl = "/v1/verify/guild/" + sub + sep + "userId=" + session.discordId;
+        return proxyLimebot(req, res, upstreamUrl);
+    }
+
+    if (url === "/v1/dashboard/my-guilds" && req.method === "GET") {
+        const session = dashGetSession(req);
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        // The session recorded the user's guild ids at login (guilds scope).
+        // The bot filters to servers it shares where the user can manage.
+        try {
+            const ids = (session.guildIds || []).join(",");
+            return proxyLimebot(req, res, "/v1/verify/my-guilds?userId=" + session.discordId + "&ids=" + encodeURIComponent(ids));
+        } catch (e) {
+            return json(res, 500, { error: "guild list failed" }), true;
+        }
+    }
 
     if (req.method === "OPTIONS") {
         res.writeHead(204, {
@@ -1199,6 +1249,7 @@ const NAMED_PAGES = {
     "/install": "install.html",
     "/limes": "limes.html",
     "/dashboard": "dashboard.html",
+    "/verify-setup": "verify-setup.html",
     "/submit-plugin": "submit-plugin.html",
     "/code": "code.html",
     "/404": "404.html",
@@ -1258,9 +1309,11 @@ const server = http.createServer(async (req, res) => {
             // Exchange the code server-side and bounce the session to the site page
             if (await limeEconomy.handle(req, res, "/v1/limes/callback" + (query ? "?" + query : ""))) return;
         }
-        if (params.get("state") === "dashboard") {
-            // Dashboard login: exchange the code and redirect with a session token
-            const dest = await handleDashboardOAuth(params);
+        if (params.get("state") === "dashboard" || params.get("state") === "setup") {
+            // Dashboard / verify-setup login: exchange the code and redirect
+            // with a session token. The setup flow additionally carries the
+            // guilds scope so the bot can list servers to configure.
+            const dest = await handleDashboardOAuth(params, params.get("state") === "setup" ? params.get("guild_id") : null);
             res.writeHead(302, { Location: dest });
             return res.end();
         }
@@ -1270,6 +1323,12 @@ const server = http.createServer(async (req, res) => {
         if (params.get("state") === "verify" || params.get("clientMod") === "verify") {
             const clean = new URLSearchParams(params);
             return proxyLimebot(req, Object.assign(res, {}), "/v1/verify/oauth/callback" + (clean.toString() ? "?" + clean.toString() : ""));
+        }
+        if (params.get("state") === "setup") {
+            const clean = new URLSearchParams(params);
+            const dest = await handleDashboardOAuth(clean, params.get("guild_id"));
+            res.writeHead(302, { Location: dest });
+            return res.end();
         }
         // default: settings sync cloud (Go backend owns this route);
         // strip our client-side state so the Go callback sees a clean request

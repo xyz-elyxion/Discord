@@ -14,16 +14,51 @@ import "./style.css";
 
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import { createRoot, showToast, Toasts } from "@webpack/common";
+import { createRoot, GuildStore, showToast, Toasts } from "@webpack/common";
 
 import { VerifyCard } from "./VerifyCard";
-import { VERIFICATION_CHANNEL_ID } from "./shared";
+import { guildVerifyConfigs, VERIFICATION_CHANNEL_ID } from "./shared";
 
 const OVERLAY_ID = "limey-interactive-verify-root";
 const CHAT_SELECTOR = `[class*="chatContent_"], [class*="chat_"]`;
+const SITE_ORIGIN = "https://limey-discord.onrender.com";
 
 let host: HTMLDivElement | null = null;
 let observer: MutationObserver | null = null;
+
+// guildId of the channel currently mounted (or null for the fallback channel)
+let mountedGuildId: string | null = null;
+
+// Channels of guilds that have verification configured (channelId -> guildId),
+// lazily refreshed from the site so any server can use the plugin.
+const verifyChannels = new Map<string, string>([[VERIFICATION_CHANNEL_ID, "1550709562267672607"]]);
+
+async function refreshVerifyChannels() {
+    // Ask the site which guilds the current user shares with the bot have
+    // verification configured. The endpoint returns configs for guilds the
+    // bot is in; we filter by the guilds the client is actually in.
+    try {
+        const ids = Object.keys(GuildStore.getGuilds() ?? {})
+            .filter(id => /^\d{17,20}$/.test(id))
+            .slice(0, 100)
+            .join(",");
+        if (!ids) return;
+        const res = await fetch(`${SITE_ORIGIN}/v1/verify/guilds?ids=${ids}`, {
+            signal: AbortSignal.timeout(10_000)
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        for (const cfg of data.guilds ?? []) {
+            if (!cfg?.channelId || !cfg?.guildId) continue;
+            verifyChannels.set(cfg.channelId, cfg.guildId);
+            guildVerifyConfigs.set(cfg.guildId, {
+                channelId: cfg.channelId,
+                rulesChannelId: cfg.rulesChannelId ?? null,
+                roleId: cfg.roleId ?? null,
+            });
+        }
+    } catch { /* offline or not configured — fallback channels still work */ }
+}
 
 function unmount() {
     if (host) {
@@ -36,10 +71,14 @@ function unmount() {
 }
 
 function mount(channelId: string) {
-    if (channelId !== VERIFICATION_CHANNEL_ID) {
+    const guildId = verifyChannels.get(channelId);
+    if (!guildId) {
         unmount();
+        // opportunistically refresh configs so newly-set-up servers appear
+        void refreshVerifyChannels();
         return;
     }
+    mountedGuildId = guildId;
 
     observer?.disconnect();
     observer = new MutationObserver(() => {
@@ -56,7 +95,7 @@ function mount(channelId: string) {
             return el;
         })();
 
-        createRoot(host).render(<VerifyCard />);
+        createRoot(host).render(<VerifyCard guildId={mountedGuildId} />);
     });
     observer.observe(document.body, { childList: true, subtree: true });
 }
@@ -84,7 +123,7 @@ export default definePlugin({
     },
 
     start() {
-        // no-op mount: only triggers when the channel is selected
+        void refreshVerifyChannels();
     },
 
     stop: unmount,

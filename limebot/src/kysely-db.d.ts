@@ -62,8 +62,19 @@ export interface Tickets {
         createdAt: string;
     }
 
+    export interface VerificationConfigs {
+        guildId: string;
+        channelId: string;
+        roleId: string;
+        rulesChannelId: string | null;
+        enabled: number;
+        createdBy: string;
+        createdAt: string;
+    }
+
     export interface VerificationTokens {
         token: string;
+        guildId: string;
         userId: string;
         used: number;
         createdAt: string;
@@ -88,5 +99,6 @@ export interface Tickets {
         warnings: Warnings;
         scheduledUnbans: ScheduledUnbans;
         verificationTokens: VerificationTokens;
+        verificationConfigs: VerificationConfigs;
     }
 }

@@ -5,7 +5,8 @@ import Config from "./config";
 import { PROD } from "./constants";
 import { getGitRemote } from "./util/git";
 import { makeLazy } from "./util/lazy";
-import { challengeSolved, clearChallenge, consumeToken, currentChallenge, getTokenInfo, grantVerifiedRole, isVerified, mintToken, submitAnswer } from "./modules/verification";
+import { challengeSolved, clearChallenge, consumeToken, currentChallenge, disableGuildConfig, ensureCard, getGuildConfig, getTokenInfo, grantVerifiedRole, isVerified, mintToken, setGuildConfig, submitAnswer } from "./modules/verification";
+import { Vaius } from "./Client";
 
 const { enabled, port } = Config.httpServer;
 
@@ -81,11 +82,14 @@ if (enabled) {
             if (!challengeSolved(token))
                 return res.code(403).send({ error: "challenge not solved — answer the questions first" });
             clearChallenge(token);
-            const userId = await consumeToken(token);
-            if (!userId) return res.code(410).send({ error: "token already used or invalid" });
+            const consumed = await consumeToken(token);
+            if (!consumed) return res.code(410).send({ error: "token already used or invalid" });
+            const userId = consumed.userId;
+            const guildId = consumed.guildId;
+            if (!guildId) return res.code(410).send({ error: "token has no guild — request a new link" });
             try {
-                await grantVerifiedRole(userId);
-                return { ok: true, userId };
+                await grantVerifiedRole(guildId, userId);
+                return { ok: true, userId, guildId };
             } catch (e: any) {
                 console.error("[verify] failed to grant role:", e);
                 return res.code(500).send({ error: "failed to grant role" });
@@ -102,11 +106,12 @@ if (enabled) {
         const { userId } = req.params as { userId: string };
         if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
 
-        if (await isVerified(userId))
+        const guildId = (req.query as { guildId?: string }).guildId || Config.homeGuildId;
+        if (await isVerified(guildId, userId))
             return { ok: true, alreadyVerified: true };
 
         try {
-            await grantVerifiedRole(userId);
+            await grantVerifiedRole(guildId, userId);
             return { ok: true };
         } catch (e: any) {
             console.error("[verify] failed to grant role (oauth):", e);
@@ -119,7 +124,8 @@ if (enabled) {
         verifyCors(req, res);
         const { userId } = req.params as { userId: string };
         if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
-        const token = await mintToken(userId);
+        const guildId = (req.query as { guildId?: string }).guildId || Config.homeGuildId;
+        const token = await mintToken(userId, guildId);
         return { token, url: `${Config.verification.siteUrl}/verify?t=${token}` };
     });
 
@@ -129,7 +135,130 @@ if (enabled) {
         verifyCors(req, res);
         const { userId } = req.params as { userId: string };
         if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
-        return { userId, verified: await isVerified(userId) };
+        const guildId = (req.query as { guildId?: string }).guildId || Config.homeGuildId;
+        return { userId, verified: await isVerified(guildId, userId) };
+    });
+
+    // ------------------------------------------------------------------
+    // Per-guild verification setup (used by the /verify-setup website page)
+    // The caller must include the guild in the OAuth session's guilds
+    // (identify scope) and hold MANAGE_GUILD; server.js enforces the session
+    // + permission checks and forwards ?userId= (the acting admin).
+    // ------------------------------------------------------------------
+    fastify.get("/v1/verify/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        const cfg = getGuildConfig(guildId);
+
+        // provide channel/role pickers for the setup page (requires the bot
+        // to share the guild; the caller's permission was checked by the bot
+        // itself in my-guilds and re-checked on save)
+        const guild = Vaius.guilds.get(guildId);
+        const channels = guild
+            ? [...guild.channels.values()]
+                .filter(c => c.type === 0 || c.type === 5) // text + announcement
+                .map(c => ({ id: c.id, name: "#" + c.name, type: c.type }))
+            : [];
+        const roles = guild
+            ? [...guild.roles.values()]
+                .filter(r => !r.managed && r.id !== guild.id)
+                .sort((a, b) => b.position - a.position)
+                .map(r => ({ id: r.id, name: "@" + r.name }))
+            : [];
+
+        return { configured: !!cfg, config: cfg, channels, roles };
+    });
+
+    fastify.post("/v1/verify/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        const body = (req.body ?? {}) as { channelId?: string; roleId?: string; rulesChannelId?: string | null };
+        const { channelId, roleId, rulesChannelId } = body;
+        if (!/^\d{17,20}$/.test(guildId) || !/^\d{17,20}$/.test(channelId ?? "") || !/^\d{17,20}$/.test(roleId ?? ""))
+            return res.code(400).send({ error: "guildId, channelId and roleId are required snowflakes" });
+        if (rulesChannelId != null && !/^\d{17,20}$/.test(rulesChannelId))
+            return res.code(400).send({ error: "invalid rulesChannelId" });
+
+        // guild must be reachable by the bot
+        const guild = Vaius.guilds.get(guildId);
+        if (!guild) return res.code(404).send({ error: "bot is not in that server — invite it first" });
+
+        // the acting admin must be able to manage the guild right now
+        const actingUser = (req.query as { userId?: string }).userId || "";
+        if (actingUser) {
+            const member = await guild.getMember(actingUser).catch(() => null);
+            const canManage = !!member && (guild.ownerID === actingUser || member.permissions.has("MANAGE_GUILD"));
+            if (!canManage) return res.code(403).send({ error: "you need Manage Server permission in that server" });
+        }
+
+        const cfg = {
+            guildId,
+            channelId: channelId!,
+            roleId: roleId!,
+            rulesChannelId: rulesChannelId || null,
+            enabled: true,
+        };
+        try {
+            await setGuildConfig(cfg, (req.query as { userId?: string }).userId || "0");
+        } catch (e: any) {
+            console.error("[verify] failed to save guild config:", e);
+            return res.code(500).send({ error: "failed to save config" });
+        }
+
+        // post/refresh the card and set the channel read-only
+        try {
+            await ensureCard(cfg);
+        } catch (e: any) {
+            console.error("[verify] failed to post card:", e);
+            return res.code(400).send({ error: "could not post the verification card in that channel — check my permissions there" });
+        }
+
+        return { ok: true, config: cfg };
+    });
+
+    fastify.delete("/v1/verify/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        await disableGuildConfig(guildId);
+        return { ok: true };
+    });
+
+    // batch configs for the plugin: which of the given guilds (that the bot
+    // shares) have verification configured. Public — channel/role ids are
+    // already visible to members; no secrets here.
+    fastify.get("/v1/verify/guilds", async (req, res) => {
+        verifyCors(req, res);
+        const ids = (req.query as { ids?: string }).ids || "";
+        const out: { guildId: string; channelId: string; rulesChannelId: string | null; roleId: string }[] = [];
+        for (const id of ids.split(",").slice(0, 100)) {
+            if (!/^\d{17,20}$/.test(id)) continue;
+            const cfg = getGuildConfig(id);
+            if (cfg) out.push({ guildId: cfg.guildId, channelId: cfg.channelId, rulesChannelId: cfg.rulesChannelId, roleId: cfg.roleId });
+        }
+        return { guilds: out };
+    });
+
+    // list guilds the acting user administers (for the setup page picker)
+    fastify.get("/v1/verify/my-guilds", async (req, res) => {
+        verifyCors(req, res);
+        const userId = (req.query as { userId?: string }).userId || "";
+        const ids = (req.query as { ids?: string }).ids || "";
+        const out: { id: string; name: string; icon: string | null; configured: boolean; canManage: boolean }[] = [];
+        for (const id of ids.split(",").filter(i => /^\d{17,20}$/.test(i)) ) {
+            const guild = Vaius.guilds.get(id);
+            if (!guild) continue;
+            const member = await guild.getMember(userId).catch(() => null);
+            if (!member) continue;
+            const perms = guild.ownerID === userId || member.permissions.has("MANAGE_GUILD");
+            out.push({
+                id: guild.id,
+                name: guild.name,
+                icon: guild.icon ?? null,
+                configured: !!getGuildConfig(guild.id),
+                canManage: perms,
+            });
+        }
+        return { guilds: out };
     });
 
     // OAuth configuration for the website's tokenless "Verify with Discord"
@@ -168,8 +297,9 @@ if (enabled) {
         if (!challengeSolved(`u:${userId}`))
             return res.code(403).send({ error: "challenge not solved" });
         clearChallenge(`u:${userId}`);
+        const guildId = (req.query as { guildId?: string }).guildId || Config.homeGuildId;
         try {
-            await grantVerifiedRole(userId);
+            await grantVerifiedRole(guildId, userId);
             return { ok: true };
         } catch (e: any) {
             console.error("[verify] failed to grant role (claim):", e);
@@ -214,8 +344,9 @@ if (enabled) {
                 return res.redirect(`${Config.verification.siteUrl}/verify?challenge=1&uid=${id}`);
             clearChallenge(`u:${id}`);
 
-            if (await isVerified(id)) return { ok: true, userId: id, alreadyVerified: true };
-            await grantVerifiedRole(id);
+            const guildId = (req.query as { guildId?: string }).guildId || Config.homeGuildId;
+            if (await isVerified(guildId, id)) return { ok: true, userId: id, alreadyVerified: true };
+            await grantVerifiedRole(guildId, id);
             // browsers land here directly — bounce to a friendly page instead
             // of showing raw JSON
             return res.redirect(`${Config.verification.siteUrl}/verify?done=1`);

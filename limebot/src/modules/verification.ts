@@ -6,9 +6,54 @@ import { Vaius } from "~/Client";
 import Config from "~/config";
 import { db } from "~/db";
 
-const { enabled, channelId, verifiedRoleId, siteUrl, clientId } = Config.verification;
+const { enabled: homeEnabled, channelId: homeChannelId, verifiedRoleId: homeVerifiedRoleId, siteUrl, clientId } = Config.verification;
 
 const MARKER = "-# [verification card]";
+
+// ---------------------------------------------------------------------------
+// Per-guild verification: any server the bot is in can enable verification
+// via the website setup page. Configs live in the verificationConfigs table;
+// the home guild is seeded from Config.verification.
+// ---------------------------------------------------------------------------
+
+export interface GuildVerifyConfig {
+    guildId: string;
+    channelId: string;
+    roleId: string;
+    rulesChannelId: string | null;
+    enabled: boolean;
+}
+
+const guildConfigs = new Map<string, GuildVerifyConfig>();
+const channelIndex = new Map<string, string>(); // channelId -> guildId
+
+export function getGuildConfig(guildId: string) {
+    return guildConfigs.get(guildId) ?? null;
+}
+
+export async function setGuildConfig(cfg: GuildVerifyConfig, createdBy: string) {
+    const prev = guildConfigs.get(cfg.guildId);
+    if (prev && prev.channelId !== cfg.channelId) channelIndex.delete(prev.channelId);
+    guildConfigs.set(cfg.guildId, cfg);
+    channelIndex.set(cfg.channelId, cfg.guildId);
+    await db.insertInto("verificationConfigs")
+        .values({
+            guildId: cfg.guildId,
+            channelId: cfg.channelId,
+            roleId: cfg.roleId,
+            rulesChannelId: cfg.rulesChannelId,
+            enabled: cfg.enabled ? 1 : 0,
+            createdBy,
+            createdAt: new Date().toISOString(),
+        })
+        .onConflict(oc => oc.column("guildId").doUpdateSet({
+            channelId: cfg.channelId,
+            roleId: cfg.roleId,
+            rulesChannelId: cfg.rulesChannelId,
+            enabled: cfg.enabled ? 1 : 0,
+        }))
+        .execute();
+}
 
 // ---------------------------------------------------------------------------
 // One-time verification tokens: the bot mints a token per user, the user
@@ -118,19 +163,19 @@ export function clearChallenge(token: string) {
     challenges.delete(token);
 }
 
-export async function mintToken(userId: string) {
+export async function mintToken(userId: string, guildId: string) {
     const token = randomBytes(24).toString("base64url");
     await db.insertInto("verificationTokens")
-        .values({ token, userId, used: 0, createdAt: new Date().toISOString() })
+        .values({ token, guildId, userId, used: 0, createdAt: new Date().toISOString() })
         .execute();
     return token;
 }
 
-export async function consumeToken(token: string) {
+export async function consumeToken(token: string): Promise<{ userId: string; guildId: string } | null> {
     const row = await db.selectFrom("verificationTokens")
         .where("token", "=", token)
         .where("used", "=", 0)
-        .select("userId")
+        .select(["userId", "guildId"])
         .executeTakeFirst();
     if (!row) return null;
 
@@ -139,25 +184,68 @@ export async function consumeToken(token: string) {
         .where("token", "=", token)
         .execute();
 
-    return row.userId;
+    return { userId: row.userId, guildId: row.guildId };
 }
 
 export async function getTokenInfo(token: string) {
     return db.selectFrom("verificationTokens")
         .where("token", "=", token)
-        .select(["userId", "used"])
+        .select(["userId", "guildId", "used"])
         .executeTakeFirst();
 }
 
-export async function isVerified(userId: string) {
-    const member = await Vaius.rest.guilds.getMember(Config.homeGuildId, userId).catch(() => null);
-    return !!member?.roles.includes(verifiedRoleId);
+export async function isVerified(guildId: string, userId: string) {
+    const cfg = getGuildConfig(guildId);
+    if (!cfg) return false;
+    const member = await Vaius.rest.guilds.getMember(guildId, userId).catch(() => null);
+    return !!member?.roles.includes(cfg.roleId);
 }
 
-export async function grantVerifiedRole(userId: string) {
-    const guild = Vaius.guilds.get(Config.homeGuildId);
-    if (!guild) throw new Error("home guild not cached");
-    await guild.addMemberRole(userId, verifiedRoleId, "Website verification");
+export async function grantVerifiedRole(guildId: string, userId: string) {
+    const cfg = getGuildConfig(guildId);
+    if (!cfg) throw new Error("no verification config for guild");
+    await Vaius.rest.guilds.addMemberRole(guildId, userId, cfg.roleId, "Website verification");
+}
+
+export async function disableGuildConfig(guildId: string) {
+    const prev = guildConfigs.get(guildId);
+    if (prev) {
+        channelIndex.delete(prev.channelId);
+        guildConfigs.delete(guildId);
+    }
+    await db.updateTable("verificationConfigs")
+        .set({ enabled: 0 })
+        .where("guildId", "=", guildId)
+        .execute();
+}
+
+async function loadGuildConfigs() {
+    const rows = await db.selectFrom("verificationConfigs").selectAll().execute();
+    for (const r of rows) {
+        if (!r.enabled) continue;
+        const cfg: GuildVerifyConfig = {
+            guildId: r.guildId,
+            channelId: r.channelId,
+            roleId: r.roleId,
+            rulesChannelId: r.rulesChannelId,
+            enabled: true,
+        };
+        guildConfigs.set(cfg.guildId, cfg);
+        channelIndex.set(cfg.channelId, cfg.guildId);
+    }
+    // seed the home guild from config if not present in the DB
+    if (homeEnabled && !guildConfigs.has(Config.homeGuildId)) {
+        const cfg: GuildVerifyConfig = {
+            guildId: Config.homeGuildId,
+            channelId: homeChannelId,
+            roleId: homeVerifiedRoleId,
+            rulesChannelId: null,
+            enabled: true,
+        };
+        guildConfigs.set(cfg.guildId, cfg);
+        channelIndex.set(cfg.channelId, cfg.guildId);
+    }
+    console.log(`[verify] loaded ${guildConfigs.size} guild config(s)`);
 }
 
 // ---------------------------------------------------------------------------
@@ -169,9 +257,12 @@ export async function grantVerifiedRole(userId: string) {
 // native in-client verification UI for Limey V1 users.
 // ---------------------------------------------------------------------------
 
-function buildVerificationMessage() {
+function buildVerificationMessage(cfg: GuildVerifyConfig) {
+    const rulesNote = cfg.rulesChannelId
+        ? `agree to the rules in <#${cfg.rulesChannelId}>`
+        : "agree to the server rules";
     return {
-        content: `${MARKER}\n# ✅ Verify to join the server\nWelcome to **Limey V1**! To unlock the server you need to verify that you're human.\n\n**Option 1 — Website:**\nClick **Verify on Website** below, log in with Discord, and you're in.\n\n**Option 2 — Limey V1 users:**\nIf you have the Limey V1 mod, click **Instant Verify** — no website needed. 🍋\n\n-# Verification proves you're human and agree to the rules in <#1553937108107006043>.`,
+        content: `${MARKER}\n# ✅ Verify to join the server\nWelcome! To unlock the server you need to verify that you're human.\n\n**Option 1 — Website:**\nClick **Verify on Website** below, log in with Discord, and you're in.\n\n**Option 2 — Limey V1 users:**\nIf you have the Limey V1 mod, click **Instant Verify** — no website needed. 🍋\n\n-# Verification proves you're human and ${rulesNote}.`,
         components: [
             {
                 type: 1,
@@ -197,27 +288,27 @@ function buildVerificationMessage() {
     };
 }
 
-async function ensureCard() {
-    const messages = await Vaius.rest.channels.getMessages(channelId, { limit: 50 });
+export async function ensureCard(cfg: GuildVerifyConfig) {
+    const messages = await Vaius.rest.channels.getMessages(cfg.channelId, { limit: 50 });
     const existing = messages.find(m => m.author.id === Vaius.user.id && m.content.includes(MARKER));
     if (existing && existing.id === messages[0].id) return;
 
     if (existing)
-        await Vaius.rest.channels.deleteMessage(channelId, existing.id).catch(() => null);
+        await Vaius.rest.channels.deleteMessage(cfg.channelId, existing.id).catch(() => null);
 
-    await Vaius.rest.channels.createMessage(channelId, buildVerificationMessage());
+    await Vaius.rest.channels.createMessage(cfg.channelId, buildVerificationMessage(cfg));
 }
 
-async function handleVerifyButton(interaction: import("oceanic.js").ComponentInteraction, instant: boolean) {
+async function handleVerifyButton(interaction: import("oceanic.js").ComponentInteraction, cfg: GuildVerifyConfig, instant: boolean) {
     // already verified? say so
-    if (await isVerified(interaction.user.id)) {
+    if (await isVerified(cfg.guildId, interaction.user.id)) {
         return void interaction.createMessage({
             content: "✅ You're already verified!",
             flags: 64
         });
     }
 
-    const token = await mintToken(interaction.user.id);
+    const token = await mintToken(interaction.user.id, cfg.guildId);
     const url = `${siteUrl}/verify?t=${token}`;
 
     if (instant) {
@@ -249,26 +340,31 @@ async function handleVerifyButton(interaction: import("oceanic.js").ComponentInt
 }
 
 export function initVerification() {
-    if (!enabled) {
+    if (guildConfigs.size === 0 && !homeEnabled) {
         console.log("[verify] disabled");
         return;
     }
 
-    // keep the channel read-only + the card fresh
+    void loadGuildConfigs();
+
+    // keep configured channels read-only + the card fresh
     Vaius.on("messageCreate", async (msg: Message) => {
         try {
-            if (msg.channelID !== channelId) return;
+            const guildId = channelIndex.get(msg.channelID);
+            if (!guildId) return;
+            const cfg = getGuildConfig(guildId);
+            if (!cfg) return;
             if (msg.author.bot || msg.webhookID) return;
 
-            await Vaius.rest.channels.editPermission(channelId, msg.guildID!, {
+            await Vaius.rest.channels.editPermission(msg.channelID, msg.guildID!, {
                 type: 0,
                 deny: String((1n << 11n) | (1n << 6n)), // SEND_MESSAGES | ADD_REACTIONS
                 allow: "0"
             }).catch(e => console.error("[verify] failed to set read-only:", e));
 
-            await Vaius.rest.channels.deleteMessage(channelId, msg.id, "Verification channel is read-only").catch(() => null);
+            await Vaius.rest.channels.deleteMessage(msg.channelID, msg.id, "Verification channel is read-only").catch(() => null);
 
-            await ensureCard();
+            await ensureCard(cfg);
         } catch (e) {
             console.error("[verify] error:", e);
         }
@@ -279,10 +375,16 @@ export function initVerification() {
         try {
             if (interaction.type !== 3 /* COMPONENT */) return;
             const data = (interaction as import("oceanic.js").ComponentInteraction).data;
-            if (data.customID === "verify:instant")
-                await handleVerifyButton(interaction as import("oceanic.js").ComponentInteraction, true);
-            else if (data.customID === "verify:website")
-                await handleVerifyButton(interaction as import("oceanic.js").ComponentInteraction, false);
+            if (data.customID !== "verify:instant" && data.customID !== "verify:website") return;
+            const ci = interaction as import("oceanic.js").ComponentInteraction;
+            const cfg = ci.guildID ? getGuildConfig(ci.guildID) : null;
+            if (!cfg) {
+                return void ci.createMessage({
+                    content: "⚠ Verification is not configured for this server. Set it up at " + siteUrl + "/verify-setup",
+                    flags: 64
+                });
+            }
+            await handleVerifyButton(ci, cfg, data.customID === "verify:instant");
         } catch (e) {
             console.error("[verify] interaction error:", e);
         }

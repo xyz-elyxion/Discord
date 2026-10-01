@@ -7,7 +7,7 @@ import { Button } from "@components/Button";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@components/Item";
 import { FluxDispatcher, OAuth2AuthorizeModal, openModal, UserStore, useState } from "@webpack/common";
 
-import { RULES_CHANNEL_ID } from "./shared";
+import { guildVerifyConfigs, RULES_CHANNEL_ID } from "./shared";
 
 // The bot application is the OAuth app (same client id as the bot itself).
 const CLIENT_ID = "1514929209158402078";
@@ -25,7 +25,10 @@ interface Challenge {
     question: string;
 }
 
-export function VerifyCard() {
+export function VerifyCard({ guildId }: { guildId?: string | null }) {
+    const cfg = guildId ? guildVerifyConfigs.get(guildId) : null;
+    const rulesChannel = cfg?.rulesChannelId || RULES_CHANNEL_ID;
+    const guildQuery = guildId ? `?guildId=${guildId}` : "";
     const [phase, setPhase] = useState<Phase>("idle");
     const [error, setError] = useState("");
     const [challenge, setChallenge] = useState<Challenge | null>(null);
@@ -41,7 +44,7 @@ export function VerifyCard() {
             return;
         }
         try {
-            const res = await fetch(`${API}/challenge/${userId}`, {
+            const res = await fetch(`${API}/challenge/${userId}${guildQuery}`, {
                 signal: AbortSignal.timeout(10_000),
             });
             const text = await res.text();
@@ -66,7 +69,7 @@ export function VerifyCard() {
     async function submitAnswer() {
         if (!userId || !answer.trim()) return;
         try {
-            const res = await fetch(`${API}/challenge/${userId}`, {
+            const res = await fetch(`${API}/challenge/${userId}${guildQuery}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ answer: answer.trim() }),
@@ -122,6 +125,7 @@ export function VerifyCard() {
                         const url = new URL(response.location);
                         url.searchParams.append("clientMod", "verify");
                         url.searchParams.set("state", "verify");
+                        if (guildId) url.searchParams.set("guild_id", guildId);
                         // Hard 15s timeout so a hung request can never leave the
                         // UI stuck on "Verifying…"
                         const res = await fetch(url, {
@@ -181,7 +185,7 @@ export function VerifyCard() {
                             <Button
                                 variant="secondary"
                                 size="small"
-                                onClick={() => FluxDispatcher.dispatch({ type: "CHANNEL_SELECT", channelId: RULES_CHANNEL_ID })}
+                                onClick={() => FluxDispatcher.dispatch({ type: "CHANNEL_SELECT", channelId: rulesChannel })}
                             >
                                 Read the Rules
                             </Button>
@@ -226,7 +230,7 @@ export function VerifyCard() {
                         <Button
                             variant="secondary"
                             size="small"
-                            onClick={() => FluxDispatcher.dispatch({ type: "CHANNEL_SELECT", channelId: RULES_CHANNEL_ID })}
+                            onClick={() => FluxDispatcher.dispatch({ type: "CHANNEL_SELECT", channelId: rulesChannel })}
                         >
                             Open
                         </Button>
