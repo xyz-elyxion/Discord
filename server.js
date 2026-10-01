@@ -263,6 +263,28 @@ const buildStatus = {
 const REBUILD_INTERVAL_MS = 24 * 60 * 60 * 1000; // daily rebuild
 const runningBuilds = new Set();
 
+// Stamp builds with the latest commit hash so clients' updaters can compare
+// versions. The runtime container has no .git (dockerignore), so resolve the
+// hash from the GitHub API instead; falls back to "unknown".
+const LIMEY_REPO = process.env.LIMEYV1_REPO || "xyz-elyxion/Discord";
+async function resolveBuildHash() {
+    if (process.env.LIMEYV1_HASH) return process.env.LIMEYV1_HASH;
+    try {
+        const res = await fetch(`https://api.github.com/repos/${LIMEY_REPO}/commits/main`, {
+            headers: { "User-Agent": "LimeyV1-Server", Accept: "application/vnd.github+json" },
+            signal: AbortSignal.timeout(10_000)
+        });
+        if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+        const sha = (await res.json()).sha;
+        process.env.LIMEYV1_HASH = sha.slice(0, 7);
+        console.log(`[build] resolved build hash from GitHub: ${process.env.LIMEYV1_HASH}`);
+    } catch (err) {
+        console.error("[build] could not resolve commit hash from GitHub:", err.message);
+        process.env.LIMEYV1_HASH = "unknown";
+    }
+    return process.env.LIMEYV1_HASH;
+}
+
 // The builds need devDependencies (esbuild, typescript, ...). If this is a
 // repo checkout without node_modules yet, install them in-process first.
 function ensureDeps(cb) {
@@ -312,7 +334,7 @@ function runBuild(key, name, nodeArgs) {
     });
 }
 
-function startBuildIfMissing() {
+async function startBuildIfMissing() {
     // Only possible when running from a repo checkout with source available.
     const hasSource = existsSync(join(ROOT, "scripts", "build", "buildWeb.mjs"));
     if (!hasSource) {
@@ -332,23 +354,28 @@ function startBuildIfMissing() {
 
     buildStatus.startedAt = new Date().toISOString();
 
-    const kick = () => {
+    const kick = async () => {
+        // Stamp builds with the latest commit hash for the clients' updaters
+        await resolveBuildHash();
+
         // Build whatever artifacts are missing right now.
         if (!existsSync(join(DIST, "browser.js")))
-            runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs"]); // browser extension + userscript
+            runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs", "--standalone"]); // browser extension + userscript
         if (!existsSync(join(DIST, "patcher.js")))
-            runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs"]); // Discord Desktop App bundles
+            runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs", "--standalone"]); // Discord Desktop App bundles
 
         // Daily rebuild so the artifacts track the latest source.
         setInterval(() => {
             if (runningBuilds.has("web") || runningBuilds.has("desktop")) return;
             console.log("[build] daily rebuild starting...");
-            runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs"]);
-            runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs"]);
+            resolveBuildHash().then(() => {
+                runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs", "--standalone"]);
+                runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs", "--standalone"]);
+            });
         }, REBUILD_INTERVAL_MS).unref();
     };
 
-    ensureDeps(kick);
+    ensureDeps(() => kick());
 }
 
 // Admin: force a rebuild of the bundles without restarting the server.
@@ -368,9 +395,10 @@ function handleBuild(req, res, url) {
             return json(res, 401, { error: "unauthorized" }), true;
         if (!existsSync(join(ROOT, "scripts", "build", "buildWeb.mjs")))
             return json(res, 503, { error: "no build source available" }), true;
-        ensureDeps(() => {
-            runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs"]);
-            runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs"]);
+        ensureDeps(async () => {
+            await resolveBuildHash();
+            runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs", "--standalone"]);
+            runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs", "--standalone"]);
         });
         return json(res, 202, { ok: true, message: "rebuild started" }), true;
     }
@@ -1700,7 +1728,7 @@ function startLimebot() {
     });
 }
 
-startBuildIfMissing();
+startBuildIfMissing().catch(err => console.error("[build] startup build failed:", err));
 startCloud();
     startLimebot();
 
