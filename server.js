@@ -267,8 +267,8 @@ const runningBuilds = new Set();
 // repo checkout without node_modules yet, install them in-process first.
 function ensureDeps(cb) {
     if (existsSync(join(ROOT, "node_modules", "esbuild"))) return cb();
-    console.log("[build] node_modules missing — running pnpm install...");
-    const child = spawn("pnpm", ["install", "--no-frozen-lockfile"], { cwd: ROOT, stdio: "inherit" });
+    console.log("[build] node_modules missing — running npm install...");
+    const child = spawn("npm", ["install", "--no-audit", "--no-fund"], { cwd: ROOT, stdio: "inherit" });
     child.on("error", err => {
         console.error("[build] failed to spawn pnpm install:", err.message);
         buildStatus.web.state = "failed";
@@ -285,12 +285,14 @@ function ensureDeps(cb) {
     });
 }
 
-function runBuild(key, name, args) {
+function runBuild(key, name, nodeArgs) {
     if (runningBuilds.has(key)) return;
     runningBuilds.add(key);
     buildStatus[key] = { state: "building", startedAt: new Date().toISOString() };
-    console.log(`[build] running pnpm ${name}...`);
-    const child = spawn("pnpm", args, { cwd: ROOT, stdio: "inherit" });
+    console.log(`[build] running ${name}...`);
+    // Spawn the build scripts with node directly — pnpm at runtime triggers a
+    // dependency auto-check that fails as a non-root user in the container.
+    const child = spawn(process.execPath, nodeArgs, { cwd: ROOT, stdio: "inherit" });
     child.on("error", err => {
         runningBuilds.delete(key);
         buildStatus[key] = { state: "failed", error: err.message, finishedAt: new Date().toISOString() };
@@ -305,8 +307,8 @@ function runBuild(key, name, args) {
             startedAt: buildStatus[key]?.startedAt,
             finishedAt: new Date().toISOString(),
         };
-        if (ok) console.log(`[build] pnpm ${name} finished`);
-        else console.error(`[build] pnpm ${name} exited with code ${code}`);
+        if (ok) console.log(`[build] ${name} finished`);
+        else console.error(`[build] ${name} exited with code ${code}`);
     });
 }
 
@@ -333,16 +335,16 @@ function startBuildIfMissing() {
     const kick = () => {
         // Build whatever artifacts are missing right now.
         if (!existsSync(join(DIST, "browser.js")))
-            runBuild("web", "buildWeb", ["buildWeb"]); // browser extension + userscript + zip
+            runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs"]); // browser extension + userscript
         if (!existsSync(join(DIST, "patcher.js")))
-            runBuild("desktop", "build", ["build"]); // Discord Desktop App bundles
+            runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs"]); // Discord Desktop App bundles
 
         // Daily rebuild so the artifacts track the latest source.
         setInterval(() => {
             if (runningBuilds.has("web") || runningBuilds.has("desktop")) return;
             console.log("[build] daily rebuild starting...");
-            runBuild("web", "buildWeb", ["buildWeb"]);
-            runBuild("desktop", "build", ["build"]);
+            runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs"]);
+            runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs"]);
         }, REBUILD_INTERVAL_MS).unref();
     };
 
@@ -367,8 +369,8 @@ function handleBuild(req, res, url) {
         if (!existsSync(join(ROOT, "scripts", "build", "buildWeb.mjs")))
             return json(res, 503, { error: "no build source available" }), true;
         ensureDeps(() => {
-            runBuild("web", "buildWeb", ["buildWeb"]);
-            runBuild("desktop", "build", ["build"]);
+            runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs"]);
+            runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs"]);
         });
         return json(res, 202, { ok: true, message: "rebuild started" }), true;
     }

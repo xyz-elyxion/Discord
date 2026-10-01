@@ -60,7 +60,8 @@ RUN pnpm install --frozen-lockfile
 # Copy the rest of the source. The bundles (browser extension, userscript,
 # Discord Desktop App) are built by the server at startup — `pnpm start` runs
 # scripts/prestart-build.mjs before server.js. dist/ is NOT copied into the
-# runtime image; the server produces it on first boot (see prestart-build.mjs).
+# runtime image; the server produces it on first boot (background build in
+# server.js, after the server starts listening).
 COPY . .
 # Stage fflate (used by server.js to package the extension zip in-process),
 # undici (used by server.js to validate the limebot proxy at startup) and pg
@@ -89,15 +90,15 @@ ENV HOST=0.0.0.0
 # store when REDIS_URI is set) and the limebot SQLite database.
 RUN mkdir -p /app/data /app/limebot/data && chown -R node:node /app/data /app/limebot/data
 
-# pnpm for the runtime self-build (`pnpm start` → prestart-build.mjs)
-RUN corepack enable
+# /app must be writable so the runtime build can write dist/ artifacts
+RUN chown -R node:node /app
 
 # Run as a non-root user
 USER node
 
 # Copy what the server needs, plus the build sources so it can compile the
-# bundles itself at startup (scripts/prestart-build.mjs via `pnpm start`).
-COPY --from=build --chown=node:node /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/server.js ./
+# bundles itself at startup (server.js background build after listening).
+COPY --from=build --chown=node:node /app/package.json /app/server.js ./
 COPY --from=build --chown=node:node /app/pgkv.js ./
 COPY --from=build --chown=node:node /app/reviewdb-backend.js ./
 COPY --from=build --chown=node:node /app/lime-economy-backend.js ./
@@ -129,4 +130,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s \
     CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
-CMD ["pnpm", "start"]
+CMD ["node", "server.js"]
