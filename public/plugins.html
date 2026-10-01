@@ -162,6 +162,12 @@
     <main class="container">
         <p id="status" class="loading">Loading plugins…</p>
         <div id="grid" class="plugins-grid hidden"></div>
+
+        <div id="communitySection" class="hidden" style="padding-bottom:72px">
+            <h2 style="color:var(--lime);margin:32px 0 4px">Community plugins</h2>
+            <p style="color:var(--text-dim);margin-bottom:20px">Plugins submitted by the community. <a href="/submit-plugin" style="color:var(--lime)">Submit your own →</a></p>
+            <div id="communityGrid" class="plugins-grid"></div>
+        </div>
     </main>
 
     <footer class="footer">
@@ -264,6 +270,52 @@
             status.textContent = `Failed to load the plugin list: ${err.message}`;
             status.className = "error";
         });
+
+        // Community plugins (approved submissions from /v1/plugins)
+        fetch("/v1/plugins/list.json").then(r => (r.ok ? r.json() : { plugins: [] })).then(({ plugins: community }) => {
+            if (!community || !community.length) return;
+            const section = document.getElementById("communitySection");
+            const cgrid = document.getElementById("communityGrid");
+            for (const p of community.sort((a, b) => a.name.localeCompare(b.name))) {
+                const card = document.createElement("div");
+                card.className = "plugin-card";
+
+                const h3 = document.createElement("h3");
+                h3.textContent = p.name;
+                card.appendChild(h3);
+
+                const desc = document.createElement("p");
+                desc.textContent = p.description;
+                card.appendChild(desc);
+
+                const meta = document.createElement("div");
+                meta.className = "plugin-meta";
+                for (const tag of (p.tags || [])) {
+                    const t = document.createElement("span");
+                    t.className = "tag";
+                    t.textContent = tag;
+                    meta.appendChild(t);
+                }
+                const author = document.createElement("span");
+                author.className = "badge";
+                author.textContent = "by " + (p.author?.name || "unknown");
+                meta.appendChild(author);
+                card.appendChild(meta);
+
+                if (p.sourceUrl) {
+                    const link = document.createElement("a");
+                    link.href = p.sourceUrl;
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                    link.textContent = "Source ↗";
+                    link.style.cssText = "color:var(--lime);font-size:0.85rem";
+                    card.appendChild(link);
+                }
+
+                cgrid.appendChild(card);
+            }
+            section.classList.remove("hidden");
+        }).catch(() => { /* store empty or unreachable — just skip the section */ });
     </script>
 </body>
 </html>

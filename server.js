@@ -346,6 +346,8 @@ async function hydrateKv() {
         if (detector) detectorData = JSON.parse(detector);
         const limeEconomyData = await kvGet("limey:lime-economy");
         if (limeEconomyData && limeEconomy) limeEconomy.hydrate(JSON.parse(limeEconomyData));
+        const pluginStoreData = await kvGet("limey:plugin-store");
+        if (pluginStoreData && pluginStore) pluginStore.hydrate(JSON.parse(pluginStoreData));
         if (reviewdbData && reviewdb) reviewdb.hydrate(JSON.parse(reviewdbData));
         if (badges) {
             try {
@@ -1062,6 +1064,18 @@ try {
 }
 
 // ------------------------------------------------------------------
+// Community Plugin Store backend — user-submitted plugins, mounted at /v1/plugins/*
+// ------------------------------------------------------------------
+let pluginStore;
+try {
+    pluginStore = require("./lime-pluginstore-backend");
+    if (typeof pluginStore.attachKv === "function") pluginStore.attachKv(kvSet, kvGet);
+    console.log("[pluginstore] backend loaded");
+} catch (err) {
+    console.error("[pluginstore] failed to load backend:", err.message);
+}
+
+// ------------------------------------------------------------------
 // User dashboard — Discord OAuth login + session API (public/dashboard.html)
 // Uses the shared OAuth callback (state=dashboard) and persists sessions
 // via the same PostgreSQL kv store as the rest of the site.
@@ -1434,6 +1448,7 @@ const NAMED_PAGES = {
     "/install": "install.html",
     "/limes": "limes.html",
     "/dashboard": "dashboard.html",
+    "/submit-plugin": "submit-plugin.html",
     "/404": "404.html",
 };
 
@@ -1512,6 +1527,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url === "/v1" || url.startsWith("/v1/")) {
+        // Community plugin store (handled in-process)
+        if (pluginStore && url.startsWith("/v1/plugins/") && await pluginStore.handle(req, res, url)) return;
         // Admin API for the AI token pool (handled in-process)
         if (await handleAdmin(req, res, url)) return;
         if (await handleStatus(req, res, url)) return;

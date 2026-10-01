@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit a Plugin — Limey V1</title>
+    <meta name="description" content="Submit your own plugin to the Limey V1 community plugin store.">
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .submit-header {
+            padding: 64px 0 32px;
+            text-align: center;
+            background: radial-gradient(ellipse 60% 50% at 50% -10%, rgba(255, 255, 255, 0.06), transparent), var(--bg);
+        }
+        .submit-header h1 { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 12px; }
+        .submit-header .lede { margin-bottom: 0; }
+
+        .submit-card {
+            max-width: 640px;
+            margin: 0 auto 72px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+        .field input, .field textarea {
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .field textarea { resize: vertical; min-height: 90px; }
+        .field input:focus, .field textarea:focus { border-color: var(--lime); }
+        .field .hint { font-size: 0.78rem; color: var(--text-dim); }
+        .checkbox-row { display: flex; gap: 20px; flex-wrap: wrap; }
+        .checkbox-row label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.9rem; color: var(--text);
+            text-transform: none; letter-spacing: 0;
+        }
+        .checkbox-row input { width: 16px; height: 16px; accent-color: var(--lime); }
+        .submit-btn {
+            align-self: flex-start;
+            padding: 12px 28px;
+            border-radius: 10px;
+            border: none;
+            background: var(--lime);
+            color: #1a1a1a;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter 0.15s;
+        }
+        .submit-btn:hover { filter: brightness(1.1); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .msg { font-size: 0.9rem; min-height: 1.2em; }
+        .msg.ok { color: var(--lime); }
+        .msg.err { color: #ff6b6b; }
+        .msg ul { margin: 6px 0 0 18px; padding: 0; }
+        .login-note {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+        .login-note a { color: var(--lime); }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <a href="/plugins/">Plugins</a>
+                <a href="/usrbg.html">USRBG</a>
+                <a href="/download">Install</a>
+                <a href="/limes">Limes</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="submit-header">
+        <div class="container">
+            <p class="eyebrow">Community plugin store</p>
+            <h1>Share your <span class="accent">plugin</span>.</h1>
+            <p class="lede">Submit a plugin and it'll show up in the Plugins page once approved by the team.</p>
+        </div>
+    </section>
+
+    <main class="container">
+        <form class="submit-card" id="form">
+            <div class="field">
+                <label for="name">Plugin name</label>
+                <input id="name" name="name" type="text" maxlength="64" required placeholder="MyCoolPlugin">
+            </div>
+            <div class="field">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" maxlength="400" required placeholder="What does your plugin do?"></textarea>
+            </div>
+            <div class="field">
+                <label for="sourceUrl">Source URL</label>
+                <input id="sourceUrl" name="sourceUrl" type="url" maxlength="300" required placeholder="https://github.com/you/my-plugin">
+                <span class="hint">Must be a public GitHub or GitLab repository so we can review the code.</span>
+            </div>
+            <div class="field">
+                <label for="tags">Tags (comma separated, up to 5)</label>
+                <input id="tags" name="tags" type="text" maxlength="150" placeholder="Fun, Utility, Chat">
+            </div>
+            <div class="field">
+                <label for="authorName">Your name</label>
+                <input id="authorName" name="authorName" type="text" maxlength="48" required placeholder="Your display name">
+            </div>
+            <div class="field">
+                <label for="authorId">Your Discord user ID</label>
+                <input id="authorId" name="authorId" type="text" inputmode="numeric" maxlength="20" required placeholder="123456789012345678">
+                <span class="hint">Enable Developer Mode in Discord, then right-click your name → Copy User ID.</span>
+            </div>
+            <div class="checkbox-row">
+                <label><input type="checkbox" id="hasPatches" name="hasPatches"> Has patches</label>
+                <label><input type="checkbox" id="hasCommands" name="hasCommands"> Has slash commands</label>
+            </div>
+            <button class="submit-btn" type="submit" id="submitBtn">Submit plugin</button>
+            <p class="msg" id="msg"></p>
+            <p class="login-note">Submissions are reviewed manually. Abuse of this form will get your Discord ID blacklisted.</p>
+        </form>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Limey V1 — GPL-3.0 &middot; <a href="/">Back to home</a></p>
+            <p class="fine">Discord is a trademark of Discord Inc. This project is not affiliated with or endorsed by Discord Inc.</p>
+        </div>
+    </footer>
+
+    <script>
+        const form = document.getElementById("form");
+        const msg = document.getElementById("msg");
+        const btn = document.getElementById("submitBtn");
+
+        form.addEventListener("submit", async e => {
+            e.preventDefault();
+            msg.className = "msg";
+            msg.textContent = "";
+            btn.disabled = true;
+
+            const tags = document.getElementById("tags").value
+                .split(",").map(t => t.trim()).filter(Boolean).slice(0, 5);
+
+            const payload = {
+                name: document.getElementById("name").value.trim(),
+                description: document.getElementById("description").value.trim(),
+                sourceUrl: document.getElementById("sourceUrl").value.trim(),
+                tags,
+                authorName: document.getElementById("authorName").value.trim(),
+                authorId: document.getElementById("authorId").value.trim(),
+                hasPatches: document.getElementById("hasPatches").checked,
+                hasCommands: document.getElementById("hasCommands").checked
+            };
+
+            try {
+                const res = await fetch("/v1/plugins/submit", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    msg.className = "msg ok";
+                    msg.textContent = data.message || "Submitted!";
+                    form.reset();
+                } else {
+                    msg.className = "msg err";
+                    if (Array.isArray(data.errors) && data.errors.length) {
+                        const ul = document.createElement("ul");
+                        for (const err of data.errors) {
+                            const li = document.createElement("li");
+                            li.textContent = err;
+                            ul.appendChild(li);
+                        }
+                        msg.textContent = "";
+                        msg.appendChild(ul);
+                    } else {
+                        msg.textContent = data.error || `Failed (${res.status}).`;
+                    }
+                }
+            } catch (err) {
+                msg.className = "msg err";
+                msg.textContent = `Network error: ${err.message}`;
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
