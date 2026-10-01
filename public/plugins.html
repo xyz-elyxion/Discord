@@ -312,6 +312,14 @@
                     card.appendChild(link);
                 }
 
+                if (p.hasFiles) {
+                    const codeLink = document.createElement("a");
+                    codeLink.href = `/v1/plugins/${p.id}/code`;
+                    codeLink.textContent = "View code ⬇";
+                    codeLink.style.cssText = "color:var(--lime);font-size:0.85rem;margin-left:12px";
+                    card.appendChild(codeLink);
+                }
+
                 cgrid.appendChild(card);
             }
             section.classList.remove("hidden");

@@ -82,8 +82,9 @@ function slugify(name) {
 }
 
 function publicPlugin(p) {
-    // everything except internal fields
-    const { submittedBy, ...rest } = p;
+    // everything except internal fields; never ship the code itself in the list
+    const { submittedBy, files, ...rest } = p;
+    if (files && typeof files === "object" && Object.keys(files).length) rest.hasFiles = true;
     return rest;
 }
 
@@ -231,6 +232,17 @@ async function handle(req, res, url) {
         saveStore();
         console.log(`[pluginstore] submitted: ${id} by ${value.author.name} (${value.author.id})`);
         return send(res, 201, { ok: true, id, message: "Submitted! It will appear in the store once an admin approves it." }), true;
+    }
+
+    // GET /v1/plugins/:id/code — attached workshop files for an approved plugin
+    const codeMatch = url.match(/^\/v1\/plugins\/([a-z0-9-]+)\/code$/);
+    if (method === "GET" && codeMatch) {
+        const plugin = store.approved[codeMatch[1]];
+        if (!plugin) return send(res, 404, { error: "No approved plugin with that id." }), true;
+        if (!plugin.files || !Object.keys(plugin.files).length) {
+            return send(res, 404, { error: "This plugin has no attached code (check its source URL instead)." }), true;
+        }
+        return send(res, 200, { id: plugin.id, name: plugin.name, files: plugin.files }), true;
     }
 
     // POST /v1/plugins/:id/approve | /reject | /delete — admin actions
