@@ -1050,6 +1050,7 @@ function startCloud() {
             PORT: String(CLOUD_PORT),
             REDIS_URI: normalizeRedisUri(process.env.REDIS_URI) || "127.0.0.1:6379",
             ROOT_REDIRECT: process.env.ROOT_REDIRECT || "https://limey-discord.onrender.com",
+            DISCORD_REDIRECT_URI: process.env.DISCORD_REDIRECT_URI || "https://limey-discord.onrender.com/v1/oauth/callback",
             PEPPER_SETTINGS: process.env.PEPPER_SETTINGS || "limeycloud-settings-pepper",
             PEPPER_SECRETS: process.env.PEPPER_SECRETS || "limeycloud-secrets-pepper",
             SIZE_LIMIT: process.env.SIZE_LIMIT || "100000",

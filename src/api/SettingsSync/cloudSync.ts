@@ -11,7 +11,7 @@ import { Logger } from "@utils/Logger";
 import { relaunch } from "@utils/native";
 import { deflateSync, inflateSync } from "fflate";
 
-import { checkCloudUrlCsp, deauthorizeCloud, getCloudAuth, getCloudUrl } from "./cloudSetup";
+import { authorizeCloud, checkCloudUrlCsp, deauthorizeCloud, getCloudAuth, getCloudUrl } from "./cloudSetup";
 import { exportSettings, importSettings } from "./offline";
 
 const logger = new Logger("SettingsSync:Cloud", "#39b7e0");
@@ -30,6 +30,19 @@ export function shouldCloudSync(direction: "push" | "pull") {
     return localDirection === direction || localDirection === "both";
 }
 
+/**
+ * The cloud backend no longer recognises our stored secret (kv was reset or
+ * migrated, peppers changed, …). Drop the stale secret so the next sync
+ * attempt (or the Enable Cloud Integrations toggle) re-runs authorization,
+ * and pop up the OAuth modal right away.
+ */
+async function handleAuthExpired() {
+    logger.warn("Cloud authorization is no longer valid — clearing stored secret and re-authorising");
+    await deauthorizeCloud();
+    Settings.cloud.authenticated = false;
+    await authorizeCloud();
+}
+
 export async function putCloudSettings(manual?: boolean) {
     const settings = await exportSettings({ minify: true });
 
@@ -46,6 +59,10 @@ export async function putCloudSettings(manual?: boolean) {
         });
 
         if (!res.ok) {
+            if (res.status === 401) {
+                await handleAuthExpired();
+                return;
+            }
             logger.error(`Failed to sync up, API returned ${res.status}`);
             showNotification({
                 title: "Cloud Settings",
@@ -116,6 +133,10 @@ export async function getCloudSettings(shouldNotify = true, force = false) {
         }
 
         if (!res.ok) {
+            if (res.status === 401) {
+                await handleAuthExpired();
+                return false;
+            }
             logger.error(`Failed to sync down, API returned ${res.status}`);
             showNotification({
                 title: "Cloud Settings",
@@ -183,6 +204,10 @@ export async function deleteCloudSettings() {
         });
 
         if (!res.ok) {
+            if (res.status === 401) {
+                await handleAuthExpired();
+                return;
+            }
             logger.error(`Failed to delete, API returned ${res.status}`);
             showNotification({
                 title: "Cloud Settings",
