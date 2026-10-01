@@ -307,6 +307,15 @@ function ensureDeps(cb) {
     });
 }
 
+// Build jobs run sequentially — esbuild needs several hundred MB and the
+// site has to keep serving within the instance's memory limit.
+async function runBuildQueued(key, name, nodeArgs) {
+    while (runningBuilds.has("web") || runningBuilds.has("desktop")) {
+        await new Promise(r => setTimeout(r, 2000));
+    }
+    runBuild(key, name, nodeArgs);
+}
+
 function runBuild(key, name, nodeArgs) {
     if (runningBuilds.has(key)) return;
     runningBuilds.add(key);
@@ -314,7 +323,8 @@ function runBuild(key, name, nodeArgs) {
     console.log(`[build] running ${name}...`);
     // Spawn the build scripts with node directly — pnpm at runtime triggers a
     // dependency auto-check that fails as a non-root user in the container.
-    const child = spawn(process.execPath, nodeArgs, { cwd: ROOT, stdio: "inherit" });
+    // Heap is capped so esbuild + the server stay inside small memory limits.
+    const child = spawn(process.execPath, ["--max-old-space-size=256", ...nodeArgs], { cwd: ROOT, stdio: "inherit" });
     child.on("error", err => {
         runningBuilds.delete(key);
         buildStatus[key] = { state: "failed", error: err.message, finishedAt: new Date().toISOString() };
@@ -358,19 +368,18 @@ async function startBuildIfMissing() {
         // Stamp builds with the latest commit hash for the clients' updaters
         await resolveBuildHash();
 
-        // Build whatever artifacts are missing right now.
-        if (!existsSync(join(DIST, "browser.js")))
-            runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs", "--standalone"]); // browser extension + userscript
-        if (!existsSync(join(DIST, "patcher.js")))
-            runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs", "--standalone"]); // Discord Desktop App bundles
+        // Build whatever artifacts are missing right now, sequentially to
+        // stay within the instance memory limit.
+        await runBuildQueued("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs", "--standalone"]); // browser extension + userscript
+        await runBuildQueued("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs", "--standalone"]); // Discord Desktop App bundles
 
         // Daily rebuild so the artifacts track the latest source.
         setInterval(() => {
             if (runningBuilds.has("web") || runningBuilds.has("desktop")) return;
             console.log("[build] daily rebuild starting...");
-            resolveBuildHash().then(() => {
-                runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs", "--standalone"]);
-                runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs", "--standalone"]);
+            resolveBuildHash().then(async () => {
+                await runBuildQueued("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs", "--standalone"]);
+                await runBuildQueued("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs", "--standalone"]);
             });
         }, REBUILD_INTERVAL_MS).unref();
     };
@@ -397,8 +406,8 @@ function handleBuild(req, res, url) {
             return json(res, 503, { error: "no build source available" }), true;
         ensureDeps(async () => {
             await resolveBuildHash();
-            runBuild("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs", "--standalone"]);
-            runBuild("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs", "--standalone"]);
+            await runBuildQueued("web", "buildWeb", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/buildWeb.mjs", "--standalone"]);
+            await runBuildQueued("desktop", "build", ["--require=./scripts/suppressExperimentalWarnings.js", "scripts/build/build.mjs", "--standalone"]);
         });
         return json(res, 202, { ok: true, message: "rebuild started" }), true;
     }
