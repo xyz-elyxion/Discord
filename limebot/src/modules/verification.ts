@@ -17,6 +17,107 @@ const MARKER = "-# [verification card]";
 // success the bot grants the verified role.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Built-in human challenge (no external captcha keys): every verification
+// token gets a short multi-round challenge generated server-side. The website
+// fetches the current question via GET /v1/verify/token/:t and submits
+// answers via POST { answer }. Once all rounds are solved, the POST returns a
+// one-time { proof } that must be sent back with { proof } to consume the
+// token and grant the role. A minimum solve time defeats instant scripting.
+// ---------------------------------------------------------------------------
+
+const CHALLENGE_ROUNDS = 3;
+const MIN_SOLVE_MS = 3000;
+
+interface ChallengeRound { q: string; a: string[]; hint?: string; }
+interface ChallengeState { rounds: ChallengeRound[]; round: number; createdAt: number; solved: boolean; }
+
+const challenges = new Map<string, ChallengeState>();
+
+const WORDS = ["lime", "lemon", "citrus", "discord", "verify", "human", "mod", "server"];
+const ANIMALS = ["cat", "dog", "rabbit", "hamster", "parrot"];
+const TOOLS = ["hammer", "screwdriver", "wrench", "pliers"];
+
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function makeRound(): ChallengeRound {
+    switch (Math.floor(Math.random() * 4)) {
+        case 0: {
+            const a = 2 + Math.floor(Math.random() * 20);
+            const b = 2 + Math.floor(Math.random() * 20);
+            const mul = Math.random() < 0.5;
+            return mul
+                ? { q: `What is ${a} × ${b}?`, a: [String(a * b)] }
+                : { q: `What is ${a} + ${b}?`, a: [String(a + b)] };
+        }
+        case 1: {
+            const w = pick(WORDS);
+            return { q: `Type the word "${w}" backwards.`, a: [[...w].reverse().join("")] };
+        }
+        case 2: {
+            const fruit = pick(ANIMALS);
+            const decoy = pick(TOOLS);
+            const options = [[fruit, decoy], [decoy, fruit]][Math.floor(Math.random() * 2)];
+            return { q: `Which of these is an animal: "${options[0]}" or "${options[1]}"? (type the word)`, a: [fruit] };
+        }
+        default: {
+            const w = pick(WORDS);
+            const letter = w[Math.floor(Math.random() * w.length)];
+            const n = [...w].filter(c => c === letter).length;
+            return { q: `How many times does the letter "${letter}" appear in "${w}"?`, a: [String(n)] };
+        }
+    }
+}
+
+function normalize(s: string) {
+    return String(s).trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function getChallenge(token: string): ChallengeState {
+    let st = challenges.get(token);
+    if (!st) {
+        st = { rounds: Array.from({ length: CHALLENGE_ROUNDS }, makeRound), round: 0, createdAt: Date.now(), solved: false };
+        challenges.set(token, st);
+        // opportunistic cleanup of stale challenges (10 min)
+        if (challenges.size > 500)
+            for (const [k, v] of challenges) if (Date.now() - v.createdAt > 10 * 60_000) challenges.delete(k);
+    }
+    return st;
+}
+
+export function currentChallenge(token: string) {
+    const st = getChallenge(token);
+    if (st.solved || !st.rounds[st.round]) return { round: CHALLENGE_ROUNDS, total: CHALLENGE_ROUNDS, question: null, solved: true };
+    return { round: st.round + 1, total: CHALLENGE_ROUNDS, question: st.rounds[st.round].q, solved: false };
+}
+
+/** Returns { done, proof? } when solved, or the next question. */
+export function submitAnswer(token: string, answer: string) {
+    const st = getChallenge(token);
+    const current = st.rounds[st.round];
+    if (!current.a.some(a => normalize(a) === normalize(answer))) {
+        // wrong answer: start over
+        st.round = 0;
+        st.createdAt = Date.now();
+        return { done: false, restart: true, ...currentChallenge(token) };
+    }
+    st.round++;
+    if (st.round < CHALLENGE_ROUNDS) return { done: false, restart: false, ...currentChallenge(token) };
+    st.solved = true;
+    return { done: true, restart: false, round: CHALLENGE_ROUNDS, total: CHALLENGE_ROUNDS, question: null, solved: true };
+}
+
+/** A token may only be consumed once its challenge has been fully solved,
+ *  with a minimum elapsed time to defeat instant scripting. */
+export function challengeSolved(token: string) {
+    const st = challenges.get(token);
+    return !!st && st.solved && Date.now() - st.createdAt >= MIN_SOLVE_MS;
+}
+
+export function clearChallenge(token: string) {
+    challenges.delete(token);
+}
+
 export async function mintToken(userId: string) {
     const token = randomBytes(24).toString("base64url");
     await db.insertInto("verificationTokens")

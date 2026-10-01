@@ -58,6 +58,35 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         .fine { font-size: 0.8rem; margin-top: 20px; }
+        .challenge-box {
+            margin: 20px 0;
+            text-align: left;
+        }
+        .challenge-q {
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .challenge-meta {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 10px;
+        }
+        .challenge-row {
+            display: flex;
+            gap: 8px;
+        }
+        .challenge-row input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 10px 14px;
+            font-size: 1rem;
+            outline: none;
+        }
+        .challenge-row input:focus { border-color: var(--lime); }
+        .challenge-err { color: #f04747; font-size: 0.85rem; margin-top: 8px; min-height: 1.2em; }
     </style>
 </head>
 <body>
@@ -81,7 +110,7 @@
         <div class="verify-card">
             <div class="logo">🍋</div>
             <h1>Verify your account</h1>
-            <p id="intro">Confirm that you're human to unlock the Limey V1 server.</p>
+            <p id="intro">Complete a quick human challenge to unlock the Limey V1 server.</p>
             <div id="status" class="verify-status busy"></div>
             <div id="actions"></div>
             <p class="fine">Verifying grants you the verified role and agrees you'll follow the <a href="/rules.html">community rules</a>.</p>
@@ -119,7 +148,11 @@
         setStatus("Verifying you…", "busy");
         statusEl.innerHTML = '<span class="spinner"></span>Verifying you…';
         try {
-            const res = await fetch(API_BASE + "/v1/verify/token/" + encodeURIComponent(t), { method: "POST" });
+            const res = await fetch(API_BASE + "/v1/verify/token/" + encodeURIComponent(t), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ proof: t })
+            });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.ok) {
                 setStatus("✅ You're verified! You can head back to Discord — your role has been granted.", "ok");
@@ -129,11 +162,65 @@
                 setStatus("❌ This link was already used or has expired.", "err");
                 introEl.textContent = "Ask the bot in the verification channel for a fresh link.";
                 actionsEl.innerHTML = '<a class="btn-lime" href="https://discord.com/channels/1550709562267672607/1554636290211971092">Back to #rules</a>';
+            } else if (res.status === 403 || res.status === 429) {
+                setStatus("❌ " + (data.error || "Challenge not solved. Reload the page and try again."), "err");
             } else {
                 setStatus("❌ " + (data.error || "Verification failed. Try again from Discord."), "err");
             }
         } catch (e) {
             setStatus("❌ Could not reach the verification service. Please try again shortly.", "err");
+        }
+    }
+
+    function challengeUI(t, ch) {
+        statusEl.className = "verify-status busy";
+        statusEl.textContent = "Prove you're human — short challenge (" + ch.round + " of " + ch.total + "):";
+        actionsEl.innerHTML =
+            '<div class="challenge-box">' +
+                '<div class="challenge-q"></div>' +
+                '<div class="challenge-row">' +
+                    '<input id="answer" type="text" autocomplete="off" spellcheck="false" placeholder="Your answer">' +
+                    '<button class="btn-lime" id="submit">Check</button>' +
+                '</div>' +
+                '<div class="challenge-err" id="cerr"></div>' +
+                '<div class="challenge-meta">Solve all ' + ch.total + ' quick questions to verify. Wrong answers restart the challenge.</div>' +
+            '</div>';
+        actionsEl.querySelector(".challenge-q").textContent = ch.question;
+        const input = document.getElementById("answer");
+        input.focus();
+        const submit = () => sendAnswer(t, input.value.trim());
+        document.getElementById("submit").onclick = submit;
+        input.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+    }
+
+    async function sendAnswer(t, answer) {
+        if (!answer) return;
+        const errEl = document.getElementById("cerr");
+        errEl.textContent = "";
+        document.getElementById("submit").disabled = true;
+        try {
+            const res = await fetch(API_BASE + "/v1/verify/token/" + encodeURIComponent(t), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ answer })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.solved) {
+                document.getElementById("submit").disabled = false;
+                await redeem(t);
+                return;
+            }
+            if (res.ok && data.challenge) {
+                document.getElementById("submit").disabled = false;
+                if (data.restart) errEl.textContent = "Wrong answer — starting over.";
+                challengeUI(t, data.challenge);
+                return;
+            }
+            document.getElementById("submit").disabled = false;
+            errEl.textContent = data.error || "Something went wrong. Try again.";
+        } catch (e) {
+            document.getElementById("submit").disabled = false;
+            errEl.textContent = "Could not reach the verification service.";
         }
     }
 
@@ -150,10 +237,16 @@
                 setStatus("❌ This link was already used. Request a new one from the bot.", "err");
                 return;
             }
-            // valid — show confirm button (prevents accidental role grants from link previews)
-            setStatus("Link valid — one click to go.", "busy");
-            actionsEl.innerHTML = '<button class="btn-lime" id="confirm">Verify Now</button>';
-            document.getElementById("confirm").onclick = () => redeem(t);
+            if (data.challenge && data.challenge.solved) {
+                // challenge already completed earlier — go straight to redeem
+                await redeem(t);
+                return;
+            }
+            if (data.challenge) {
+                challengeUI(t, data.challenge);
+                return;
+            }
+            setStatus("❌ Verification service did not send a challenge. Try again.", "err");
         } catch (e) {
             setStatus("❌ Could not reach the verification service.", "err");
         }

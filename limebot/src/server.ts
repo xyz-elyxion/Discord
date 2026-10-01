@@ -5,7 +5,7 @@ import Config from "./config";
 import { PROD } from "./constants";
 import { getGitRemote } from "./util/git";
 import { makeLazy } from "./util/lazy";
-import { consumeToken, getTokenInfo, grantVerifiedRole, isVerified, mintToken } from "./modules/verification";
+import { challengeSolved, clearChallenge, consumeToken, currentChallenge, getTokenInfo, grantVerifiedRole, isVerified, mintToken, submitAnswer } from "./modules/verification";
 
 const { enabled, port } = Config.httpServer;
 
@@ -48,29 +48,51 @@ if (enabled) {
         return res.code(204).send();
     });
 
-    // token status — used by the website page to show who it's for
+    // token status + current challenge question — used by the website page
     fastify.get("/v1/verify/token/:token", async (req, res) => {
         verifyCors(req, res);
         const { token } = req.params as { token: string };
         const info = await getTokenInfo(token);
         if (!info) return res.code(404).send({ error: "invalid token" });
-        return { userId: info.userId, used: !!info.used };
+        return { userId: info.userId, used: !!info.used, challenge: currentChallenge(token) };
     });
 
-    // consume token → grant role
+    // submit a challenge answer or the final proof, then consume token → grant role
     fastify.post("/v1/verify/token/:token", async (req, res) => {
         verifyCors(req, res);
         const { token } = req.params as { token: string };
-        const userId = await consumeToken(token);
-        if (!userId) return res.code(410).send({ error: "token already used or invalid" });
+        const body = (req.body ?? {}) as { answer?: string; proof?: string };
 
-        try {
-            await grantVerifiedRole(userId);
-            return { ok: true, userId };
-        } catch (e: any) {
-            console.error("[verify] failed to grant role:", e);
-            return res.code(500).send({ error: "failed to grant role" });
+        const info = await getTokenInfo(token);
+        if (!info) return res.code(404).send({ error: "invalid token" });
+        if (info.used) return res.code(410).send({ error: "token already used or invalid" });
+
+        // step 1..N: answering challenge rounds
+        if (typeof body.answer === "string" && !body.proof) {
+            const result = submitAnswer(token, body.answer);
+            if (!result.done)
+                return { ok: false, restart: result.restart, challenge: { round: result.round, total: result.total, question: result.question } };
+            return { ok: true, solved: true };
         }
+
+        // final step: consume token and grant role (requires the challenge to
+        // have been solved; proof = the token itself, only sent after solving)
+        if (typeof body.proof === "string" && body.proof === token) {
+            if (!challengeSolved(token))
+                return res.code(403).send({ error: "challenge not solved — answer the questions first" });
+            clearChallenge(token);
+            const userId = await consumeToken(token);
+            if (!userId) return res.code(410).send({ error: "token already used or invalid" });
+            try {
+                await grantVerifiedRole(userId);
+                return { ok: true, userId };
+            } catch (e: any) {
+                console.error("[verify] failed to grant role:", e);
+                return res.code(500).send({ error: "failed to grant role" });
+            }
+        }
+
+        return res.code(400).send({ error: "missing answer or proof" });
     });
 
     // OAuth fast-track: bot already authenticated the user in-client via
