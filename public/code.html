@@ -198,6 +198,8 @@
         // (in Limey V1 the native stub does it; here we wire it to our workspace).
         window.getCurrentCss = async () => activeFile()?.content ?? "";
         window.setCss = css => { if (activeFile()) { activeFile().content = css; scheduleSave(); } };
+        // Monaco reads the host theme; always use the dark theme on the site.
+        window.getTheme = () => "vs-dark";
 
         const LS_KEY = "limey-workshop-v1";
         const BOILER = {
