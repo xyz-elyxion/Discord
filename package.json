@@ -15,7 +15,7 @@
     "author": "Limey",
     "main": "server.js",
     "scripts": {
-        "start": "node --require=./scripts/suppressExperimentalWarnings.js scripts/prestart-build.mjs && node server.js",
+        "start": "node server.js",
         "build": "node --require=./scripts/suppressExperimentalWarnings.js scripts/build/build.mjs",
         "buildStandalone": "pnpm build --standalone",
         "buildWeb": "node --require=./scripts/suppressExperimentalWarnings.js scripts/build/buildWeb.mjs && node scripts/zipExtension.mjs",

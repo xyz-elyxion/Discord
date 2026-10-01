@@ -57,12 +57,13 @@ COPY packages/discord-types/package.json packages/discord-types/package.json
 COPY packages/limeyV1-types/package.json packages/limeyV1-types/package.json
 RUN pnpm install --frozen-lockfile
 
-# Copy the rest of the source. The bundles (browser extension, userscript,
-# Discord Desktop App) are built by the server at startup — `pnpm start` runs
-# scripts/prestart-build.mjs before server.js. dist/ is NOT copied into the
-# runtime image; the server produces it on first boot (background build in
-# server.js, after the server starts listening).
+# Copy the rest of the source and build the web bundle (userscript + browser.js).
+# No git needed: the build falls back to the production remote when git is absent.
 COPY . .
+RUN pnpm buildWeb
+# Build the Discord Desktop App artifacts (patcher/renderer/preload) so the
+# runtime server can serve /v1/install/desktop as built without compiling.
+RUN pnpm build
 # Stage fflate (used by server.js to package the extension zip in-process),
 # undici (used by server.js to validate the limebot proxy at startup) and pg
 # (PostgreSQL kv persistence). pnpm hoists only direct deps to the top level,
@@ -90,27 +91,19 @@ ENV HOST=0.0.0.0
 # store when REDIS_URI is set) and the limebot SQLite database.
 RUN mkdir -p /app/data /app/limebot/data && chown -R node:node /app/data /app/limebot/data
 
-# /app must be writable so the runtime build can write dist/ artifacts
-RUN chown -R node:node /app
-
 # Run as a non-root user
 USER node
 
-# Copy what the server needs, plus the build sources so it can compile the
-# bundles itself at startup (server.js background build after listening).
+# Copy only what the server needs
 COPY --from=build --chown=node:node /app/package.json /app/server.js ./
 COPY --from=build --chown=node:node /app/pgkv.js ./
 COPY --from=build --chown=node:node /app/reviewdb-backend.js ./
 COPY --from=build --chown=node:node /app/lime-economy-backend.js ./
-# Full dependencies (incl. devDeps like esbuild/typescript) needed to build.
-COPY --from=build --chown=node:node /app/node_modules ./node_modules
-COPY --from=build --chown=node:node /app/patches ./patches
-COPY --from=build --chown=node:node /app/packages ./packages
-COPY --from=build --chown=node:node /app/scripts ./scripts
-COPY --from=build --chown=node:node /app/src ./src
-COPY --from=build --chown=node:node /app/browser ./browser
+COPY --from=build --chown=node:node /app/runtime_deps/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/public ./public
-COPY --from=build --chown=node:node /app/tsconfig.json ./
+COPY --from=build --chown=node:node /app/dist ./dist
+# Full browser/ extension shell so the server can package the install zip itself
+COPY --from=build --chown=node:node /app/browser ./browser
 COPY --from=cloud --chown=node:node /cloud/limeycloud-backend ./cloud/limeycloud-backend
 COPY --from=installer --chown=node:node /LimeyV1Installer.exe ./dist/LimeyV1Installer.exe
 COPY --from=installer --chown=node:node /LimeyV1Installer-cli-win.exe ./dist/LimeyV1Installer-cli-win.exe
