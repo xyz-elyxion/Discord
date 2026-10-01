@@ -132,6 +132,7 @@
                 <label><input type="checkbox" id="hasPatches" name="hasPatches"> Has patches</label>
                 <label><input type="checkbox" id="hasCommands" name="hasCommands"> Has slash commands</label>
             </div>
+            <p class="hint" id="attachNote" style="display:none"></p>
             <button class="submit-btn" type="submit" id="submitBtn">Submit plugin</button>
             <p class="msg" id="msg"></p>
             <p class="login-note">Submissions are reviewed manually. Abuse of this form will get your Discord ID blacklisted.</p>
@@ -150,6 +151,19 @@
         const msg = document.getElementById("msg");
         const btn = document.getElementById("submitBtn");
 
+        // Handoff from the /code workshop: prefill name + attach project files
+        let stash = null;
+        try { stash = JSON.parse(sessionStorage.getItem("limey-publish-payload") || "null"); } catch { stash = null; }
+        if (stash && typeof stash === "object") {
+            if (stash.name) document.getElementById("name").value = String(stash.name).slice(0, 64);
+            const note = document.getElementById("attachNote");
+            const fileNames = stash.files && typeof stash.files === "object" ? Object.keys(stash.files) : [];
+            if (fileNames.length) {
+                note.style.display = "";
+                note.textContent = "✅ Code attached from the workshop: " + fileNames.join(", ") + " — it will be included with your submission.";
+            }
+        }
+        function clearStash() { try { sessionStorage.removeItem("limey-publish-payload"); } catch { /* ignore */ } }
         form.addEventListener("submit", async e => {
             e.preventDefault();
             msg.className = "msg";
@@ -169,6 +183,9 @@
                 hasPatches: document.getElementById("hasPatches").checked,
                 hasCommands: document.getElementById("hasCommands").checked
             };
+            if (stash && stash.files && typeof stash.files === "object" && Object.keys(stash.files).length) {
+                payload.files = stash.files;
+            }
 
             try {
                 const res = await fetch("/v1/plugins/submit", {
@@ -181,6 +198,9 @@
                     msg.className = "msg ok";
                     msg.textContent = data.message || "Submitted!";
                     form.reset();
+                    stash = null;
+                    clearStash();
+                    document.getElementById("attachNote").style.display = "none";
                 } else {
                     msg.className = "msg err";
                     if (Array.isArray(data.errors) && data.errors.length) {

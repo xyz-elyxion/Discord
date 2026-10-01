@@ -23,6 +23,9 @@ const ADMIN_TOKEN = process.env.PLUGINSTORE_ADMIN_TOKEN || process.env.USRBG_ADM
 const MAX_PENDING_PER_USER = 3;
 // Hard caps so the store can't be flooded
 const MAX_STRING = { name: 64, description: 400, tag: 24, url: 300, author: 48 };
+// Optional source-code attachment from the /code workshop: map of filename -> content
+const MAX_CODE_BYTES = 100 * 1024; // 100KB total across all files
+const MAX_CODE_FILES = 10;
 
 let kvSet = () => { };
 let kvGet = async () => null;
@@ -101,6 +104,21 @@ function validateSubmission(body) {
     const hasCommands = !!body.hasCommands;
     const hasPatches = !!body.hasPatches;
 
+    // Optional code attachment (from the /code workshop). JSON: { "plugin.js": "...", "theme.css": "..." }
+    let files = null;
+    if (body.files && typeof body.files === "object" && !Array.isArray(body.files)) {
+        const entries = Object.entries(body.files)
+            .filter(([fname, fcontent]) => typeof fname === "string" && fname && typeof fcontent === "string" && fcontent.length)
+            .slice(0, MAX_CODE_FILES)
+            .map(([fname, fcontent]) => [fname.slice(0, 64), fcontent]);
+        const totalBytes = entries.reduce((n, [, c]) => n + Buffer.byteLength(c, "utf8"), 0);
+        if (totalBytes > MAX_CODE_BYTES) {
+            errors.push("Attached code is too large (100KB max total).");
+        } else {
+            files = Object.fromEntries(entries);
+        }
+    }
+
     if (!name || name.length < 3) errors.push("Plugin name must be at least 3 characters.");
     if (!description || description.length < 10) errors.push("Description must be at least 10 characters.");
     if (!/^https:\/\/(github\.com|gitlab\.com|git\.)\/?/i.test(sourceUrl)) errors.push("Source URL must be a https:// github.com or gitlab.com link.");
@@ -117,6 +135,7 @@ function validateSubmission(body) {
             hasCommands,
             hasPatches,
             author: { name: authorName, id: authorId },
+            ...(files ? { files } : {}),
             submittedBy: authorId
         }
     };

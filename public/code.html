@@ -404,6 +404,16 @@ export default definePlugin({
             scheduleSave();
         });
         document.getElementById("publishBtn").addEventListener("click", () => {
+            const p = activeProject();
+            if (p) {
+                // Stash the project so /submit-plugin can prefill and attach the code.
+                try {
+                    sessionStorage.setItem("limey-publish-payload", JSON.stringify({
+                        name: p.name || "",
+                        files: { ...p.files }
+                    }));
+                } catch { /* storage full or unavailable — still navigate */ }
+            }
             location.href = "/submit-plugin";
         });
 
