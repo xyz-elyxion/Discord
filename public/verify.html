@@ -340,6 +340,7 @@
         }
     }
 
+    (async () => {
     if (token) {
         checkToken(token);
     } else if (params.get("done") === "1") {
@@ -368,6 +369,7 @@
             '<p class="fine"><a href="https://discord.com/channels/1550709562267672607/1554636290211971092">Or go to #verification</a></p>';
         document.getElementById("discord-verify").onclick = startDiscordVerify;
     }
+    })();
 </script>
 </body>
 </html>
