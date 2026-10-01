@@ -3,43 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code — Limey V1</title>
-    <meta name="description" content="Write and test CSS themes in your browser with the Limey V1 code editor.">
+    <title>Workshop — Limey V1</title>
+    <meta name="description" content="Build your own Limey V1 extensions right in your browser.">
     <link rel="icon" href="/browser/icon.png" type="image/png">
     <link rel="stylesheet" href="/style.css">
     <style>
-        .code-header {
-            padding: 48px 0 24px;
+        .ws-header {
+            padding: 44px 0 20px;
             text-align: center;
             background: radial-gradient(ellipse 60% 50% at 50% -10%, rgba(255, 255, 255, 0.06), transparent), var(--bg);
         }
-        .code-header h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin-bottom: 10px; }
-        .code-header .lede { margin-bottom: 0; }
+        .ws-header h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin-bottom: 10px; }
+        .ws-header .lede { margin-bottom: 0; }
 
-        .editor-shell {
-            max-width: 1100px;
+        .ws-shell {
+            max-width: 1200px;
             margin: 0 auto 72px;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 16px;
             overflow: hidden;
         }
-        .editor-bar {
+        .ws-topbar {
             display: flex;
             gap: 10px;
             align-items: center;
-            padding: 12px 16px;
+            padding: 10px 16px;
             border-bottom: 1px solid var(--border);
             flex-wrap: wrap;
         }
-        .editor-bar .status {
+        .ws-topbar .proj-name {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 7px 12px;
+            font-size: 0.9rem;
+            width: 220px;
+            outline: none;
+        }
+        .ws-topbar .proj-name:focus { border-color: var(--lime); }
+        .ws-topbar .status {
             margin-left: auto;
             font-size: 0.8rem;
             color: var(--text-dim);
         }
-        .editor-bar .status.saved { color: var(--lime); }
+        .ws-topbar .status.saved { color: var(--lime); }
         .btn {
-            padding: 8px 16px;
+            padding: 8px 14px;
             border-radius: 8px;
             border: 1px solid var(--border);
             background: transparent;
@@ -51,23 +62,69 @@
         .btn:hover { border-color: var(--lime); color: var(--lime); }
         .btn.primary { background: var(--lime); border-color: var(--lime); color: #1a1a1a; font-weight: 600; }
         .btn.primary:hover { filter: brightness(1.1); color: #1a1a1a; }
-        #container {
-            height: 560px;
+        .btn.danger:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
+        .ws-body { display: flex; min-height: 620px; }
+        .sidebar {
+            width: 230px;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+        }
+        .sidebar .side-head {
+            padding: 12px 14px 6px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-dim);
+        }
+        .file-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            color: var(--text);
+            cursor: pointer;
+            user-select: none;
+        }
+        .file-item:hover { background: var(--surface); }
+        .file-item.active { background: var(--surface); color: var(--lime); }
+        .file-item .del {
+            margin-left: auto;
+            opacity: 0.4;
+            font-size: 0.8rem;
+            border: none;
+            background: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 2px 4px;
+        }
+        .file-item .del:hover { opacity: 1; color: #ff6b6b; }
+        .sidebar .side-actions { padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+        .sidebar .side-actions .btn { flex: 1; font-size: 0.78rem; padding: 7px 8px; }
+
+        .editor-pane { flex: 1; position: relative; background: #1e1e1e; }
+        #container { position: absolute; inset: 0; }
+        #loading {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-dim);
             background: #1e1e1e;
         }
-        .editor-note {
+        .ws-note {
             padding: 10px 16px;
             font-size: 0.78rem;
             color: var(--text-dim);
             border-top: 1px solid var(--border);
         }
-        .editor-note code { color: var(--lime); }
-        #loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 560px;
-            color: var(--text-dim);
+        .ws-note a { color: var(--lime); }
+        @media (max-width: 720px) {
+            .ws-body { flex-direction: column; }
+            .sidebar { width: 100%; max-height: 180px; border-right: none; border-bottom: 1px solid var(--border); }
         }
     </style>
 </head>
@@ -81,7 +138,7 @@
             <nav class="nav-links">
                 <a href="/">Home</a>
                 <a href="/plugins/">Plugins</a>
-                <a href="/code" aria-current="page">Code</a>
+                <a href="/code" aria-current="page">Workshop</a>
                 <a href="/usrbg.html">USRBG</a>
                 <a href="/download">Install</a>
                 <a href="/limes">Limes</a>
@@ -89,28 +146,42 @@
         </div>
     </header>
 
-    <section class="code-header">
+    <section class="ws-header">
         <div class="container">
-            <p class="eyebrow">Browser code editor</p>
-            <h1>Code <span class="accent">right here</span>.</h1>
-            <p class="lede">A full Monaco editor in your browser. Write CSS themes, then copy them into Limey V1's QuickCSS.</p>
+            <p class="eyebrow">Extension workshop</p>
+            <h1>Build extensions <span class="accent">right here</span>.</h1>
+            <p class="lede">Like GitHub, but for Limey V1 plugins — create projects, write JS &amp; CSS in Monaco, download, and publish to the community store.</p>
         </div>
     </section>
 
     <main class="container">
-        <div class="editor-shell">
-            <div class="editor-bar">
-                <button class="btn primary" id="saveBtn">Save</button>
-                <button class="btn" id="copyBtn">Copy</button>
-                <button class="btn" id="downloadBtn">Download .css</button>
-                <button class="btn" id="resetBtn">Reset</button>
-                <span class="status" id="status">Loading editor…</span>
+        <div class="ws-shell">
+            <div class="ws-topbar">
+                <input class="proj-name" id="projName" placeholder="Project name" maxlength="48">
+                <button class="btn primary" id="newProjBtn">+ New project</button>
+                <button class="btn" id="publishBtn">Publish to store</button>
+                <span class="status" id="status">Loading…</span>
             </div>
-            <div id="loading">Loading editor…</div>
-            <div id="container" style="display:none"></div>
-            <div class="editor-note">
-                Your code is saved locally in this browser (<code>localStorage</code>). Paste it into
-                <strong>Settings → QuickCSS</strong> in Limey V1 to apply it to Discord.
+            <div class="ws-body">
+                <aside class="sidebar">
+                    <div class="side-head">Projects</div>
+                    <div class="file-list" id="projList"></div>
+                    <div class="side-head">Files</div>
+                    <div class="file-list" id="fileList"></div>
+                    <div class="side-actions">
+                        <button class="btn" id="addJsBtn">+ .js</button>
+                        <button class="btn" id="addCssBtn">+ .css</button>
+                    </div>
+                </aside>
+                <div class="editor-pane">
+                    <div id="loading">Loading editor…</div>
+                    <div id="container"></div>
+                </div>
+            </div>
+            <div class="ws-note">
+                Everything is stored locally in this browser. Download your files to keep them safe, then
+                <a href="/submit-plugin">publish</a> to share with everyone. Plugin boilerplate:
+                <code>export default definePlugin({ name, description, authors, patches, start() {} })</code>
             </div>
         </div>
     </main>
@@ -123,61 +194,242 @@
     </footer>
 
     <script>
-        const DEFAULT_CODE = `/* Limey V1 — QuickCSS playground
-   Write your CSS here, then copy it into
-   Settings -> QuickCSS in Limey V1. */
+        // The Monaco bundle expects the extension host to provide these globals
+        // (in Limey V1 the native stub does it; here we wire it to our workspace).
+        window.getCurrentCss = async () => activeFile()?.content ?? "";
+        window.setCss = css => { if (activeFile()) { activeFile().content = css; scheduleSave(); } };
 
+        const LS_KEY = "limey-workshop-v1";
+        const BOILER = {
+            "plugin.js": `/* My Limey V1 plugin — edit me! */
+export default definePlugin({
+    name: "MyPlugin",
+    description: "Does something cool.",
+    authors: [{ name: "you", id: "0n" }],
+    start() {
+        console.log("Hello from my plugin!");
+    },
+    stop() { }
+});`,
+            "theme.css": `/* My Limey V1 theme — edit me! */
 :root {
     --my-accent: #9ee850;
 }
+`
+        };
 
-/* example: tint the chat background */
-[class*="chatContent"] {
-    background: rgba(158, 232, 80, 0.03) !important;
-}
-`;
-        const STORAGE_KEY = "limey-code-editor";
-        const container = document.getElementById("container");
-        const loading = document.getElementById("loading");
-        const statusEl = document.getElementById("status");
-        let editor = null;
+        // { projects: { id: { name, files: { "file.js": "content" }, activeFile, updatedAt } }, activeProject }
+        let ws = { projects: {}, activeProject: null };
+        try {
+            const saved = JSON.parse(localStorage.getItem(LS_KEY));
+            if (saved && saved.projects && typeof saved.projects === "object") ws = saved;
+        } catch { }
 
-        function setStatus(text, ok) {
-            statusEl.textContent = text;
-            statusEl.className = "status" + (ok ? " saved" : "");
+        function persist() { localStorage.setItem(LS_KEY, JSON.stringify(ws)); }
+
+        let saveTimer;
+        function scheduleSave() {
+            clearTimeout(saveTimer);
+            setStatus("Unsaved changes", false);
+            saveTimer = setTimeout(() => { persist(); setStatus("Saved ✓", true); }, 600);
         }
 
-        let pendingInit = 0;
-        function tryInit() {
-            if (typeof monaco === "undefined") {
-                if (++pendingInit > 100) {
-                    setStatus("Failed to load the editor (monaco bundle missing).", false);
-                    return;
-                }
-                setTimeout(tryInit, 100);
+        function uid() { return Math.random().toString(36).slice(2, 10); }
+        function activeProject() { return ws.activeProject ? ws.projects[ws.activeProject] : null; }
+        function activeFile() {
+            const p = activeProject();
+            return p ? { name: p.activeFile, content: p.files[p.activeFile] ?? "" } : null;
+        }
+        function setStatus(t, ok) {
+            const s = document.getElementById("status");
+            s.textContent = t;
+            s.className = "status" + (ok ? " saved" : "");
+        }
+
+        // ---------- UI ----------
+        const projList = document.getElementById("projList");
+        const fileList = document.getElementById("fileList");
+        const projName = document.getElementById("projName");
+        let editor = null;
+        let suppressModelEvents = false;
+
+        function renderProjects() {
+            projList.innerHTML = "";
+            for (const [id, p] of Object.entries(ws.projects).sort((a, b) => (b[1].updatedAt || "").localeCompare(a[1].updatedAt || ""))) {
+                const el = document.createElement("div");
+                el.className = "file-item" + (id === ws.activeProject ? " active" : "");
+                el.textContent = p.name || "untitled";
+                const del = document.createElement("button");
+                del.className = "del";
+                del.textContent = "✕";
+                del.title = "Delete project";
+                del.addEventListener("click", e => {
+                    e.stopPropagation();
+                    if (!confirm(`Delete project "${p.name}"? This cannot be undone.`)) return;
+                    delete ws.projects[id];
+                    if (ws.activeProject === id) ws.activeProject = Object.keys(ws.projects)[0] || null;
+                    persist(); renderProjects(); loadActiveFile();
+                });
+                el.appendChild(del);
+                el.addEventListener("click", () => {
+                    ws.activeProject = id;
+                    persist(); renderProjects(); loadActiveFile();
+                });
+                projList.appendChild(el);
+            }
+        }
+
+        function renderFiles() {
+            const p = activeProject();
+            fileList.innerHTML = "";
+            if (!p) return;
+            for (const name of Object.keys(p.files).sort()) {
+                const el = document.createElement("div");
+                el.className = "file-item" + (name === p.activeFile ? " active" : "");
+                el.textContent = name;
+                const del = document.createElement("button");
+                del.className = "del";
+                del.textContent = "✕";
+                del.title = "Delete file";
+                del.addEventListener("click", e => {
+                    e.stopPropagation();
+                    if (!confirm(`Delete ${name}?`)) return;
+                    delete p.files[name];
+                    if (p.activeFile === name) p.activeFile = Object.keys(p.files)[0] || null;
+                    persist(); renderFiles(); loadActiveFile();
+                });
+                el.appendChild(del);
+                el.addEventListener("click", () => {
+                    p.activeFile = name;
+                    persist(); renderFiles(); loadActiveFile();
+                });
+                fileList.appendChild(el);
+            }
+        }
+
+        function langFor(name) { return name.endsWith(".css") ? "css" : "javascript"; }
+
+        function loadActiveFile() {
+            const f = activeFile();
+            projName.value = activeProject()?.name || "";
+            if (!f) {
+                editor && editor.setModel(null);
                 return;
             }
-            loading.style.display = "none";
-            container.style.display = "block";
-            editor = monaco.editor.create(container, {
-                value: localStorage.getItem(STORAGE_KEY) ?? DEFAULT_CODE,
-                language: "css",
-                theme: "vs-dark",
-                minimap: { enabled: false },
-                fontSize: 14,
-                automaticLayout: true,
-                tabSize: 4
+            const model = monaco.editor.createModel(f.content, langFor(f.name));
+            suppressModelEvents = true;
+            if (!editor) {
+                editor = monaco.editor.create(document.getElementById("container"), {
+                    model,
+                    theme: "vs-dark",
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    automaticLayout: true,
+                    tabSize: 4
+                });
+            } else {
+                editor.setModel(model);
+            }
+            suppressModelEvents = false;
+            model.onDidChangeContent(() => {
+                if (suppressModelEvents) return;
+                activeProject().files[f.name] = model.getValue();
+                scheduleSave();
             });
-            let t;
-            editor.onDidChangeModelContent(() => {
-                clearTimeout(t);
-                setStatus("Unsaved changes", false);
-                t = setTimeout(() => {
-                    localStorage.setItem(STORAGE_KEY, editor.getValue());
-                    setStatus("Saved locally ✓", true);
-                }, 600);
-            });
-            setStatus("Ready", true);
+            setStatus("Loaded " + f.name, true);
+        }
+
+        function newProject() {
+            const name = prompt("Project name:", "My Extension");
+            if (name === null) return;
+            const id = uid();
+            ws.projects[id] = {
+                name: (name || "untitled").slice(0, 48),
+                files: { ...BOILER },
+                activeFile: "plugin.js",
+                updatedAt: new Date().toISOString()
+            };
+            ws.activeProject = id;
+            persist(); renderProjects(); renderFiles(); loadActiveFile();
+        }
+
+        function addFile(ext) {
+            const p = activeProject();
+            if (!p) return setStatus("Create a project first.", false);
+            let base = ext === "css" ? "theme" : "plugin";
+            let name = base + "." + ext, i = 2;
+            while (p.files[name]) name = `${base}${i++}.${ext}`;
+            p.files[name] = "";
+            p.activeFile = name;
+            persist(); renderFiles(); loadActiveFile();
+        }
+
+        function downloadActive() {
+            const f = activeFile();
+            if (!f) return setStatus("Nothing to download.", false);
+            const blob = new Blob([f.content], { type: "text/plain" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = f.name;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        function downloadProject() {
+            const p = activeProject();
+            if (!p) return;
+            const parts = Object.entries(p.files).map(([name, content]) =>
+                `/* ===== ${name} ===== */\n${content}`).join("\n\n");
+            const blob = new Blob([parts], { type: "text/plain" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = (p.name.replace(/\s+/g, "-").toLowerCase() || "limey-extension") + ".txt";
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        // ---------- Buttons ----------
+        document.getElementById("newProjBtn").addEventListener("click", newProject);
+        document.getElementById("addJsBtn").addEventListener("click", () => addFile("js"));
+        document.getElementById("addCssBtn").addEventListener("click", () => addFile("css"));
+        projName.addEventListener("input", () => {
+            const p = activeProject();
+            if (!p) return;
+            p.name = projName.value.slice(0, 48);
+            p.updatedAt = new Date().toISOString();
+            scheduleSave();
+        });
+        document.getElementById("publishBtn").addEventListener("click", () => {
+            location.href = "/submit-plugin";
+        });
+
+        // Download buttons live in the topbar too? Keep keyboard shortcut: Ctrl+S downloads project.
+        document.addEventListener("keydown", e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); downloadProject(); }
+        });
+
+        // ---------- Monaco ----------
+        let tries = 0;
+        function tryInit() {
+            if (typeof monaco === "undefined") {
+                if (++tries > 100) return setStatus("Failed to load the editor bundle.", false);
+                return setTimeout(tryInit, 100);
+            }
+            document.getElementById("loading").style.display = "none";
+            if (!Object.keys(ws.projects).length) {
+                const id = uid();
+                ws.projects[id] = {
+                    name: "My Extension",
+                    files: { ...BOILER },
+                    activeFile: "plugin.js",
+                    updatedAt: new Date().toISOString()
+                };
+                ws.activeProject = id;
+                persist();
+            }
+            renderProjects();
+            renderFiles();
+            loadActiveFile();
         }
 
         const script = document.createElement("script");
@@ -190,36 +442,6 @@
         cssLink.rel = "stylesheet";
         cssLink.href = "/vendor/monaco/index.css";
         document.head.appendChild(cssLink);
-
-        document.getElementById("saveBtn").addEventListener("click", () => {
-            if (!editor) return;
-            localStorage.setItem(STORAGE_KEY, editor.getValue());
-            setStatus("Saved locally ✓", true);
-        });
-        document.getElementById("copyBtn").addEventListener("click", async e => {
-            if (!editor) return;
-            try {
-                await navigator.clipboard.writeText(editor.getValue());
-                e.target.textContent = "Copied!";
-                setTimeout(() => (e.target.textContent = "Copy"), 1200);
-            } catch { setStatus("Clipboard blocked — use Download instead.", false); }
-        });
-        document.getElementById("downloadBtn").addEventListener("click", () => {
-            if (!editor) return;
-            const blob = new Blob([editor.getValue()], { type: "text/css" });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "limey-theme.css";
-            a.click();
-            URL.revokeObjectURL(a.href);
-        });
-        document.getElementById("resetBtn").addEventListener("click", () => {
-            if (!editor) return;
-            if (!confirm("Reset the editor to the starter code? Your saved copy will be replaced.")) return;
-            editor.setValue(DEFAULT_CODE);
-            localStorage.setItem(STORAGE_KEY, DEFAULT_CODE);
-            setStatus("Reset ✓", true);
-        });
     </script>
 </body>
 </html>
