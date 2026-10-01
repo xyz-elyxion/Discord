@@ -41,7 +41,9 @@ export function VerifyCard() {
             const res = await fetch(`${API_BASE}/v1/verify/challenge/${userId}`, {
                 signal: AbortSignal.timeout(10_000),
             });
-            const data = await res.json();
+            const text = await res.text();
+            let data: any;
+            try { data = JSON.parse(text); } catch { throw new Error(`verification service unavailable (${res.status})`); }
             if (!res.ok || !data.challenge) throw new Error(data.error ?? "failed to load challenge");
             if (data.challenge.solved) {
                 startOAuth();
@@ -67,7 +69,8 @@ export function VerifyCard() {
                 body: JSON.stringify({ answer: answer.trim() }),
                 signal: AbortSignal.timeout(10_000),
             });
-            const data = await res.json();
+            let data: any;
+            try { data = await res.json(); } catch { throw new Error(`verification service unavailable (${res.status})`); }
             if (res.ok && data.solved) {
                 startOAuth();
                 return;
@@ -122,7 +125,7 @@ export function VerifyCard() {
                             headers: { Accept: "application/json" },
                             signal: AbortSignal.timeout(15_000)
                         });
-                        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? "authorization failed");
+                        if (!res.ok) throw new Error(`authorization failed (${res.status})`);
                         const data = await res.json();
                         if (!data.ok) throw new Error(data.error ?? "verification failed");
                         setPhase("done");

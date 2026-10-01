@@ -1406,6 +1406,13 @@ function startLimebot() {
     child.on("error", err => console.error("[limebot] failed to start:", err.message));
     child.on("exit", code => {
         if (code !== null) console.error(`[limebot] exited with code ${code}`);
+        // Respawn with backoff so a crash doesn't disable verification until
+        // the next deploy.
+        if (!startLimebot.stopping) {
+            startLimebot.backoff = Math.min((startLimebot.backoff || 1000) * 2, 30000);
+            console.error(`[limebot] restarting in ${startLimebot.backoff}ms`);
+            setTimeout(startLimebot, startLimebot.backoff);
+        }
     });
 }    startBuildIfMissing();
     startCloud();
