@@ -1,6 +1,6 @@
 /*
  * Limey V1, a modification for Discord's desktop app
- * Copyright (c) 2023 Limey and contributors
+ * Copyright (c) 2026 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ function closeFolders() {
         FolderUtils.toggleGuildFolderExpand(id);
 }
 
-// Nuckyz: Unsure if this should be a general utility or not
+// Unsure if this should be a general utility or not
 function filterTreeWithTargetNode(children: any, predicate: (node: any) => boolean) {
     if (children == null) {
         return false;
@@ -150,7 +150,7 @@ export default definePlugin({
         }
     ],
     description: "Shows server folders on dedicated sidebar and adds folder related improvements",
-    authors: [Devs.juby, Devs.AutumnVN, Devs.Nuckyz],
+    authors: [Devs.juby, Devs.AutumnVN],
     tags: ["Organisation", "Servers", "Appearance"],
     settings,
 

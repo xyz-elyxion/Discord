@@ -50,7 +50,7 @@ export default definePlugin({
         risk: "Minimal - it only removes outbound tracking traffic."
     }],
     description: "Disable Discord's tracking (analytics/'science'), metrics and Sentry crash reporting",
-    authors: [Devs.Cyn, Devs.Ven, Devs.Nuckyz, Devs.Arrow],
+    authors: [Devs.Cyn, Devs.Ven, Devs.Arrow],
     required: true,
 
     settings,

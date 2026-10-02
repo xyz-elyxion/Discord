@@ -115,7 +115,7 @@ export default definePlugin({
         }
     ],
     description: "Disables annoying console messages/errors",
-    authors: [Devs.Nuckyz, Devs.sadan],
+    authors: [Devs.sadan],
     tags: ["Developers", "Console", "Utility"],
     settings,
 

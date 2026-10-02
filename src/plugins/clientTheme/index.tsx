@@ -1,6 +1,6 @@
 /*
  * Limey V1, a Discord client mod
- * Copyright (c) 2023 Limey and contributors
+ * Copyright (c) 2026 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -35,7 +35,7 @@ export default definePlugin({
             risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
         }
     ],
-    authors: [Devs.Nuckyz],
+    authors: [Devs.Limey],
     description: "Recreation of the old client theme experiment. Add a color to your Discord client theme",
     tags: ["Appearance", "Customisation"],
     settings,

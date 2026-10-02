@@ -1,6 +1,6 @@
 /*
  * Limey V1, a Discord client mod
- * Copyright (c) 2023 Limey and contributors
+ * Copyright (c) 2026 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -38,7 +38,7 @@ export default definePlugin({
     ],
     description: "Allows you to view info about a server",
     tags: ["Servers", "Utility"],
-    authors: [Devs.Ven, Devs.Nuckyz],
+    authors: [Devs.Ven],
     dependencies: ["DynamicImageModalAPI"],
     searchTerms: ["guild", "info", "ServerProfile"],
 

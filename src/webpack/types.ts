@@ -1,6 +1,6 @@
 /*
  * Limey V1, a Discord client mod
- * Copyright (c) 2025 Limey, Nuckyz and contributors
+ * Copyright (c) 2025 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 

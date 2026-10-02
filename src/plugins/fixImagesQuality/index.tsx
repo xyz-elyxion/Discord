@@ -33,7 +33,7 @@ export default definePlugin({
     ],
     description: "Improves quality of images by loading them at their original resolution",
     tags: ["Media", "Appearance"],
-    authors: [Devs.Nuckyz, Devs.Ven],
+    authors: [Devs.Ven],
     settings,
 
     patches: [

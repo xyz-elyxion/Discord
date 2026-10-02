@@ -216,7 +216,7 @@ export default definePlugin({
             risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
         }
     ],
-    authors: [Devs.Ven, Devs.TheKodeToad, Devs.Nuckyz, Devs.nyx],
+    authors: [Devs.Ven, Devs.TheKodeToad, Devs.nyx],
     description: "Makes avatars and banners in user profiles clickable, adds View Icon/Banner/Avatar Decoration entries in the user, server and group channel context menu.",
     tags: ["Media", "Servers", "Appearance"],
     searchTerms: ["ImageUtilities"],

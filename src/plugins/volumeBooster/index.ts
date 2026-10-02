@@ -57,7 +57,7 @@ export default definePlugin({
             risk: "Requests are made with your session; destinations see your IP address."
         }
     ],
-    authors: [Devs.Nuckyz, Devs.sadan],
+    authors: [Devs.sadan],
     description: "Allows you to set the user and stream volume above the default maximum",
     tags: ["Voice", "Utility"],
     settings,

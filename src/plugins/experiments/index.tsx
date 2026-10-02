@@ -49,7 +49,6 @@ export default definePlugin({
         Devs.Ven,
         Devs.Nickyux,
         Devs.BanTheNons,
-        Devs.Nuckyz,
     ],
 
     patches: [

@@ -1,6 +1,6 @@
 /*
  * Limey V1, a modification for Discord's desktop app
- * Copyright (c) 2023 Limey and contributors
+ * Copyright (c) 2026 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ export default definePlugin({
     ],
     description: "Shows an indicator when a user is in a Voice Channel",
     tags: ["Voice", "Appearance", "Friends"],
-    authors: [Devs.Nuckyz, Devs.LordElias],
+    authors: [Devs.LordElias],
     dependencies: ["MemberListDecoratorsAPI", "MessageDecorationsAPI"],
     settings,
 

@@ -52,7 +52,7 @@ export default definePlugin({
     ],
     description: "Attempt to navigate to the channel you were in before switching accounts or loading Discord.",
     tags: ["Utility", "Organisation"],
-    authors: [Devs.Nuckyz],
+    authors: [Devs.Limey],
 
     patches: [
         {

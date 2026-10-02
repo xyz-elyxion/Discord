@@ -1,6 +1,6 @@
 /*
  * Limey V1, a modification for Discord's desktop app
- * Copyright (c) 2023 Limey and contributors
+ * Copyright (c) 2026 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ export default definePlugin({
             risk: "Your outgoing message content is processed by this plugin before it reaches Discord."
         }
     ],
-    authors: [Devs.Nuckyz, Devs.CatNoir],
+    authors: [Devs.CatNoir],
     description: "Adds a button to the chat bar to toggle sending a silent message.",
     tags: ["Chat", "Utility"],
     settings,

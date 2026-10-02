@@ -1,6 +1,6 @@
 /*
  * Limey V1, a modification for Discord's desktop app
- * Copyright (c) 2023 Limey and contributors
+ * Copyright (c) 2026 Limey and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -166,7 +166,7 @@ export default definePlugin({
     ],
     description: "Adds a button next to the mic and deafen button to toggle game activity. Right click it to toggle Spotify activity.",
     tags: ["Activity", "Shortcuts"],
-    authors: [Devs.Nuckyz, Devs.RuukuLada],
+    authors: [Devs.RuukuLada],
     dependencies: ["UserSettingsAPI"],
     settings,
 

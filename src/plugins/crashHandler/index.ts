@@ -68,7 +68,7 @@ export default definePlugin({
         }
     ],
     description: "Utility plugin for handling and possibly recovering from crashes without a restart",
-    authors: [Devs.Nuckyz],
+    authors: [Devs.Limey],
     tags: ["Utility", "Developers"],
     enabledByDefault: true,
     settings,

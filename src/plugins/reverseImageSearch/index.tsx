@@ -93,7 +93,7 @@ export default definePlugin({
     }],
     description: "Adds ImageSearch to image context menus",
     tags: ["Media", "Utility"],
-    authors: [Devs.Ven, Devs.Nuckyz],
+    authors: [Devs.Ven],
     searchTerms: ["ImageUtilities"],
 
     patches: [

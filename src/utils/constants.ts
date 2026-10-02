@@ -123,10 +123,6 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         name: "nea",
         id: 310702108997320705n,
     },
-    Nuckyz: {
-        name: "Nuckyz",
-        id: 235834946571337729n
-    },
     D3SOX: {
         name: "D3SOX",
         id: 201052085641281538n

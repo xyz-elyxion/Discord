@@ -10,7 +10,7 @@ import definePlugin from "@utils/types";
 
 export default definePlugin({
     name: "DynamicImageModalAPI",
-    authors: [Devs.sadan, Devs.Nuckyz],
+    authors: [Devs.sadan],
     description: "Allows you to omit either width or height when opening an image modal",
     patches: [
         {

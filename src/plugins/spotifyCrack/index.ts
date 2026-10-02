@@ -47,7 +47,7 @@ export default definePlugin({
     ],
     description: "Free listen along, no auto-pausing in voice chat, and allows activity to continue playing when idling",
     tags: ["Media", "Utility", "Activity"],
-    authors: [Devs.Cyn, Devs.Nuckyz],
+    authors: [Devs.Cyn],
     settings,
 
     patches: [

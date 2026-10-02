@@ -1,6 +1,6 @@
 /*
  * @limeyV1/discord-types
- * Copyright (c) 2024 Limey, Nuckyz and contributors
+ * Copyright (c) 2024 Limey and contributors
  * SPDX-License-Identifier: LGPL-3.0-or-later
  */
 

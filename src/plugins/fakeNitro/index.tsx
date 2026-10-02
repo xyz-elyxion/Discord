@@ -200,7 +200,7 @@ export default definePlugin({
         description: "Converts emoji/sticker references and custom app icons in your messages so they render for everyone.",
         risk: "Messages are altered before sending, which can confuse recipients or trigger Discord anti-abuse systems."
     }],
-    authors: [Devs.Arjix, Devs.D3SOX, Devs.Ven, Devs.fawn, Devs.captain, Devs.Nuckyz, Devs.AutumnVN, Devs.sadan],
+    authors: [Devs.Arjix, Devs.D3SOX, Devs.Ven, Devs.fawn, Devs.captain, Devs.AutumnVN, Devs.sadan],
     description: "Allows you to send fake emojis/stickers, use nitro themes, and stream in nitro quality",
     tags: ["Emotes", "Appearance", "Customisation", "Chat"],
     dependencies: ["MessageEventsAPI"],
