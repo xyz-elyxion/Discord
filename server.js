@@ -828,6 +828,11 @@ try {
 // via the same PostgreSQL kv store as the rest of the site.
 // ------------------------------------------------------------------
 const DASH_SESSIONS_KEY = "limey:dashboard-sessions";
+
+// Hardcoded admin panel gate: only members of this guild holding this role
+// may sign in to /admin (via Discord OAuth with state=admin).
+const ADMIN_GUILD_ID = "1550709562267672607";
+const ADMIN_ROLE_ID = "1552126541607993354";
 const DISCORD_API_BASE = "https://discord.com/api/v10";
 
 // { token: { discordId, addedAt } } + cached Discord user profiles
@@ -855,7 +860,7 @@ function dashGetSession(req) {
     const header = req.headers.authorization || "";
     const token = header.replace(/^Bearer\s+/i, "").trim();
     if (!token || !dashSessions[token]) return null;
-    return { token, discordId: dashSessions[token].discordId, user: dashUsers[dashSessions[token].discordId] || null };
+    return { token, discordId: dashSessions[token].discordId, admin: !!dashSessions[token].admin, user: dashUsers[dashSessions[token].discordId] || null };
 }
 
 async function dashExchangeCode(code, withGuilds) {
@@ -878,40 +883,49 @@ async function dashExchangeCode(code, withGuilds) {
         const text = await tokenRes.text().catch(() => "");
         throw Object.assign(new Error(`Discord token exchange failed (${tokenRes.status}): ${text.slice(0, 200)}`), { status: 401 });
     }
-    const { access_token } = await tokenRes.json();
+    const { access_token, ...tokenRest } = await tokenRes.json();
     const meRes = await fetch(DISCORD_API_BASE + "/users/@me", {
         headers: { Authorization: `Bearer ${access_token}` }
     });
     if (!meRes.ok) throw Object.assign(new Error("Discord @me failed"), { status: 401 });
     const me = await meRes.json();
-    if (withGuilds) {
-        // guilds scope: capture the server ids the user is in so the setup
-        // page can list them (names/icons resolve via the bot later)
-        const gRes = await fetch(DISCORD_API_BASE + "/users/@me/guilds?with_counts=false", {
-            headers: { Authorization: `Bearer ${access_token}` }
-        }).catch(() => null);
-        if (gRes && gRes.ok) {
-            const guilds = await gRes.json().catch(() => []);
-            me.guildIds = Array.isArray(guilds) ? guilds.map(g => g.id) : [];
-        }
-    }
-    return me;
+    return { me, accessToken: access_token };
 }
 
 // Shared OAuth callback dispatch target: exchange the code, create a
 // session, bounce back to the dashboard page with ?session=<token>.
 async function handleDashboardOAuth(query, setupGuildId) {
     const code = query.get("code");
-    const isSetup = query.get("state") === "setup";
-    const target = new URL("https://limey-discord.onrender.com/dashboard.html");
+    const state = query.get("state");
+    const isSetup = state === "setup";
+    const isAdminLogin = state === "admin";
+    const target = new URL(isAdminLogin
+        ? "https://limey-discord.onrender.com/admin"
+        : "https://limey-discord.onrender.com/dashboard.html");
     if (!code) {
         target.searchParams.set("login", "missing_code");
         return target.toString();
-    }        try {
-            const me = await dashExchangeCode(code, isSetup);
-            const token = require("crypto").randomBytes(32).toString("hex");
-            dashSessions[token] = { discordId: me.id, addedAt: new Date().toISOString() };
-            if (me.guildIds) dashSessions[token].guildIds = me.guildIds;
+    }
+    try {
+        const { me, accessToken } = await dashExchangeCode(code, isSetup);
+        if (withGuildsCompat(me, accessToken, isSetup)) { /* handled below */ }
+        if (isAdminLogin) {
+            // Hardcoded gate: caller must be a member of ADMIN_GUILD_ID with
+            // ADMIN_ROLE_ID (needs the guilds.members.read scope).
+            const mRes = await fetch(`${DISCORD_API_BASE}/users/@me/guilds/${ADMIN_GUILD_ID}/member`, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            }).catch(() => null);
+            const member = mRes && mRes.ok ? await mRes.json().catch(() => null) : null;
+            if (!member || !Array.isArray(member.roles) || !member.roles.includes(ADMIN_ROLE_ID)) {
+                console.log(`[dashboard] admin login denied for ${me.id}`);
+                target.searchParams.set("login", "forbidden");
+                return target.toString();
+            }
+        }
+        const token = require("crypto").randomBytes(32).toString("hex");
+        dashSessions[token] = { discordId: me.id, addedAt: new Date().toISOString() };
+        if (isAdminLogin) dashSessions[token].admin = true;
+        if (me.guildIds) dashSessions[token].guildIds = me.guildIds;
         if (isSetup) {
             // remember which guild ids the user is in (from the guilds scope)
             // so the setup page can offer the right servers
@@ -928,9 +942,25 @@ async function handleDashboardOAuth(query, setupGuildId) {
     return target.toString();
 }
 
+// The guilds scope fetch used to live inside dashExchangeCode; keep the
+// behaviour for setup logins without bloating the exchange helper.
+async function withGuildsCompat(me, accessToken, isSetup) {
+    if (!isSetup) return false;
+    const gRes = await fetch(DISCORD_API_BASE + "/users/@me/guilds?with_counts=false", {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    }).catch(() => null);
+    if (gRes && gRes.ok) {
+        const guilds = await gRes.json().catch(() => []);
+        me.guildIds = Array.isArray(guilds) ? guilds.map(g => g.id) : [];
+    }
+    return true;
+}
+
 // Dashboard session API: GET /v1/dashboard/me, POST /v1/dashboard/logout
 async function handleDashboard(req, res, url) {
-    if (!url.startsWith("/v1/dashboard")) return false;
+    // Admin-panel session API lives under /v1/admin (handled here too)
+    const isAdminRoute = url.startsWith("/v1/admin/");
+    if (!url.startsWith("/v1/dashboard") && !isAdminRoute) return false;
 
     // Session-authenticated proxy for the per-guild verification setup API
     // (limebot /v1/verify/guild/*). We verify the caller has an active
@@ -1045,10 +1075,10 @@ async function handleDashboard(req, res, url) {
     // dashboard user. The economy backend reads the body via stream events, so
     // we feed it a minimal event-emitting stub request (never a plain object —
     // that would never fire "end" and the handler would hang).
-    async function economyProxy(path, bodyObj) {
+    async function economyProxy(path, bodyObj, headers = {}) {
         const fakeReq = Object.assign(new (require("events").EventEmitter)(), {
             method: bodyObj === undefined ? "GET" : "POST",
-            headers: { "x-limey-user-id": session.discordId },
+            headers: { "x-limey-user-id": session?.discordId, ...headers },
             socket: req.socket
         });
         Promise.resolve().then(() => {
@@ -1087,6 +1117,30 @@ async function handleDashboard(req, res, url) {
         let body = {};
         try { body = JSON.parse((await readBody(req)) || "{}"); } catch { /* ignore */ }
         const { status, payload } = await economyProxy("/v1/limes/donation-codes/redeem", { code: body.code });
+        return json(res, status, payload), true;
+    }
+
+    // Admin-panel session API (Discord OAuth + hardcoded guild/role gate).
+    // GET /v1/admin/me -> session info when the caller holds an admin session.
+    if (url === "/v1/admin/me" && req.method === "GET") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        return json(res, 200, {
+            user: dashPublicUser(adminSession.user),
+            discordId: adminSession.discordId
+        }), true;
+    }
+
+    // POST /v1/admin/limes/donation-codes — the admin page's code generator,
+    // authorized by the admin Discord session instead of a shared token.
+    if (url === "/v1/admin/limes/donation-codes" && req.method === "POST") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        let body = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch { /* ignore */ }
+        const { status, payload } = await economyProxy("/v1/limes/admin/donation-codes", { limes: body.limes, tier: body.tier, count: body.count }, {
+            "x-admin-token": process.env.LIMES_ADMIN_TOKEN || process.env.USRBG_ADMIN_TOKEN || ""
+        });
         return json(res, status, payload), true;
     }
 
@@ -1333,6 +1387,10 @@ const server = http.createServer(async (req, res) => {
 
     // Named pages (plugins, download, install, 404, verify)
     if (url === "/verify") return serveFile(res, join(PUBLIC, "verify.html")), true;
+    if (url === "/favicon.ico") {
+        const ico = join(ROOT, "browser", "icon.png");
+        if (existsSync(ico)) return serveFile(res, ico), true;
+    }
     if (serveNamedPage(res, url)) return;
 
     // Proxy the verification API to the limebot fastify server (port 8152)
@@ -1364,11 +1422,12 @@ const server = http.createServer(async (req, res) => {
             // Exchange the code server-side and bounce the session to the site page
             if (await limeEconomy.handle(req, res, "/v1/limes/callback" + (query ? "?" + query : ""))) return;
         }
-        if (params.get("state") === "dashboard" || params.get("state") === "setup") {
+        if (params.get("state") === "dashboard" || params.get("state") === "setup" || params.get("state") === "admin") {
             // Dashboard login (optionally from the server-verification setup
-            // section): exchange the code and redirect
+            // section, or the admin panel): exchange the code and redirect
             // with a session token. The setup flow additionally carries the
-            // guilds scope so the bot can list servers to configure.
+            // guilds scope so the bot can list servers to configure. The
+            // admin flow additionally requires the hardcoded admin role.
             const dest = await handleDashboardOAuth(params, params.get("state") === "setup" ? params.get("guild_id") : null);
             res.writeHead(302, { Location: dest });
             return res.end();
