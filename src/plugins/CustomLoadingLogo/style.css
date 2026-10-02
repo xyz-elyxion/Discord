@@ -1,0 +1,10 @@
+.vc-custom-loading-logo {
+    display: block;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+}
+
+.vc-custom-loading-logo-hidden {
+    display: none !important;
+}
