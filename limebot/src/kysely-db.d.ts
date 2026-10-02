@@ -67,6 +67,7 @@ export interface Tickets {
         channelId: string;
         roleId: string;
         rulesChannelId: string | null;
+        rulesText: string | null;
         enabled: number;
         createdBy: string;
         createdAt: string;

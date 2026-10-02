@@ -338,6 +338,18 @@
                             <button class="btn-claim" id="vs-save">Save &amp; post verification card</button>
                             <button class="btn-claim" id="vs-disable" style="background:#f04747;">Disable verification</button>
                         </div>
+
+                        <h3 style="margin-top:24px;">Rules editor</h3>
+                        <p class="desc">Write your server's rules here — the bot posts them as a read-only card in the rules channel. Markdown works (**bold**, headings with #, lists). Leave empty to remove the card.</p>
+                        <div class="field">
+                            <textarea id="vs-rules-text" rows="10" style="width:100%;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--foreground);padding:12px;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="1. Be respectful
+2. No spam
+..."></textarea>
+                        </div>
+                        <div id="vr-status" class="vs-status"></div>
+                        <div class="links-row">
+                            <button class="btn-claim" id="vs-rules-save">Save rules &amp; update card</button>
+                        </div>
                     </div>
 
                     <!-- how it works -->
@@ -453,12 +465,13 @@
             const data = await api("/v1/dashboard/verify-guild/" + vsGuildId);
             fillSelect("vs-channel", data.channels || [], "Pick a channel…");
             fillSelect("vs-role", data.roles || [], "Pick a role…");
-            fillSelect("vs-rules", (data.channels || []).map(c => ({ id: c.id, name: c.name })), "None");
+            fillSelect("vs-rules", data.rulesChannels || data.channels || [], "None");
             if (data.config) {
                 $("vs-channel").value = data.config.channelId || "";
                 $("vs-role").value = data.config.roleId || "";
                 $("vs-rules").value = data.config.rulesChannelId || "";
             }
+            $("vs-rules-text").value = data.rulesText || "";
             vsStatus(data.configured ? "Currently configured — changes overwrite it." : "", "");
         } catch (e) {
             vsStatus("⚠ " + e.message, "err");
@@ -762,6 +775,28 @@
     $("redeem-btn").onclick = redeemCode;
     $("vs-save").onclick = vsSave;
     $("vs-disable").onclick = vsDisable;
+    $("vs-rules-save").onclick = vsSaveRules;
+
+    async function vsSaveRules() {
+        if (!vsGuildId) return vrStatus("Pick a server first.", "err");
+        vrStatus("Saving rules…", "busy");
+        try {
+            await api("/v1/dashboard/verify-rules/" + vsGuildId, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: $("vs-rules-text").value })
+            });
+            vrStatus("✅ Rules saved and the card in your rules channel was updated.", "ok");
+        } catch (e) {
+            vrStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    function vrStatus(text, cls) {
+        const el = $("vr-status");
+        el.textContent = text || "";
+        el.className = "vs-status " + (cls || "");
+    }
     $("tab-user").onclick = () => showDashTab("user");
     $("tab-server").onclick = () => showDashTab("server");
 

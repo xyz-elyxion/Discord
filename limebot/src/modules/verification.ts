@@ -21,6 +21,7 @@ export interface GuildVerifyConfig {
     channelId: string;
     roleId: string;
     rulesChannelId: string | null;
+    rulesText: string | null;
     enabled: boolean;
 }
 
@@ -50,6 +51,7 @@ export async function setGuildConfig(cfg: GuildVerifyConfig, createdBy: string) 
             channelId: cfg.channelId,
             roleId: cfg.roleId,
             rulesChannelId: cfg.rulesChannelId,
+            rulesText: cfg.rulesText,
             enabled: cfg.enabled ? 1 : 0,
         }))
         .execute();
@@ -207,6 +209,22 @@ export async function grantVerifiedRole(guildId: string, userId: string) {
     await Vaius.rest.guilds.addMemberRole(guildId, userId, cfg.roleId, "Website verification");
 }
 
+export function getGuildRulesText(guildId: string) {
+    return guildConfigs.get(guildId)?.rulesText ?? null;
+}
+
+export async function setGuildRulesText(guildId: string, text: string | null) {
+    const cfg = guildConfigs.get(guildId);
+    if (cfg) {
+        cfg.rulesText = text;
+        guildConfigs.set(guildId, cfg);
+    }
+    await db.updateTable("verificationConfigs")
+        .set({ rulesText: text })
+        .where("guildId", "=", guildId)
+        .execute();
+}
+
 export async function disableGuildConfig(guildId: string) {
     const prev = guildConfigs.get(guildId);
     if (prev) {
@@ -220,6 +238,14 @@ export async function disableGuildConfig(guildId: string) {
 }
 
 async function loadGuildConfigs() {
+    // migration for tables created before the rulesText column existed
+    await db.schema
+        .alterTable("verificationConfigs")
+        .addColumn("rulesText", "text")
+        .execute()
+        .catch(e => {
+            if (!String(e).includes("duplicate column")) console.log("[verify] rulesText column:", String(e).slice(0, 120));
+        });
     const rows = await db.selectFrom("verificationConfigs").selectAll().execute();
     for (const r of rows) {
         if (!r.enabled) continue;
@@ -228,6 +254,7 @@ async function loadGuildConfigs() {
             channelId: r.channelId,
             roleId: r.roleId,
             rulesChannelId: r.rulesChannelId,
+            rulesText: r.rulesText,
             enabled: true,
         };
         guildConfigs.set(cfg.guildId, cfg);
@@ -240,6 +267,7 @@ async function loadGuildConfigs() {
             channelId: homeChannelId,
             roleId: homeVerifiedRoleId,
             rulesChannelId: null,
+            rulesText: null,
             enabled: true,
         };
         guildConfigs.set(cfg.guildId, cfg);

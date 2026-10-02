@@ -5,7 +5,8 @@ import Config from "./config";
 import { PROD } from "./constants";
 import { getGitRemote } from "./util/git";
 import { makeLazy } from "./util/lazy";
-import { challengeSolved, clearChallenge, consumeToken, currentChallenge, disableGuildConfig, ensureCard, getGuildConfig, getTokenInfo, grantVerifiedRole, isVerified, mintToken, setGuildConfig, submitAnswer } from "./modules/verification";
+import { challengeSolved, clearChallenge, consumeToken, currentChallenge, disableGuildConfig, ensureCard, getGuildConfig, getGuildRulesText, getTokenInfo, grantVerifiedRole, isVerified, mintToken, setGuildConfig, setGuildRulesText, submitAnswer } from "./modules/verification";
+import { ensureRulesCard, lockRulesChannel } from "./modules/rulesPage";
 import { Vaius } from "./Client";
 
 const { enabled, port } = Config.httpServer;
@@ -154,10 +155,17 @@ if (enabled) {
         // to share the guild; the caller's permission was checked by the bot
         // itself in my-guilds and re-checked on save)
         const guild = Vaius.guilds.get(guildId);
+        // verification channels: text + announcement; rules channels: also
+        // the community "rules channel" type (GUILD_GUIDE, type 4)
         const channels = guild
             ? [...guild.channels.values()]
-                .filter(c => c.type === 0 || c.type === 5) // text + announcement
+                .filter(c => c.type === 0 || c.type === 5)
                 .map(c => ({ id: c.id, name: "#" + c.name, type: c.type }))
+            : [];
+        const rulesChannels = guild
+            ? [...guild.channels.values()]
+                .filter(c => c.type === 0 || c.type === 4 || c.type === 5)
+                .map(c => ({ id: c.id, name: (c.type === 4 ? "📜 " : "#") + c.name, type: c.type }))
             : [];
         const roles = guild
             ? [...guild.roles.values()]
@@ -166,7 +174,7 @@ if (enabled) {
                 .map(r => ({ id: r.id, name: "@" + r.name }))
             : [];
 
-        return { configured: !!cfg, config: cfg, channels, roles };
+        return { configured: !!cfg, config: cfg, channels, rulesChannels, roles, rulesText: getGuildRulesText(guildId) };
     });
 
     fastify.post("/v1/verify/guild/:guildId", async (req, res) => {
@@ -196,6 +204,7 @@ if (enabled) {
             channelId: channelId!,
             roleId: roleId!,
             rulesChannelId: rulesChannelId || null,
+            rulesText: getGuildRulesText(guildId),
             enabled: true,
         };
         try {
@@ -220,6 +229,45 @@ if (enabled) {
         verifyCors(req, res);
         const { guildId } = req.params as { guildId: string };
         await disableGuildConfig(guildId);
+        return { ok: true };
+    });
+
+    // Per-guild rules text (dashboard editor)
+    fastify.get("/v1/verify/guild/:guildId/rules", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        return { text: getGuildRulesText(guildId) };
+    });
+
+    fastify.post("/v1/verify/guild/:guildId/rules", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        const body = (req.body ?? {}) as { text?: string };
+        const text = (body.text ?? "").trim();
+
+        const guild = Vaius.guilds.get(guildId);
+        if (!guild) return res.code(404).send({ error: "bot is not in that server" });
+        const cfg = getGuildConfig(guildId);
+        if (!cfg?.rulesChannelId) return res.code(400).send({ error: "set the verification config first (rules channel is part of it)" });
+
+        // acting admin must be able to manage the guild
+        const actingUser = (req.query as { userId?: string }).userId || "";
+        if (actingUser) {
+            const member = await guild.getMember(actingUser).catch(() => null);
+            if (!member || (guild.ownerID !== actingUser && !member.permissions.has("MANAGE_GUILD")))
+                return res.code(403).send({ error: "you need Manage Server permission in that server" });
+        }
+
+        await setGuildRulesText(guildId, text || null);
+        try {
+            await lockRulesChannel(cfg.rulesChannelId, guildId);
+            await ensureRulesCard(guildId, cfg.rulesChannelId);
+        } catch (e: any) {
+            console.error("[verify] failed to update rules card:", e);
+            return res.code(400).send({ error: "saved, but could not update the rules card — check my permissions in that channel" });
+        }
         return { ok: true };
     });
 

@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS verificationConfigs (
     channelId TEXT NOT NULL,
     roleId TEXT NOT NULL,
     rulesChannelId TEXT,
+    rulesText TEXT,
     enabled INTEGER NOT NULL DEFAULT 1,
     createdBy TEXT NOT NULL,
     createdAt TEXT NOT NULL

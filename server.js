@@ -950,6 +950,19 @@ async function handleDashboard(req, res, url) {
         return true;
     }
 
+    // Rules editor: /v1/dashboard/verify-rules/:guildId[?] -> /v1/verify/guild/:guildId/rules
+    if (url.startsWith("/v1/dashboard/verify-rules/")) {
+        const session = dashGetSession(req);
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        const sub = url.slice("/v1/dashboard/verify-rules/".length);
+        const guildId = sub.split("/")[0];
+        if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
+        const sep = url.includes("?") ? "&" : "?";
+        const upstreamUrl = "/v1/verify/guild/" + sub + "/rules" + sep + "userId=" + session.discordId;
+        proxyLimebot(req, res, upstreamUrl);
+        return true;
+    }
+
     if (url === "/v1/dashboard/my-guilds" && req.method === "GET") {
         const session = dashGetSession(req);
         if (!session) return json(res, 401, { error: "not logged in" }), true;
