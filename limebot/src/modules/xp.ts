@@ -5,6 +5,8 @@ import { Millis } from "~/constants";
 import { db } from "~/db";
 import { Deduper } from "~/util/Deduper";
 
+import { announceLevelUp, getLevelingConfig } from "./leveling";
+
 export function getXpForLevel(level: number): number {
     return Math.ceil((5 / 2) * (-1 + 20 * Math.pow(level, 2)));
 }
@@ -58,11 +60,21 @@ async function updateXpForMessage(msg: Message): Promise<number> {
 Vaius.on("messageCreate", async msg => {
     if (!msg.inCachedGuildChannel()) return;
     if (msg.author.bot) return;
-    if (!msg.channel.parentID || !Config.xp.eligibleCategories.includes(msg.channel.parentID)) return;
     if (!msg.content) return;
     if (cooldowns.getOrAdd(msg.author.id)) return;
 
+    // XP is earned in any guild that enabled leveling on the dashboard, plus
+    // the legacy hard-coded eligible categories of the home server.
+    const guildId = msg.channel.guild.id;
+    const leveling = getLevelingConfig(guildId);
+    const legacyEligible = !!msg.channel.parentID && Config.xp.eligibleCategories.includes(msg.channel.parentID);
+    if (!leveling && !legacyEligible) return;
+
+    const previousLevel = getLevelForXp((await getXpForUser(msg.author)).xp);
     const currentLevel = await updateXpForMessage(msg);
+
+    if (leveling && currentLevel > previousLevel)
+        void announceLevelUp(guildId, msg.author.id, currentLevel);
 
     for (const [level, roleId] of Object.entries(Config.xp.rewards)) {
         const requiredLevel = Number(level);

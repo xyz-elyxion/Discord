@@ -473,6 +473,42 @@
                         </div>
                     </div>
 
+                    <!-- welcomer setup -->
+                    <div class="dash-card wide" id="welcomer-card">
+                        <h3>Welcomer setup</h3>
+                        <p class="desc">The bot greets new members in a channel you pick. Placeholders: <code>{user}</code> mention, <code>{username}</code>, <code>{server}</code>, <code>{count}</code> member count.</p>
+                        <div class="vs-grid">
+                            <div class="field"><label for="wl-guild">Server</label><select id="wl-guild"><option value="">Loading…</option></select></div>
+                            <div class="field"><label for="wl-channel">Welcome channel</label><select id="wl-channel"><option value="">Pick a server first</option></select></div>
+                        </div>
+                        <div class="field">
+                            <label for="wl-message">Welcome message</label>
+                            <textarea id="wl-message" rows="3" style="width:100%;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--foreground);padding:10px;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Welcome {user} to {server}! You are member #{count} 🎉"></textarea>
+                        </div>
+                        <div id="wl-status" class="vs-status"></div>
+                        <div class="links-row">
+                            <button class="btn-claim" id="wl-save">Save &amp; enable welcomer</button>
+                            <button class="btn-claim" id="wl-disable" style="background:#f04747;">Disable welcomer</button>
+                        </div>
+                    </div>
+
+                    <!-- leveling setup -->
+                    <div class="dash-card wide" id="leveling-card">
+                        <h3>Leveling setup</h3>
+                        <p class="desc">Members earn XP by chatting (up to 30 XP per message, 1 minute cooldown) and level up. Pick a channel for level-up announcements and watch the leaderboard fill up.</p>
+                        <div class="vs-grid">
+                            <div class="field"><label for="lv-guild">Server</label><select id="lv-guild"><option value="">Loading…</option></select></div>
+                            <div class="field"><label for="lv-channel">Level-up announcements (optional)</label><select id="lv-channel"><option value="">No announcements</option></select></div>
+                        </div>
+                        <div id="lv-status" class="vs-status"></div>
+                        <div class="links-row">
+                            <button class="btn-claim" id="lv-save">Save &amp; enable leveling</button>
+                            <button class="btn-claim" id="lv-disable" style="background:#f04747;">Disable leveling</button>
+                        </div>
+                        <h3 style="margin-top:20px;">Leaderboard</h3>
+                        <div id="lv-leaderboard" class="desc">Pick a server to load the leaderboard.</div>
+                    </div>
+
                     <!-- how it works -->
                     <div class="dash-card wide">
                         <h3>How it works for your members</h3>
@@ -709,6 +745,177 @@
             ctStatus("Counting disabled for that server.", "ok");
         } catch (e) {
             ctStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    /* ---------- welcomer setup ---------- */
+    let wlGuildId = null;
+
+    function wlStatus(text, cls) {
+        const el = $("wl-status");
+        el.textContent = text || "";
+        el.className = "vs-status " + (cls || "");
+    }
+
+    async function loadWelcomerGuilds() {
+        try {
+            const data = await api("/v1/dashboard/my-guilds");
+            const guilds = (data.guilds || []).filter(g => g.canManage);
+            if (!guilds.length) {
+                $("wl-guild").innerHTML = "";
+                const o = document.createElement("option");
+                o.textContent = "No shared servers — invite the bot first";
+                $("wl-guild").appendChild(o);
+                $("wl-save").disabled = true;
+                return;
+            }
+            $("wl-save").disabled = false;
+            fillSelect("wl-guild", guilds.map(g => ({ id: g.id, name: g.name + (g.configured ? " ✓" : "") })), "Pick a server…");
+            $("wl-guild").onchange = () => wlPickGuild($("wl-guild").value);
+        } catch (e) {
+            wlStatus("Could not load your servers: " + e.message, "err");
+        }
+    }
+
+    async function wlPickGuild(guildId) {
+        wlGuildId = guildId || null;
+        if (!wlGuildId) return;
+        wlStatus("Loading…", "busy");
+        try {
+            const data = await api("/v1/dashboard/welcomer-guild/" + wlGuildId);
+            fillSelect("wl-channel", data.channels || [], "Pick a channel…");
+            if (data.config) {
+                $("wl-channel").value = data.config.channelId || "";
+                $("wl-message").value = data.config.message || "";
+                wlStatus("Welcomer is currently enabled for this server.", "ok");
+            } else {
+                wlStatus("", "");
+            }
+        } catch (e) {
+            wlStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    async function wlSave() {
+        if (!wlGuildId) return wlStatus("Pick a server first.", "err");
+        if (!$("wl-channel").value) return wlStatus("Pick a channel.", "err");
+        const msg = $("wl-message").value.trim();
+        if (!msg) return wlStatus("Write a welcome message (use {user}, {username}, {server}, {count}).", "err");
+        wlStatus("Saving & posting test greeting…", "busy");
+        try {
+            await api("/v1/dashboard/welcomer-guild/" + wlGuildId, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ channelId: $("wl-channel").value, message: msg })
+            });
+            wlStatus("✅ Welcomer is live! A test greeting was posted in the channel.", "ok");
+        } catch (e) {
+            wlStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    async function wlDisable() {
+        if (!wlGuildId) return wlStatus("Pick a server first.", "err");
+        wlStatus("Disabling…", "busy");
+        try {
+            await api("/v1/dashboard/welcomer-guild/" + wlGuildId, { method: "DELETE" });
+            wlStatus("Welcomer disabled for that server.", "ok");
+        } catch (e) {
+            wlStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    /* ---------- leveling setup ---------- */
+    let lvGuildId = null;
+
+    function lvStatus(text, cls) {
+        const el = $("lv-status");
+        el.textContent = text || "";
+        el.className = "vs-status " + (cls || "");
+    }
+
+    function renderLeaderboard(rows) {
+        const el = $("lv-leaderboard");
+        if (!rows || !rows.length) {
+            el.textContent = "No XP earned yet in this server's view — chat to earn XP once leveling is enabled.";
+            return;
+        }
+        el.innerHTML = "";
+        for (const r of rows) {
+            const div = document.createElement("div");
+            div.style.cssText = "display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);";
+            const name = r.name || ("user " + r.userId);
+            const pct = r.nextLevelXp ? Math.min(100, Math.round(r.xp / r.nextLevelXp * 100)) : 100;
+            div.innerHTML = `<span>#${r.rank} <b></b></span><span>Lv ${r.level} — ${r.xp} XP (${pct}% to next)</span>`;
+            div.querySelector("b").textContent = name;
+            el.appendChild(div);
+        }
+    }
+
+    async function loadLevelingGuilds() {
+        try {
+            const data = await api("/v1/dashboard/my-guilds");
+            const guilds = (data.guilds || []).filter(g => g.canManage);
+            if (!guilds.length) {
+                $("lv-guild").innerHTML = "";
+                const o = document.createElement("option");
+                o.textContent = "No shared servers — invite the bot first";
+                $("lv-guild").appendChild(o);
+                $("lv-save").disabled = true;
+                return;
+            }
+            $("lv-save").disabled = false;
+            fillSelect("lv-guild", guilds.map(g => ({ id: g.id, name: g.name + (g.configured ? " ✓" : "") })), "Pick a server…");
+            $("lv-guild").onchange = () => lvPickGuild($("lv-guild").value);
+        } catch (e) {
+            lvStatus("Could not load your servers: " + e.message, "err");
+        }
+    }
+
+    async function lvPickGuild(guildId) {
+        lvGuildId = guildId || null;
+        if (!lvGuildId) return;
+        lvStatus("Loading…", "busy");
+        try {
+            const data = await api("/v1/dashboard/leveling-guild/" + lvGuildId);
+            fillSelect("lv-channel", data.channels || [], "No announcements");
+            if (data.config) {
+                $("lv-channel").value = data.config.announceChannelId || "";
+                lvStatus("Leveling is currently enabled for this server.", "ok");
+            } else {
+                lvStatus("", "");
+            }
+            renderLeaderboard(data.leaderboard);
+        } catch (e) {
+            lvStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    async function lvSave() {
+        if (!lvGuildId) return lvStatus("Pick a server first.", "err");
+        lvStatus("Saving…", "busy");
+        try {
+            const data = await api("/v1/dashboard/leveling-guild/" + lvGuildId, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ announceChannelId: $("lv-channel").value || null })
+            });
+            lvStatus(data.config.announceChannelId
+                ? "✅ Leveling is live! Announcement was posted in the chosen channel."
+                : "✅ Leveling is live! (no announcement channel selected)", "ok");
+        } catch (e) {
+            lvStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    async function lvDisable() {
+        if (!lvGuildId) return lvStatus("Pick a server first.", "err");
+        lvStatus("Disabling…", "busy");
+        try {
+            await api("/v1/dashboard/leveling-guild/" + lvGuildId, { method: "DELETE" });
+            lvStatus("Leveling disabled for that server.", "ok");
+        } catch (e) {
+            lvStatus("⚠ " + e.message, "err");
         }
     }
 
@@ -981,6 +1188,10 @@
     $("vs-rules-save").onclick = vsSaveRules;
     $("ct-save").onclick = ctSave;
     $("ct-disable").onclick = ctDisable;
+    $("wl-save").onclick = wlSave;
+    $("wl-disable").onclick = wlDisable;
+    $("lv-save").onclick = lvSave;
+    $("lv-disable").onclick = lvDisable;
 
     /* ---------- sidebar navigation ---------- */
     const CRUMB = { user: "Limey V1", server: "My Servers" };
@@ -992,7 +1203,7 @@
         $("user-view").style.display = view === "user" ? "" : "none";
         $("server-view").style.display = view === "server" ? "" : "none";
         $("crumb-page").textContent = title;
-        if (view === "server") { loadVSetup(); loadCountingGuilds(); }
+        if (view === "server") { loadVSetup(); loadCountingGuilds(); loadWelcomerGuilds(); loadLevelingGuilds(); }
     }
     document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
         btn.onclick = () => activateNav(btn);

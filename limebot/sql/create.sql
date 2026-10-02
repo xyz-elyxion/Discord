@@ -95,3 +95,20 @@ CREATE TABLE IF NOT EXISTS scheduledUnbans (
     moderator TEXT NOT NULL,
     PRIMARY KEY (userId, guildId)
 );
+
+CREATE TABLE IF NOT EXISTS welcomerConfigs (
+    guildId   TEXT PRIMARY KEY,
+    channelId TEXT NOT NULL,
+    message   TEXT NOT NULL,
+    enabled   INTEGER NOT NULL DEFAULT 1,
+    createdBy TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS levelingConfigs (
+    guildId   TEXT PRIMARY KEY,
+    announceChannelId TEXT,
+    enabled   INTEGER NOT NULL DEFAULT 1,
+    createdBy TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+);

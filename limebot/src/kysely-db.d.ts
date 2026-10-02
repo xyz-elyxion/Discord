@@ -101,6 +101,23 @@ export interface Tickets {
         moderator: string;
     }
 
+    export interface WelcomerConfigs {
+        guildId: string;
+        channelId: string;
+        message: string;
+        enabled: number;
+        createdBy: string;
+        createdAt: string;
+    }
+
+    export interface LevelingConfigs {
+        guildId: string;
+        announceChannelId: string | null;
+        enabled: number;
+        createdBy: string;
+        createdAt: string;
+    }
+
     export interface DB {
         tickets: Tickets;
         expressions: Expressions;
@@ -114,5 +131,7 @@ export interface Tickets {
         verificationTokens: VerificationTokens;
         verificationConfigs: VerificationConfigs;
         countingConfigs: CountingConfigs;
+        welcomerConfigs: WelcomerConfigs;
+        levelingConfigs: LevelingConfigs;
     }
 }

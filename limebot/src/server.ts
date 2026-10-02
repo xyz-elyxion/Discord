@@ -8,6 +8,8 @@ import { makeLazy } from "./util/lazy";
 import { challengeSolved, clearChallenge, consumeToken, currentChallenge, disableGuildConfig, ensureCard, getGuildConfig, getGuildConfigIds, getGuildRulesText, getTokenInfo, grantVerifiedRole, isVerified, mintToken, setGuildConfig, setGuildRulesText, submitAnswer } from "./modules/verification";
 import { ensureRulesCard, lockRulesChannel } from "./modules/rulesPage";
 import { disableCountingConfig, getCountingConfig, setCountingConfig } from "./modules/counting";
+import { disableLevelingConfig, getLeaderboard, getLevelingConfig, setLevelingConfig } from "./modules/leveling";
+import { disableWelcomerConfig, getWelcomerConfig, setWelcomerConfig } from "./modules/welcomer";
 import { Vaius } from "./Client";
 
 const { enabled, port } = Config.httpServer;
@@ -404,6 +406,140 @@ if (enabled) {
         const { guildId } = req.params as { guildId: string };
         if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
         await disableCountingConfig(guildId);
+        return { ok: true };
+    });
+
+    // ------------------------------------------------------------------
+    // Per-guild welcomer setup (dashboard). Same trust model as counting.
+    // ------------------------------------------------------------------
+    fastify.get("/v1/welcomer/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        const cfg = getWelcomerConfig(guildId);
+        const guild = Vaius.guilds.get(guildId);
+        const channels = guild
+            ? [...guild.channels.values()]
+                .filter(c => c.type === 0)
+                .map(c => ({ id: c.id, name: "#" + c.name }))
+            : [];
+        return { configured: !!cfg, config: cfg, channels };
+    });
+
+    fastify.post("/v1/welcomer/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        const body = (req.body ?? {}) as { channelId?: string; message?: string };
+        const { channelId, message } = body;
+        if (!/^\d{17,20}$/.test(guildId) || !/^\d{17,20}$/.test(channelId ?? ""))
+            return res.code(400).send({ error: "guildId and channelId are required snowflakes" });
+        if (!message || typeof message !== "string" || message.length > 1000)
+            return res.code(400).send({ error: "message is required (max 1000 chars)" });
+
+        const guild = Vaius.guilds.get(guildId);
+        if (!guild) return res.code(404).send({ error: "bot is not in that server — invite it first" });
+
+        const actingUser = (req.query as { userId?: string }).userId || "";
+        if (actingUser) {
+            const member = await guild.getMember(actingUser).catch(() => null);
+            if (!member || (guild.ownerID !== actingUser && !member.permissions.has("MANAGE_GUILD")))
+                return res.code(403).send({ error: "you need Manage Server permission in that server" });
+        }
+
+        // sanity check: the bot must be able to speak in that channel
+        try {
+            await Vaius.rest.channels.createMessage(channelId!, {
+                content: "👋 Welcomer configured! New members will be greeted here.",
+                allowedMentions: { everyone: false },
+            });
+        } catch (e: any) {
+            console.error("[welcomer] failed to post test message:", e);
+            return res.code(400).send({ error: "could not post in that channel — check my permissions there" });
+        }
+
+        const cfg = { guildId, channelId: channelId!, message: message!, enabled: true };
+        try {
+            await setWelcomerConfig(cfg, actingUser || "0");
+        } catch (e: any) {
+            console.error("[welcomer] failed to save config:", e);
+            return res.code(500).send({ error: "failed to save config" });
+        }
+        return { ok: true, config: cfg };
+    });
+
+    fastify.delete("/v1/welcomer/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        await disableWelcomerConfig(guildId);
+        return { ok: true };
+    });
+
+    // ------------------------------------------------------------------
+    // Per-guild leveling setup (dashboard). Same trust model as counting.
+    // ------------------------------------------------------------------
+    fastify.get("/v1/leveling/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        const cfg = getLevelingConfig(guildId);
+        const guild = Vaius.guilds.get(guildId);
+        const channels = guild
+            ? [...guild.channels.values()]
+                .filter(c => c.type === 0)
+                .map(c => ({ id: c.id, name: "#" + c.name }))
+            : [];
+        const leaderboard = await getLeaderboard(guildId).catch(() => []);
+        return { configured: !!cfg, config: cfg, channels, leaderboard };
+    });
+
+    fastify.post("/v1/leveling/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        const body = (req.body ?? {}) as { announceChannelId?: string | null };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+
+        const guild = Vaius.guilds.get(guildId);
+        if (!guild) return res.code(404).send({ error: "bot is not in that server — invite it first" });
+
+        const actingUser = (req.query as { userId?: string }).userId || "";
+        if (actingUser) {
+            const member = await guild.getMember(actingUser).catch(() => null);
+            if (!member || (guild.ownerID !== actingUser && !member.permissions.has("MANAGE_GUILD")))
+                return res.code(403).send({ error: "you need Manage Server permission in that server" });
+        }
+
+        const announceChannelId = body.announceChannelId || null;
+        if (announceChannelId && !/^\d{17,20}$/.test(announceChannelId))
+            return res.code(400).send({ error: "invalid announce channel id" });
+
+        const cfg = { guildId, announceChannelId, enabled: true };
+        try {
+            await setLevelingConfig(cfg, actingUser || "0");
+        } catch (e: any) {
+            console.error("[leveling] failed to save config:", e);
+            return res.code(500).send({ error: "failed to save config" });
+        }
+
+        if (announceChannelId) {
+            try {
+                await Vaius.rest.channels.createMessage(announceChannelId, {
+                    content: "📈 **Leveling is live!** Members now earn XP by chatting here — level up to climb the leaderboard.",
+                    allowedMentions: { everyone: false },
+                });
+            } catch (e: any) {
+                console.error("[leveling] failed to post announcement:", e);
+                return res.code(400).send({ error: "saved, but could not post in that channel — check my permissions there" });
+            }
+        }
+        return { ok: true, config: cfg };
+    });
+
+    fastify.delete("/v1/leveling/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        await disableLevelingConfig(guildId);
         return { ok: true };
     });
 

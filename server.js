@@ -994,6 +994,34 @@ async function handleDashboard(req, res, url) {
         return true;
     }
 
+    // Welcomer setup proxy: /v1/dashboard/welcomer-guild/:guildId -> limebot /v1/welcomer/guild/:guildId
+    if (url.startsWith("/v1/dashboard/welcomer-guild/")) {
+        const session = dashGetSession(req);
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        const sub = url.slice("/v1/dashboard/welcomer-guild/".length);
+        const guildId = sub.split("/")[0];
+        if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
+        if (req.method === "OPTIONS") return res.end(), true;
+        const sep = url.includes("?") ? "&" : "?";
+        const upstreamUrl = "/v1/welcomer/guild/" + sub + sep + "userId=" + session.discordId;
+        proxyLimebot(req, res, upstreamUrl);
+        return true;
+    }
+
+    // Leveling setup proxy: /v1/dashboard/leveling-guild/:guildId -> limebot /v1/leveling/guild/:guildId
+    if (url.startsWith("/v1/dashboard/leveling-guild/")) {
+        const session = dashGetSession(req);
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        const sub = url.slice("/v1/dashboard/leveling-guild/".length);
+        const guildId = sub.split("/")[0];
+        if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
+        if (req.method === "OPTIONS") return res.end(), true;
+        const sep = url.includes("?") ? "&" : "?";
+        const upstreamUrl = "/v1/leveling/guild/" + sub + sep + "userId=" + session.discordId;
+        proxyLimebot(req, res, upstreamUrl);
+        return true;
+    }
+
     // Rules editor: /v1/dashboard/verify-rules/:guildId[?] -> /v1/verify/guild/:guildId/rules
     if (url.startsWith("/v1/dashboard/verify-rules/")) {
         const session = dashGetSession(req);
