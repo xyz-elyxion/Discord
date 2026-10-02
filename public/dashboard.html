@@ -66,14 +66,7 @@
         .dash-card a { color: var(--foreground); text-decoration: underline; text-underline-offset: 4px; }
         .dash-card .foot { margin-top: auto; padding-top: 12px; font-size: 0.85rem; }
         .dash-card.wide { grid-column: 1 / -1; }
-        .dash-tabs { display: flex; gap: 8px; margin: 18px 0; }
-        .dash-tab {
-            flex: 0 0 auto; background: var(--card); border: 1px solid var(--border);
-            border-radius: 10px; color: var(--muted-foreground); font-weight: 600;
-            padding: 10px 22px; font-size: 0.95rem; cursor: pointer; transition: all 0.15s;
-        }
-        .dash-tab:hover { color: var(--foreground); border-color: var(--lime, #9eea6f); }
-        .dash-tab.active { background: var(--lime, #9eea6f); color: #101010; border-color: var(--lime, #9eea6f); }
+
         .vs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px; }
         .field label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; }
         .field select {
@@ -88,6 +81,79 @@
         .links-row { display: flex; flex-wrap: wrap; gap: 10px; }
         .links-row .btn-claim { cursor: pointer; }
         .links-row .btn-claim:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ---------- sidebar shell ---------- */
+        .dash-shell { display: flex; gap: 0; align-items: stretch; min-height: 70vh; }
+        .sidebar {
+            width: 250px; flex-shrink: 0;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 12px;
+            display: flex; flex-direction: column;
+            transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+            overflow: hidden;
+        }
+        .dash-shell.collapsed .sidebar { width: 0; padding: 0; border: none; opacity: 0; }
+        .dash-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+        .dash-topbar {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 10px 14px;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .tb-btn {
+            background: transparent; border: none; color: var(--muted-foreground);
+            cursor: pointer; padding: 6px; border-radius: 8px; line-height: 0;
+        }
+        .tb-btn:hover { background: rgba(128,128,128,0.12); color: var(--foreground); }
+        .crumb { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--muted-foreground); min-width: 0; }
+        .crumb .crumb-page { color: var(--foreground); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .avatar-sm { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border); object-fit: cover; }
+
+        .ws-switch {
+            display: flex; align-items: center; gap: 10px; padding: 8px;
+            border-radius: 10px; cursor: pointer; transition: background 0.15s;
+        }
+        .ws-switch:hover { background: rgba(128,128,128,0.1); }
+        .ws-avatar { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; background: var(--lime, #9eea6f); }
+        .ws-meta { display: flex; flex-direction: column; overflow: hidden; }
+        .ws-name { font-size: 0.85rem; font-weight: 600; color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ws-sub { font-size: 0.72rem; color: var(--muted-foreground); }
+        .ws-badge {
+            margin-left: auto; width: 22px; height: 22px; border-radius: 50%;
+            background: var(--lime, #9eea6f); color: #101010; font-weight: 700; font-size: 0.8rem;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .side-nav { flex: 1; overflow-y: auto; margin-top: 14px; display: flex; flex-direction: column; gap: 16px; scrollbar-width: none; }
+        .side-nav::-webkit-scrollbar { display: none; }
+        .nav-group-heading {
+            padding: 0 10px; margin-bottom: 4px; font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); opacity: 0.7;
+        }
+        .nav-items { display: flex; flex-direction: column; gap: 2px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+            border-radius: 8px; cursor: pointer; color: var(--muted-foreground);
+            font-size: 0.85rem; transition: background 0.15s, color 0.15s; border: none; background: transparent;
+            width: 100%; text-align: left;
+        }
+        .nav-item:hover { background: rgba(128,128,128,0.1); color: var(--foreground); }
+        .nav-item.active { background: rgba(128,128,128,0.14); color: var(--foreground); font-weight: 600; }
+        .nav-item .ni-icon { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.85; }
+        .nav-item span.label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sidebar.collapsed-text .nav-item span.label,
+        .sidebar.collapsed-text .nav-group-heading,
+        .sidebar.collapsed-text .ws-meta { display: none; }
+
+        .side-bottom { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 10px; }
+        .side-bottom .nav-item { color: var(--muted-foreground); }
+        .side-bottom .nav-item:hover { color: #f04747; }
+
+        @media (max-width: 860px) {
+            .sidebar { position: absolute; z-index: 30; height: 100%; }
+            .dash-shell { position: relative; }
+            .dash-shell.collapsed .sidebar { width: 250px; padding: 12px; opacity: 1; }
+        }
 
         .badge {
             display: inline-flex; align-items: center; gap: 6px;
@@ -230,14 +296,52 @@
                 </div>
                 <div class="spacer"></div>
                 <span class="badge" id="banner-badge" style="display:none" title="You have a USRBG profile banner active in the client mod">🖼️ Banner</span>
-                <button class="btn-logout" id="logout-btn">Log out</button>
+                <button class="btn-logout">Log out</button>
             </div>
 
             <!-- dashboard switcher -->
-            <div class="dash-tabs">
-                <button class="dash-tab active" id="tab-user">👤 User Dashboard</button>
-                <button class="dash-tab" id="tab-server">🖥️ Server Dashboard</button>
-            </div>
+            <div class="dash-shell" id="dash-shell">
+                <aside class="sidebar" id="sidebar">
+                    <div class="ws-switch" id="ws-switch">
+                        <img class="ws-avatar" id="ws-avatar" alt="">
+                        <div class="ws-meta">
+                            <span class="ws-name" id="ws-name">Dashboard</span>
+                            <span class="ws-sub" id="ws-sub">Limey V1</span>
+                        </div>
+                        <div class="ws-badge">L</div>
+                    </div>
+
+                    <nav class="side-nav">
+                        <div class="nav-items">
+                            <button class="nav-item active" data-view="user" data-title="Overview"><span class="ni-icon">🏠</span><span class="label">Overview</span></button>
+                            <button class="nav-item" data-view="user" data-title="Verification"><span class="ni-icon">✅</span><span class="label">Verification</span></button>
+                            <button class="nav-item" data-view="user" data-title="Limes Wallet"><span class="ni-icon">🍋</span><span class="label">Limes Wallet</span></button>
+                        </div>
+                        <span class="nav-group-heading">Servers</span>
+                        <div class="nav-items">
+                            <button class="nav-item" data-view="server" data-title="Verification Setup"><span class="ni-icon">🛡️</span><span class="label">Verification Setup</span></button>
+                            <button class="nav-item" data-view="server" data-title="Rules Editor"><span class="ni-icon">📜</span><span class="label">Rules Editor</span></button>
+                        </div>
+                        <span class="nav-group-heading">Site</span>
+                        <div class="nav-items">
+                            <button class="nav-item" data-view="user" data-title="Site Status"><span class="ni-icon">📊</span><span class="label">Site Status</span></button>
+                            <button class="nav-item" data-view="user" data-title="Quick Links"><span class="ni-icon">🔗</span><span class="label">Quick Links</span></button>
+                        </div>
+                    </nav>
+
+                    <div class="side-bottom">
+                        <button class="nav-item" id="logout-btn"><span class="ni-icon">🚪</span><span class="label">Log out</span></button>
+                    </div>
+                </aside>
+
+                <div class="dash-main">
+                    <div class="dash-topbar">
+                        <div class="topbar-left">
+                            <button class="tb-btn" id="collapse-btn" title="Toggle sidebar">☰</button>
+                            <div class="crumb"><span>Limey V1</span><span>/</span><span class="crumb-page" id="crumb-page">Overview</span></div>
+                        </div>
+                        <img class="avatar-sm" id="avatar" alt="">
+                    </div>
 
             <div id="user-view">
             <div class="dash-grid">
@@ -322,6 +426,7 @@
 
             <!-- server dashboard -->
             <div id="server-view" style="display:none">
+                <div class="dash-grid" id="server-cards">
                 <div class="dash-grid">
                     <!-- server verification setup -->
                     <div class="dash-card wide" id="vsetup-card">
@@ -359,6 +464,8 @@
                     </div>
                 </div>
             </div><!-- /server-view -->
+                </div><!-- /dash-main -->
+            </div><!-- /dash-shell -->
         </div>
     </main>
 
@@ -649,6 +756,8 @@
         const user = data.user || {};
         me = user;
         $("avatar").src = user.avatar || "";
+        $("ws-avatar").src = user.avatar || "";
+        $("ws-name").textContent = user.globalName || user.username || "Dashboard";
         $("display-name").textContent = user.globalName || user.username || "Unknown";
         $("username").textContent = "@" + (user.username || "");
         $("acc-id").textContent = user.id || "—";
@@ -777,6 +886,26 @@
     $("vs-disable").onclick = vsDisable;
     $("vs-rules-save").onclick = vsSaveRules;
 
+    /* ---------- sidebar navigation ---------- */
+    const CRUMB = { user: "Limey V1", server: "My Servers" };
+    function activateNav(btn) {
+        document.querySelectorAll(".nav-item[data-view]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const view = btn.dataset.view;
+        const title = btn.dataset.title || "Overview";
+        $("user-view").style.display = view === "user" ? "" : "none";
+        $("server-view").style.display = view === "server" ? "" : "none";
+        $("crumb-page").textContent = title;
+        if (view === "server") loadVSetup();
+    }
+    document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
+        btn.onclick = () => activateNav(btn);
+    });
+    $("collapse-btn").onclick = () => {
+        $("dash-shell").classList.toggle("collapsed");
+        $("sidebar").classList.toggle("collapsed-text");
+    };
+
     async function vsSaveRules() {
         if (!vsGuildId) return vrStatus("Pick a server first.", "err");
         vrStatus("Saving rules…", "busy");
@@ -796,17 +925,6 @@
         const el = $("vr-status");
         el.textContent = text || "";
         el.className = "vs-status " + (cls || "");
-    }
-    $("tab-user").onclick = () => showDashTab("user");
-    $("tab-server").onclick = () => showDashTab("server");
-
-    function showDashTab(which) {
-        const isUser = which === "user";
-        $("tab-user").classList.toggle("active", isUser);
-        $("tab-server").classList.toggle("active", !isUser);
-        $("user-view").style.display = isUser ? "" : "none";
-        $("server-view").style.display = isUser ? "none" : "";
-        if (!isUser) loadVSetup();
     }
     $("redeem-code").addEventListener("keydown", e => { if (e.key === "Enter") redeemCode(); });
     $("copy-id-btn").onclick = () => {
