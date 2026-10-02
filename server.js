@@ -439,10 +439,16 @@ function handleDiscordInteractions(req, res, url) {
     req.on("end", () => {
         try {
             const body = Buffer.concat(chunks);
+            // Discord's public key is a raw 32-byte Ed25519 key; Node's crypto
+            // needs it wrapped in an SPKI structure (fixed 12-byte header).
+            const spki = Buffer.concat([
+                Buffer.from("302a300506032b6570032100", "hex"),
+                Buffer.from(publicKey, "hex")
+            ]);
             const ok = require("crypto").verify(
                 null,
                 Buffer.concat([Buffer.from(timestamp), body]),
-                { key: Buffer.from(publicKey, "hex"), format: "der", type: "spki" },
+                { key: spki, format: "der", type: "spki" },
                 Buffer.from(signature, "hex")
             );
             if (!ok) return json(res, 401, { error: "invalid request signature" });
