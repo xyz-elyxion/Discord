@@ -939,7 +939,8 @@ async function handleDashboard(req, res, url) {
         if (req.method === "OPTIONS") return res.end(), true;
         const sep = url.includes("?") ? "&" : "?";
         const upstreamUrl = "/v1/verify/guild/" + sub + sep + "userId=" + session.discordId;
-        return proxyLimebot(req, res, upstreamUrl);
+        proxyLimebot(req, res, upstreamUrl);
+        return true;
     }
 
     if (url === "/v1/dashboard/my-guilds" && req.method === "GET") {
@@ -949,7 +950,8 @@ async function handleDashboard(req, res, url) {
         // The bot filters to servers it shares where the user can manage.
         try {
             const ids = (session.guildIds || []).join(",");
-            return proxyLimebot(req, res, "/v1/verify/my-guilds?userId=" + session.discordId + "&ids=" + encodeURIComponent(ids));
+            proxyLimebot(req, res, "/v1/verify/my-guilds?userId=" + session.discordId + "&ids=" + encodeURIComponent(ids));
+            return true;
         } catch (e) {
             return json(res, 500, { error: "guild list failed" }), true;
         }
@@ -1161,10 +1163,23 @@ function proxyLimebot(req, res, overridePath) {
         headers: { ...req.headers, host: "127.0.0.1:8152" }
     };
     const upstream = http.request(opts, upRes => {
-        res.writeHead(upRes.statusCode || 502, upRes.headers);
-        upRes.pipe(res);
+        // A caller bug must never take the whole server down (double-write
+        // used to throw ERR_HTTP_HEADERS_SENT and crash the process).
+        try {
+            if (res.headersSent) return upRes.destroy();
+            res.writeHead(upRes.statusCode || 502, upRes.headers);
+            upRes.pipe(res);
+        } catch (e) {
+            console.error("[proxy] limebot response error:", e.message);
+            upRes.destroy();
+        }
     });
-    upstream.on("error", () => json(res, 503, { error: "verification service unavailable" }));
+    upstream.on("error", () => {
+        try {
+            if (!res.headersSent) json(res, 503, { error: "verification service unavailable" });
+            else res.end();
+        } catch { /* socket already gone */ }
+    });
     req.pipe(upstream);
 }
 
@@ -1180,10 +1195,21 @@ function proxyCloud(req, res, overridePath) {
     };
 
     const upstream = http.request(opts, upRes => {
-        res.writeHead(upRes.statusCode || 502, upRes.headers);
-        upRes.pipe(res);
+        try {
+            if (res.headersSent) return upRes.destroy();
+            res.writeHead(upRes.statusCode || 502, upRes.headers);
+            upRes.pipe(res);
+        } catch (e) {
+            console.error("[proxy] cloud response error:", e.message);
+            upRes.destroy();
+        }
     });
-    upstream.on("error", () => send(res, 502, "Cloud backend error"));
+    upstream.on("error", () => {
+        try {
+            if (!res.headersSent) send(res, 502, "Cloud backend error");
+            else res.end();
+        } catch { /* socket already gone */ }
+    });
     req.pipe(upstream);
 }
 
