@@ -254,13 +254,16 @@
 
     // ---- tokenless website flow: Discord OAuth, then challenge, then claim ----
 
+    const uidGuild = params.get("guild") || "";
+    const gq = uidGuild ? "?guildId=" + encodeURIComponent(uidGuild) : "";
+
     async function sendUidAnswer(uid, answer) {
         if (!answer) return;
         const errEl = document.getElementById("cerr");
         errEl.textContent = "";
         document.getElementById("submit").disabled = true;
         try {
-            const res = await fetch("/v1/verify/challenge/" + encodeURIComponent(uid), {
+            const res = await fetch("/v1/verify/challenge/" + encodeURIComponent(uid) + gq, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ answer })
@@ -308,7 +311,7 @@
         setStatus("Granting your role…", "busy");
         statusEl.innerHTML = '<span class="spinner"></span>Granting your role…';
         try {
-            const res = await fetch("/v1/verify/challenge/" + encodeURIComponent(uid) + "/claim", { method: "POST" });
+            const res = await fetch("/v1/verify/challenge/" + encodeURIComponent(uid) + "/claim" + gq, { method: "POST" });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.ok) {
                 setStatus("✅ You're verified! Your role has been granted.", "ok");
@@ -351,7 +354,7 @@
         // Discord OAuth done — now the human challenge, then the role is claimed
         introEl.textContent = "Discord account confirmed. One last step: prove you're human.";
         try {
-            const res = await fetch("/v1/verify/challenge/" + params.get("uid"));
+            const res = await fetch("/v1/verify/challenge/" + params.get("uid") + (params.get("guild") ? "?guildId=" + encodeURIComponent(params.get("guild")) : ""));
             const data = await res.json();
             if (res.ok && data.challenge && !data.challenge.solved) {
                 challengeUIForUid(params.get("uid"), data.challenge);

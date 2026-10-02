@@ -5,7 +5,7 @@ import Config from "./config";
 import { PROD } from "./constants";
 import { getGitRemote } from "./util/git";
 import { makeLazy } from "./util/lazy";
-import { challengeSolved, clearChallenge, consumeToken, currentChallenge, disableGuildConfig, ensureCard, getGuildConfig, getGuildRulesText, getTokenInfo, grantVerifiedRole, isVerified, mintToken, setGuildConfig, setGuildRulesText, submitAnswer } from "./modules/verification";
+import { challengeSolved, clearChallenge, consumeToken, currentChallenge, disableGuildConfig, ensureCard, getGuildConfig, getGuildConfigIds, getGuildRulesText, getTokenInfo, grantVerifiedRole, isVerified, mintToken, setGuildConfig, setGuildRulesText, submitAnswer } from "./modules/verification";
 import { ensureRulesCard, lockRulesChannel } from "./modules/rulesPage";
 import { Vaius } from "./Client";
 
@@ -49,6 +49,14 @@ if (enabled) {
         verifyCors(req, res);
         return res.code(204).send();
     });
+
+    // resolve the target guild for verification: an explicit, configured
+    // guildId wins; otherwise fall back to the single configured guild
+    const resolveGuild = (guildId: string | undefined | null) => {
+        if (guildId && /^\d{17,20}$/.test(guildId) && getGuildConfig(guildId)) return guildId;
+        const ids = getGuildConfigIds();
+        return ids.length === 1 ? ids[0] : null;
+    };
 
     // token status + current challenge question — used by the website page
     fastify.get("/v1/verify/token/:token", async (req, res) => {
@@ -107,7 +115,8 @@ if (enabled) {
         const { userId } = req.params as { userId: string };
         if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
 
-        const guildId = (req.query as { guildId?: string }).guildId || Config.homeGuildId;
+        const guildId = resolveGuild((req.query as { guildId?: string }).guildId);
+        if (!guildId) return res.code(400).send({ error: "no verification guild — configure one in the dashboard or pass ?guildId=" });
         if (await isVerified(guildId, userId))
             return { ok: true, alreadyVerified: true };
 
@@ -125,7 +134,8 @@ if (enabled) {
         verifyCors(req, res);
         const { userId } = req.params as { userId: string };
         if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
-        const guildId = (req.query as { guildId?: string }).guildId || Config.homeGuildId;
+        const guildId = resolveGuild((req.query as { guildId?: string }).guildId);
+        if (!guildId) return res.code(400).send({ error: "no verification guild — configure one in the dashboard or pass ?guildId=" });
         const token = await mintToken(userId, guildId);
         return { token, url: `${Config.verification.siteUrl}/verify?t=${token}` };
     });
@@ -136,7 +146,14 @@ if (enabled) {
         verifyCors(req, res);
         const { userId } = req.params as { userId: string };
         if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
-        const guildId = (req.query as { guildId?: string }).guildId || Config.homeGuildId;
+        const guildId = resolveGuild((req.query as { guildId?: string }).guildId);
+        // no guild context: report verified if verified in ANY configured guild
+        if (!guildId) {
+            for (const id of getGuildConfigIds()) {
+                if (await isVerified(id, userId)) return { userId, verified: true };
+            }
+            return { userId, verified: false };
+        }
         return { userId, verified: await isVerified(guildId, userId) };
     });
 
@@ -351,7 +368,8 @@ if (enabled) {
         if (!challengeSolved(`u:${userId}`))
             return res.code(403).send({ error: "challenge not solved" });
         clearChallenge(`u:${userId}`);
-        const guildId = (req.query as { guildId?: string }).guildId || Config.homeGuildId;
+        const guildId = resolveGuild((req.query as { guildId?: string }).guildId);
+        if (!guildId) return res.code(400).send({ error: "no verification guild — configure one in the dashboard or pass ?guildId=" });
         try {
             await grantVerifiedRole(guildId, userId);
             return { ok: true };
@@ -394,11 +412,13 @@ if (enabled) {
             // the in-client plugin must have solved the human challenge first;
             // the website flow (no challenge yet) is bounced back to the page,
             // which runs the challenge for this user and claims afterwards.
+            const requestedGuild = (req.query as { guild_id?: string }).guild_id;
             if (!challengeSolved(`u:${id}`))
-                return res.redirect(`${Config.verification.siteUrl}/verify?challenge=1&uid=${id}`);
+                return res.redirect(`${Config.verification.siteUrl}/verify?challenge=1&uid=${id}${requestedGuild ? `&guild=${requestedGuild}` : ""}`);
             clearChallenge(`u:${id}`);
 
-            const guildId = (req.query as { guildId?: string }).guildId || Config.homeGuildId;
+            const guildId = resolveGuild(requestedGuild);
+            if (!guildId) return res.redirect(`${Config.verification.siteUrl}/verify?challenge=1&uid=${id}&noguild=1`);
             if (await isVerified(guildId, id)) return { ok: true, userId: id, alreadyVerified: true };
             await grantVerifiedRole(guildId, id);
             // browsers land here directly — bounce to a friendly page instead

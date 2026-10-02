@@ -6,7 +6,7 @@ import { Vaius } from "~/Client";
 import Config from "~/config";
 import { db } from "~/db";
 
-const { enabled: homeEnabled, channelId: homeChannelId, verifiedRoleId: homeVerifiedRoleId, siteUrl, clientId } = Config.verification;
+const { siteUrl, clientId } = Config.verification;
 
 const MARKER = "-# [verification card]";
 
@@ -30,6 +30,10 @@ const channelIndex = new Map<string, string>(); // channelId -> guildId
 
 export function getGuildConfig(guildId: string) {
     return guildConfigs.get(guildId) ?? null;
+}
+
+export function getGuildConfigIds() {
+    return [...guildConfigs.keys()];
 }
 
 export async function setGuildConfig(cfg: GuildVerifyConfig, createdBy: string) {
@@ -260,19 +264,6 @@ async function loadGuildConfigs() {
         guildConfigs.set(cfg.guildId, cfg);
         channelIndex.set(cfg.channelId, cfg.guildId);
     }
-    // seed the home guild from config if not present in the DB
-    if (homeEnabled && !guildConfigs.has(Config.homeGuildId)) {
-        const cfg: GuildVerifyConfig = {
-            guildId: Config.homeGuildId,
-            channelId: homeChannelId,
-            roleId: homeVerifiedRoleId,
-            rulesChannelId: null,
-            rulesText: null,
-            enabled: true,
-        };
-        guildConfigs.set(cfg.guildId, cfg);
-        channelIndex.set(cfg.channelId, cfg.guildId);
-    }
     console.log(`[verify] loaded ${guildConfigs.size} guild config(s)`);
 }
 
@@ -368,11 +359,6 @@ async function handleVerifyButton(interaction: import("oceanic.js").ComponentInt
 }
 
 export function initVerification() {
-    if (guildConfigs.size === 0 && !homeEnabled) {
-        console.log("[verify] disabled");
-        return;
-    }
-
     void loadGuildConfigs();
 
     // keep configured channels read-only + the card fresh
