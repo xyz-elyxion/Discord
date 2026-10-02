@@ -413,6 +413,82 @@ function json(res, status, obj) {
     res.end(JSON.stringify(obj));
 }
 
+// ---------------------------------------------------------------------------
+// Discord Developer Portal endpoints
+// ---------------------------------------------------------------------------
+
+// Interactions Endpoint: verifies Ed25519 signatures (public key from the
+// Developer Portal, set via DISCORD_INTERACTIONS_PUBLIC_KEY) and handles PING
+// so the endpoint can be registered. Real interaction handling stays with the
+// gateway bot; this endpoint exists so the portal accepts the URL.
+function handleDiscordInteractions(req, res, url) {
+    if (url !== "/v1/discord/interactions") return false;
+    if (req.method === "OPTIONS") return res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" }).end(), true;
+    if (req.method !== "POST") return json(res, 405, { error: "POST only" }), true;
+
+    const publicKey = process.env.DISCORD_INTERACTIONS_PUBLIC_KEY || "";
+    const signature = req.headers["x-signature-ed25519"];
+    const timestamp = req.headers["x-signature-timestamp"];
+
+    if (!publicKey || !signature || !timestamp)
+        return json(res, 401, { error: "missing signature or DISCORD_INTERACTIONS_PUBLIC_KEY not configured" }), true;
+
+    const chunks = [];
+    let size = 0;
+    req.on("data", c => { size += c.length; if (size > 1e6) req.destroy(); else chunks.push(c); });
+    req.on("end", () => {
+        try {
+            const body = Buffer.concat(chunks);
+            const ok = require("crypto").verify(
+                null,
+                Buffer.concat([Buffer.from(timestamp), body]),
+                { key: Buffer.from(publicKey, "hex"), format: "der", type: "spki" },
+                Buffer.from(signature, "hex")
+            );
+            if (!ok) return json(res, 401, { error: "invalid request signature" });
+
+            const interaction = JSON.parse(body.toString("utf8") || "{}");
+            // PING — required once by the portal to verify the endpoint
+            if (interaction.type === 1) return json(res, 200, { type: 1 });
+            // Everything else is handled by the gateway bot; ack so Discord
+            // doesn't retry, without emitting any user-visible response.
+            return json(res, 200, { type: 6 });
+        } catch (e) {
+            console.error("[discord-interactions] error:", e.message);
+            return json(res, 400, { error: "invalid payload" });
+        }
+    });
+    return true;
+}
+
+// Deep Link URL: Discord app links (e.g. from a role connection or app profile)
+// land here and are bounced into the right in-app place.
+function serveDeepLink(req, res) {
+    const params = new URLSearchParams((req.url || "").split("?").slice(1).join("?"));
+    const guildId = params.get("guild") || "1550709562267672607"; // home guild
+    // The Discord app deep link scheme: discord:///CHANNEL_ID or the web fallback
+    const to = params.get("to");
+    if (to === "verify") {
+        res.writeHead(302, { Location: "/linked-roles" });
+        return res.end();
+    }
+    res.writeHead(302, { Location: `https://discord.com/channels/${guildId}` });
+    res.end();
+}
+
+// Connection Entrypoint URL: shown on a linked role's connection card in the
+// user profile. "Link account" sends the user here with an authorization_code
+// (OAuth2). We bounce them into the existing dashboard Discord OAuth flow,
+// which already handles code exchange at the shared callback.
+function serveConnectionsEntrypoint(req, res) {
+    const redirect = "https://discord.com/oauth2/authorize"
+        + "?client_id=" + encodeURIComponent(process.env.DISCORD_CLIENT_ID || "1514929209158402078")
+        + "&redirect_uri=" + encodeURIComponent("https://limey-discord.onrender.com/v1/oauth/callback")
+        + "&response_type=code&scope=identify&state=dashboard&prompt=consent";
+    res.writeHead(302, { Location: redirect });
+    res.end();
+}
+
 async function handleUsrbg(req, res, url) {
     if (!url.startsWith("/v1/usrbg")) return false;
 
@@ -1415,6 +1491,10 @@ const NAMED_PAGES = {
     "/submit-plugin": "submit-plugin.html",
     "/code": "code.html",
     "/404": "404.html",
+    "/terms": "terms.html",
+    "/terms-of-service": "terms.html",
+    "/privacy": "privacy.html",
+    "/privacy-policy": "privacy.html",
 };
 
 function serveNamedPage(res, url) {
@@ -1437,6 +1517,18 @@ function serveAdminPage(res, url) {
 
 const server = http.createServer(async (req, res) => {
     const url = decodeURIComponent((req.url || "/").split("?")[0]);
+
+    // Discord Developer Portal fields:
+    //   Interactions Endpoint URL      -> /v1/discord/interactions
+    //   Linked Roles Verification URL  -> /linked-roles
+    //   Terms of Service URL           -> /terms
+    //   Privacy Policy URL             -> /privacy
+    //   Deep Link URL                  -> /deep-link
+    //   Connection Entrypoint URL      -> /connections/entrypoint
+    if (handleDiscordInteractions(req, res, url)) return;
+    if (url === "/linked-roles") return serveFile(res, join(PUBLIC, "verify.html")), true;
+    if (url === "/deep-link") return serveDeepLink(req, res), true;
+    if (url === "/connections/entrypoint") return serveConnectionsEntrypoint(req, res), true;
 
     // Named pages (plugins, download, install, 404, verify)
     if (url === "/verify") return serveFile(res, join(PUBLIC, "verify.html")), true;

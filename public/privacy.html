@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Limey V1</title>
+    <meta name="description" content="Privacy Policy for Limey V1, the Limey Discord bot, and limey-discord.onrender.com.">
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .legal-header {
+            padding: 64px 0 32px;
+            text-align: center;
+            background: radial-gradient(ellipse 60% 50% at 50% -10%, rgba(255, 255, 255, 0.06), transparent), var(--bg);
+        }
+        .legal-header h1 { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 12px; }
+        .legal-header .lede { margin-bottom: 0; }
+        .legal-body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 24px 72px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .legal-body h2 { margin: 16px 0 4px; }
+        .legal-body p, .legal-body li { color: var(--muted-foreground); line-height: 1.65; }
+        .legal-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+        }
+        .legal-card ul { padding-left: 20px; margin: 8px 0; }
+        .legal-updated { font-size: 0.85rem; color: var(--muted-foreground); }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="legal-header">
+            <h1>Privacy Policy</h1>
+            <p class="lede legal-updated">Last updated: October 2, 2026</p>
+        </div>
+
+        <div class="legal-body">
+            <div class="legal-card">
+                <h2>What we store</h2>
+                <p>We keep data collection minimal. Depending on the features you use, we may store:</p>
+                <ul>
+                    <li><strong>Discord user ID</strong> — to identify you for verification, Limes wallet, XP/levels, counting stats and linked roles.</li>
+                    <li><strong>Username / avatar</strong> — shown in leaderboards and detector listings.</li>
+                    <li><strong>Verification + moderation records</strong> — tokens, verified status, warnings.</li>
+                    <li><strong>Limes wallet data</strong> — balance, streaks, transactions, redeemed codes.</li>
+                    <li><strong>Server configs</strong> — settings chosen by admins (welcomer, counting, leveling, verification channels/roles) for servers the bot is in.</li>
+                    <li><strong>Settings sync</strong> — if you enable cloud sync, your Limey V1 settings are stored so they can be restored on other devices.</li>
+                </ul>
+                <p>We do <strong>not</strong> store your Discord token, password, email, or message contents. Counting and XP track aggregates, not chat logs.</p>
+            </div>
+
+            <div class="legal-card">
+                <h2>Why we store it</h2>
+                <p>Purely to run the Services: granting verified roles, keeping your wallet and levels, syncing your settings, and letting server admins configure the bot. We don't sell or share your data with third parties, and we don't use it for advertising.</p>
+            </div>
+
+            <div class="legal-card">
+                <h2>Third parties</h2>
+                <p>The Services run on hosting providers (e.g. Render for the website and bot, and a managed PostgreSQL provider for persistent storage). Discord itself handles all Discord OAuth logins — we never see your Discord password.</p>
+            </div>
+
+            <div class="legal-card">
+                <h2>Retention &amp; deletion</h2>
+                <p>Wallet, level and config data is kept while the Services operate. You can request deletion of your stored data (or delete your synced settings from the dashboard) — join the community server and ask a maintainer, or use the contacts on the <a href="/dashboard">dashboard</a>. Deleting data removes your verification status, balance and levels.</p>
+            </div>
+
+            <div class="legal-card">
+                <h2>Questions</h2>
+                <p>Questions about this policy? Reach the maintainers via the community server.</p>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
