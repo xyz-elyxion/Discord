@@ -8,6 +8,7 @@
 
 import { SettingsStore } from "@api/Settings";
 import { definePluginSettings } from "@api/Settings";
+import { Devs } from "@utils/constants";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { React } from "@webpack/common";
 import { ComponentType } from "react";
@@ -98,7 +99,7 @@ function stopWatching() {
 export default definePlugin({
     name: "CustomLoadingLogo",
     description: "Replace Discord's loading logo with a custom image while keeping the original animation",
-    authors: [{ name: "Xaenny", id: 0n }],
+    authors: [Devs.Xaenny],
     settings,
     managedStyle,
     startAt: StartAt.Init,
