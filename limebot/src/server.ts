@@ -11,6 +11,7 @@ import { disableCountingConfig, getCountingConfig, setCountingConfig } from "./m
 import { disableLevelingConfig, getLeaderboard, getLevelingConfig, setLevelingConfig } from "./modules/leveling";
 import { disableWelcomerConfig, getWelcomerConfig, setWelcomerConfig } from "./modules/welcomer";
 import { Vaius } from "./Client";
+import { getVisibleChannels, isChannelObfuscated } from "./util/obfuscation";
 
 const { enabled, port } = Config.httpServer;
 
@@ -178,12 +179,12 @@ if (enabled) {
         // verification channels: text + announcement; rules channels: also
         // the community "rules channel" type (GUILD_GUIDE, type 4)
         const channels = guild
-            ? [...guild.channels.values()]
+            ? getVisibleChannels(guild)
                 .filter(c => c.type === 0 || c.type === 5)
                 .map(c => ({ id: c.id, name: "#" + c.name, type: c.type }))
             : [];
         const rulesChannels = guild
-            ? [...guild.channels.values()]
+            ? getVisibleChannels(guild)
                 .filter(c => c.type === 0 || c.type === 4 || c.type === 5)
                 .map(c => ({ id: c.id, name: (c.type === 4 ? "📜 " : "#") + c.name, type: c.type }))
             : [];
@@ -210,6 +211,8 @@ if (enabled) {
         // guild must be reachable by the bot
         const guild = Vaius.guilds.get(guildId);
         if (!guild) return res.code(404).send({ error: "bot is not in that server — invite it first" });
+        if (rejectHiddenChannel(res, guildId, channelId)) return;
+        if (rejectHiddenChannel(res, guildId, rulesChannelId ?? undefined)) return;
 
         // the acting admin must be able to manage the guild right now
         const actingUser = (req.query as { userId?: string }).userId || "";
@@ -346,7 +349,7 @@ if (enabled) {
         const cfg = getCountingConfig(guildId);
         const guild = Vaius.guilds.get(guildId);
         const channels = guild
-            ? [...guild.channels.values()]
+            ? getVisibleChannels(guild)
                 .filter(c => c.type === 0)
                 .map(c => ({ id: c.id, name: "#" + c.name }))
             : [];
@@ -363,6 +366,7 @@ if (enabled) {
 
         const guild = Vaius.guilds.get(guildId);
         if (!guild) return res.code(404).send({ error: "bot is not in that server — invite it first" });
+        if (rejectHiddenChannel(res, guildId, channelId)) return;
 
         const actingUser = (req.query as { userId?: string }).userId || "";
         if (actingUser) {
@@ -419,12 +423,26 @@ if (enabled) {
         const cfg = getWelcomerConfig(guildId);
         const guild = Vaius.guilds.get(guildId);
         const channels = guild
-            ? [...guild.channels.values()]
+            ? getVisibleChannels(guild)
                 .filter(c => c.type === 0)
                 .map(c => ({ id: c.id, name: "#" + c.name }))
             : [];
         return { configured: !!cfg, config: cfg, channels };
     });
+
+    // Shared guard for dashboard saves: the chosen channel must be one the bot
+    // can actually see (obfuscated = hidden by Private Channel Obfuscation =
+    // the bot cannot read or post there).
+    const rejectHiddenChannel = (res: import("fastify").FastifyReply, guildId: string, channelId: string | undefined) => {
+        if (!channelId) return false;
+        const guild = Vaius.guilds.get(guildId);
+        const channel = guild?.channels.get(channelId);
+        if (channel && isChannelObfuscated(channel)) {
+            void res.code(400).send({ error: "I can't see that channel (no View Channel permission) — pick one I can access" });
+            return true;
+        }
+        return false;
+    };
 
     fastify.post("/v1/welcomer/guild/:guildId", async (req, res) => {
         verifyCors(req, res);
@@ -438,6 +456,7 @@ if (enabled) {
 
         const guild = Vaius.guilds.get(guildId);
         if (!guild) return res.code(404).send({ error: "bot is not in that server — invite it first" });
+        if (rejectHiddenChannel(res, guildId, channelId)) return;
 
         const actingUser = (req.query as { userId?: string }).userId || "";
         if (actingUser) {
@@ -485,7 +504,7 @@ if (enabled) {
         const cfg = getLevelingConfig(guildId);
         const guild = Vaius.guilds.get(guildId);
         const channels = guild
-            ? [...guild.channels.values()]
+            ? getVisibleChannels(guild)
                 .filter(c => c.type === 0)
                 .map(c => ({ id: c.id, name: "#" + c.name }))
             : [];
@@ -510,6 +529,7 @@ if (enabled) {
         }
 
         const announceChannelId = body.announceChannelId || null;
+        if (rejectHiddenChannel(res, guildId, announceChannelId ?? undefined)) return;
         if (announceChannelId && !/^\d{17,20}$/.test(announceChannelId))
             return res.code(400).send({ error: "invalid announce channel id" });
 
