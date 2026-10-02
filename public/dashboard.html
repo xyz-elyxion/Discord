@@ -66,6 +66,14 @@
         .dash-card a { color: var(--foreground); text-decoration: underline; text-underline-offset: 4px; }
         .dash-card .foot { margin-top: auto; padding-top: 12px; font-size: 0.85rem; }
         .dash-card.wide { grid-column: 1 / -1; }
+        .dash-tabs { display: flex; gap: 8px; margin: 18px 0; }
+        .dash-tab {
+            flex: 0 0 auto; background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; color: var(--muted-foreground); font-weight: 600;
+            padding: 10px 22px; font-size: 0.95rem; cursor: pointer; transition: all 0.15s;
+        }
+        .dash-tab:hover { color: var(--foreground); border-color: var(--lime, #9eea6f); }
+        .dash-tab.active { background: var(--lime, #9eea6f); color: #101010; border-color: var(--lime, #9eea6f); }
         .vs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px; }
         .field label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; }
         .field select {
@@ -225,6 +233,13 @@
                 <button class="btn-logout" id="logout-btn">Log out</button>
             </div>
 
+            <!-- dashboard switcher -->
+            <div class="dash-tabs">
+                <button class="dash-tab active" id="tab-user">👤 User Dashboard</button>
+                <button class="dash-tab" id="tab-server">🖥️ Server Dashboard</button>
+            </div>
+
+            <div id="user-view">
             <div class="dash-grid">
                 <!-- verification -->
                 <div class="dash-card">
@@ -281,23 +296,6 @@
                     <div class="tx-list" id="tx-list"><span class="empty-note">No transactions yet — claim your daily Limes!</span></div>
                 </div>
 
-                <!-- server verification setup -->
-                <div class="dash-card wide hidden" id="vsetup-card">
-                    <h3>Server verification setup</h3>
-                    <p class="desc">Add interactive verification &amp; rules to your own server: pick a server where you have <strong>Manage Server</strong> and the Limey bot is present (<a href="https://discord.com/oauth2/authorize?client_id=1514929209158402078&amp;scope=bot&amp;permissions=268435464" target="_blank" rel="noopener">invite the bot</a> if it isn't).</p>
-                    <div class="vs-grid">
-                        <div class="field"><label for="vs-guild">Server</label><select id="vs-guild"><option value="">Loading…</option></select></div>
-                        <div class="field"><label for="vs-channel">Verification channel</label><select id="vs-channel"><option value="">Pick a server first</option></select></div>
-                        <div class="field"><label for="vs-role">Verified role</label><select id="vs-role"><option value="">Pick a server first</option></select></div>
-                        <div class="field"><label for="vs-rules">Rules channel (optional)</label><select id="vs-rules"><option value="">None</option></select></div>
-                    </div>
-                    <div id="vs-status" class="vs-status"></div>
-                    <div class="links-row">
-                        <button class="btn-claim" id="vs-save">Save &amp; post verification card</button>
-                        <button class="btn-claim" id="vs-disable" style="background:#f04747;">Disable verification</button>
-                    </div>
-                </div>
-
                 <!-- site status -->
                 <div class="dash-card">
                     <h3>Site status</h3>
@@ -320,6 +318,35 @@
                     </div>
                 </div>
             </div>
+            </div><!-- /user-view -->
+
+            <!-- server dashboard -->
+            <div id="server-view" style="display:none">
+                <div class="dash-grid">
+                    <!-- server verification setup -->
+                    <div class="dash-card wide" id="vsetup-card">
+                        <h3>Verification setup</h3>
+                        <p class="desc">Add interactive verification &amp; rules to your own server: pick a server where you have <strong>Manage Server</strong> and the Limey bot is present (<a href="https://discord.com/oauth2/authorize?client_id=1514929209158402078&amp;scope=bot&amp;permissions=268435464" target="_blank" rel="noopener">invite the bot</a> if it isn't).</p>
+                        <div class="vs-grid">
+                            <div class="field"><label for="vs-guild">Server</label><select id="vs-guild"><option value="">Loading…</option></select></div>
+                            <div class="field"><label for="vs-channel">Verification channel</label><select id="vs-channel"><option value="">Pick a server first</option></select></div>
+                            <div class="field"><label for="vs-role">Verified role</label><select id="vs-role"><option value="">Pick a server first</option></select></div>
+                            <div class="field"><label for="vs-rules">Rules channel (optional)</label><select id="vs-rules"><option value="">None</option></select></div>
+                        </div>
+                        <div id="vs-status" class="vs-status"></div>
+                        <div class="links-row">
+                            <button class="btn-claim" id="vs-save">Save &amp; post verification card</button>
+                            <button class="btn-claim" id="vs-disable" style="background:#f04747;">Disable verification</button>
+                        </div>
+                    </div>
+
+                    <!-- how it works -->
+                    <div class="dash-card wide">
+                        <h3>How it works for your members</h3>
+                        <p class="desc">1. The bot posts a verification card in your chosen channel and keeps it read-only.<br>2. Limey V1 users get a native in-client card via the InteractiveVerification plugin.<br>3. Everyone else uses the website: Discord login → 3-round human challenge → verified.<br>4. Verified members get your role.</p>
+                    </div>
+                </div>
+            </div><!-- /server-view -->
         </div>
     </main>
 
@@ -399,7 +426,6 @@
     }
 
     async function loadVSetup() {
-        $("vsetup-card").classList.remove("hidden");
         try {
             const data = await api("/v1/dashboard/my-guilds");
             const guilds = (data.guilds || []).filter(g => g.canManage);
@@ -735,6 +761,17 @@
     $("redeem-btn").onclick = redeemCode;
     $("vs-save").onclick = vsSave;
     $("vs-disable").onclick = vsDisable;
+    $("tab-user").onclick = () => showDashTab("user");
+    $("tab-server").onclick = () => showDashTab("server");
+
+    function showDashTab(which) {
+        const isUser = which === "user";
+        $("tab-user").classList.toggle("active", isUser);
+        $("tab-server").classList.toggle("active", !isUser);
+        $("user-view").style.display = isUser ? "" : "none";
+        $("server-view").style.display = isUser ? "none" : "";
+        if (!isUser) loadVSetup();
+    }
     $("redeem-code").addEventListener("keydown", e => { if (e.key === "Enter") redeemCode(); });
     $("copy-id-btn").onclick = () => {
         if (!me?.id) return;
