@@ -81,6 +81,18 @@ export interface Tickets {
         createdAt: string;
     }
 
+    export interface CountingConfigs {
+        guildId: string;
+        channelId: string;
+        current: number;
+        lastUserId: string | null;
+        best: number;
+        recordMessageId: string | null;
+        enabled: number;
+        createdBy: string;
+        createdAt: string;
+    }
+
     export interface ScheduledUnbans {
         userId: string;
         guildId: string;
@@ -101,5 +113,6 @@ export interface Tickets {
         scheduledUnbans: ScheduledUnbans;
         verificationTokens: VerificationTokens;
         verificationConfigs: VerificationConfigs;
+        countingConfigs: CountingConfigs;
     }
 }

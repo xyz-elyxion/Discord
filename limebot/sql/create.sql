@@ -75,6 +75,18 @@ CREATE TABLE IF NOT EXISTS verificationTokens (
     createdAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS countingConfigs (
+    guildId     TEXT PRIMARY KEY,
+    channelId   TEXT NOT NULL,
+    current     INTEGER NOT NULL DEFAULT 0,
+    lastUserId  TEXT,
+    best        INTEGER NOT NULL DEFAULT 0,
+    recordMessageId TEXT,
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    createdBy   TEXT NOT NULL,
+    createdAt   TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS scheduledUnbans (
     userId    TEXT NOT NULL,
     guildId   TEXT NOT NULL,

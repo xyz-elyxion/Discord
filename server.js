@@ -980,6 +980,20 @@ async function handleDashboard(req, res, url) {
         return true;
     }
 
+    // Counting setup proxy: /v1/dashboard/counting-guild/:guildId -> limebot /v1/counting/guild/:guildId
+    if (url.startsWith("/v1/dashboard/counting-guild/")) {
+        const session = dashGetSession(req);
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        const sub = url.slice("/v1/dashboard/counting-guild/".length);
+        const guildId = sub.split("/")[0];
+        if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
+        if (req.method === "OPTIONS") return res.end(), true;
+        const sep = url.includes("?") ? "&" : "?";
+        const upstreamUrl = "/v1/counting/guild/" + sub + sep + "userId=" + session.discordId;
+        proxyLimebot(req, res, upstreamUrl);
+        return true;
+    }
+
     // Rules editor: /v1/dashboard/verify-rules/:guildId[?] -> /v1/verify/guild/:guildId/rules
     if (url.startsWith("/v1/dashboard/verify-rules/")) {
         const session = dashGetSession(req);

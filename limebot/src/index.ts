@@ -15,6 +15,7 @@ import { PROD } from "./constants";
 import { initModListeners } from "./modules/moderation/listeners";
 import { initAutoMod } from "./modules/moderation/autoMod";
 import { initRulesPage } from "./modules/rulesPage";
+import { initCounting } from "./modules/counting";
 import { initScheduledUnbans } from "./commands/moderation/tempban";
 import { silently } from "./util/functions";
 import { inspect } from "./util/inspect";
@@ -24,6 +25,7 @@ import { toCodeblock } from "./util/text";
 initModListeners();
 initAutoMod();
 initRulesPage();
+initCounting();
 initScheduledUnbans();
 
 export async function handleError(title: string, err: unknown) {

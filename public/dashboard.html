@@ -457,6 +457,22 @@
                         </div>
                     </div>
 
+                    <!-- counting setup -->
+                    <div class="dash-card wide" id="counting-card">
+                        <h3>Counting game setup</h3>
+                        <p class="desc">Pick a text channel and the bot runs a counting game there: members count up one number per message. Wrong numbers or double-counting reset the count, and the record is saved.</p>
+                        <div class="vs-grid">
+                            <div class="field"><label for="ct-guild">Server</label><select id="ct-guild"><option value="">Loading…</option></select></div>
+                            <div class="field"><label for="ct-channel">Counting channel</label><select id="ct-channel"><option value="">Pick a server first</option></select></div>
+                            <div class="field"><label for="ct-start">Start at (reset to this number)</label><input id="ct-start" type="number" min="0" value="0" style="width:100%;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--foreground);padding:10px;font-size:0.9rem;" /></div>
+                        </div>
+                        <div id="ct-status" class="vs-status"></div>
+                        <div class="links-row">
+                            <button class="btn-claim" id="ct-save">Save &amp; start counting</button>
+                            <button class="btn-claim" id="ct-disable" style="background:#f04747;">Disable counting</button>
+                        </div>
+                    </div>
+
                     <!-- how it works -->
                     <div class="dash-card wide">
                         <h3>How it works for your members</h3>
@@ -615,6 +631,84 @@
             loadVSetup();
         } catch (e) {
             vsStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    /* ---------- counting setup ---------- */
+    let ctGuildId = null;
+
+    function ctStatus(text, cls) {
+        const el = $("ct-status");
+        el.textContent = text || "";
+        el.className = "vs-status " + (cls || "");
+    }
+
+    async function loadCountingGuilds() {
+        try {
+            const data = await api("/v1/dashboard/my-guilds");
+            const guilds = (data.guilds || []).filter(g => g.canManage);
+            if (!guilds.length) {
+                $("ct-guild").innerHTML = "";
+                const o = document.createElement("option");
+                o.textContent = "No shared servers — invite the bot first";
+                $("ct-guild").appendChild(o);
+                $("ct-save").disabled = true;
+                return;
+            }
+            $("ct-save").disabled = false;
+            fillSelect("ct-guild", guilds.map(g => ({ id: g.id, name: g.name + (g.configured ? " ✓" : "") })), "Pick a server…");
+            $("ct-guild").onchange = () => ctPickGuild($("ct-guild").value);
+        } catch (e) {
+            ctStatus("Could not load your servers: " + e.message, "err");
+        }
+    }
+
+    async function ctPickGuild(guildId) {
+        ctGuildId = guildId || null;
+        if (!ctGuildId) return;
+        ctStatus("Loading channels…", "busy");
+        try {
+            const data = await api("/v1/dashboard/counting-guild/" + ctGuildId);
+            fillSelect("ct-channel", data.channels || [], "Pick a channel…");
+            if (data.config) {
+                $("ct-channel").value = data.config.channelId || "";
+                $("ct-start").value = data.config.current ?? 0;
+                ctStatus(`Currently configured — count is at **${data.config.current}**, record **${data.config.best}**.`, "ok");
+            } else {
+                ctStatus("", "");
+            }
+        } catch (e) {
+            ctStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    async function ctSave() {
+        if (!ctGuildId) return ctStatus("Pick a server first.", "err");
+        if (!$("ct-channel").value) return ctStatus("Pick a channel.", "err");
+        ctStatus("Saving…", "busy");
+        try {
+            const data = await api("/v1/dashboard/counting-guild/" + ctGuildId, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    channelId: $("ct-channel").value,
+                    startAt: Number($("ct-start").value) || 0
+                })
+            });
+            ctStatus(`✅ Counting is live! Next number is ${data.config.current + 1}.`, "ok");
+        } catch (e) {
+            ctStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    async function ctDisable() {
+        if (!ctGuildId) return ctStatus("Pick a server first.", "err");
+        ctStatus("Disabling…", "busy");
+        try {
+            await api("/v1/dashboard/counting-guild/" + ctGuildId, { method: "DELETE" });
+            ctStatus("Counting disabled for that server.", "ok");
+        } catch (e) {
+            ctStatus("⚠ " + e.message, "err");
         }
     }
 
@@ -885,6 +979,8 @@
     $("vs-save").onclick = vsSave;
     $("vs-disable").onclick = vsDisable;
     $("vs-rules-save").onclick = vsSaveRules;
+    $("ct-save").onclick = ctSave;
+    $("ct-disable").onclick = ctDisable;
 
     /* ---------- sidebar navigation ---------- */
     const CRUMB = { user: "Limey V1", server: "My Servers" };
@@ -896,7 +992,7 @@
         $("user-view").style.display = view === "user" ? "" : "none";
         $("server-view").style.display = view === "server" ? "" : "none";
         $("crumb-page").textContent = title;
-        if (view === "server") loadVSetup();
+        if (view === "server") { loadVSetup(); loadCountingGuilds(); }
     }
     document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
         btn.onclick = () => activateNav(btn);

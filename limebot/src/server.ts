@@ -7,6 +7,7 @@ import { getGitRemote } from "./util/git";
 import { makeLazy } from "./util/lazy";
 import { challengeSolved, clearChallenge, consumeToken, currentChallenge, disableGuildConfig, ensureCard, getGuildConfig, getGuildConfigIds, getGuildRulesText, getTokenInfo, grantVerifiedRole, isVerified, mintToken, setGuildConfig, setGuildRulesText, submitAnswer } from "./modules/verification";
 import { ensureRulesCard, lockRulesChannel } from "./modules/rulesPage";
+import { disableCountingConfig, getCountingConfig, setCountingConfig } from "./modules/counting";
 import { Vaius } from "./Client";
 
 const { enabled, port } = Config.httpServer;
@@ -330,6 +331,80 @@ if (enabled) {
             });
         }
         return { guilds: out };
+    });
+
+    // ------------------------------------------------------------------
+    // Per-guild counting setup (dashboard). Same trust model as verification:
+    // server.js checks the OAuth session; here we re-check Manage Server.
+    // ------------------------------------------------------------------
+    fastify.get("/v1/counting/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        const cfg = getCountingConfig(guildId);
+        const guild = Vaius.guilds.get(guildId);
+        const channels = guild
+            ? [...guild.channels.values()]
+                .filter(c => c.type === 0)
+                .map(c => ({ id: c.id, name: "#" + c.name }))
+            : [];
+        return { configured: !!cfg, config: cfg, channels };
+    });
+
+    fastify.post("/v1/counting/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        const body = (req.body ?? {}) as { channelId?: string; startAt?: number };
+        const { channelId } = body;
+        if (!/^\d{17,20}$/.test(guildId) || !/^\d{17,20}$/.test(channelId ?? ""))
+            return res.code(400).send({ error: "guildId and channelId are required snowflakes" });
+
+        const guild = Vaius.guilds.get(guildId);
+        if (!guild) return res.code(404).send({ error: "bot is not in that server — invite it first" });
+
+        const actingUser = (req.query as { userId?: string }).userId || "";
+        if (actingUser) {
+            const member = await guild.getMember(actingUser).catch(() => null);
+            if (!member || (guild.ownerID !== actingUser && !member.permissions.has("MANAGE_GUILD")))
+                return res.code(403).send({ error: "you need Manage Server permission in that server" });
+        }
+
+        const prev = getCountingConfig(guildId);
+        const startAt = Number.isFinite(body.startAt) ? Math.max(0, Math.floor(Number(body.startAt))) : (prev?.current ?? 0);
+        const cfg = {
+            guildId,
+            channelId: channelId!,
+            current: startAt,
+            lastUserId: null as string | null,
+            best: Math.max(startAt, prev?.best ?? 0),
+            recordMessageId: prev?.recordMessageId ?? null,
+            enabled: true,
+        };
+        try {
+            await setCountingConfig(cfg, actingUser || "0");
+        } catch (e: any) {
+            console.error("[counting] failed to save config:", e);
+            return res.code(500).send({ error: "failed to save config" });
+        }
+
+        try {
+            await Vaius.rest.channels.createMessage(channelId!, {
+                content: `🔢 **Counting is live!** The next number is **${startAt + 1}**. One person per number, no double-counting — good luck!\n-# Record so far: **${cfg.best}**`,
+                allowedMentions: { everyone: false },
+            });
+        } catch (e: any) {
+            console.error("[counting] failed to post announcement:", e);
+            return res.code(400).send({ error: "saved, but could not post in that channel — check my permissions there" });
+        }
+        return { ok: true, config: cfg };
+    });
+
+    fastify.delete("/v1/counting/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        await disableCountingConfig(guildId);
+        return { ok: true };
     });
 
     // OAuth configuration for the website's tokenless "Verify with Discord"

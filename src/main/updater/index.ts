@@ -16,5 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// Updates always come from the Limey V1 website (limey-discord.onrender.com),
+// never from git — installed copies are stamped builds, not git repositories.
 if (!IS_UPDATER_DISABLED)
-    require(IS_STANDALONE ? "./http" : "./git");
+    require("./http");
