@@ -441,6 +441,13 @@ async function handleUsrbg(req, res, url) {
         return json(res, 200, { endpoint: "/v1/usrbg/users", users }), true;
     }
 
+    // GET /v1/usrbg/has-banner/:id — dashboard banner check without the
+    // console-noisy 404 the redirect endpoint returns for bannerless users
+    const hasBannerMatch = /^\/v1\/usrbg\/has-banner\/(\d{5,25})$/.exec(url);
+    if (hasBannerMatch && req.method === "GET") {
+        return json(res, 200, { hasBanner: !!usrbgData[hasBannerMatch[1]] }), true;
+    }
+
     const match = /^\/v1\/usrbg\/users\/(\d{5,25})$/.exec(url);
     if (!match) {
         if (url.startsWith("/v1/usrbg/")) return json(res, 404, { error: "not found" }), true;

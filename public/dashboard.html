@@ -675,9 +675,10 @@
         const bannerBadge = $("banner-badge");
         bannerBadge.style.display = "none";
         if (user.id) {
-            fetch(API_BASE + "/v1/usrbg/users/" + user.id, { redirect: "manual" })
-                .then(r => {
-                    if (r.type === "opaqueredirect" || r.status === 302) {
+            fetch(API_BASE + "/v1/usrbg/has-banner/" + user.id)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.hasBanner) {
                         bannerBadge.style.display = "";
                     }
                 })
