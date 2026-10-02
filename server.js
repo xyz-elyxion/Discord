@@ -417,6 +417,66 @@ function json(res, status, obj) {
 // Discord Developer Portal endpoints
 // ---------------------------------------------------------------------------
 
+// Application Webhooks URL (Developer Portal -> Webhooks). Discord delivers
+// signed event payloads (e.g. APPLICATION_AUTHORIZED, ENTITLEMENT_CREATE) and
+// first an "__verification__" event whose secret must be echoed back.
+// Events are signed with the same Ed25519 headers as interactions; the signing
+// key is the app's Public Key (DISCORD_INTERACTIONS_PUBLIC_KEY). The echo
+// secret is set via DISCORD_WEBHOOK_SECRET in the portal's Webhooks page.
+function verifyDiscordSignature(req, chunks, signature, timestamp) {
+    const publicKey = process.env.DISCORD_INTERACTIONS_PUBLIC_KEY || "";
+    if (!publicKey || !signature || !timestamp) return false;
+    const body = Buffer.concat(chunks);
+    const spki = Buffer.concat([
+        Buffer.from("302a300506032b6570032100", "hex"),
+        Buffer.from(publicKey, "hex")
+    ]);
+    try {
+        return require("crypto").verify(
+            null,
+            Buffer.concat([Buffer.from(timestamp), body]),
+            { key: spki, format: "der", type: "spki" },
+            Buffer.from(signature, "hex")
+        );
+    } catch {
+        return false;
+    }
+}
+
+function handleDiscordWebhooks(req, res, url) {
+    if (url !== "/v1/discord/webhooks") return false;
+    if (req.method === "OPTIONS") return res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" }).end(), true;
+    if (req.method !== "POST") return json(res, 405, { error: "POST only" }), true;
+
+    const signature = req.headers["x-signature-ed25519"];
+    const timestamp = req.headers["x-signature-timestamp"];
+
+    const chunks = [];
+    let size = 0;
+    req.on("data", c => { size += c.length; if (size > 1e6) req.destroy(); else chunks.push(c); });
+    req.on("end", () => {
+        if (!verifyDiscordSignature(req, chunks, signature, timestamp))
+            return json(res, 401, { error: "invalid request signature" });
+
+        try {
+            const event = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+            console.log("[discord-webhooks] event:", event.type);
+
+            // One-time handshake: echo the secret back exactly as received
+            if (event.type === 0 && event.data && typeof event.data.webhook_secret === "string")
+                return json(res, 200, { webhook_secret: event.data.webhook_secret });
+
+            // Route known events here as they get used:
+            //   APPLICATION_AUTHORIZED, ENTITLEMENT_CREATE, etc.
+            return json(res, 200, { ok: true });
+        } catch (e) {
+            console.error("[discord-webhooks] error:", e.message);
+            return json(res, 400, { error: "invalid payload" });
+        }
+    });
+    return true;
+}
+
 // Interactions Endpoint: verifies Ed25519 signatures (public key from the
 // Developer Portal, set via DISCORD_INTERACTIONS_PUBLIC_KEY) and handles PING
 // so the endpoint can be registered. Real interaction handling stays with the
@@ -1526,12 +1586,15 @@ const server = http.createServer(async (req, res) => {
 
     // Discord Developer Portal fields:
     //   Interactions Endpoint URL      -> /v1/discord/interactions
+    //   Webhooks URL (Developer Portal)
+    //                                  -> /v1/discord/webhooks
     //   Linked Roles Verification URL  -> /linked-roles
     //   Terms of Service URL           -> /terms
     //   Privacy Policy URL             -> /privacy
     //   Deep Link URL                  -> /deep-link
     //   Connection Entrypoint URL      -> /connections/entrypoint
     if (handleDiscordInteractions(req, res, url)) return;
+    if (handleDiscordWebhooks(req, res, url)) return;
     if (url === "/linked-roles") return serveFile(res, join(PUBLIC, "verify.html")), true;
     if (url === "/deep-link") return serveDeepLink(req, res), true;
     if (url === "/connections/entrypoint") return serveConnectionsEntrypoint(req, res), true;
