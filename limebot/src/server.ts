@@ -242,9 +242,15 @@ if (enabled) {
     fastify.get("/v1/verify/my-guilds", async (req, res) => {
         verifyCors(req, res);
         const userId = (req.query as { userId?: string }).userId || "";
-        const ids = (req.query as { ids?: string }).ids || "";
+        if (!/^\d{17,20}$/.test(userId)) return res.code(400).send({ error: "invalid userId" });
+        // guild ids from the OAuth session's guilds scope; when absent (plain
+        // dashboard logins), fall back to every guild the bot shares with the user
+        const requestedIds = (req.query as { ids?: string }).ids || "";
+        const ids = requestedIds
+            ? requestedIds.split(",").filter(i => /^\d{17,20}$/.test(i))
+            : [...Vaius.guilds.keys()];
         const out: { id: string; name: string; icon: string | null; configured: boolean; canManage: boolean }[] = [];
-        for (const id of ids.split(",").filter(i => /^\d{17,20}$/.test(i)) ) {
+        for (const id of ids) {
             const guild = Vaius.guilds.get(id);
             if (!guild) continue;
             const member = await guild.getMember(userId).catch(() => null);
