@@ -509,6 +509,73 @@
                         <div id="lv-leaderboard" class="desc">Pick a server to load the leaderboard.</div>
                     </div>
 
+                    <!-- autoroles setup -->
+                    <div class="dash-card wide" id="autoroles-card">
+                        <h3>Autoroles setup</h3>
+                        <p class="desc">New members automatically get the roles you pick here the moment they join.</p>
+                        <div class="vs-grid">
+                            <div class="field"><label for="ar-guild">Server</label><select id="ar-guild"><option value="">Loading…</option></select></div>
+                            <div class="field"><label for="ar-roles">Roles (Ctrl/Cmd-click for multiple)</label><select id="ar-roles" multiple size="5" style="width:100%;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--foreground);padding:10px;font-size:0.9rem;"><option value="">Pick a server first</option></select></div>
+                        </div>
+                        <div id="ar-status" class="vs-status"></div>
+                        <div class="links-row">
+                            <button class="btn-claim" id="ar-save">Save &amp; enable autoroles</button>
+                            <button class="btn-claim" id="ar-disable" style="background:#f04747;">Disable autoroles</button>
+                        </div>
+                    </div>
+
+                    <!-- reaction roles setup -->
+                    <div class="dash-card wide" id="reactionroles-card">
+                        <h3>Reaction roles setup</h3>
+                        <p class="desc">Members react with an emoji anywhere in the server to get the matching role — remove the reaction to lose it. Use a raw emoji, or the emoji ID for custom emoji.</p>
+                        <div class="vs-grid">
+                            <div class="field"><label for="rr-guild">Server</label><select id="rr-guild"><option value="">Loading…</option></select></div>
+                            <div class="field"><label for="rr-role">Role</label><select id="rr-role"><option value="">Pick a server first</option></select></div>
+                            <div class="field"><label for="rr-emoji">Emoji</label><input id="rr-emoji" placeholder="⭐ or 123456789012345678" style="width:100%;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--foreground);padding:10px;font-size:0.9rem;" /></div>
+                        </div>
+                        <div class="links-row">
+                            <button class="btn-claim" id="rr-add" style="background:var(--lime,#a3e635);">➕ Add mapping</button>
+                        </div>
+                        <div id="rr-list" class="desc">No mappings yet.</div>
+                        <div id="rr-status" class="vs-status"></div>
+                        <div class="links-row">
+                            <button class="btn-claim" id="rr-save">Save &amp; enable reaction roles</button>
+                            <button class="btn-claim" id="rr-disable" style="background:#f04747;">Disable reaction roles</button>
+                        </div>
+                    </div>
+
+                    <!-- starboard setup -->
+                    <div class="dash-card wide" id="starboard-card">
+                        <h3>Starboard setup</h3>
+                        <p class="desc">Messages that reach the reaction threshold get mirrored into your starboard channel with a live count.</p>
+                        <div class="vs-grid">
+                            <div class="field"><label for="sb-guild">Server</label><select id="sb-guild"><option value="">Loading…</option></select></div>
+                            <div class="field"><label for="sb-channel">Starboard channel</label><select id="sb-channel"><option value="">Pick a server first</option></select></div>
+                            <div class="field"><label for="sb-threshold">Reaction threshold</label><input id="sb-threshold" type="number" min="1" max="50" value="3" style="width:100%;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--foreground);padding:10px;font-size:0.9rem;" /></div>
+                            <div class="field"><label for="sb-emoji">Reaction emoji</label><input id="sb-emoji" value="⭐" style="width:100%;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--foreground);padding:10px;font-size:0.9rem;" /></div>
+                        </div>
+                        <div id="sb-status" class="vs-status"></div>
+                        <div class="links-row">
+                            <button class="btn-claim" id="sb-save">Save &amp; enable starboard</button>
+                            <button class="btn-claim" id="sb-disable" style="background:#f04747;">Disable starboard</button>
+                        </div>
+                    </div>
+
+                    <!-- suggestions setup -->
+                    <div class="dash-card wide" id="suggestions-card">
+                        <h3>Suggestions setup</h3>
+                        <p class="desc">Every member post in the chosen channel gets 👍 / 👎 vote reactions added automatically.</p>
+                        <div class="vs-grid">
+                            <div class="field"><label for="sg-guild">Server</label><select id="sg-guild"><option value="">Loading…</option></select></div>
+                            <div class="field"><label for="sg-channel">Suggestions channel</label><select id="sg-channel"><option value="">Pick a server first</option></select></div>
+                        </div>
+                        <div id="sg-status" class="vs-status"></div>
+                        <div class="links-row">
+                            <button class="btn-claim" id="sg-save">Save &amp; enable suggestions</button>
+                            <button class="btn-claim" id="sg-disable" style="background:#f04747;">Disable suggestions</button>
+                        </div>
+                    </div>
+
                     <!-- how it works -->
                     <div class="dash-card wide">
                         <h3>How it works for your members</h3>
@@ -1193,6 +1260,272 @@
     $("lv-save").onclick = lvSave;
     $("lv-disable").onclick = lvDisable;
 
+    /* ---------- autoroles / reaction roles / starboard / suggestions ---------- */
+    const featureState = {};
+
+    function featureStatus(key, text, cls) {
+        const el = $(key + "-status");
+        el.textContent = text || "";
+        el.className = "vs-status " + (cls || "");
+    }
+
+    function featureGuilds(key, onPick) {
+        return async () => {
+            try {
+                const data = await api("/v1/dashboard/my-guilds");
+                const guilds = (data.guilds || []).filter(g => g.canManage);
+                if (!guilds.length) {
+                    $(key + "-guild").innerHTML = "";
+                    const o = document.createElement("option");
+                    o.textContent = "No shared servers — invite the bot first";
+                    $(key + "-guild").appendChild(o);
+                    return;
+                }
+                fillSelect(key + "-guild", guilds.map(g => ({ id: g.id, name: g.name + (g.configured ? " ✓" : "") })), "Pick a server…");
+                $(key + "-guild").onchange = () => onPick($(key + "-guild").value);
+            } catch (e) {
+                featureStatus(key, "Could not load your servers: " + e.message, "err");
+            }
+        };
+    }
+
+    /* autoroles */
+    let arGuildId = null;
+    async function loadAutorolesGuilds() {
+        try {
+            const data = await api("/v1/dashboard/my-guilds");
+            const guilds = (data.guilds || []).filter(g => g.canManage);
+            if (!guilds.length) {
+                $("ar-guild").innerHTML = "";
+                const o = document.createElement("option");
+                o.textContent = "No shared servers — invite the bot first";
+                $("ar-guild").appendChild(o);
+                return;
+            }
+            fillSelect("ar-guild", guilds.map(g => ({ id: g.id, name: g.name + (g.configured ? " ✓" : "") })), "Pick a server…");
+            $("ar-guild").onchange = () => arPickGuild($("ar-guild").value);
+        } catch (e) {
+            arStatus("Could not load your servers: " + e.message, "err");
+        }
+    }
+    function arStatus(text, cls) { featureStatus("ar", text, cls); }
+    async function arPickGuild(guildId) {
+        arGuildId = guildId || null;
+        if (!arGuildId) return;
+        arStatus("Loading…", "busy");
+        try {
+            const data = await api("/v1/dashboard/autoroles-guild/" + arGuildId);
+            fillSelect("ar-roles", data.roles || [], "Pick roles…");
+            if (data.config) {
+                for (const opt of $("ar-roles").options) opt.selected = (data.config.roleIds || []).includes(opt.value);
+                arStatus("Autoroles are currently enabled for this server.", "ok");
+            } else arStatus("", "");
+        } catch (e) {
+            arStatus("⚠ " + e.message, "err");
+        }
+    }
+    async function arSave() {
+        if (!arGuildId) return arStatus("Pick a server first.", "err");
+        const roleIds = [...$("ar-roles").selectedOptions].map(o => o.value).filter(Boolean);
+        if (!roleIds.length) return arStatus("Pick at least one role.", "err");
+        arStatus("Saving…", "busy");
+        try {
+            await api("/v1/dashboard/autoroles-guild/" + arGuildId, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ roleIds })
+            });
+            arStatus("✅ Autoroles enabled — new members will get these roles.", "ok");
+        } catch (e) {
+            arStatus("⚠ " + e.message, "err");
+        }
+    }
+    async function arDisable() {
+        if (!arGuildId) return arStatus("Pick a server first.", "err");
+        try {
+            await api("/v1/dashboard/autoroles-guild/" + arGuildId, { method: "DELETE" });
+            arStatus("Autoroles disabled for that server.", "ok");
+        } catch (e) {
+            arStatus("⚠ " + e.message, "err");
+        }
+    }
+    $("ar-save").onclick = arSave;
+    $("ar-disable").onclick = arDisable;
+
+    /* reaction roles */
+    let rrGuildId = null;
+    let rrEntries = [];
+    function rrStatus(text, cls) { featureStatus("rr", text, cls); }
+    const loadReactionRolesGuilds = featureGuilds("rr", id => rrPickGuild(id));
+    async function rrPickGuild(guildId) {
+        rrGuildId = guildId || null;
+        if (!rrGuildId) return;
+        rrStatus("Loading…", "busy");
+        try {
+            const data = await api("/v1/dashboard/reaction-roles-guild/" + rrGuildId);
+            fillSelect("rr-role", data.roles || [], "Pick a role…");
+            rrEntries = (data.config?.entries || []).slice();
+            rrRenderList();
+            rrStatus(data.config ? "Reaction roles are currently enabled for this server." : "", data.config ? "ok" : "");
+        } catch (e) {
+            rrStatus("⚠ " + e.message, "err");
+        }
+    }
+    function rrRenderList() {
+        const list = $("rr-list");
+        if (!rrEntries.length) { list.textContent = "No mappings yet."; return; }
+        list.innerHTML = "";
+        rrEntries.forEach((e, i) => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0;";
+            const label = document.createElement("span");
+            label.textContent = `${e.emoji} → ${(e.roleName || e.roleId)}`;
+            const del = document.createElement("button");
+            del.textContent = "✕";
+            del.style.cssText = "background:transparent;border:1px solid #f04747;color:#f04747;border-radius:6px;padding:2px 8px;cursor:pointer;";
+            del.onclick = () => { rrEntries.splice(i, 1); rrRenderList(); };
+            row.append(label, del);
+            list.appendChild(row);
+        });
+    }
+    $("rr-add").onclick = () => {
+        const roleId = $("rr-role").value;
+        const emoji = $("rr-emoji").value.trim();
+        if (!rrGuildId) return rrStatus("Pick a server first.", "err");
+        if (!roleId) return rrStatus("Pick a role.", "err");
+        if (!emoji) return rrStatus("Enter an emoji.", "err");
+        if (rrEntries.some(e => e.emoji === emoji)) return rrStatus("That emoji is already mapped.", "err");
+        rrEntries.push({ emoji, roleId, roleName: $("rr-role").selectedOptions[0]?.textContent });
+        $("rr-emoji").value = "";
+        rrRenderList();
+        rrStatus("", "");
+    };
+    async function rrSave() {
+        if (!rrGuildId) return rrStatus("Pick a server first.", "err");
+        if (!rrEntries.length) return rrStatus("Add at least one emoji→role mapping.", "err");
+        rrStatus("Saving…", "busy");
+        try {
+            await api("/v1/dashboard/reaction-roles-guild/" + rrGuildId, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ entries: rrEntries.map(({ emoji, roleId }) => ({ emoji, roleId })) })
+            });
+            rrStatus("✅ Reaction roles enabled — members can now react to get roles.", "ok");
+        } catch (e) {
+            rrStatus("⚠ " + e.message, "err");
+        }
+    }
+    async function rrDisable() {
+        if (!rrGuildId) return rrStatus("Pick a server first.", "err");
+        try {
+            await api("/v1/dashboard/reaction-roles-guild/" + rrGuildId, { method: "DELETE" });
+            rrEntries = []; rrRenderList();
+            rrStatus("Reaction roles disabled for that server.", "ok");
+        } catch (e) {
+            rrStatus("⚠ " + e.message, "err");
+        }
+    }
+    $("rr-save").onclick = rrSave;
+    $("rr-disable").onclick = rrDisable;
+
+    /* starboard */
+    let sbGuildId = null;
+    function sbStatus(text, cls) { featureStatus("sb", text, cls); }
+    const loadStarboardGuilds = featureGuilds("sb", id => sbPickGuild(id));
+    async function sbPickGuild(guildId) {
+        sbGuildId = guildId || null;
+        if (!sbGuildId) return;
+        sbStatus("Loading…", "busy");
+        try {
+            const data = await api("/v1/dashboard/starboard-guild/" + sbGuildId);
+            fillSelect("sb-channel", data.channels || [], "Pick a channel…");
+            if (data.config) {
+                $("sb-channel").value = data.config.channelId || "";
+                $("sb-threshold").value = data.config.threshold ?? 3;
+                $("sb-emoji").value = data.config.emoji || "⭐";
+                sbStatus("Starboard is currently enabled for this server.", "ok");
+            } else sbStatus("", "");
+        } catch (e) {
+            sbStatus("⚠ " + e.message, "err");
+        }
+    }
+    async function sbSave() {
+        if (!sbGuildId) return sbStatus("Pick a server first.", "err");
+        if (!$("sb-channel").value) return sbStatus("Pick a channel.", "err");
+        sbStatus("Saving…", "busy");
+        try {
+            await api("/v1/dashboard/starboard-guild/" + sbGuildId, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    channelId: $("sb-channel").value,
+                    threshold: Number($("sb-threshold").value) || 3,
+                    emoji: $("sb-emoji").value.trim() || "⭐"
+                })
+            });
+            sbStatus("✅ Starboard enabled.", "ok");
+        } catch (e) {
+            sbStatus("⚠ " + e.message, "err");
+        }
+    }
+    async function sbDisable() {
+        if (!sbGuildId) return sbStatus("Pick a server first.", "err");
+        try {
+            await api("/v1/dashboard/starboard-guild/" + sbGuildId, { method: "DELETE" });
+            sbStatus("Starboard disabled for that server.", "ok");
+        } catch (e) {
+            sbStatus("⚠ " + e.message, "err");
+        }
+    }
+    $("sb-save").onclick = sbSave;
+    $("sb-disable").onclick = sbDisable;
+
+    /* suggestions */
+    let sgGuildId = null;
+    function sgStatus(text, cls) { featureStatus("sg", text, cls); }
+    const loadSuggestionsGuilds = featureGuilds("sg", id => sgPickGuild(id));
+    async function sgPickGuild(guildId) {
+        sgGuildId = guildId || null;
+        if (!sgGuildId) return;
+        sgStatus("Loading…", "busy");
+        try {
+            const data = await api("/v1/dashboard/suggestions-guild/" + sgGuildId);
+            fillSelect("sg-channel", data.channels || [], "Pick a channel…");
+            if (data.config) {
+                $("sg-channel").value = data.config.channelId || "";
+                sgStatus("Suggestions are currently enabled for this server.", "ok");
+            } else sgStatus("", "");
+        } catch (e) {
+            sgStatus("⚠ " + e.message, "err");
+        }
+    }
+    async function sgSave() {
+        if (!sgGuildId) return sgStatus("Pick a server first.", "err");
+        if (!$("sg-channel").value) return sgStatus("Pick a channel.", "err");
+        sgStatus("Saving…", "busy");
+        try {
+            await api("/v1/dashboard/suggestions-guild/" + sgGuildId, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ channelId: $("sg-channel").value })
+            });
+            sgStatus("✅ Suggestions enabled.", "ok");
+        } catch (e) {
+            sgStatus("⚠ " + e.message, "err");
+        }
+    }
+    async function sgDisable() {
+        if (!sgGuildId) return sgStatus("Pick a server first.", "err");
+        try {
+            await api("/v1/dashboard/suggestions-guild/" + sgGuildId, { method: "DELETE" });
+            sgStatus("Suggestions disabled for that server.", "ok");
+        } catch (e) {
+            sgStatus("⚠ " + e.message, "err");
+        }
+    }
+    $("sg-save").onclick = sgSave;
+    $("sg-disable").onclick = sgDisable;
+
     /* ---------- sidebar navigation ---------- */
     const CRUMB = { user: "Limey V1", server: "My Servers" };
     function activateNav(btn) {
@@ -1213,7 +1546,7 @@
             // refresh status data when opening Site Status; wallet data loads at boot
             if (sec === "status") void refreshMe();
         }
-        if (view === "server") { loadVSetup(); loadCountingGuilds(); loadWelcomerGuilds(); loadLevelingGuilds(); }
+        if (view === "server") { loadVSetup(); loadCountingGuilds(); loadWelcomerGuilds(); loadLevelingGuilds(); loadAutorolesGuilds(); loadReactionRolesGuilds(); loadStarboardGuilds(); loadSuggestionsGuilds(); }
     }
     document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
         btn.onclick = () => activateNav(btn);

@@ -10,6 +10,10 @@ import { ensureRulesCard, lockRulesChannel } from "./modules/rulesPage";
 import { disableCountingConfig, getCountingConfig, setCountingConfig } from "./modules/counting";
 import { disableLevelingConfig, getLeaderboard, getLevelingConfig, setLevelingConfig } from "./modules/leveling";
 import { disableWelcomerConfig, getWelcomerConfig, setWelcomerConfig } from "./modules/welcomer";
+import { disableAutoroleConfig, getAutoroleConfig, setAutoroleConfig } from "./modules/autoroles";
+import { disableReactionRolesConfig, getReactionRolesConfig, ReactionRoleEntry, setReactionRolesConfig } from "./modules/reactionRoles";
+import { disableStarboardConfig, getStarboardConfig, setStarboardConfig } from "./modules/starboard";
+import { disableSuggestionConfig, getSuggestionConfig, setSuggestionConfig } from "./modules/suggestions";
 import { Vaius } from "./Client";
 import { getVisibleChannels, isChannelObfuscated } from "./util/obfuscation";
 
@@ -560,6 +564,256 @@ if (enabled) {
         const { guildId } = req.params as { guildId: string };
         if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
         await disableLevelingConfig(guildId);
+        return { ok: true };
+    });
+
+    // Shared helper for the feature-setup endpoints below: resolve the guild
+    // and verify the acting user may Manage Server (same model as counting).
+    const resolveFeatureGuild = async (req: import("fastify").FastifyRequest, res: import("fastify").FastifyReply, guildId: string) => {
+        const guild = Vaius.guilds.get(guildId);
+        if (!guild) {
+            void res.code(404).send({ error: "bot is not in that server — invite it first" });
+            return null;
+        }
+        const actingUser = (req.query as { userId?: string }).userId || "";
+        if (actingUser) {
+            const member = await guild.getMember(actingUser).catch(() => null);
+            if (!member || (guild.ownerID !== actingUser && !member.permissions.has("MANAGE_GUILD"))) {
+                void res.code(403).send({ error: "you need Manage Server permission in that server" });
+                return null;
+            }
+        }
+        return guild;
+    };
+
+    // ------------------------------------------------------------------
+    // Per-guild autoroles setup (dashboard)
+    // ------------------------------------------------------------------
+    fastify.get("/v1/autoroles/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        const guild = Vaius.guilds.get(guildId);
+        const roles = guild
+            ? [...guild.roles.values()]
+                .filter(r => !r.managed && r.id !== guild.id)
+                .map(r => ({ id: r.id, name: "@" + r.name, color: r.color ?? null }))
+            : [];
+        return { configured: !!getAutoroleConfig(guildId), config: getAutoroleConfig(guildId), roles };
+    });
+
+    fastify.post("/v1/autoroles/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        const body = (req.body ?? {}) as { roleIds?: string[] };
+        const roleIds = (body.roleIds ?? []).filter(id => /^\d{17,20}$/.test(id));
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        if (!roleIds.length) return res.code(400).send({ error: "at least one role id is required" });
+
+        const guild = await resolveFeatureGuild(req, res, guildId);
+        if (!guild) return;
+        for (const id of roleIds) {
+            const role = guild.roles.get(id);
+            if (!role) return res.code(400).send({ error: "unknown role: " + id });
+            if (role.managed) return res.code(400).send({ error: "@" + role.name + " is managed by an integration and cannot be auto-assigned" });
+            // the bot's own highest role must be above the target role
+            const myMember = await guild.getMember(Vaius.user.id).catch(() => null);
+            const myTop = myMember ? Math.max(...myMember.roles.map(r => guild.roles.get(r)?.position ?? 0)) : 0;
+            if (role.position >= myTop) return res.code(400).send({ error: "@" + role.name + " is above my highest role — move my role up and try again" });
+        }
+
+        const cfg = { guildId, roleIds, enabled: true };
+        try {
+            await setAutoroleConfig(cfg, (req.query as { userId?: string }).userId || "0");
+        } catch (e: any) {
+            console.error("[autoroles] failed to save config:", e);
+            return res.code(500).send({ error: "failed to save config" });
+        }
+        return { ok: true, config: cfg };
+    });
+
+    fastify.delete("/v1/autoroles/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        await disableAutoroleConfig(guildId);
+        return { ok: true };
+    });
+
+    // ------------------------------------------------------------------
+    // Per-guild reaction roles setup (dashboard)
+    // ------------------------------------------------------------------
+    fastify.get("/v1/reaction-roles/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        const guild = Vaius.guilds.get(guildId);
+        const roles = guild
+            ? [...guild.roles.values()]
+                .filter(r => !r.managed && r.id !== guild.id)
+                .map(r => ({ id: r.id, name: "@" + r.name, color: r.color ?? null }))
+            : [];
+        return { configured: !!getReactionRolesConfig(guildId), config: getReactionRolesConfig(guildId), roles };
+    });
+
+    fastify.post("/v1/reaction-roles/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        const body = (req.body ?? {}) as { entries?: ReactionRoleEntry[] };
+        const entries = (body.entries ?? [])
+            .map(e => ({ emoji: String(e.emoji ?? "").trim(), roleId: String(e.roleId ?? "") }))
+            .filter(e => e.emoji && /^\d{17,20}$/.test(e.roleId));
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        if (!entries.length) return res.code(400).send({ error: "at least one emoji→role entry is required" });
+        if (entries.length > 20) return res.code(400).send({ error: "max 20 reaction roles per server" });
+
+        const guild = await resolveFeatureGuild(req, res, guildId);
+        if (!guild) return;
+        const seen = new Set<string>();
+        for (const e of entries) {
+            if (seen.has(e.emoji)) return res.code(400).send({ error: "duplicate emoji: " + e.emoji });
+            seen.add(e.emoji);
+            const role = guild.roles.get(e.roleId);
+            if (!role) return res.code(400).send({ error: "unknown role: " + e.roleId });
+            if (role.managed) return res.code(400).send({ error: "@" + role.name + " is managed by an integration and cannot be reaction-assigned" });
+            const myMember = await guild.getMember(Vaius.user.id).catch(() => null);
+            const myTop = myMember ? Math.max(...myMember.roles.map(r => guild.roles.get(r)?.position ?? 0)) : 0;
+            if (role.position >= myTop) return res.code(400).send({ error: "@" + role.name + " is above my highest role — move my role up and try again" });
+        }
+
+        const cfg = { guildId, entries, enabled: true };
+        try {
+            await setReactionRolesConfig(cfg, (req.query as { userId?: string }).userId || "0");
+        } catch (e: any) {
+            console.error("[reaction-roles] failed to save config:", e);
+            return res.code(500).send({ error: "failed to save config" });
+        }
+        return { ok: true, config: cfg };
+    });
+
+    fastify.delete("/v1/reaction-roles/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        await disableReactionRolesConfig(guildId);
+        return { ok: true };
+    });
+
+    // ------------------------------------------------------------------
+    // Per-guild starboard setup (dashboard)
+    // ------------------------------------------------------------------
+    fastify.get("/v1/starboard/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        const cfg = getStarboardConfig(guildId);
+        const guild = Vaius.guilds.get(guildId);
+        const channels = guild
+            ? getVisibleChannels(guild)
+                .filter(c => c.type === 0)
+                .map(c => ({ id: c.id, name: "#" + c.name }))
+            : [];
+        return { configured: !!cfg, config: cfg, channels };
+    });
+
+    fastify.post("/v1/starboard/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        const body = (req.body ?? {}) as { channelId?: string; threshold?: number; emoji?: string };
+        if (!/^\d{17,20}$/.test(guildId) || !/^\d{17,20}$/.test(body.channelId ?? ""))
+            return res.code(400).send({ error: "guildId and channelId are required snowflakes" });
+
+        const guild = await resolveFeatureGuild(req, res, guildId);
+        if (!guild) return;
+        if (rejectHiddenChannel(res, guildId, body.channelId)) return;
+
+        const threshold = Number(body.threshold);
+        if (!Number.isFinite(threshold) || threshold < 1 || threshold > 50)
+            return res.code(400).send({ error: "threshold must be between 1 and 50" });
+        const emoji = (body.emoji || "⭐").trim();
+        if (emoji.length > 32) return res.code(400).send({ error: "emoji must be a single emoji" });
+
+        const cfg = { guildId, channelId: body.channelId!, threshold: Math.floor(threshold), emoji, enabled: true };
+        try {
+            await setStarboardConfig(cfg, (req.query as { userId?: string }).userId || "0");
+        } catch (e: any) {
+            console.error("[starboard] failed to save config:", e);
+            return res.code(500).send({ error: "failed to save config" });
+        }
+
+        try {
+            await Vaius.rest.channels.createMessage(cfg.channelId, {
+                content: `⭐ **Starboard is live!** Messages that get **${cfg.threshold}** ${cfg.emoji} reactions will be featured here.`,
+                allowedMentions: { everyone: false },
+            });
+        } catch (e: any) {
+            console.error("[starboard] failed to post announcement:", e);
+            return res.code(400).send({ error: "saved, but could not post in that channel — check my permissions there" });
+        }
+        return { ok: true, config: cfg };
+    });
+
+    fastify.delete("/v1/starboard/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        await disableStarboardConfig(guildId);
+        return { ok: true };
+    });
+
+    // ------------------------------------------------------------------
+    // Per-guild suggestions setup (dashboard)
+    // ------------------------------------------------------------------
+    fastify.get("/v1/suggestions/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        const cfg = getSuggestionConfig(guildId);
+        const guild = Vaius.guilds.get(guildId);
+        const channels = guild
+            ? getVisibleChannels(guild)
+                .filter(c => c.type === 0)
+                .map(c => ({ id: c.id, name: "#" + c.name }))
+            : [];
+        return { configured: !!cfg, config: cfg, channels };
+    });
+
+    fastify.post("/v1/suggestions/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        const body = (req.body ?? {}) as { channelId?: string };
+        if (!/^\d{17,20}$/.test(guildId) || !/^\d{17,20}$/.test(body.channelId ?? ""))
+            return res.code(400).send({ error: "guildId and channelId are required snowflakes" });
+
+        const guild = await resolveFeatureGuild(req, res, guildId);
+        if (!guild) return;
+        if (rejectHiddenChannel(res, guildId, body.channelId)) return;
+
+        try {
+            await Vaius.rest.channels.createMessage(body.channelId!, {
+                content: "💡 **Suggestions channel configured!** Post an idea here and members can vote on it with 👍 / 👎.",
+                allowedMentions: { everyone: false },
+            });
+        } catch (e: any) {
+            console.error("[suggestions] failed to post announcement:", e);
+            return res.code(400).send({ error: "could not post in that channel — check my permissions there" });
+        }
+
+        const cfg = { guildId, channelId: body.channelId!, enabled: true };
+        try {
+            await setSuggestionConfig(cfg, (req.query as { userId?: string }).userId || "0");
+        } catch (e: any) {
+            console.error("[suggestions] failed to save config:", e);
+            return res.code(500).send({ error: "failed to save config" });
+        }
+        return { ok: true, config: cfg };
+    });
+
+    fastify.delete("/v1/suggestions/guild/:guildId", async (req, res) => {
+        verifyCors(req, res);
+        const { guildId } = req.params as { guildId: string };
+        if (!/^\d{17,20}$/.test(guildId)) return res.code(400).send({ error: "invalid guild id" });
+        await disableSuggestionConfig(guildId);
         return { ok: true };
     });
 

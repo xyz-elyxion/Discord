@@ -118,6 +118,46 @@ export interface Tickets {
         createdAt: string;
     }
 
+    export interface AutoroleConfigs {
+        guildId: string;
+        roleIds: string;
+        enabled: number;
+        createdBy: string;
+        createdAt: string;
+    }
+
+    export interface ReactionRoleConfigs {
+        guildId: string;
+        entries: string;
+        enabled: number;
+        createdBy: string;
+        createdAt: string;
+    }
+
+    export interface StarboardConfigs {
+        guildId: string;
+        channelId: string;
+        threshold: number;
+        emoji: string;
+        enabled: number;
+        createdBy: string;
+        createdAt: string;
+    }
+
+    export interface StarboardEntries {
+        guildId: string;
+        originalId: string;
+        starboardMessageId: string;
+    }
+
+    export interface SuggestionConfigs {
+        guildId: string;
+        channelId: string;
+        enabled: number;
+        createdBy: string;
+        createdAt: string;
+    }
+
     export interface DB {
         tickets: Tickets;
         expressions: Expressions;
@@ -133,5 +173,10 @@ export interface Tickets {
         countingConfigs: CountingConfigs;
         welcomerConfigs: WelcomerConfigs;
         levelingConfigs: LevelingConfigs;
+        autoroleConfigs: AutoroleConfigs;
+        reactionRoleConfigs: ReactionRoleConfigs;
+        starboardConfigs: StarboardConfigs;
+        starboardEntries: StarboardEntries;
+        suggestionConfigs: SuggestionConfigs;
     }
 }

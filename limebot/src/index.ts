@@ -18,6 +18,10 @@ import { initRulesPage } from "./modules/rulesPage";
 import { initCounting } from "./modules/counting";
 import { initLeveling } from "./modules/leveling";
 import { initWelcomer } from "./modules/welcomer";
+import { initAutoroles } from "./modules/autoroles";
+import { initReactionRoles } from "./modules/reactionRoles";
+import { initStarboard } from "./modules/starboard";
+import { initSuggestions } from "./modules/suggestions";
 import { initScheduledUnbans } from "./commands/moderation/tempban";
 import { silently } from "./util/functions";
 import { inspect } from "./util/inspect";
@@ -30,6 +34,10 @@ initRulesPage();
 initCounting();
 initLeveling();
 initWelcomer();
+initAutoroles();
+initReactionRoles();
+initStarboard();
+initSuggestions();
 initScheduledUnbans();
 
 export async function handleError(title: string, err: unknown) {

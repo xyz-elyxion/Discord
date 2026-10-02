@@ -112,3 +112,44 @@ CREATE TABLE IF NOT EXISTS levelingConfigs (
     createdBy TEXT NOT NULL,
     createdAt TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS autoroleConfigs (
+    guildId   TEXT PRIMARY KEY,
+    roleIds   TEXT NOT NULL DEFAULT '',
+    enabled   INTEGER NOT NULL DEFAULT 1,
+    createdBy TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS reactionRoleConfigs (
+    guildId   TEXT PRIMARY KEY,
+    entries   TEXT NOT NULL DEFAULT '[]',
+    enabled   INTEGER NOT NULL DEFAULT 1,
+    createdBy TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS starboardConfigs (
+    guildId   TEXT PRIMARY KEY,
+    channelId TEXT NOT NULL,
+    threshold INTEGER NOT NULL DEFAULT 3,
+    emoji     TEXT NOT NULL DEFAULT '⭐',
+    enabled   INTEGER NOT NULL DEFAULT 1,
+    createdBy TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS starboardEntries (
+    guildId            TEXT NOT NULL,
+    originalId         TEXT NOT NULL,
+    starboardMessageId TEXT NOT NULL,
+    PRIMARY KEY (originalId)
+);
+
+CREATE TABLE IF NOT EXISTS suggestionConfigs (
+    guildId   TEXT PRIMARY KEY,
+    channelId TEXT NOT NULL,
+    enabled   INTEGER NOT NULL DEFAULT 1,
+    createdBy TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+);

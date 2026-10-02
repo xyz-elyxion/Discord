@@ -1164,6 +1164,23 @@ async function handleDashboard(req, res, url) {
         return true;
     }
 
+    // Generic feature-setup proxies (same model as counting/welcomer/leveling):
+    // /v1/dashboard/<feature>-guild/:guildId -> limebot /v1/<feature>/guild/:guildId
+    for (const feature of ["autoroles", "reaction-roles", "starboard", "suggestions"]) {
+        if (url.startsWith(`/v1/dashboard/${feature}-guild/`)) {
+            const session = dashGetSession(req);
+            if (!session) return json(res, 401, { error: "not logged in" }), true;
+            const sub = url.slice(`/v1/dashboard/${feature}-guild/`.length);
+            const guildId = sub.split("/")[0];
+            if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
+            if (req.method === "OPTIONS") return res.end(), true;
+            const sep = url.includes("?") ? "&" : "?";
+            const upstreamUrl = `/v1/${feature}/guild/` + sub + sep + "userId=" + session.discordId;
+            proxyLimebot(req, res, upstreamUrl);
+            return true;
+        }
+    }
+
     // Rules editor: /v1/dashboard/verify-rules/:guildId[?] -> /v1/verify/guild/:guildId/rules
     if (url.startsWith("/v1/dashboard/verify-rules/")) {
         const session = dashGetSession(req);
@@ -1611,10 +1628,10 @@ function serveNamedPage(res, url) {
     return true;
 }
 
-// Admin page — only served when the admin token is set
+// Admin page — sign-in is gated by the Discord OAuth admin role check
+// (state=admin callback), so the page is always available.
 function serveAdminPage(res, url) {
     if (url !== "/admin" && url !== "/admin/") return false;
-    if (!process.env.USRBG_ADMIN_TOKEN) return send(res, 404, "Not found"), true;
     const page = join(PUBLIC, "admin.html");
     if (!existsSync(page)) return send(res, 404, "Not found"), true;
     serveFile(res, page);
