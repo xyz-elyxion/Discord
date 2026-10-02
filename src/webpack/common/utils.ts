@@ -150,85 +150,10 @@ export const Toasts = {
 /**
  * Show a simple toast. If you need more options, use Toasts.show manually
  */
-export function showToast(message: string, type = ToastType.MESSAGE, options?: ToastOptions) {
-    Toasts.show(Toasts.create(message, type, options));
+export function showToast(message: string, type: t.ToastType = "message", options?: ToastOptions) {
+    Toasts.show({ message, id: Toasts.genId(), type, options });
 }
 
 export const UserUtils = {
     getUser: findByCodeLazy(".USER(")
 };
-
-export const UploadManager = findByPropsLazy("clearAll", "addFile");
-export const UploadHandler = {
-    promptToUpload: findByCodeLazy("Unexpected mismatch between files and file metadata") as (files: File[], channel: t.Channel, draftType: Number) => void
-};
-
-export const ApplicationAssetUtils = mapMangledModuleLazy("getAssetImage: size must === [", {
-    fetchAssetIds: filters.byCode('.startsWith("http:")', ".dispatch({"),
-    getAssetFromImageURL: filters.byCode("].serialize(", ":null"),
-    getAssetImage: filters.byCode("getAssetImage: size must === ["),
-    getAssets: filters.byCode(".assets")
-});
-
-export const NavigationRouter: t.NavigationRouter = mapMangledModuleLazy("transitionTo - Transitioning to", {
-    transitionTo: filters.byCode("transitionTo -"),
-    transitionToGuild: filters.byCode("transitionToGuild -"),
-    back: filters.byCode("goBack()"),
-    forward: filters.byCode("goForward()"),
-});
-export const ChannelRouter: t.ChannelRouter = mapMangledModuleLazy('"Thread must have a parent ID."', {
-    transitionToChannel: filters.byCode(".preload"),
-    transitionToThread: filters.byCode('"Thread must have a parent ID."')
-});
-
-export let SettingsRouter: any;
-waitFor(["openUserSettings", "USER_SETTINGS_MODAL_KEY"], m => SettingsRouter = m);
-
-export const PermissionsBits: t.PermissionsBits = findLazy(m => typeof m.ADMINISTRATOR === "bigint");
-
-export const { zustandCreate } = mapMangledModuleLazy(["useSyncExternalStoreWithSelector:", "Object.assign"], {
-    zustandCreate: filters.byCode(/=>(\i)\?\i\(\1/)
-});
-
-export const { zustandPersist } = mapMangledModuleLazy(".onRehydrateStorage)?", {
-    zustandPersist: filters.byCode(/(\(\i,\i\))=>.+?\i\1/)
-});
-
-export const MessageActions = findByPropsLazy("editMessage", "sendMessage");
-export const MessageCache = findByPropsLazy("clearCache", "_channelMessages");
-export const UserProfileActions = findByPropsLazy("openUserProfileModal", "closeUserProfileModal");
-export const InviteActions = findByPropsLazy("resolveInvite");
-export const ChannelActionCreators = findByPropsLazy("openPrivateChannel");
-
-export const IconUtils: t.IconUtils = findByPropsLazy("getGuildBannerURL", "getUserAvatarURL");
-
-export const ExpressionPickerStore: t.ExpressionPickerStore = mapMangledModuleLazy("expression-picker-last-active-view", {
-    openExpressionPicker: filters.byCode(/setState\({activeView:(?:(?!null)\i),activeViewType:/),
-    closeExpressionPicker: filters.byCode("setState({activeView:null"),
-    toggleMultiExpressionPicker: filters.byCode(".EMOJI,"),
-    toggleExpressionPicker: filters.byCode(/\i\.activeView===\i&&\i\.activeViewType===\i&&/),
-    setExpressionPickerView: filters.byCode(/setState\({activeView:\i,lastActiveView:/),
-    setSearchQuery: filters.byCode("searchQuery:"),
-    useExpressionPickerStore: filters.byCode(/\(\i,\i=\i\)=>/)
-});
-
-export const PopoutActions: t.PopoutActions = mapMangledModuleLazy('type:"POPOUT_WINDOW_OPEN"', {
-    open: filters.byCode('type:"POPOUT_WINDOW_OPEN"'),
-    close: filters.byCode('type:"POPOUT_WINDOW_CLOSE"'),
-    setAlwaysOnTop: filters.byCode('type:"POPOUT_WINDOW_SET_ALWAYS_ON_TOP"'),
-});
-
-export const UsernameUtils: t.UsernameUtils = findByPropsLazy("useName", "getGlobalName");
-export const DisplayProfileUtils: t.DisplayProfileUtils = mapMangledModuleLazy(/=\i\.getUserProfile\(\i\),\i=\i\.getGuildMemberProfile\(/, {
-    getDisplayProfile: filters.byCode(".getGuildMemberProfile("),
-    useDisplayProfile: filters.byCode(/\[\i\.\i,\i\.\i],\(\)=>/)
-});
-
-export const DateUtils: t.DateUtils = mapMangledModuleLazy("millisecondsInUnit:", {
-    calendarFormat: filters.byCode('<-1?"sameElse":'),
-    dateFormat: filters.byCode('<2?"nextDay":"sameElse";'),
-    isSameDay: filters.byCode(/Math\.abs\(\i-\i\)/),
-    diffAsUnits: filters.byCode("days:0", "millisecondsInUnit")
-});
-
-export const MessageTypeSets: t.MessageTypeSets = findByPropsLazy("REPLYABLE", "FORWARDABLE");
