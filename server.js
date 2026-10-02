@@ -1076,6 +1076,18 @@ async function handleDashboard(req, res, url) {
         return json(res, 200, { ok: true }), true;
     }
 
+    // Public tiers list — handled here because it lives under /v1/dashboard
+    // and would otherwise be swallowed by the catch-all below.
+    if (url === "/v1/dashboard/tiers" && req.method === "GET") {
+        if (!limeEconomy) return json(res, 503, { error: "economy backend unavailable" }), true;
+        let status = 500, body = JSON.stringify({ tiers: [] });
+        await limeEconomy.handle({ method: "GET", headers: {}, socket: req.socket }, {
+            writeHead: s => { status = s; },
+            end: b => { body = b; }
+        }, "/v1/limes/tiers");
+        return json(res, status, JSON.parse(body)), true;
+    }
+
     if (url.startsWith("/v1/dashboard")) return json(res, 404, { error: "not found" }), true;
     return false;
 }
@@ -1353,16 +1365,6 @@ const server = http.createServer(async (req, res) => {
         if (reviewdb && url.startsWith("/v1/reviewdb/") && await reviewdb.handle(req, res, url)) return;
         // Lime Economy (virtual currency + perk tiers)
         if (limeEconomy && url.startsWith("/v1/limes/") && await limeEconomy.handle(req, res, url)) return;
-        // Public tiers list for the dashboard (no session needed)
-        if (url === "/v1/dashboard/tiers" && limeEconomy) {
-            let status = 500, body = JSON.stringify({ tiers: [] });
-            await limeEconomy.handle({ method: "GET", headers: {}, socket: req.socket }, {
-                writeHead: s => { status = s; },
-                end: b => { body = b; }
-            }, "/v1/limes/tiers");
-            res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" });
-            return res.end(body), true;
-        }
         return proxyCloud(req, res);
     }
 
