@@ -313,9 +313,9 @@
 
                     <nav class="side-nav">
                         <div class="nav-items">
-                            <button class="nav-item active" data-view="user" data-title="Overview"><span class="ni-icon">🏠</span><span class="label">Overview</span></button>
-                            <button class="nav-item" data-view="user" data-title="Verification"><span class="ni-icon">✅</span><span class="label">Verification</span></button>
-                            <button class="nav-item" data-view="user" data-title="Limes Wallet"><span class="ni-icon">🍋</span><span class="label">Limes Wallet</span></button>
+                            <button class="nav-item active" data-view="user" data-sec="overview" data-title="Overview"><span class="ni-icon">🏠</span><span class="label">Overview</span></button>
+                            <button class="nav-item" data-view="user" data-sec="verification" data-title="Verification"><span class="ni-icon">✅</span><span class="label">Verification</span></button>
+                            <button class="nav-item" data-view="user" data-sec="limes" data-title="Limes Wallet"><span class="ni-icon">🍋</span><span class="label">Limes Wallet</span></button>
                         </div>
                         <span class="nav-group-heading">Servers</span>
                         <div class="nav-items">
@@ -324,8 +324,8 @@
                         </div>
                         <span class="nav-group-heading">Site</span>
                         <div class="nav-items">
-                            <button class="nav-item" data-view="user" data-title="Site Status"><span class="ni-icon">📊</span><span class="label">Site Status</span></button>
-                            <button class="nav-item" data-view="user" data-title="Quick Links"><span class="ni-icon">🔗</span><span class="label">Quick Links</span></button>
+                            <button class="nav-item" data-view="user" data-sec="status" data-title="Site Status"><span class="ni-icon">📊</span><span class="label">Site Status</span></button>
+                            <button class="nav-item" data-view="user" data-sec="links" data-title="Quick Links"><span class="ni-icon">🔗</span><span class="label">Quick Links</span></button>
                         </div>
                     </nav>
 
@@ -346,7 +346,7 @@
             <div id="user-view">
             <div class="dash-grid">
                 <!-- verification -->
-                <div class="dash-card">
+                <div class="dash-card sec-card" data-sec="verification account overview">
                     <h3>Verification</h3>
                     <p class="desc">Proves you're human and unlocks the server.</p>
                     <p><span class="badge" id="verify-badge">…</span></p>
@@ -354,7 +354,7 @@
                 </div>
 
                 <!-- limes wallet -->
-                <div class="dash-card">
+                <div class="dash-card sec-card" data-sec="limes overview">
                     <h3>Limes</h3>
                     <p class="desc">Your wallet and daily claim.</p>
                     <div class="limes-balance"><span id="limes-balance">—</span> <span>🍋</span></div>
@@ -366,7 +366,7 @@
                 </div>
 
                 <!-- perk tiers -->
-                <div class="dash-card">
+                <div class="dash-card sec-card" data-sec="limes overview">
                     <h3>Perk tiers</h3>
                     <p class="desc">Spend Limes for extra perks.</p>
                     <div id="tiers-list"><span class="spinner"></span></div>
@@ -374,7 +374,7 @@
                 </div>
 
                 <!-- account -->
-                <div class="dash-card">
+                <div class="dash-card sec-card" data-sec="account overview">
                     <h3>Account</h3>
                     <p class="desc">Your linked Discord account.</p>
                     <div class="kv-row"><span class="k">User ID</span><span class="v" id="acc-id-cell"><span id="acc-id"></span></span></div>
@@ -384,7 +384,7 @@
                 </div>
 
                 <!-- redeem a code -->
-                <div class="dash-card">
+                <div class="dash-card sec-card" data-sec="limes overview">
                     <h3>Redeem a code</h3>
                     <p class="desc">Got a donor code from supporting the project? Cash it in here.</p>
                     <div class="redeem-row">
@@ -394,14 +394,14 @@
                 </div>
 
                 <!-- transaction history -->
-                <div class="dash-card wide">
+                <div class="dash-card wide sec-card" data-sec="limes overview">
                     <h3>Wallet history</h3>
                     <p class="desc">Your last Limes transactions.</p>
                     <div class="tx-list" id="tx-list"><span class="empty-note">No transactions yet — claim your daily Limes!</span></div>
                 </div>
 
                 <!-- site status -->
-                <div class="dash-card">
+                <div class="dash-card sec-card" data-sec="status overview">
                     <h3>Site status</h3>
                     <p class="desc">Builds and services running.</p>
                     <div class="kv-row"><span class="k">Web build</span><span class="v" id="st-web">—</span></div>
@@ -411,7 +411,7 @@
                 </div>
 
                 <!-- quick links -->
-                <div class="dash-card">
+                <div class="dash-card sec-card" data-sec="links overview">
                     <h3>Quick links</h3>
                     <p class="desc">Everything Limey V1, one click away.</p>
                     <div class="links-row">
@@ -1199,10 +1199,20 @@
         document.querySelectorAll(".nav-item[data-view]").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         const view = btn.dataset.view;
+        const sec = btn.dataset.sec || "overview";
         const title = btn.dataset.title || "Overview";
         $("user-view").style.display = view === "user" ? "" : "none";
         $("server-view").style.display = view === "server" ? "" : "none";
+        // within the user view, show only the cards belonging to this section
+        document.querySelectorAll("#user-view .sec-card").forEach(card => {
+            const secs = (card.dataset.sec || "").split(/\s+/);
+            card.style.display = view === "user" && !secs.includes(sec) ? "none" : "";
+        });
         $("crumb-page").textContent = title;
+        if (view === "user") {
+            // refresh status data when opening Site Status; wallet data loads at boot
+            if (sec === "status") void refreshMe();
+        }
         if (view === "server") { loadVSetup(); loadCountingGuilds(); loadWelcomerGuilds(); loadLevelingGuilds(); }
     }
     document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
