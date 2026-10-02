@@ -1090,7 +1090,12 @@ async function handleDashboard(req, res, url) {
             writeHead: (s) => { status = s; },
             end: (body) => { try { payload = JSON.parse(body); } catch { /* keep default */ } }
         };
-        await limeEconomy.handle(fakeReq, fakeRes, path);
+        try {
+            await limeEconomy.handle(fakeReq, fakeRes, path);
+        } catch (err) {
+            console.error(`[dashboard] economyProxy ${path} threw:`, err.stack || err.message || err);
+            return { status: 500, payload: { error: "economy backend error" } };
+        }
         return { status, payload };
     }
 
@@ -1100,8 +1105,14 @@ async function handleDashboard(req, res, url) {
     // verified Discord id — no client-supplied userId)
     if (url === "/v1/dashboard/daily" && req.method === "POST") {
         if (!session) return json(res, 401, { error: "not logged in" }), true;
-        const { status, payload } = await economyProxy("/v1/limes/earn/daily");
-        return json(res, status, payload), true;
+        try {
+            const { status, payload } = await economyProxy("/v1/limes/earn/daily", {});
+            if (status >= 500) console.error("[dashboard] daily claim upstream failure:", JSON.stringify(payload));
+            return json(res, status, payload), true;
+        } catch (err) {
+            console.error("[dashboard] daily claim crashed:", err.stack || err.message || err);
+            return json(res, 500, { error: "daily claim failed" }), true;
+        }
     }
 
     // Wallet transaction history (proxied)
