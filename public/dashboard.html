@@ -66,6 +66,20 @@
         .dash-card a { color: var(--foreground); text-decoration: underline; text-underline-offset: 4px; }
         .dash-card .foot { margin-top: auto; padding-top: 12px; font-size: 0.85rem; }
         .dash-card.wide { grid-column: 1 / -1; }
+        .vs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px; }
+        .field label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; }
+        .field select {
+            width: 100%; background: var(--background, transparent); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--foreground); padding: 9px 12px; font-size: 0.9rem; outline: none;
+        }
+        .field select:focus { border-color: var(--lime, #9eea6f); }
+        .vs-status { font-weight: 600; font-size: 0.9rem; min-height: 20px; margin-bottom: 10px; }
+        .vs-status.ok { color: #3ba55c; }
+        .vs-status.err { color: #f04747; }
+        .vs-status.busy { color: var(--muted-foreground); }
+        .links-row { display: flex; flex-wrap: wrap; gap: 10px; }
+        .links-row .btn-claim { cursor: pointer; }
+        .links-row .btn-claim:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .badge {
             display: inline-flex; align-items: center; gap: 6px;
@@ -267,6 +281,23 @@
                     <div class="tx-list" id="tx-list"><span class="empty-note">No transactions yet — claim your daily Limes!</span></div>
                 </div>
 
+                <!-- server verification setup -->
+                <div class="dash-card wide hidden" id="vsetup-card">
+                    <h3>Server verification setup</h3>
+                    <p class="desc">Add interactive verification &amp; rules to your own server: pick a server where you have <strong>Manage Server</strong> and the Limey bot is present (<a href="https://discord.com/oauth2/authorize?client_id=1514929209158402078&amp;scope=bot&amp;permissions=268435464" target="_blank" rel="noopener">invite the bot</a> if it isn't).</p>
+                    <div class="vs-grid">
+                        <div class="field"><label for="vs-guild">Server</label><select id="vs-guild"><option value="">Loading…</option></select></div>
+                        <div class="field"><label for="vs-channel">Verification channel</label><select id="vs-channel"><option value="">Pick a server first</option></select></div>
+                        <div class="field"><label for="vs-role">Verified role</label><select id="vs-role"><option value="">Pick a server first</option></select></div>
+                        <div class="field"><label for="vs-rules">Rules channel (optional)</label><select id="vs-rules"><option value="">None</option></select></div>
+                    </div>
+                    <div id="vs-status" class="vs-status"></div>
+                    <div class="links-row">
+                        <button class="btn-claim" id="vs-save">Save &amp; post verification card</button>
+                        <button class="btn-claim" id="vs-disable" style="background:#f04747;">Disable verification</button>
+                    </div>
+                </div>
+
                 <!-- site status -->
                 <div class="dash-card">
                     <h3>Site status</h3>
@@ -341,6 +372,104 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw Object.assign(new Error(data.error || "request failed"), { status: res.status, data });
         return data;
+    }
+
+    /* ---------- server verification setup ---------- */
+    let vsGuildId = null;
+
+    function vsStatus(text, cls) {
+        const el = $("vs-status");
+        el.textContent = text || "";
+        el.className = "vs-status " + (cls || "");
+    }
+
+    function fillSelect(id, items, placeholder) {
+        const sel = $(id);
+        sel.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.textContent = placeholder;
+        opt.value = "";
+        sel.appendChild(opt);
+        for (const it of items) {
+            const o = document.createElement("option");
+            o.value = it.id;
+            o.textContent = it.name;
+            sel.appendChild(o);
+        }
+    }
+
+    async function loadVSetup() {
+        $("vsetup-card").classList.remove("hidden");
+        try {
+            const data = await api("/v1/dashboard/my-guilds");
+            const guilds = (data.guilds || []).filter(g => g.canManage);
+            if (!guilds.length) {
+                $("vs-guild").innerHTML = "";
+                const o = document.createElement("option");
+                o.textContent = "No shared servers — invite the bot first";
+                $("vs-guild").appendChild(o);
+                $("vs-save").disabled = true;
+                return;
+            }
+            $("vs-save").disabled = false;
+            fillSelect("vs-guild", guilds.map(g => ({ id: g.id, name: g.name + (g.configured ? " ✓" : "") })), "Pick a server…");
+            $("vs-guild").onchange = () => vsPickGuild($("vs-guild").value);
+        } catch (e) {
+            vsStatus("Could not load your servers: " + e.message, "err");
+        }
+    }
+
+    async function vsPickGuild(guildId) {
+        vsGuildId = guildId || null;
+        if (!vsGuildId) return;
+        vsStatus("Loading channels and roles…", "busy");
+        try {
+            const data = await api("/v1/dashboard/verify-guild/" + vsGuildId);
+            fillSelect("vs-channel", data.channels || [], "Pick a channel…");
+            fillSelect("vs-role", data.roles || [], "Pick a role…");
+            fillSelect("vs-rules", (data.channels || []).map(c => ({ id: c.id, name: c.name })), "None");
+            if (data.config) {
+                $("vs-channel").value = data.config.channelId || "";
+                $("vs-role").value = data.config.roleId || "";
+                $("vs-rules").value = data.config.rulesChannelId || "";
+            }
+            vsStatus(data.configured ? "Currently configured — changes overwrite it." : "", "");
+        } catch (e) {
+            vsStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    async function vsSave() {
+        if (!vsGuildId) return vsStatus("Pick a server first.", "err");
+        if (!$("vs-channel").value || !$("vs-role").value) return vsStatus("Pick a channel and a role.", "err");
+        vsStatus("Saving…", "busy");
+        try {
+            await api("/v1/dashboard/verify-guild/" + vsGuildId, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    channelId: $("vs-channel").value,
+                    roleId: $("vs-role").value,
+                    rulesChannelId: $("vs-rules").value || null
+                })
+            });
+            vsStatus("✅ Saved! The verification card is live in your channel.", "ok");
+            loadVSetup();
+        } catch (e) {
+            vsStatus("⚠ " + e.message, "err");
+        }
+    }
+
+    async function vsDisable() {
+        if (!vsGuildId) return vsStatus("Pick a server first.", "err");
+        vsStatus("Disabling…", "busy");
+        try {
+            await api("/v1/dashboard/verify-guild/" + vsGuildId, { method: "DELETE" });
+            vsStatus("Verification disabled for that server.", "ok");
+            loadVSetup();
+        } catch (e) {
+            vsStatus("⚠ " + e.message, "err");
+        }
     }
 
     /* ---------- redeem a donation code ---------- */
@@ -540,6 +669,7 @@
         if (initial) {
             loadTiers();
             loadStatusBanner();
+            loadVSetup();
             if (!render._poll) render._poll = setInterval(refreshMe, 60000);
         }
         loadHistory();
@@ -603,6 +733,8 @@
 
     $("daily-btn").onclick = claimDaily;
     $("redeem-btn").onclick = redeemCode;
+    $("vs-save").onclick = vsSave;
+    $("vs-disable").onclick = vsDisable;
     $("redeem-code").addEventListener("keydown", e => { if (e.key === "Enter") redeemCode(); });
     $("copy-id-btn").onclick = () => {
         if (!me?.id) return;

@@ -896,9 +896,7 @@ async function dashExchangeCode(code, withGuilds) {
 async function handleDashboardOAuth(query, setupGuildId) {
     const code = query.get("code");
     const isSetup = query.get("state") === "setup";
-    const target = new URL(isSetup
-        ? "https://limey-discord.onrender.com/verify-setup"
-        : "https://limey-discord.onrender.com/dashboard.html");
+    const target = new URL("https://limey-discord.onrender.com/dashboard.html");
     if (!code) {
         target.searchParams.set("login", "missing_code");
         return target.toString();
@@ -1249,7 +1247,6 @@ const NAMED_PAGES = {
     "/install": "install.html",
     "/limes": "limes.html",
     "/dashboard": "dashboard.html",
-    "/verify-setup": "verify-setup.html",
     "/submit-plugin": "submit-plugin.html",
     "/code": "code.html",
     "/404": "404.html",
@@ -1310,7 +1307,8 @@ const server = http.createServer(async (req, res) => {
             if (await limeEconomy.handle(req, res, "/v1/limes/callback" + (query ? "?" + query : ""))) return;
         }
         if (params.get("state") === "dashboard" || params.get("state") === "setup") {
-            // Dashboard / verify-setup login: exchange the code and redirect
+            // Dashboard login (optionally from the server-verification setup
+            // section): exchange the code and redirect
             // with a session token. The setup flow additionally carries the
             // guilds scope so the bot can list servers to configure.
             const dest = await handleDashboardOAuth(params, params.get("state") === "setup" ? params.get("guild_id") : null);

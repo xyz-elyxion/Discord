@@ -380,7 +380,7 @@ export function initVerification() {
             const cfg = ci.guildID ? getGuildConfig(ci.guildID) : null;
             if (!cfg) {
                 return void ci.createMessage({
-                    content: "⚠ Verification is not configured for this server. Set it up at " + siteUrl + "/verify-setup",
+                    content: "⚠ Verification is not configured for this server. A server admin can set it up at " + siteUrl + "/dashboard",
                     flags: 64
                 });
             }

@@ -140,7 +140,7 @@ if (enabled) {
     });
 
     // ------------------------------------------------------------------
-    // Per-guild verification setup (used by the /verify-setup website page)
+    // Per-guild verification setup (used by the dashboard's setup section)
     // The caller must include the guild in the OAuth session's guilds
     // (identify scope) and hold MANAGE_GUILD; server.js enforces the session
     // + permission checks and forwards ?userId= (the acting admin).
