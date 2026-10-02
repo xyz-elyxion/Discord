@@ -1339,6 +1339,46 @@ async function handleDashboard(req, res, url) {
         return json(res, status, payload), true;
     }
 
+    // USRBG manager — same operations as the token-guarded /v1/usrbg/*
+    // endpoints, but authorized by the admin Discord session instead of
+    // the shared USRBG_ADMIN_TOKEN (so /admin needs no extra token).
+    if (url.startsWith("/v1/admin/usrbg")) {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+
+        if (url === "/v1/admin/usrbg/users" && req.method === "GET")
+            return json(res, 200, usrbgData), true;
+
+        const m = /^\/v1\/admin\/usrbg\/users\/(\d{5,25})$/.exec(url);
+        if (m && req.method === "PUT") {
+            let body;
+            try { body = JSON.parse((await readBody(req)) || "{}"); } catch {
+                return json(res, 400, { error: "invalid JSON body" }), true;
+            }
+            const imageUrl = String(body.url || "");
+            try {
+                const parsed = new URL(imageUrl);
+                if (!/^https?:$/.test(parsed.protocol)) throw new Error();
+            } catch {
+                return json(res, 400, { error: "url must be a valid http(s) image URL" }), true;
+            }
+            usrbgData[m[1]] = {
+                url: imageUrl,
+                etag: Date.now().toString(36),
+                addedAt: new Date().toISOString()
+            };
+            saveUsrbgData();
+            return json(res, 200, { ok: true, userId: m[1], url: imageUrl }), true;
+        }
+        if (m && req.method === "DELETE") {
+            if (!usrbgData[m[1]]) return json(res, 404, { error: "user has no banner" }), true;
+            delete usrbgData[m[1]];
+            saveUsrbgData();
+            return json(res, 200, { ok: true }), true;
+        }
+        return json(res, 404, { error: "not found" }), true;
+    }
+
     if (url === "/v1/dashboard/logout" && req.method === "POST") {
         if (session) {
             delete dashSessions[session.token];

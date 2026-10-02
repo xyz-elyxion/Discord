@@ -139,6 +139,23 @@
             <div class="msg" id="donmsg"></div>
             <textarea id="doncodes" rows="4" class="hidden" style="width:100%;margin-top:8px;background:#0d0f13;color:#9eea6f;border:1px solid #343842;border-radius:6px;padding:10px 12px;font-size:13px;font-family:monospace" readonly></textarea>
         </div>
+
+        <div class="card">
+            <h2>USRBG banners</h2>
+            <p class="sub" style="margin-bottom:8px">Give anyone a custom Discord profile banner without Nitro. Banners set here show up for all Limey V1 users with the USRBG plugin.</p>
+            <label for="usrbgUserId">Discord user ID</label>
+            <input type="text" id="usrbgUserId" inputmode="numeric" placeholder="e.g. 123456789012345678" />
+            <label for="usrbgUrl">Banner image URL</label>
+            <input type="url" id="usrbgUrl" placeholder="https://i.imgur.com/yourimage.png" />
+            <img id="usrbgPreview" alt="" style="display:none;margin-top:10px;max-width:100%;border-radius:8px;border:1px solid #343842;aspect-ratio:600/240;object-fit:cover" />
+            <div>
+                <button id="usrbgSet">Set banner</button>
+                <button id="usrbgRemove" style="background:transparent;color:#ff6b6b;border:1px solid #ff6b6b">Remove banner</button>
+                <button id="usrbgLoad" style="background:transparent;color:#9eea6f;border:1px solid #343842">Load current banners</button>
+            </div>
+            <div class="msg" id="usrbgMsg"></div>
+            <div id="usrbgList" style="margin-top:8px"></div>
+        </div>
     </div>
 </div>
 
@@ -178,6 +195,76 @@
     };
 
     document.getElementById("logoutbtn").onclick = () => { lock(); };
+
+    // ---------- USRBG banner manager ----------
+    const uMsg = document.getElementById("usrbgMsg");
+    function uShow(text, ok) { uMsg.textContent = text; uMsg.className = "msg " + (ok ? "ok" : "err"); }
+
+    document.getElementById("usrbgUrl").addEventListener("input", e => {
+        const img = document.getElementById("usrbgPreview");
+        if (/^https?:\/\//.test(e.target.value.trim())) { img.src = e.target.value.trim(); img.style.display = "block"; }
+        else img.style.display = "none";
+    });
+
+    async function usrbgCall(method, path, body) {
+        const res = await fetch(path, { method, headers: authHeaders(), body: body === undefined ? undefined : JSON.stringify(body) });
+        let data; try { data = await res.json(); } catch { data = {}; }
+        return { ok: res.ok, status: res.status, data };
+    }
+
+    async function usrbgLoad() {
+        const list = document.getElementById("usrbgList");
+        const { ok, status, data } = await usrbgCall("GET", "/v1/admin/usrbg/users");
+        if (!ok) {
+            if (status === 401) lock();
+            return uShow("❌ Failed to load banners (" + status + ").", false);
+        }
+        const entries = Object.entries(data);
+        if (!entries.length) { list.innerHTML = '<p class="sub">No banners set yet.</p>'; return; }
+        list.innerHTML = "";
+        for (const [id, entry] of entries) {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;background:#0d0f13;border:1px solid #343842;border-radius:6px;padding:8px 12px;margin-bottom:8px";
+            const name = document.createElement("span");
+            name.textContent = id;
+            name.style.cssText = "font-size:13px;word-break:break-all";
+            const img = document.createElement("img");
+            img.src = entry.url; img.loading = "lazy"; img.onerror = () => img.remove();
+            img.style.cssText = "height:40px;border-radius:4px";
+            const del = document.createElement("button");
+            del.textContent = "Remove";
+            del.style.cssText = "background:transparent;color:#ff6b6b;border:1px solid #ff6b6b;padding:4px 10px;font-size:12px;margin:0";
+            del.onclick = async () => {
+                document.getElementById("usrbgUserId").value = id;
+                await usrbgRemove();
+            };
+            row.append(name, img, del);
+            list.appendChild(row);
+        }
+    }
+
+    async function usrbgSet() {
+        const userId = document.getElementById("usrbgUserId").value.trim();
+        const url = document.getElementById("usrbgUrl").value.trim();
+        if (!/^\d{5,25}$/.test(userId)) return uShow("User ID must be numeric (right-click a user in Discord → Copy User ID).", false);
+        if (!/^https?:\/\//.test(url)) return uShow("Image URL must start with http(s)://", false);
+        uShow("Setting banner…", true);
+        const { ok, status, data } = await usrbgCall("PUT", "/v1/admin/usrbg/users/" + userId, { url });
+        ok ? uShow("✅ Banner set for " + userId + "!", true) : uShow("❌ Error " + status + ": " + (data.error || "unknown"), false);
+        usrbgLoad();
+    }
+
+    async function usrbgRemove() {
+        const userId = document.getElementById("usrbgUserId").value.trim();
+        if (!/^\d{5,25}$/.test(userId)) return uShow("User ID must be numeric.", false);
+        const { ok, status, data } = await usrbgCall("DELETE", "/v1/admin/usrbg/users/" + userId);
+        ok ? uShow("✅ Banner removed for " + userId + ".", true) : uShow("❌ Error " + status + ": " + (data.error || "unknown"), false);
+        usrbgLoad();
+    }
+
+    document.getElementById("usrbgSet").onclick = usrbgSet;
+    document.getElementById("usrbgRemove").onclick = usrbgRemove;
+    document.getElementById("usrbgLoad").onclick = usrbgLoad;
 
     document.getElementById("gendon").onclick = async () => {
         const msg = document.getElementById("donmsg");
@@ -229,6 +316,7 @@
             const res = await fetch("/v1/admin/me", { headers: authHeaders() });
             if (!res.ok) throw new Error("unauthorized");
             unlock(await res.json());
+            usrbgLoad();
         } catch {
             lock();
         }
