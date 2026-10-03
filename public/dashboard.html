@@ -36,23 +36,6 @@
         .login-error { color: #f04747; font-size: 0.9rem; margin-top: 16px; }
 
         /* ---------- layout ---------- */
-        .profile {
-            display: flex; align-items: center; gap: 16px;
-            background: var(--card); border: 1px solid var(--border);
-            border-radius: var(--radius); padding: 20px 24px;
-        }
-        .profile img { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--border); }
-        .profile .name { font-weight: 700; font-size: 1.15rem; }
-        .profile .tag { color: var(--muted-foreground); font-size: 0.9rem; }
-        .profile .spacer { flex: 1; }
-        .btn-logout {
-            background: transparent; color: var(--muted-foreground);
-            border: 1px solid var(--input); border-radius: var(--radius);
-            padding: 8px 16px; cursor: pointer; font-size: 0.9rem;
-            transition: background 0.15s, color 0.15s;
-        }
-        .btn-logout:hover { background: var(--accent); color: var(--accent-foreground); }
-
         .dash-grid {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px; margin-top: 24px;
@@ -287,17 +270,6 @@
         <!-- logged in -->
         <div id="logged-in" style="display:none">
             <div id="banner" class="dash-banner">⚠️ <span id="banner-text"></span></div>
-
-                <div class="profile">
-                <img id="avatar" alt="Avatar">
-                <div>
-                    <div class="name" id="display-name"></div>
-                    <div class="tag" id="username"></div>
-                </div>
-                <div class="spacer"></div>
-                <span class="badge" id="banner-badge" style="display:none" title="You have a USRBG profile banner active in the client mod">🖼️ Banner</span>
-                <button class="btn-logout">Log out</button>
-            </div>
 
             <!-- dashboard switcher -->
             <div class="dash-shell" id="dash-shell">
@@ -1126,8 +1098,6 @@
         $("avatar").src = user.avatar || "";
         $("ws-avatar").src = user.avatar || "";
         $("ws-name").textContent = user.globalName || user.username || "Dashboard";
-        $("display-name").textContent = user.globalName || user.username || "Unknown";
-        $("username").textContent = "@" + (user.username || "");
         $("acc-id").textContent = user.id || "—";
         $("acc-username").textContent = user.username || "—";
         $("acc-since").textContent = data.loggedInAt ? new Date(data.loggedInAt).toLocaleString() : "—";
@@ -1159,20 +1129,6 @@
             $("limes-balance").textContent = "?";
             $("daily-btn").disabled = true;
             $("daily-btn").textContent = "Wallet unavailable";
-        }
-
-        // profile banner (USRBG) — public endpoint, 302 if the user has one
-        const bannerBadge = $("banner-badge");
-        bannerBadge.style.display = "none";
-        if (user.id) {
-            fetch(API_BASE + "/v1/usrbg/has-banner/" + user.id)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.hasBanner) {
-                        bannerBadge.style.display = "";
-                    }
-                })
-                .catch(() => {});
         }
 
         // site status
