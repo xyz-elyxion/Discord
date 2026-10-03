@@ -693,9 +693,9 @@ async function handleStatus(req, res, url) {
 const BOT_STATE_KEY_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 async function handleBotState(req, res, url) {
-    if (!url.pathname.startsWith("/v1/bot-state/")) return false;
+    if (!url.startsWith("/v1/bot-state/")) return false;
 
-    const key = decodeURIComponent(url.pathname.slice("/v1/bot-state/".length));
+    const key = decodeURIComponent(url.slice("/v1/bot-state/".length));
     if (!BOT_STATE_KEY_RE.test(key)) return json(res, 400, { error: "invalid key" }), true;
     const fullKey = `limey:bot-state:${key}`;
 

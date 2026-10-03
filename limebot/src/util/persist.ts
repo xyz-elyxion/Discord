@@ -30,26 +30,22 @@ const TOKEN = process.env.LIMEBOT_ADMIN_TOKEN || process.env.USRBG_ADMIN_TOKEN |
 
 async function api<T>(method: string, key: string, body?: unknown): Promise<T | null> {
     if (!TOKEN) return null;
-    try {
-        const res = await fetch(`${BASE}/v1/bot-state/${key}`, {
-            method,
-            headers: {
-                "content-type": "application/json",
-                authorization: `Bearer ${TOKEN}`
-            },
-            body: body === undefined ? undefined : JSON.stringify(body)
-        });
-        if (res.status === 404) return null;
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json() as T;
-    } catch (err) {
-        console.error(`[bot-state] ${method} ${key} failed:`, err);
-        return null;
-    }
+    const res = await fetch(`${BASE}/v1/bot-state/${key}`, {
+        method,
+        headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${TOKEN}`
+        },
+        body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json() as T;
 }
 
-async function getTable(table: TableName): Promise<any[]> {
-    return (await api<any[]>("GET", table)) ?? [];
+async function getTable(table: TableName): Promise<any[] | null> {
+    // 404 -> null (no stored data); network/5xx errors propagate to the caller
+    return await api<any[]>("GET", table);
 }
 
 async function putTable(table: TableName, rows: unknown[]): Promise<void> {
@@ -73,17 +69,25 @@ async function insertRows(table: TableName, rows: any[]): Promise<void> {
  * empty, so a live dev environment with its own data is never clobbered.
  */
 export async function restoreBotState() {
-    try {
-        for (const table of TABLES) {
-            const rows = await getTable(table);
-            if (!rows.length) continue;
-            if (await rowCount(table)) continue;
-            await insertRows(table, rows);
-            console.log(`[bot-state] restored ${rows.length} row(s) into ${table}`);
+    // The bot may boot alongside (or just before) the web server on a fresh
+    // Render deploy — retry a few times so a 502/cold start doesn't skip the
+    // restore and silently wipe feature configs.
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            for (const table of TABLES) {
+                const rows = await getTable(table);
+                if (rows == null || !rows.length) continue;
+                if (await rowCount(table)) continue;
+                await insertRows(table, rows);
+                console.log(`[bot-state] restored ${rows.length} row(s) into ${table}`);
+            }
+            return;
+        } catch (err) {
+            console.error(`[bot-state] restore attempt ${attempt}/3 failed:`, err);
+            if (attempt < 3) await new Promise(r => setTimeout(r, 10_000 * attempt));
         }
-    } catch (err) {
-        console.error("[bot-state] restore failed:", err);
     }
+    console.error("[bot-state] restore failed after 3 attempts — continuing without restored state");
 }
 
 /**
