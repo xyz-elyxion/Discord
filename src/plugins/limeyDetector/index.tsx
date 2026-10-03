@@ -6,6 +6,7 @@
 
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
+import { StartAt } from "@utils/types";
 import { UserStore } from "@webpack/common";
 
 const API_URL = "https://limey-discord.onrender.com/v1/detector";
@@ -21,10 +22,13 @@ export default definePlugin({
     description: "Detects who is running Limey V1. While this plugin is enabled it reports your own Limey V1 usage to the Limey backend (only your user ID, nothing else) and keeps a live list of everyone else running it.",
     tags: ["Utility", "Fun"],
     authors: [Devs.Limey],
+    enabledByDefault: true,
+    startAt: StartAt.WebpackReady,
 
     /** Cached set of user ids known to run Limey V1 */
     knownUsers: new Set<string>() as Set<string>,
     intervalId: undefined as ReturnType<typeof setInterval> | undefined,
+    startRetryCount: 0 as number,
 
     hasLimey(userId: string) {
         return this.knownUsers.has(userId);
@@ -33,7 +37,15 @@ export default definePlugin({
     async ping() {
         try {
             const myId = UserStore.getCurrentUser()?.id;
-            if (!myId) return;
+            if (!myId) {
+                // User store not ready yet (e.g. first start before login):
+                // retry shortly instead of waiting the full 5-minute interval.
+                if (this.startRetryCount < 12) {
+                    this.startRetryCount++;
+                    setTimeout(() => void this.ping(), 15 * 1000);
+                }
+                return;
+            }
             const res = await fetch(`${API_URL}/ping`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -51,11 +63,13 @@ export default definePlugin({
     },
 
     start() {
+        this.startRetryCount = 0;
         this.ping();
         this.intervalId = setInterval(() => this.ping(), 5 * 60 * 1000);
     },
 
     stop() {
+        this.startRetryCount = 0;
         if (this.intervalId) clearInterval(this.intervalId);
     }
 });
