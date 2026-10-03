@@ -346,6 +346,54 @@ body {
     opacity: 0.7;
 }
 
+/*
+ * Morph loader — four squares that morph/rotate around the center.
+ * Vanilla port of the "morph" loading animation component; sizes:
+ * .loader-morph.sm (16px), default (24px), .loader-morph.lg (32px).
+ */
+.loader-morph {
+    position: relative;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+}
+.loader-morph.sm { width: 16px; height: 16px; }
+.loader-morph.lg { width: 32px; height: 32px; }
+.loader-morph span {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 25%;
+    height: 25%;
+    background: currentColor;
+    animation: loader-morph 2s infinite ease-in-out;
+}
+.loader-morph span:nth-child(2) { animation-delay: 0.2s; }
+.loader-morph span:nth-child(3) { animation-delay: 0.4s; }
+.loader-morph span:nth-child(4) { animation-delay: 0.6s; }
+@keyframes loader-morph {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+        border-radius: 50%;
+        opacity: 0.9;
+    }
+    25% {
+        transform: translate(160%, -160%) rotate(90deg) scale(0.7);
+        border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+        opacity: 0.5;
+    }
+    50% {
+        transform: translate(0, 0) rotate(180deg) scale(1.25);
+        border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+        opacity: 1;
+    }
+    75% {
+        transform: translate(-160%, 160%) rotate(270deg) scale(0.7);
+        border-radius: 40% 60% 60% 40% / 70% 30% 70% 40%;
+        opacity: 0.5;
+    }
+}
+
 @media (max-width: 600px) {
     .nav-links {
         gap: 14px;
