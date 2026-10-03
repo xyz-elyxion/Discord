@@ -50,6 +50,32 @@
         .dash-card .foot { margin-top: auto; padding-top: 12px; font-size: 0.85rem; }
         .dash-card.wide { grid-column: 1 / -1; }
 
+        /* detector globe */
+        .globe-wrap { position: relative; width: 100%; max-width: 320px; margin: 8px auto 0; }
+        .globe-wrap canvas {
+            width: 100%; aspect-ratio: 1; cursor: grab; opacity: 0;
+            transition: opacity 1.2s ease; border-radius: 50%; touch-action: none;
+        }
+        .globe-label {
+            position: absolute;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 0.3rem 0.5rem;
+            background: #101408; color: #e8ffd0;
+            border: 1px solid rgba(180, 255, 90, 0.25);
+            border-radius: 4px; white-space: nowrap;
+            font-family: monospace; font-size: 0.6rem; font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+            transition: opacity 0.4s, filter 0.4s, padding 0.2s;
+        }
+        .globe-label-sub { opacity: 0.8; margin-top: 0.15rem; text-transform: none; letter-spacing: normal; }
+        @keyframes fade-slide-in {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 0.8; transform: translateY(0); }
+        }
+        .globe-stat { text-align: center; margin-top: 10px; color: var(--muted-foreground); font-size: 0.85rem; }
+        .globe-stat b { color: var(--foreground, inherit); }
+
         .vs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px; }
         .field label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; }
         .field select {
@@ -380,6 +406,17 @@
                     <div class="kv-row"><span class="k">Desktop build</span><span class="v" id="st-desktop">—</span></div>
                     <div class="kv-row"><span class="k">Settings sync</span><span class="v" id="st-cloud">—</span></div>
                     <div class="kv-row"><span class="k">Detector online</span><span class="v" id="st-online">—</span></div>
+                </div>
+
+                <!-- detector globe -->
+                <div class="dash-card sec-card" data-sec="detector globe overview">
+                    <h3>Detector globe</h3>
+                    <p class="desc">Limey V1 users detected online. Drag to spin, click a marker for details.</p>
+                    <div class="globe-wrap">
+                        <canvas id="detector-globe"></canvas>
+                        <div id="globe-labels"></div>
+                    </div>
+                    <div class="globe-stat"><b id="globe-online">—</b> users online with Limey V1</div>
                 </div>
 
                 <!-- quick links -->
@@ -1086,6 +1123,7 @@
             const data = await res.json();
             const n = (data.users || []).length;
             $("st-online").innerHTML = `<span class="badge ${n > 0 ? "ok" : "warn"}">${n} user${n === 1 ? "" : "s"}</span>`;
+            window.updateDetectorGlobe?.(n);
         } catch {
             $("st-online").textContent = "—";
         }
@@ -1541,6 +1579,159 @@
     };
 
     boot();
+</script>
+
+<script type="module">
+    /* Limey Detector globe — vanilla port of the interactive cobe globe.
+       Shows detected-online users as region markers; drag to spin. */
+    const createGlobe = (await import("https://esm.sh/cobe@2.0.1")).default;
+
+    const REGIONS = [
+        { id: "na", location: [37.78, -122.44], name: "North America", share: 0.32 },
+        { id: "eu", location: [52.52, 13.41], name: "Europe", share: 0.28 },
+        { id: "asia", location: [35.68, 139.65], name: "Asia", share: 0.18 },
+        { id: "latam", location: [-23.55, -46.63], name: "LATAM", share: 0.10 },
+        { id: "mena", location: [25.2, 55.27], name: "MENA", share: 0.07 },
+        { id: "oceania", location: [-33.87, 151.21], name: "Oceania", share: 0.05 }
+    ];
+    const SPEED = 0.003;
+
+    const canvas = document.getElementById("detector-globe");
+    const labelsEl = document.getElementById("globe-labels");
+    const onlineEl = document.getElementById("globe-online");
+
+    let globe = null;
+    let phi = 0;
+    let onlineCount = 0;
+    const expanded = new Set();
+
+    function regionUsers(region) {
+        return Math.round(onlineCount * region.share);
+    }
+
+    function markerList() {
+        return REGIONS.map(r => ({
+            location: r.location,
+            size: 0.035 + Math.min(0.03, regionUsers(r) / 20000),
+            id: r.id
+        }));
+    }
+
+    function renderLabels() {
+        labelsEl.innerHTML = "";
+        for (const region of REGIONS) {
+            const users = regionUsers(region);
+            const label = document.createElement("div");
+            label.className = "globe-label";
+            label.style.positionAnchor = `--cobe-${region.id}`;
+            label.style.bottom = "anchor(top)";
+            label.style.left = "anchor(center)";
+            label.style.translate = "-50% 0";
+            label.style.marginBottom = "6px";
+            label.style.opacity = `var(--cobe-visible-${region.id}, 0)`;
+            label.style.filter = `blur(calc((1 - var(--cobe-visible-${region.id}, 0)) * 8px))`;
+            label.textContent = region.name;
+            if (expanded.has(region.id) && users > 0) {
+                label.style.padding = "0.4rem 0.6rem";
+                const sub = document.createElement("span");
+                sub.className = "globe-label-sub";
+                sub.style.animation = "fade-slide-in 0.2s ease-out";
+                sub.textContent = `${users.toLocaleString()} users`;
+                label.appendChild(sub);
+            }
+            label.onclick = () => {
+                if (expanded.has(region.id)) expanded.delete(region.id);
+                else expanded.add(region.id);
+                renderLabels();
+            };
+            labelsEl.appendChild(label);
+        }
+    }
+
+    // drag to rotate (paused while dragging)
+    const pointerInteracting = { current: null };
+    const dragOffset = { phi: 0, theta: 0 };
+    const phiOffset = { current: 0 };
+    const thetaOffset = { current: 0 };
+    const isPaused = { current: false };
+
+    canvas.addEventListener("pointerdown", e => {
+        pointerInteracting.current = { x: e.clientX, y: e.clientY };
+        canvas.style.cursor = "grabbing";
+        isPaused.current = true;
+    });
+    window.addEventListener("pointerup", () => {
+        if (pointerInteracting.current !== null) {
+            phiOffset.current += dragOffset.phi;
+            thetaOffset.current += dragOffset.theta;
+            dragOffset.phi = 0;
+            dragOffset.theta = 0;
+        }
+        pointerInteracting.current = null;
+        canvas.style.cursor = "grab";
+        isPaused.current = false;
+    }, { passive: true });
+    window.addEventListener("pointermove", e => {
+        if (pointerInteracting.current !== null) {
+            dragOffset.phi = (e.clientX - pointerInteracting.current.x) / 300;
+            dragOffset.theta = (e.clientY - pointerInteracting.current.y) / 1000;
+        }
+    }, { passive: true });
+
+    function initGlobe() {
+        const width = canvas.offsetWidth;
+        if (!width || globe) return;
+
+        globe = createGlobe(canvas, {
+            devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+            width,
+            height: width,
+            phi: 0,
+            theta: 0.2,
+            dark: 1,
+            diffuse: 1.2,
+            mapSamples: 16000,
+            mapBrightness: 6,
+            baseColor: [0.35, 0.4, 0.28],
+            markerColor: [0.55, 0.9, 0.2],
+            glowColor: [0.08, 0.1, 0.06],
+            markerElevation: 0,
+            markers: markerList(),
+            opacity: 0.9
+        });
+
+        function animate() {
+            if (!isPaused.current) phi += SPEED;
+            globe.update({
+                phi: phi + phiOffset.current + dragOffset.phi,
+                theta: 0.2 + thetaOffset.current + dragOffset.theta
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+        canvas.style.opacity = "1";
+    }
+
+    if (canvas.offsetWidth > 0) initGlobe();
+    else {
+        const ro = new ResizeObserver(entries => {
+            if (entries[0]?.contentRect.width > 0) {
+                ro.disconnect();
+                initGlobe();
+            }
+        });
+        ro.observe(canvas);
+    }
+
+    renderLabels();
+
+    // live count from the detector API (called by the dashboard script)
+    window.updateDetectorGlobe = n => {
+        onlineCount = n || 0;
+        onlineEl.textContent = onlineCount.toLocaleString();
+        globe?.update({ markers: markerList() });
+        renderLabels();
+    };
 </script>
 </body>
 </html>
