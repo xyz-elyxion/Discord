@@ -328,17 +328,90 @@ body {
 
 /* Footer */
 .footer {
-    padding: 40px 0;
-    text-align: center;
+    padding: 64px 0 24px;
     color: var(--muted-foreground);
     font-size: 0.9rem;
-    border-top: 1px solid var(--border);
 }
 
-.footer a {
+.footer-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.footer-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     color: var(--foreground);
     text-decoration: none;
 }
+
+.footer-brand .footer-logo { font-size: 1.4rem; }
+.footer-brand .footer-name { font-weight: 700; font-size: 1.2rem; }
+
+.footer-social {
+    display: flex;
+    gap: 10px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.footer-social a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+    transition: background 0.15s, color 0.15s;
+}
+
+.footer-social a:hover { background: var(--accent); }
+
+.footer-bottom {
+    display: grid;
+    gap: 16px;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+@media (min-width: 768px) {
+    .footer-bottom { grid-template-columns: 1fr 2fr; align-items: start; }
+    .footer-bottom nav { text-align: right; }
+}
+
+.footer-copy div { margin-bottom: 2px; }
+
+.footer-links ul {
+    display: flex;
+    flex-wrap: wrap;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.footer-main-links { gap: 8px 16px; }
+.footer-main-links a {
+    color: var(--foreground);
+    text-decoration: none;
+    text-underline-offset: 4px;
+}
+.footer-main-links a:hover { text-decoration: underline; }
+
+.footer-legal-links { gap: 8px 24px; margin-top: 12px; }
+.footer-legal-links a {
+    color: var(--muted-foreground);
+    text-decoration: none;
+    text-underline-offset: 4px;
+}
+.footer-legal-links a:hover { text-decoration: underline; }
 
 .footer .fine {
     font-size: 0.78rem;

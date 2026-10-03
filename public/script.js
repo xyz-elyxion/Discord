@@ -25,9 +25,9 @@
     }
 
     // Current year in the footer
-    const footer = document.querySelector(".footer p");
-    if (footer) {
-        footer.innerHTML = footer.innerHTML.replace("GPL-3.0", `GPL-3.0 &copy; ${new Date().getFullYear()}`);
+    const footerYear = document.querySelector(".footer-year");
+    if (footerYear) {
+        footerYear.textContent = new Date().getFullYear();
     }
 
     // Status banner — filled by limebot when Discord rate limits are ongoing
