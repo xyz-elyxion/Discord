@@ -684,6 +684,45 @@ async function handleStatus(req, res, url) {
 }
 
 // ------------------------------------------------------------------
+// Limebot state — the bot's SQLite DB lives on the (ephemeral) Render
+// filesystem, so every restart/deploy would wipe counting progress and
+// all feature configs. The bot mirrors its feature tables into this
+// Postgres-backed kv store via /v1/bot-state/... (USRBG_ADMIN_TOKEN
+// auth, same token used for the other bot <-> server APIs).
+// ------------------------------------------------------------------
+const BOT_STATE_KEY_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+async function handleBotState(req, res, url) {
+    if (!url.pathname.startsWith("/v1/bot-state/")) return false;
+
+    const key = decodeURIComponent(url.pathname.slice("/v1/bot-state/".length));
+    if (!BOT_STATE_KEY_RE.test(key)) return json(res, 400, { error: "invalid key" }), true;
+    const fullKey = `limey:bot-state:${key}`;
+
+    if (req.method === "GET") {
+        const value = await kvGet(fullKey);
+        if (value == null) return json(res, 404, { error: "not found" }), true;
+        try { return json(res, 200, JSON.parse(value)), true; }
+        catch { return json(res, 200, value), true; }
+    }
+
+    if (req.method === "PUT") {
+        const adminToken = process.env.USRBG_ADMIN_TOKEN;
+        if (!adminToken || req.headers.authorization !== `Bearer ${adminToken}`) {
+            return json(res, 401, { error: "unauthorized" }), true;
+        }
+        let body;
+        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        await kvSet(fullKey, body);
+        return json(res, 200, { ok: true }), true;
+    }
+
+    return json(res, 405, { error: "method not allowed" }), true;
+}
+
+// ------------------------------------------------------------------
 // Limey V1 Detector backend — tracks which users are running Limey V1.
 // The client plugin pings every 5 min; entries expire after 30 min.
 // ------------------------------------------------------------------
@@ -1727,6 +1766,7 @@ const server = http.createServer(async (req, res) => {
         // Community plugin store (handled in-process)
         if (pluginStore && url.startsWith("/v1/plugins/") && await pluginStore.handle(req, res, url)) return;
         if (await handleStatus(req, res, url)) return;
+        if (await handleBotState(req, res, url)) return;
         // USRBG API lives alongside /v1 (handled in-process)
         if (await handleUsrbg(req, res, url)) return;
         // Limey V1 Detector API (handled in-process)

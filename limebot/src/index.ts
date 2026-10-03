@@ -23,6 +23,7 @@ import { initReactionRoles } from "./modules/reactionRoles";
 import { initStarboard } from "./modules/starboard";
 import { initSuggestions } from "./modules/suggestions";
 import { initScheduledUnbans } from "./commands/moderation/tempban";
+import { restoreBotState, startBotStateSync } from "./util/persist";
 import { silently } from "./util/functions";
 import { inspect } from "./util/inspect";
 import { logDevDebug } from "./util/logAction";
@@ -31,14 +32,20 @@ import { toCodeblock } from "./util/text";
 initModListeners();
 initAutoMod();
 initRulesPage();
-initCounting();
-initLeveling();
-initWelcomer();
-initAutoroles();
-initReactionRoles();
-initStarboard();
-initSuggestions();
-initScheduledUnbans();
+
+// Feature configs live in ephemeral SQLite; restore them from the web
+// server's durable kv store before the feature modules load their configs.
+void restoreBotState().then(() => {
+    initCounting();
+    initLeveling();
+    initWelcomer();
+    initAutoroles();
+    initReactionRoles();
+    initStarboard();
+    initSuggestions();
+    initScheduledUnbans();
+    startBotStateSync();
+});
 
 export async function handleError(title: string, err: unknown) {
     if (err instanceof DiscordHTTPError && err.status >= 500)
