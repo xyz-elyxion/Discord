@@ -31,7 +31,19 @@ import {
     showToast,
 } from "@webpack/common";
 
-const CloudUpload: typeof TCloudUpload = findLazy(m => m.prototype?.trackUploadFinished);
+let cloudUploadCache: typeof TCloudUpload | null = null;
+
+// Resolve CloudUpload lazily at send time instead of plugin load: a failed
+// webpack find here used to throw during module evaluation, killing the whole
+// plugin before its context menu patch could register.
+function getCloudUpload(): typeof TCloudUpload {
+    if (!cloudUploadCache) {
+        // findLazy is typed as nullable; a miss now throws at send time (with a
+        // toast + console error) instead of killing the plugin at load.
+        cloudUploadCache = findLazy(m => m.prototype?.trackUploadFinished) as typeof TCloudUpload;
+    }
+    return cloudUploadCache;
+}
 
 type AttributionMode = "username" | "globalName" | "nickname";
 
@@ -167,7 +179,7 @@ async function sendQuote(avatarUrl: string, text: string, attribution: string, c
     const reply = PendingReplyStore.getPendingReply(channelId);
     if (reply) FluxDispatcher.dispatch({ type: "DELETE_PENDING_REPLY", channelId });
 
-    const upload = new CloudUpload({
+    const upload = new (getCloudUpload())({
         file,
         isThumbnail: false,
         platform: CloudUploadPlatform.WEB,
@@ -241,6 +253,9 @@ export default definePlugin({
     settings,
 
     contextMenus: {
-        "message": messageContextMenu
+        // "message" is the current navId; "message-context" kept as a safety
+        // alias in case Discord renames the menu again.
+        "message": messageContextMenu,
+        "message-context": messageContextMenu
     }
 });
