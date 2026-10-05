@@ -221,7 +221,7 @@ const messageContextMenu: NavContextMenuPatchCallback = (children, props) => {
         <Menu.MenuItem
             id={QuoteMenuId}
             key={QuoteMenuId}
-            label="Quote User"
+            label="Make It a Quote"
             action={async () => {
                 try {
                     const user = UserStore.getUser(message.author.id);
