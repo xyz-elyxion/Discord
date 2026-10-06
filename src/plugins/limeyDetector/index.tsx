@@ -31,7 +31,7 @@ const plugin = definePlugin({
         id: "pingLimeyServer",
         title: "Contact the Limey V1 detector API",
         description: "Sends periodic requests to limey-discord.onrender.com to detect other Limey V1 users and check status.",
-        risk: "Reveals your IP address and usage times to the Limey V1 server."
+        risk: "Reveals your IP address (used for a coarse country-level location shown on the dashboard globe) and usage times to the Limey V1 server."
     }],
     description: "Detects who is running Limey V1. While this plugin is enabled it reports your own Limey V1 usage to the Limey backend (only your user ID, nothing else) and keeps a live list of everyone else running it.",
     tags: ["Utility", "Fun"],
@@ -53,7 +53,7 @@ const plugin = definePlugin({
             const myId = UserStore.getCurrentUser()?.id;
             if (!myId) {
                 // User store not ready yet (e.g. first start before login):
-                // retry shortly instead of waiting the full 5-minute interval.
+                // retry shortly instead of waiting the full ping interval.
                 if (this.startRetryCount < 12) {
                     this.startRetryCount++;
                     setTimeout(() => void this.ping(), 15 * 1000);
@@ -80,7 +80,7 @@ const plugin = definePlugin({
         this.startRetryCount = 0;
         addProfileBadge(LimeyBadge);
         this.ping();
-        this.intervalId = setInterval(() => this.ping(), 5 * 60 * 1000);
+        this.intervalId = setInterval(() => this.ping(), 60 * 1000);
     },
 
     stop() {

@@ -69,6 +69,21 @@
             transition: opacity 0.4s, filter 0.4s, padding 0.2s;
         }
         .globe-label-sub { opacity: 0.8; margin-top: 0.15rem; text-transform: none; letter-spacing: normal; }
+        .globe-top-countries {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .globe-chip {
+            font-size: 0.78rem;
+            padding: 3px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+        }
         @keyframes fade-slide-in {
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 0.8; transform: translateY(0); }
@@ -1152,7 +1167,7 @@
             const data = await res.json();
             const n = (data.users || []).length;
             $("st-online").innerHTML = `<span class="badge ${n > 0 ? "ok" : "warn"}">${n} user${n === 1 ? "" : "s"}</span>`;
-            window.updateDetectorGlobe?.(n);
+            window.updateDetectorGlobe?.(n, data.countries);
         } catch {
             $("st-online").textContent = "—";
         }
@@ -1612,17 +1627,10 @@
 
 <script type="module">
     /* Limey Detector globe — vanilla port of the interactive cobe globe.
-       Shows detected-online users as region markers; drag to spin. */
+       Shows one marker per country of the users currently online (real
+       data from the detector API), plus a top-countries breakdown. */
     const createGlobe = (await import("https://esm.sh/cobe@2.0.1")).default;
 
-    const REGIONS = [
-        { id: "na", location: [37.78, -122.44], name: "North America", share: 0.32 },
-        { id: "eu", location: [52.52, 13.41], name: "Europe", share: 0.28 },
-        { id: "asia", location: [35.68, 139.65], name: "Asia", share: 0.18 },
-        { id: "latam", location: [-23.55, -46.63], name: "LATAM", share: 0.10 },
-        { id: "mena", location: [25.2, 55.27], name: "MENA", share: 0.07 },
-        { id: "oceania", location: [-33.87, 151.21], name: "Oceania", share: 0.05 }
-    ];
     const SPEED = 0.003;
 
     const canvas = document.getElementById("detector-globe");
@@ -1632,49 +1640,62 @@
     let globe = null;
     let phi = 0;
     let onlineCount = 0;
-    const expanded = new Set();
+    let countryCounts = {};
+    // ISO2 -> [lat, lng], fetched once from restcountries.com (free, no key)
+    let centroids = null;
 
-    function regionUsers(region) {
-        return Math.round(onlineCount * region.share);
+    const CC_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
+
+    async function loadCentroids() {
+        if (centroids) return centroids;
+        try {
+            const res = await fetch("https://restcountries.com/v3.1/all?fields=cca2,latlng");
+            const list = await res.json();
+            centroids = new Map();
+            for (const c of list || []) {
+                if (c?.cca2 && Array.isArray(c.latlng) && c.latlng.length === 2) {
+                    centroids.set(c.cca2, c.latlng);
+                }
+            }
+        } catch {
+            centroids = new Map();
+        }
+        return centroids;
     }
 
     function markerList() {
-        return REGIONS.map(r => ({
-            location: r.location,
-            size: 0.035 + Math.min(0.03, regionUsers(r) / 20000),
-            id: r.id
-        }));
+        if (!centroids) return [];
+        const max = Math.max(1, ...Object.values(countryCounts));
+        const markers = [];
+        for (const [cc, n] of Object.entries(countryCounts)) {
+            const loc = centroids.get(cc);
+            if (!loc) continue;
+            markers.push({
+                location: loc,
+                size: 0.025 + 0.06 * Math.sqrt(n / max),
+                id: cc
+            });
+        }
+        return markers;
     }
 
     function renderLabels() {
         labelsEl.innerHTML = "";
-        for (const region of REGIONS) {
-            const users = regionUsers(region);
-            const label = document.createElement("div");
-            label.className = "globe-label";
-            label.style.positionAnchor = `--cobe-${region.id}`;
-            label.style.bottom = "anchor(top)";
-            label.style.left = "anchor(center)";
-            label.style.translate = "-50% 0";
-            label.style.marginBottom = "6px";
-            label.style.opacity = `var(--cobe-visible-${region.id}, 0)`;
-            label.style.filter = `blur(calc((1 - var(--cobe-visible-${region.id}, 0)) * 8px))`;
-            label.textContent = region.name;
-            if (expanded.has(region.id) && users > 0) {
-                label.style.padding = "0.4rem 0.6rem";
-                const sub = document.createElement("span");
-                sub.className = "globe-label-sub";
-                sub.style.animation = "fade-slide-in 0.2s ease-out";
-                sub.textContent = `${users.toLocaleString()} users`;
-                label.appendChild(sub);
-            }
-            label.onclick = () => {
-                if (expanded.has(region.id)) expanded.delete(region.id);
-                else expanded.add(region.id);
-                renderLabels();
-            };
-            labelsEl.appendChild(label);
+        const top = Object.entries(countryCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6);
+        if (!top.length) return;
+        const row = document.createElement("div");
+        row.className = "globe-top-countries";
+        for (const [cc, n] of top) {
+            const chip = document.createElement("span");
+            chip.className = "globe-chip";
+            let name = cc;
+            try { name = CC_NAMES.of(cc) || cc; } catch { /* keep cc */ }
+            chip.textContent = `${name} · ${n}`;
+            row.appendChild(chip);
         }
+        labelsEl.appendChild(row);
     }
 
     // drag to rotate (paused while dragging)
@@ -1754,12 +1775,15 @@
 
     renderLabels();
 
-    // live count from the detector API (called by the dashboard script)
-    window.updateDetectorGlobe = n => {
+    // live count + per-country distribution from the detector API
+    window.updateDetectorGlobe = (n, countries) => {
         onlineCount = n || 0;
+        countryCounts = countries || {};
         onlineEl.textContent = onlineCount.toLocaleString();
-        globe?.update({ markers: markerList() });
-        renderLabels();
+        loadCentroids().then(() => {
+            globe?.update({ markers: markerList() });
+            renderLabels();
+        });
     };
 </script>
 </body>

@@ -339,6 +339,10 @@ async function hydrateKv() {
         ]);
         if (usrbg) usrbgData = JSON.parse(usrbg);
         if (detector) detectorData = JSON.parse(detector);
+        try {
+            const geocache = await kvGet("limey:geocache");
+            if (geocache) for (const [ip, v] of Object.entries(JSON.parse(geocache))) geoCache.set(ip, v);
+        } catch { /* best effort */ }
         const limeEconomyData = await kvGet("limey:lime-economy");
         if (limeEconomyData && limeEconomy) limeEconomy.hydrate(JSON.parse(limeEconomyData));
         const pluginStoreData = await kvGet("limey:plugin-store");
@@ -724,16 +728,60 @@ async function handleBotState(req, res, url) {
 
 // ------------------------------------------------------------------
 // Limey V1 Detector backend — tracks which users are running Limey V1.
-// The client plugin pings every 5 min; entries expire after 30 min.
+// The client plugin pings every 60s; entries expire after 5 min.
+// Each entry stores { t: lastSeenMs, cc: ISO country code or null }.
+// The country is derived from the pinger's IP (coarse, country-level
+// only) via ipwho.is and cached so each IP is looked up once.
 // ------------------------------------------------------------------
 const DETECTOR_FILE = join(ROOT, "data", "detector.json");
-const DETECTOR_TTL_MS = 30 * 60 * 1000;
+const DETECTOR_TTL_MS = 5 * 60 * 1000;
 
-// { userId: lastSeenMs }
+// { userId: { t, cc } } (legacy entries may be plain numbers)
 let detectorData = {};
 try {
     detectorData = JSON.parse(readFileSync(DETECTOR_FILE, "utf-8"));
 } catch { /* empty */ }
+
+// { ip: { cc, ts } } — country lookups are cached for 30 days
+const geoCache = new Map();
+try {
+    for (const [ip, v] of Object.entries(JSON.parse(readFileSync(join(ROOT, "data", "geocache.json"), "utf-8")))) {
+        geoCache.set(ip, v);
+    }
+} catch { /* empty */ }
+
+let geoSaveTimer = null;
+function saveGeoCache() {
+    if (geoSaveTimer) return;
+    geoSaveTimer = setTimeout(() => {
+        geoSaveTimer = null;
+        void kvSet("limey:geocache", Object.fromEntries(geoCache));
+        try {
+            mkdirSync(join(ROOT, "data"), { recursive: true });
+            writeFileSync(join(ROOT, "data", "geocache.json"), JSON.stringify(Object.fromEntries(geoCache)));
+        } catch { /* best effort */ }
+    }, 5000);
+}
+
+const PRIVATE_IP_RE = /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|f[cd][0-9a-f]{2}:|localhost$)/i;
+
+async function lookupCountry(ip) {
+    if (!ip || PRIVATE_IP_RE.test(ip)) return null;
+    const cached = geoCache.get(ip);
+    if (cached && Date.now() - cached.ts < 30 * 24 * 3600 * 1000) return cached.cc ?? null;
+    try {
+        const r = await fetch("https://ipwho.is/" + ip, { signal: AbortSignal.timeout(5000) });
+        const j = await r.json();
+        const cc = (j && j.success !== false && typeof j.country_code === "string" && j.country_code.length === 2)
+            ? j.country_code.toUpperCase()
+            : null;
+        geoCache.set(ip, { cc, ts: Date.now() });
+        saveGeoCache();
+        return cc;
+    } catch {
+        return cached ? cached.cc ?? null : null;
+    }
+}
 
 let detectorSaveTimer = null;
 function saveDetectorData() {
@@ -755,12 +803,22 @@ function pruneDetector() {
     const cutoff = Date.now() - DETECTOR_TTL_MS;
     let changed = false;
     for (const id of Object.keys(detectorData)) {
-        if (detectorData[id] < cutoff) {
+        const t = typeof detectorData[id] === "object" ? detectorData[id].t : detectorData[id];
+        if (t < cutoff) {
             delete detectorData[id];
             changed = true;
         }
     }
     return changed;
+}
+
+function detectorCountries() {
+    const countries = {};
+    for (const v of Object.values(detectorData)) {
+        const cc = typeof v === "object" ? v.cc : null;
+        if (cc) countries[cc] = (countries[cc] || 0) + 1;
+    }
+    return countries;
 }
 
 // ------------------------------------------------------------------
@@ -945,16 +1003,19 @@ async function handleDetector(req, res, url) {
         if (!/^\d{5,25}$/.test(userId)) {
             return json(res, 400, { error: "invalid userId" }), true;
         }
-        detectorData[userId] = Date.now();
+        const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim()
+            || req.socket?.remoteAddress || "";
+        const cc = await lookupCountry(ip);
+        detectorData[userId] = { t: Date.now(), cc };
         pruneDetector();
         saveDetectorData();
         const users = Object.keys(detectorData);
-        return json(res, 200, { users }), true;
+        return json(res, 200, { users, countries: detectorCountries() }), true;
     }
 
     if (req.method === "GET" && url === "/v1/detector/users") {
         pruneDetector();
-        return json(res, 200, { users: Object.keys(detectorData) }), true;
+        return json(res, 200, { users: Object.keys(detectorData), countries: detectorCountries() }), true;
     }
 
     if (url.startsWith("/v1/detector/")) return json(res, 404, { error: "not found" }), true;

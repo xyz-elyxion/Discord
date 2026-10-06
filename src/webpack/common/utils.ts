@@ -112,6 +112,11 @@ const ToastsExports = mapMangledModuleLazy(".currentToastMap.has(", {
     popToast: filters.byCode(".delete(")
 });
 
+// Discord's own toast factory. It builds the full internal payload the current
+// toast renderer expects (variant, key, icon, duration, ...). Hand-rolling a
+// { message, id, type, options } object results in an empty toast being shown.
+const DiscordCreateToast = findByCodeLazy('variant:"default",icon:', ".duration");
+
 export function createToast(message: string, type: string, options?: ToastOptions): ToastData {
     return {
         message,
@@ -126,7 +131,18 @@ export const Toasts = {
     Position: ToastPosition,
     genId: () => (Math.random() || Math.random()).toString(36).slice(2),
 
-    show: ToastsExports.showToast,
+    /**
+     * Accepts our legacy ToastData shape and forwards it through Discord's
+     * createToast so the payload matches what the current renderer expects.
+     */
+    show(data: ToastData) {
+        ToastsExports.showToast(DiscordCreateToast({
+            message: data.message,
+            type: data.type,
+            options: data.options
+        }));
+    },
+
     pop: ToastsExports.popToast,
     create: createToast,
 };
