@@ -7,11 +7,25 @@
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { StartAt } from "@utils/types";
+import { addProfileBadge, BadgePosition, ProfileBadge, removeProfileBadge } from "@api/Badges";
 import { UserStore } from "@webpack/common";
 
 const API_URL = "https://limey-discord.onrender.com/v1/detector";
 
-export default definePlugin({
+const LimeyBadge: ProfileBadge = {
+    key: "limeyV1Detector",
+    id: "limey_v1",
+    description: "Running Limey V1",
+    iconSrc: "data:image/svg+xml," + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><text x="0" y="13" font-size="13">🍋</text></svg>'
+    ),
+    position: BadgePosition.END,
+    shouldShow({ userId }) {
+        return plugin.knownUsers.has(userId);
+    }
+};
+
+const plugin = definePlugin({
     name: "LimeyV1Detector",
     permissions: [{
         id: "pingLimeyServer",
@@ -64,12 +78,16 @@ export default definePlugin({
 
     start() {
         this.startRetryCount = 0;
+        addProfileBadge(LimeyBadge);
         this.ping();
         this.intervalId = setInterval(() => this.ping(), 5 * 60 * 1000);
     },
 
     stop() {
         this.startRetryCount = 0;
+        removeProfileBadge(LimeyBadge);
         if (this.intervalId) clearInterval(this.intervalId);
     }
 });
+
+export default plugin;
