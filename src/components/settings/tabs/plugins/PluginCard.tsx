@@ -10,7 +10,7 @@ import { Settings } from "@api/Settings";
 import { CogWheel, InfoIcon } from "@components/Icons";
 import { AddonCard } from "@components/settings/AddonCard";
 import { Plugin } from "@utils/types";
-import { ToastPosition } from "@vencord/discord-types/enums";
+import { ToastPosition } from "@limeyV1/discord-types/enums";
 import { React, showToast } from "@webpack/common";
 
 import { cl, logger } from ".";

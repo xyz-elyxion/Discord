@@ -17,8 +17,8 @@
 */
 
 import { classNameFactory } from "@utils/css";
-import { ToastType } from "@vencord/discord-types";
-import { ToastPosition } from "@vencord/discord-types/enums";
+import { ToastType } from "@limeyV1/discord-types";
+import { ToastPosition } from "@limeyV1/discord-types/enums";
 import { showToast as originalShowToast, UserStore } from "@webpack/common";
 
 import { Auth } from "./auth";

@@ -107,6 +107,7 @@ interface ToastsExports {
     popToast(): void;
 }
 
+
 const ToastsExports = mapMangledModuleLazy(".currentToastMap.has(", {
     showToast: filters.byCode(".currentToastMap.has("),
     popToast: filters.byCode(".delete(")
@@ -145,6 +146,46 @@ export const Toasts = {
 
     pop: ToastsExports.popToast,
     create: createToast,
+};
+
+/**
+ * Legacy-compatible toast surface. Accepts the old ToastData shape and forwards
+ * it through Discord's createToast so the payload matches the current renderer.
+ */
+export const Toasts = {
+    Type: {
+        MESSAGE: "message",
+        SUCCESS: "success",
+        FAILURE: "failure",
+        CUSTOM: "custom",
+        CLIP: "clip",
+        LINK: "link",
+        FORWARD: "forward",
+        BOOKMARK: "bookmark",
+        CLOCK: "clock"
+    } as const,
+    Position: {
+        TOP: 0,
+        BOTTOM: 1
+    },
+    genId: () => (Math.random() || Math.random()).toString(36).slice(2),
+
+    show(data: t.ToastData & { id?: string } | t.NewToastData) {
+        // If given our legacy shape, build Discord's internal payload through
+        // its own createToast; NewToastData payloads are passed through as-is.
+        if (data && (data as t.NewToastData).variant !== undefined) {
+            ToastsExports.showToast(data as t.NewToastData);
+        } else {
+            const { id: _ignoredId, ...legacy } = data as t.ToastData & { id?: string };
+            ToastsExports.showToast(createToast(legacy));
+        }
+    },
+
+    pop: ToastsExports.popToast,
+
+    create(message: string, type: string, options?: ToastOptions): ToastData {
+        return { message, id: Toasts.genId(), type, options };
+    }
 };
 
 /**
