@@ -107,7 +107,7 @@
             <h2>Install steps — no Node.js required</h2>
             <ol>
                 <li>Download the Limey V1 Installer for your platform below.</li>
-                <li>Windows: just run the <code>.exe</code> — it opens a graphical installer. macOS: run <code>./LimeyV1Installer-cli-macos-*</code> in Terminal (use <code>chmod +x</code> first; arm64 = Apple Silicon). Linux: <code>chmod +x LimeyV1Installer-cli-linux && ./LimeyV1Installer-cli-linux</code>.</li>
+                <li>Windows: just run the <code>.exe</code> — it opens a graphical installer. macOS: run <code>./LimeyV1Installer-cli-macos-*</code> in Terminal (use <code>chmod +x</code> first; arm64 = Apple Silicon). If macOS blocks it with “can’t be opened” or “damaged”, first run <code>xattr -d com.apple.quarantine LimeyV1Installer-cli-macos-*</code> — it’s unsigned, so Gatekeeper quarantines it. Linux: <code>chmod +x LimeyV1Installer-cli-linux && ./LimeyV1Installer-cli-linux</code>.</li>
                 <li>Pick your Discord install, choose <strong>Install Limey V1</strong>, done.</li>
                 <li>Restart Discord — Limey V1 appears in Settings. Use <strong>Uninstall</strong> to remove it.</li>
             </ol>
