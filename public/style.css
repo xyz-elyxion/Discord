@@ -317,6 +317,17 @@ body {
     text-underline-offset: 4px;
 }
 
+/* Buttons inside .steps must keep their own colors — this selector would
+   otherwise out-rank .btn-primary and render white text on white buttons */
+.steps a.btn {
+    color: var(--primary-foreground);
+    text-decoration: none;
+}
+
+.steps a.btn-ghost {
+    color: var(--foreground);
+}
+
 .note {
     font-size: 0.85rem;
     color: var(--muted-foreground);
