@@ -207,15 +207,17 @@ export interface PluginDef {
     /**
      * Allows you to add custom actions to the Limey V1 Toolbox.
      *
-     * Can either be an object mapping labels to action functions or a Function returning Menu components.
-     * Please note that you can only use Menu components.
+     * Can either be an object mapping labels to action functions or a Function
+     * returning either an object of label->action, Menu components, or null to
+     * hide the plugin's toolbox entries entirely (e.g. when the feature isn't
+     * available on the current server).
      *
      * @example
      * toolboxActions: {
      *   "Click Me": () => alert("Hi")
      * }
      */
-    toolboxActions?: Record<string, () => void> | (() => ReactNode);
+    toolboxActions?: Record<string, () => void> | (() => Record<string, () => void> | ReactNode | null);
 
     /**
      * Managed style to automatically enable and disable when the plugin is enabled or disabled

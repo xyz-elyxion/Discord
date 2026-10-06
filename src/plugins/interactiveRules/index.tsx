@@ -17,6 +17,7 @@ import definePlugin from "@utils/types";
 import { createRoot, SelectedChannelStore } from "@webpack/common";
 
 import { RulesBrowser } from "./RulesBrowser";
+import { RulesChangelog } from "./changelog";
 import { RULES_CHANNEL_ID } from "./rules";
 
 const OVERLAY_ID = "limey-interactive-rules-root";
@@ -24,6 +25,15 @@ const CHAT_SELECTOR = `[class*="chatContent_"], [class*="chat_"]`;
 
 let host: HTMLDivElement | null = null;
 let observer: MutationObserver | null = null;
+
+// Set once we've confirmed the rules channel exists on this client's server
+let hasRulesChannel = false;
+
+function checkRulesChannel(channelId?: string) {
+    const id = channelId ?? SelectedChannelStore.getChannelId();
+    hasRulesChannel = hasRulesChannel || id === RULES_CHANNEL_ID;
+    return hasRulesChannel;
+}
 
 function unmount() {
     if (host) {
@@ -65,6 +75,7 @@ function mount(channelId: string) {
 }
 
 function onChannelSelect({ channelId }: { channelId: string; }) {
+    checkRulesChannel(channelId);
     mount(channelId);
 }
 
@@ -80,8 +91,15 @@ export default definePlugin({
     tags: ["Appearance", "Utility", "Servers"],
     authors: [Devs.Limey],
 
-    toolboxActions: {
-        "Open Rules Browser": () => mount(RULES_CHANNEL_ID),
+    settingsAboutComponent: RulesChangelog,
+
+    toolboxActions() {
+        // The rules channel doesn't exist on this server — no action
+        if (!checkRulesChannel()) return null;
+
+        return {
+            "Open Rules Browser": () => mount(RULES_CHANNEL_ID),
+        };
     },
 
     flux: {
@@ -89,6 +107,7 @@ export default definePlugin({
     },
 
     start() {
+        checkRulesChannel();
         mount(SelectedChannelStore.getChannelId());
     },
 

@@ -16,6 +16,7 @@ import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { createRoot, GuildStore, showToast, Toasts } from "@webpack/common";
 
+import { VerificationChangelog } from "./changelog";
 import { VerifyCard } from "./VerifyCard";
 import { guildVerifyConfigs, VERIFICATION_CHANNEL_ID } from "./shared";
 
@@ -32,6 +33,8 @@ let mountedGuildId: string | null = null;
 // Channels of guilds that have verification configured (channelId -> guildId),
 // lazily refreshed from the site so any server can use the plugin.
 const verifyChannels = new Map<string, string>([[VERIFICATION_CHANNEL_ID, "1550709562267672607"]]);
+
+let haveVerifyConfigs = false;
 
 async function refreshVerifyChannels() {
     // Ask the site which guilds the current user shares with the bot have
@@ -57,6 +60,7 @@ async function refreshVerifyChannels() {
                 roleId: cfg.roleId ?? null,
             });
         }
+        haveVerifyConfigs = (data.guilds ?? []).length > 0;
     } catch { /* offline or not configured — fallback channels still work */ }
 }
 
@@ -112,8 +116,17 @@ export default definePlugin({
     tags: ["Utility", "Servers"],
     authors: [Devs.Limey],
 
-    toolboxActions: {
-        "Open Verification": () => mount(VERIFICATION_CHANNEL_ID),
+    settingsAboutComponent: VerificationChangelog,
+
+    toolboxActions() {
+        // No verification set up (e.g. not in a server with the bot) — no action
+        if (!haveVerifyConfigs) return null;
+
+        return {
+            "Open Verification": () => {
+                void refreshVerifyChannels().then(() => mount(VERIFICATION_CHANNEL_ID));
+            },
+        };
     },
 
     flux: {

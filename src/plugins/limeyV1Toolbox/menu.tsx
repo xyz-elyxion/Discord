@@ -211,7 +211,24 @@ function buildCustomPluginEntries() {
     for (const plugin of Object.values(plugins)) {
         if (plugin.toolboxActions && isPluginEnabled(plugin.name)) {
             const entries = typeof plugin.toolboxActions === "function"
-                ? plugin.toolboxActions()
+                ? (() => {
+                    // A function may return an actions object, Menu nodes, or
+                    // null to hide the section entirely.
+                    const result = plugin.toolboxActions();
+                    if (!result) return null;
+                    if (Array.isArray(result) || typeof result !== "object") return result as ReactNode;
+                    return Object.entries(result as Record<string, () => void>).map(([text, action]) => {
+                        const key = `${plugin.name}-${text}`;
+                        return (
+                            <Menu.MenuItem
+                                id={key}
+                                key={key}
+                                label={text}
+                                action={action}
+                            />
+                        );
+                    });
+                })()
                 : Object.entries(plugin.toolboxActions).map(([text, action]) => {
                     const key = `${plugin.name}-${text}`;
 
@@ -225,7 +242,8 @@ function buildCustomPluginEntries() {
                     );
                 });
 
-            if (!entries || Array.isArray(entries) && entries.length === 0) continue;
+            if (!entries) continue;
+            if (Array.isArray(entries) && entries.length === 0) continue;
 
             pluginEntries.push({
                 plugin,
