@@ -12,6 +12,9 @@ import { UserStore } from "@webpack/common";
 
 const API_URL = "https://limey-discord.onrender.com/v1/detector";
 
+/** Cached set of user ids known to run Limey V1 */
+const knownUsers = new Set<string>();
+
 const LimeyBadge: ProfileBadge = {
     key: "limeyV1Detector",
     id: "limey_v1",
@@ -21,11 +24,11 @@ const LimeyBadge: ProfileBadge = {
     ),
     position: BadgePosition.END,
     shouldShow({ userId }) {
-        return plugin.knownUsers.has(userId);
+        return knownUsers.has(userId);
     }
 };
 
-const plugin = definePlugin({
+export default definePlugin({
     name: "LimeyV1Detector",
     permissions: [{
         id: "pingLimeyServer",
@@ -39,14 +42,12 @@ const plugin = definePlugin({
     enabledByDefault: true,
     startAt: StartAt.WebpackReady,
 
-    /** Cached set of user ids known to run Limey V1 */
-    knownUsers: new Set<string>() as Set<string>,
+    hasLimey(userId: string) {
+        return knownUsers.has(userId);
+    },
+
     intervalId: undefined as ReturnType<typeof setInterval> | undefined,
     startRetryCount: 0 as number,
-
-    hasLimey(userId: string) {
-        return this.knownUsers.has(userId);
-    },
 
     async ping() {
         try {
@@ -68,7 +69,8 @@ const plugin = definePlugin({
             if (res.ok) {
                 const data = await res.json();
                 if (Array.isArray(data.users)) {
-                    this.knownUsers = new Set<string>(data.users as string[]);
+                    knownUsers.clear();
+                    for (const id of data.users as string[]) knownUsers.add(id);
                 }
             }
         } catch (e) {
@@ -89,5 +91,3 @@ const plugin = definePlugin({
         if (this.intervalId) clearInterval(this.intervalId);
     }
 });
-
-export default plugin;
