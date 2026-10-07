@@ -98,13 +98,15 @@ function getTask(quest: Quest) {
     const tasks = quest.config.task_config_v2.tasks;
     const order: QuestTaskConfigType[] = [
         "WATCH_VIDEO",
+        "PLAY_ON_DESKTOP_V2",
         "PLAY_ON_DESKTOP",
         "PLAY_ON_XBOX",
         "PLAY_ON_PLAYSTATION",
         "STREAM_ON_DESKTOP",
         "PLAY_ACTIVITY",
         "WATCH_VIDEO_ON_MOBILE",
-        "ACHIEVEMENT_IN_ACTIVITY"
+        "ACHIEVEMENT_IN_ACTIVITY",
+        "ACHIEVEMENT_IN_GAME"
     ];
     for (const name of order) {
         if (tasks[name]) return tasks[name]!;
@@ -329,6 +331,7 @@ async function runQuest(quest: Quest) {
                 await completeVideoQuest(quest, questName, task.type, task.target);
                 break;
             case "PLAY_ON_DESKTOP":
+            case "PLAY_ON_DESKTOP_V2":
             case "PLAY_ON_XBOX":
             case "PLAY_ON_PLAYSTATION":
                 await completePlayQuest(quest, questName, applicationName, task.type);
@@ -343,7 +346,7 @@ async function runQuest(quest: Quest) {
                 await completeAchievementQuest(quest, questName, applicationName, task.target);
                 break;
             default:
-                notifyFailure(`${questName}: unsupported quest type ${task.type}.`);
+                notifyFailure(`${questName}: unsupported quest type ${task.type} (achievement quests in normal games can't be spoofed — play manually).`);
                 return;
         }
 
@@ -419,6 +422,7 @@ function makeQuestsCommand(): Command {
             if (action === "start") {
                 processQuests().catch(error => {
                     logger.error("Failed to process quests", error);
+                    notifyFailure(`Quests failed: ${(error as Error).message}`);
                     sendBotMessage(ctx.channel.id, { content: `Quest Completer error: ${(error as Error).message}` });
                 });
                 return sendBotMessage(ctx.channel.id, { content: "Starting quest processing..." });
@@ -457,16 +461,22 @@ export default definePlugin({
     settings,
     commands: [makeQuestsCommand()],
     toolboxActions: {
-        "Run Quests": () => {
-            processQuests().catch(error => logger.error("Failed to process quests", error));
-        }
+    "Run Quests": () => {
+        processQuests().catch(error => {
+            logger.error("Failed to process quests", error);
+            notifyFailure(`Quests failed: ${(error as Error).message}`);
+        });
+    }
     },
 
     start() {
         if (!settings.store.autoEnroll) return;
         // Give the client time to settle after startup
         setTimeout(() => {
-            processQuests().catch(error => logger.error("Failed to process quests", error));
+            processQuests().catch(error => {
+                logger.error("Failed to process quests", error);
+                notifyFailure(`Quests failed: ${(error as Error).message}`);
+            });
         }, 10_000);
     },
 
