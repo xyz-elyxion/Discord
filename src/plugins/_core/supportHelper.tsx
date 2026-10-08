@@ -318,7 +318,6 @@ export default definePlugin({
             }
         }
 
-
         return buttons.length
             ? <Flex>{buttons}</Flex>
             : null;

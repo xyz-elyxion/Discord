@@ -36,6 +36,10 @@ declare module "~git-remote" {
     const remote: string;
     export default remote;
 }
+declare module "~upstream" {
+    const upstream: { hash: string; behind: number; };
+    export default upstream;
+}
 
 declare module "file://*" {
     const content: string;

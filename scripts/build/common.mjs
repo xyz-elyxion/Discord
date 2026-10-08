@@ -55,6 +55,39 @@ export const gitHash = process.env.LIMEYV1_HASH || (() => {
     }
 })();
 
+// Where this fork stands relative to upstream Vencord: short hash of the
+// upstream ref and how many commits HEAD is behind it. Used by the updater
+// to show a "behind upstream" notice. Overridable via env for builds
+// without git access (e.g. the production Docker build).
+export const upstreamInfo = (() => {
+    try {
+        const hash = execSync("git rev-parse --short upstream/main", { encoding: "utf-8" }).trim();
+        const behind = Number(execSync("git rev-list --count HEAD..upstream/main", { encoding: "utf-8" }).trim()) || 0;
+        return { hash, behind };
+    } catch {
+        return {
+            hash: process.env.LIMEYV1_UPSTREAM_HASH || "unknown",
+            behind: Number(process.env.LIMEYV1_UPSTREAM_BEHIND) || 0
+        };
+    }
+})();
+
+/**
+ * @type {import("esbuild").Plugin}
+ */
+export const upstreamPlugin = {
+    name: "upstream-plugin",
+    setup: build => {
+        const filter = /^~upstream$/;
+        build.onResolve({ filter }, args => ({
+            namespace: "upstream", path: args.path
+        }));
+        build.onLoad({ filter, namespace: "upstream" }, () => ({
+            contents: `export default ${JSON.stringify(upstreamInfo)}`
+        }));
+    }
+};
+
 export const banner = {
     js: `
 // Limey V1 ${gitHash}
@@ -365,7 +398,7 @@ export const commonOpts = {
     sourcemap: watch ? "inline" : "external",
     legalComments: "linked",
     banner,
-    plugins: [fileUrlPlugin, gitHashPlugin, gitRemotePlugin, stylePlugin],
+    plugins: [fileUrlPlugin, gitHashPlugin, gitRemotePlugin, upstreamPlugin, stylePlugin],
     external: ["~plugins", "~git-hash", "~git-remote", "/assets/*"],
     inject: ["./scripts/build/inject/react.mjs"],
     jsx: "transform",

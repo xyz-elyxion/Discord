@@ -70,9 +70,10 @@ export const CspPolicies: PolicyMap = {
     "icons.duckduckgo.com": ImageSrc, // DuckDuckGo Favicon API (Reverse Image Search)
     // Limey V1 backend: USRBG banners + detector (merge with ConnectSrc entry above)
 
-    // Tenor, used by TenorSearch plugin and some themes
+    // Tenor & Giphy, used by GifProviderSwitcher plugin and some themes
     "*.tenor.com": ImageAndMediaSrc,
     "*.tenor.co": ImageAndMediaSrc,
+    "*.giphy.com": ImageAndMediaSrc,
 };
 
 const findHeader = (headers: PolicyMap, headerName: Lowercase<string>) => {

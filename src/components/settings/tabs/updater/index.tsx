@@ -33,8 +33,26 @@ import { getRepo, isNewer, UpdateLogger } from "@utils/updater";
 import { Forms, React } from "@webpack/common";
 
 import gitHash from "~git-hash";
+import upstreamInfo from "~upstream";
 
 import { CommonProps, HashLink, Newer, Updatable } from "./Components";
+
+function UpstreamSection() {
+    if (upstreamInfo.behind <= 0 || upstreamInfo.hash === "unknown") return null;
+
+    return (
+        <Card variant="warning" className={Margins.bottom20}>
+            <HeadingSecondary>Behind Upstream</HeadingSecondary>
+            <Paragraph>
+                This fork is <b>{upstreamInfo.behind}</b> commit{upstreamInfo.behind === 1 ? "" : "s"} behind
+                upstream Vencord (upstream: <HashLink hash={upstreamInfo.hash} repo="https://github.com/Vendicated/Vencord" />).
+            </Paragraph>
+            <Paragraph className={Margins.top8}>
+                Upstream changes are merged into this fork by its maintainers — this notice is informational.
+            </Paragraph>
+        </Card>
+    );
+}
 
 function VesktopSection() {
     if (!IS_VESKTOP) return null;
@@ -79,6 +97,8 @@ function Updater() {
 
     return (
         <SettingsTab>
+            <UpstreamSection />
+
             <VesktopSection />
 
             <div className="vc-settings-switches">
