@@ -14,24 +14,24 @@
     --vc-notif-accent: var(--text-default);
 }
 
-/* translucent surfaces that blend with every theme (incl. pure-black Onyx) */
+/* opaque surfaces that blend with every theme (incl. pure-black Onyx) */
 .theme-dark .vc-notification-root {
     --vc-notif-border: rgba(255, 255, 255, 0.09);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: #111214;
 }
 
 .theme-dark .vc-notification-root:hover {
-    background-color: rgba(255, 255, 255, 0.07);
+    background-color: #1a1b1e;
     border-color: rgba(255, 255, 255, 0.18);
 }
 
 .theme-light .vc-notification-root {
     --vc-notif-border: rgba(0, 0, 0, 0.09);
-    background-color: rgba(0, 0, 0, 0.03);
+    background-color: #ffffff;
 }
 
 .theme-light .vc-notification-root:hover {
-    background-color: rgba(0, 0, 0, 0.055);
+    background-color: #f2f3f5;
     border-color: rgba(0, 0, 0, 0.18);
 }
 
