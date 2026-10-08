@@ -31,7 +31,9 @@ import { shouldShowContributorBadge } from "@utils/misc";
 import definePlugin from "@utils/types";
 import { ContextMenuApi, Forms, Menu, Modal, openModal, showToast, UserStore } from "@webpack/common";
 
-const CONTRIBUTOR_BADGE = "https://cdn.discordapp.com/emojis/1092089799109775453.png?size=64";
+// Custom Limey V1 contributor badge — a lime slice on a dark disc,
+// bundled inline as a data URI (no external emoji/CDN dependency).
+const CONTRIBUTOR_BADGE = "data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%0A%3Ccircle%20cx%3D'32'%20cy%3D'32'%20r%3D'30'%20fill%3D'%231f2d16'%2F%3E%0A%3Ccircle%20cx%3D'32'%20cy%3D'34'%20r%3D'21'%20fill%3D'%237cb518'%2F%3E%0A%3Ccircle%20cx%3D'32'%20cy%3D'34'%20r%3D'17'%20fill%3D'%23c9ef8f'%2F%3E%0A%3Cg%20stroke%3D'%237cb518'%20stroke-width%3D'3'%20stroke-linecap%3D'round'%3E%0A%3Cpath%20d%3D'M32%2034L32%2019'%2F%3E%3Cpath%20d%3D'M32%2034L44.2%2026.5'%2F%3E%3Cpath%20d%3D'M32%2034L44.2%2041.5'%2F%3E%0A%3Cpath%20d%3D'M32%2034L32%2049'%2F%3E%3Cpath%20d%3D'M32%2034L19.8%2041.5'%2F%3E%3Cpath%20d%3D'M32%2034L19.8%2026.5'%2F%3E%0A%3C%2Fg%3E%0A%3Cpath%20d%3D'M32%208c4%203%206%206%206%209-4%200-8-2-9-5%200-2%201-4%203-4z'%20fill%3D'%233f6212'%2F%3E%0A%3Ccircle%20cx%3D'24'%20cy%3D'22'%20r%3D'3'%20fill%3D'%23ffffff'%20opacity%3D'.35'%2F%3E%0A%3C%2Fsvg%3E";
 
 const ContributorBadge: ProfileBadge = {
     id: "limeyV1_contributor_badge",
