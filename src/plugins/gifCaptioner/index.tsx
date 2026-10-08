@@ -390,61 +390,69 @@ function CaptionModal({ modalProps, width, height, element, onConfirm }: {
     }, []);
 
     return (
-        <ModalRoot {...modalProps}>
-            <ModalContent>
-                <div className="vc-gc-editor">
-                    <div className="vc-gc-tabs">
-                        <button className={tab === "caption" ? "active" : ""} onClick={() => setTab("caption")}>Caption</button>
-                        <button className={tab === "speechbubble" ? "active" : ""} onClick={() => setTab("speechbubble")}>Speech Bubble</button>
-                    </div>
-                    {tab === "caption" && (
-                        <>
-                            <input
-                                className="vc-gc-caption"
-                                placeholder="Enter caption..."
-                                onChange={e => setText(e.target.value)}
-                            />
-                            <div className="vc-gc-range">
-                                <span>Font size</span>
-                                <input type="range" min={5} max={200} value={size} onChange={e => setSize(parseFloat(e.target.value))} />
-                            </div>
-                        </>
-                    )}
-                    {tab === "speechbubble" && (
-                        <div className="vc-gc-range">
-                            <span>Tip base position</span>
-                            <input type="range" min={0} max={80} value={tipBase} onChange={e => setTipBase(parseFloat(e.target.value))} />
-                        </div>
-                    )}
-                    <div ref={wrapperRef} className="vc-gc-speechbubbler">
-                        <canvas
-                            ref={canvasRef}
-                            width={width}
-                            height={height}
-                            onClick={e => {
-                                if (tab !== "speechbubble") return;
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setTip([
-                                    (e.clientX - rect.left) / rect.width * width,
-                                    (e.clientY - rect.top) / rect.height * height
-                                ]);
-                            }}
-                        />
-                    </div>
+        <Modal
+            {...modalProps}
+            size="lg"
+            title={<Text variant="heading-lg/semibold">Caption GIF</Text>}
+            actions={[
+                {
+                    text: "Caption it!",
+                    variant: "primary",
+                    onClick: () => {
+                        onConfirm(tab === "caption"
+                            ? { type: "caption", text: text || " ", size }
+                            : { type: "speechbubble", tipX: tip[0], tipY: tip[1], tipBase: tipBase / 100 });
+                        modalProps.onClose();
+                    }
+                },
+                {
+                    text: "Cancel",
+                    variant: "secondary",
+                    onClick: modalProps.onClose
+                }
+            ]}
+        >
+            <div className="vc-gc-editor">
+                <div className="vc-gc-tabs">
+                    <button className={tab === "caption" ? "active" : ""} onClick={() => setTab("caption")}>Caption</button>
+                    <button className={tab === "speechbubble" ? "active" : ""} onClick={() => setTab("speechbubble")}>Speech Bubble</button>
                 </div>
-            </ModalContent>
-            <ModalFooter>
-                <Button onClick={() => {
-                    onConfirm(tab === "caption"
-                        ? { type: "caption", text: text || " ", size }
-                        : { type: "speechbubble", tipX: tip[0], tipY: tip[1], tipBase: tipBase / 100 });
-                    modalProps.onClose();
-                }}>
-                    Caption it!
-                </Button>
-                <Button onClick={modalProps.onClose} color={Button.Colors.PRIMARY}>Cancel</Button>
-            </ModalFooter>
-        </ModalRoot>
+                {tab === "caption" && (
+                    <>
+                        <input
+                            className="vc-gc-caption"
+                            placeholder="Enter caption..."
+                            onChange={e => setText(e.target.value)}
+                        />
+                        <div className="vc-gc-range">
+                            <span>Font size</span>
+                            <input type="range" min={5} max={200} value={size} onChange={e => setSize(parseFloat(e.target.value))} />
+                        </div>
+                    </>
+                )}
+                {tab === "speechbubble" && (
+                    <div className="vc-gc-range">
+                        <span>Tip base position</span>
+                        <input type="range" min={0} max={80} value={tipBase} onChange={e => setTipBase(parseFloat(e.target.value))} />
+                    </div>
+                )}
+                <div ref={wrapperRef} className="vc-gc-speechbubbler">
+                    <canvas
+                        ref={canvasRef}
+                        width={width}
+                        height={height}
+                        onClick={e => {
+                            if (tab !== "speechbubble") return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setTip([
+                                (e.clientX - rect.left) / rect.width * width,
+                                (e.clientY - rect.top) / rect.height * height
+                            ]);
+                        }}
+                    />
+                </div>
+            </div>
+        </Modal>
     );
 }
 
@@ -561,9 +569,7 @@ const messageContextMenu: NavContextMenuPatchCallback = (children, props) => {
 
 // --- Modal components come from webpack common ------------------------------------
 
-import { Button, useEffect, openModal, useRef, useState } from "@webpack/common";
-import { Modals } from "@utils/modal";
-const { ModalRoot, ModalContent, ModalFooter } = Modals as any;
+import { Modal, Text, useEffect, openModal, useRef, useState } from "@webpack/common";
 
 const css = `
     .vc-gc-editor {

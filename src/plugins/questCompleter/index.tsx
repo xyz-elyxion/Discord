@@ -379,8 +379,19 @@ function startQuest(quest: Quest) {
 
 async function fetchActiveQuests() {
     const response = await questGet("/quests/@me") as AllQuestsResponse;
+    // Discord rate-limits quest enrollment (~45 minutes). When a block is
+    // active the API still returns the quests — that list is usable, it just
+    // means new enrollments will fail. Only fail when there is literally
+    // nothing to process; otherwise surface the block as a notice.
     if (response.quest_enrollment_blocked_until) {
-        throw new Error(`Quest enrollment is blocked until ${response.quest_enrollment_blocked_until}`);
+        const blocked = new Set(response.quests.filter(quest => !isEnrolled(quest) && !isCompleted(quest) && !isExpired(quest)).map(quest => quest.id));
+        const usable = response.quests.filter(quest => !blocked.has(quest.id) && !isExpired(quest) && !isCompleted(quest));
+        if (!usable.length) {
+            throw new Error(`Quest enrollment is blocked until ${response.quest_enrollment_blocked_until}`);
+        }
+        if (blocked.size)
+            notify(`Quest enrollment blocked until ${response.quest_enrollment_blocked_until} — ${blocked.size} quest(s) can't be enrolled right now.`, true);
+        return usable;
     }
     return response.quests.filter(quest => !isExpired(quest) && !isCompleted(quest));
 }
