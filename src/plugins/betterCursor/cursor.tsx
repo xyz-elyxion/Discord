@@ -213,30 +213,28 @@ export const CursorOverlay = {
         // render the SVG into the shadow root
         const svgHost = document.createElement("div");
         host.append(svgHost);
-        import("@webpack/common").then(({ React }) => {
-            // Shadow DOM can't be written with React portals easily — just
-            // inject the SVG markup directly.
-            svgHost.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="50" height="54" viewBox="0 0 50 54" fill="none">
-                    <g filter="url(#betterCursorShadow)">
-                        <path d="${SVG_PATH_SHADOW}" fill="black" />
-                        <path d="${SVG_PATH_OUTLINE}" stroke="white" stroke-width="2.25825" />
-                    </g>
-                    <defs>
-                        <filter id="betterCursorShadow" x="0.6" y="0.95" width="49.1" height="52.4" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-                            <feFlood flood-opacity="0" result="bgFix"/>
-                            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-                            <feOffset dy="2.25825"/>
-                            <feGaussianBlur stdDeviation="2.25825"/>
-                            <feComposite in2="hardAlpha" operator="out"/>
-                            <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.08 0"/>
-                            <feBlend mode="normal" in2="bgFix" result="drop"/>
-                            <feBlend mode="normal" in="SourceGraphic" in2="drop"/>
-                        </filter>
-                    </defs>
-                </svg>
-            `;
-        });
+        // Shadow DOM can't be written with React portals easily — just
+        // inject the SVG markup directly.
+        svgHost.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="50" height="54" viewBox="0 0 50 54" fill="none">
+                <g filter="url(#betterCursorShadow)">
+                    <path d="${SVG_PATH_SHADOW}" fill="black" />
+                    <path d="${SVG_PATH_OUTLINE}" stroke="white" stroke-width="2.25825" />
+                </g>
+                <defs>
+                    <filter id="betterCursorShadow" x="0.6" y="0.95" width="49.1" height="52.4" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+                        <feFlood flood-opacity="0" result="bgFix"/>
+                        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+                        <feOffset dy="2.25825"/>
+                        <feGaussianBlur stdDeviation="2.25825"/>
+                        <feComposite in2="hardAlpha" operator="out"/>
+                        <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.08 0"/>
+                        <feBlend mode="normal" in2="bgFix" result="drop"/>
+                        <feBlend mode="normal" in="SourceGraphic" in2="drop"/>
+                    </filter>
+                </defs>
+            </svg>
+        `;
 
         if (options.hideSystemCursor) document.body.style.cursor = "none";
 
@@ -251,16 +249,5 @@ export const CursorOverlay = {
         container.remove();
         container = null;
         document.body.style.cursor = "auto";
-    },
-
-    // Called when settings change — cheap remount
-    reload() {
-        const wasMounted = container != null;
-        this.unmount();
-        if (wasMounted) {
-
-            const { settings } = require("../index") as { settings: { store: CursorOptions; } };
-            this.mount(settings.store);
-        }
     }
 };

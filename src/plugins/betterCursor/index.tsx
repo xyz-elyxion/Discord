@@ -17,16 +17,14 @@ const settings = definePluginSettings({
         description: "How much the cursor trails behind (higher = springier)",
         markers: [1, 2, 3, 4, 5],
         default: 2,
-        stickToMarkers: true,
-        onChange: () => CursorOverlay.reload()
+        stickToMarkers: true
     },
     size: {
         type: OptionType.SLIDER,
         description: "Cursor size (px)",
         markers: [24, 32, 40, 50, 64, 80],
         default: 50,
-        stickToMarkers: true,
-        onChange: () => CursorOverlay.reload()
+        stickToMarkers: true
     },
     hideSystemCursor: {
         type: OptionType.BOOLEAN,
