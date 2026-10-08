@@ -129,7 +129,8 @@ export async function authorizeCloud() {
                 const res = await fetch(callbackUrl, {
                     headers: { Accept: "application/json" }
                 });
-                const { secret } = await res.json();
+                const data = await res.json();
+                const { secret } = data;
                 if (secret) {
                     logger.info("Authorized with secret");
                     await setAuthorization(secret);
@@ -139,9 +140,11 @@ export async function authorizeCloud() {
                     });
                     Settings.cloud.authenticated = true;
                 } else {
+                    const reason = data?.error ? `${data.error}` : `HTTP ${res.status}`;
+                    logger.error("Cloud setup failed:", reason);
                     showNotification({
                         title: "Cloud Integration",
-                        body: "Setup failed (no secret returned?)."
+                        body: `Setup failed (no secret returned: ${reason}).`
                     });
                     Settings.cloud.authenticated = false;
                 }
