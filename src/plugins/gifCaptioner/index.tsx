@@ -30,6 +30,8 @@ import {
 } from "@webpack/common";
 import { GIFEncoder, applyPalette, quantize } from "gifenc";
 
+import managedStyle from "./styles.css?managed";
+
 const CloudUpload: typeof TCloudUpload = findLazy(m => m.prototype?.trackUploadFinished);
 
 const settings = definePluginSettings({
@@ -571,66 +573,6 @@ const messageContextMenu: NavContextMenuPatchCallback = (children, props) => {
 
 import { Modal, Text, useEffect, openModal, useRef, useState } from "@webpack/common";
 
-const css = `
-    .vc-gc-editor {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-    .vc-gc-tabs {
-        display: flex;
-        gap: 8px;
-    }
-    .vc-gc-tabs button {
-        flex: 1;
-        padding: 8px 12px;
-        border: 1px solid var(--input-border-default, transparent);
-        border-radius: var(--radius-sm, 4px);
-        background: var(--control-secondary-background-default, var(--background-secondary));
-        color: var(--text-default, var(--text-normal));
-        cursor: pointer;
-        font-weight: 500;
-    }
-    .vc-gc-tabs button:hover {
-        background: var(--control-secondary-background-hover, var(--background-secondary-alt));
-    }
-    .vc-gc-tabs button.active {
-        background: var(--brand-500, var(--brand-experiment-560));
-        color: #fff;
-        border-color: transparent;
-    }
-    .vc-gc-caption {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 10px 12px;
-        border: 1px solid var(--input-border-default, transparent);
-        border-radius: var(--radius-sm, 4px);
-        background: var(--input-background-default, var(--background-base-lowest, var(--background-secondary)));
-        color: var(--text-default, var(--text-normal));
-        outline: none;
-    }
-    .vc-gc-caption::placeholder {
-        color: var(--text-muted);
-    }
-    .vc-gc-caption:focus {
-        border-color: var(--text-link, var(--brand-500));
-        background: var(--input-background-hover, var(--background-base-low));
-    }
-    .vc-gc-range {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        color: var(--text-default, var(--text-normal));
-    }
-    .vc-gc-range input[type="range"] {
-        flex: 1;
-        accent-color: var(--brand-500, var(--brand-experiment-560));
-    }
-    .vc-gc-speechbubbler canvas {
-        max-width: 100%;
-        border-radius: var(--radius-sm, 4px);
-    }
-`;
 
 export default definePlugin({
     name: "GifCaptioner",
@@ -647,7 +589,7 @@ export default definePlugin({
     authors: [Devs.Limey],
     settings,
 
-    managedStyle: css,
+    managedStyle,
 
     contextMenus: {
         "message": messageContextMenu
