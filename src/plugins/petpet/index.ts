@@ -24,6 +24,8 @@ import definePlugin from "@utils/types";
 import { DraftType, UploadAttachmentStore, UploadHandler, UploadManager, UserUtils } from "@webpack/common";
 import { GIFEncoder, nearestColorIndex, quantize } from "gifenc";
 
+import { PETPET_FRAMES } from "./frames";
+
 const DEFAULT_DELAY = 20;
 const DEFAULT_RESOLUTION = 128;
 const FRAMES = 10;
@@ -31,7 +33,7 @@ const FRAMES = 10;
 const getFrames = makeLazy(() => Promise.all(
     Array.from(
         { length: FRAMES },
-        (_, i) => loadImage(`https://raw.githubusercontent.com/VenPlugs/petpet/main/frames/pet${i}.gif`)
+        (_, i) => loadImage(PETPET_FRAMES[i])
     ))
 );
 
