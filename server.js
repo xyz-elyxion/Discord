@@ -1683,6 +1683,10 @@ function serveFile(res, filePath, status = 200) {
     const type = MIME[ext] || "application/octet-stream";
 
     const headers = { "Content-Type": type };
+    // Data files fetched cross-origin by clients (plugin catalog, badges, etc.)
+    if (ext === ".json") {
+        headers["Access-Control-Allow-Origin"] = "*";
+    }
     if (DOWNLOAD_TYPES.has(ext)) {
         headers["Content-Disposition"] = `attachment; filename="${filePath.split(/[\\/]/).pop()}"`;
     }

@@ -30,6 +30,33 @@ import { LIMEYV1_FILES, serializeErrors } from "./common";
 // stamped with a first-line version comment ("// Limey V1 <hash>"), the same
 // stamp the installer uses to detect installed vs latest builds.
 const LIMEY_BASE = "https://limey-discord.onrender.com";
+
+// The backend runs on Render's free tier and cold-starts/fails intermittently;
+// those responses (502/503 HTML error pages) carry no CORS headers, so a
+// single failed attempt shows up in the app as a confusing "CORS policy"
+// error. Retry transient failures a few times before giving up.
+const MAX_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 2000;
+
+async function fetchWithRetry(url: string): Promise<Buffer> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+            return await fetchBuffer(url);
+        } catch (err) {
+            lastError = err;
+            const message = String(err instanceof Error ? err.message : err);
+            // Only retry transient backend issues: network errors and 5xx/429.
+            const transient = !/\b[45]\d\d\b/.test(message) || /\b(429|5\d\d)\b/.test(message);
+            if (!transient || attempt === MAX_ATTEMPTS) break;
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+        }
+    }
+    throw new Error(
+        `${String(lastError instanceof Error ? lastError.message : lastError)}\n` +
+        "The Limey V1 update backend may be waking up or down. Try again in a minute, or re-install with the installer from limey-discord.onrender.com/download."
+    );
+}
 const VERSION_FILE = "renderer.css";
 // The stamp on js files is a comment; on css it is wrapped in slashes.
 const HASH_STAMP_CSS = "/* Limey ";
@@ -41,7 +68,7 @@ function fileUrl(name: string) {
 }
 
 async function fetchLatestHash() {
-    const res = await fetchBuffer(fileUrl(VERSION_FILE));
+    const res = await fetchWithRetry(fileUrl(VERSION_FILE));
     const firstLine = new TextDecoder().decode(res).split("\n", 1)[0].trim();
 
     if (!firstLine.startsWith(HASH_STAMP_CSS)) {
@@ -50,7 +77,6 @@ async function fetchLatestHash() {
     const hash = firstLine.slice(HASH_STAMP_CSS.length).replace(/\*\/$/, "").trim();
     if (!hash) throw new Error("Could not determine latest build hash from the Limey V1 backend");
 
-    if (!hash) throw new Error("Could not determine latest build hash from the Limey V1 backend");
     return hash;
 }
 
@@ -76,7 +102,7 @@ async function fetchUpdates() {
 
 async function applyUpdates() {
     const fileContents = await Promise.all(PendingUpdates.map(async name => {
-        const contents = await fetchBuffer(fileUrl(name));
+        const contents = await fetchWithRetry(fileUrl(name));
         return [join(__dirname, name), contents] as const;
     }));
 
