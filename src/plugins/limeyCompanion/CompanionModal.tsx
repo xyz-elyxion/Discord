@@ -67,7 +67,8 @@ export function CompanionModal() {
                     <div
                         key={history.length - i}
                         style={{
-                            background: "var(--background-secondary, #2b2d31)",
+                            background: "var(--background-modifier-accent, rgba(0, 0, 0, 0.06))",
+                            color: "var(--text-default, currentColor)",
                             borderRadius: "8px",
                             padding: "10px 12px",
                         }}
