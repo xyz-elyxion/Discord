@@ -6,14 +6,15 @@
 
 import { Button, TextInput, useState } from "@webpack/common";
 
-import { askCompanion, CompanionReply } from "./companion";
+import { askCompanion, CompanionReply, performAction } from "./companion";
 import { fallbackAnswer } from "./knowledgeBase";
 
 const suggestions = [
     "What is Limey V1?",
     "How do I install plugins?",
     "Is this safe from bans?",
-    "What are Discord roles?",
+    "Open my settings",
+    "Restart Discord",
 ];
 
 export function CompanionModal() {
@@ -26,6 +27,7 @@ export function CompanionModal() {
 
         const reply = askCompanion(trimmed);
         if (!reply.answer) reply.answer = fallbackAnswer;
+        if (reply.action) reply.answer = performAction(reply.action);
         setHistory(prev => [reply, ...prev]);
         setQuestion("");
     };
@@ -46,8 +48,9 @@ export function CompanionModal() {
                 {history.length === 0 && (
                     <div style={{ opacity: 0.8 }}>
                         <p style={{ margin: "0 0 8px" }}>
-                            Hi! I'm Limey, your little companion. Ask me anything about Discord or Limey V1 and I'll
-                            answer with the best thing I know.
+                            Hi! I'm Limey, your little companion. Ask me anything about Discord or Limey V1 — or tell
+                            me to <b>do stuff for you</b>: “open my settings”, “open plugins”, “restart Discord”,
+                            “copy the support invite”, “open the download page”.
                         </p>
                         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                             {suggestions.map(s => (

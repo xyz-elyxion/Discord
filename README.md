@@ -26,7 +26,7 @@ Visit https://limey-discord.onrender.com/download
 
 ## Join our Support/Community Server
 
-https://discord.gg/D9uwnFnqmd
+https://discord.gg/n8rmQJRAzV
 
 ## Sponsors
 

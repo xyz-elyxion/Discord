@@ -10,6 +10,13 @@ import { Paragraph } from "@components/Paragraph";
 
 export const CHANGELOG = [
     {
+        version: "1.1.1",
+        date: "2026-10-08",
+        entries: [
+            "Cursor now inverts with your theme: dark ink on light themes, white on dark themes, using Discord's own text/surface colors."
+        ]
+    },
+    {
         version: "1.1.0",
         date: "2026-10-08",
         entries: [
@@ -127,15 +134,18 @@ function computeScreenScale() {
 function applyThemeColors() {
     if (!shadowRoot) return;
     const styles = getComputedStyle(document.body);
-    // Discord exposes theme vars on body/:root; fall back to sensible defaults
-    const fill = styles.getPropertyValue("--background-modem-accent").trim()
-        || styles.getPropertyValue("--brand-experiment").trim()
-        || styles.getPropertyValue("--interactive-normal").trim()
-        || "#313338";
     const isLight = document.body.classList.contains("theme-light")
         || styles.getPropertyValue("--theme").trim() === "light"
         || styles.colorScheme === "light";
-    const outline = isLight ? "white" : "#e3e5e8";
+
+    // Match the theme: use Discord's text color for the fill so the cursor
+    // always contrasts with the background (dark ink on light theme, white
+    // on dark theme), with the theme's surface color as the outline.
+    const fill = styles.getPropertyValue("--text-default").trim()
+        || styles.getPropertyValue("--interactive-normal").trim()
+        || (isLight ? "#060607" : "#ffffff");
+    const outline = styles.getPropertyValue("--background-base-low").trim()
+        || (isLight ? "#ffffff" : "#1e1f22");
 
     const svg = shadowRoot.querySelector("svg");
     const paths = svg?.querySelectorAll("path");

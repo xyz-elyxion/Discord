@@ -62,7 +62,7 @@ export const knowledgeBase: CompanionEntry[] = [
     {
         topic: "Limey V1",
         keywords: ["support", "help", "server", "discord", "community", "contact"],
-        answer: "Join the support server: https://discord.gg/D9uwnFnqmd — broken plugins get fixed fast, and the team is friendly."
+        answer: "Join the support server: https://discord.gg/n8rmQJRAzV — broken plugins get fixed fast, and the team is friendly."
     },
     {
         topic: "Discord",
@@ -117,4 +117,4 @@ export const knowledgeBase: CompanionEntry[] = [
 ];
 
 /** Fallback when nothing matches well enough */
-export const fallbackAnswer = "Hmm, I don't have a canned answer for that one. Try asking about Limey V1 (install, plugins, themes, updates, safety) or Discord basics (servers, roles, Nitro, markdown) — or drop by the support server: https://discord.gg/D9uwnFnqmd";
+export const fallbackAnswer = "Hmm, I don't have a canned answer for that one. Try asking about Limey V1 (install, plugins, themes, updates, safety) or Discord basics (servers, roles, Nitro, markdown) — or drop by the support server: https://discord.gg/n8rmQJRAzV";
