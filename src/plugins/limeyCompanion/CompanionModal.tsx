@@ -11,48 +11,34 @@ import { fallbackAnswer } from "./knowledgeBase";
 
 const suggestions = [
     "What is Limey V1?",
-    "How do I install plugins?",
-    "Is this safe from bans?",
-    "What are Discord roles?",
     "Open my settings",
-    "Restart Discord",
-    "Copy the support invite",
-    "What are threads?",
-    "What is the soundboard?",
-    "How do I organize my servers?",
+    "Tell me a joke",
 ];
 
 /** Follow-up question chips shown under each answer */
 const followUps: Record<string, string[]> = {
     "Limey V1": [
-        "What are plugins?",
         "How do themes work?",
         "Is this safe?",
-        "How do I update?",
         "Open the plugin panel",
     ],
     "Discord": [
         "What is Nitro?",
         "What are threads?",
         "How do polls work?",
-        "What is the soundboard?",
-        "How do I mute channels?",
     ],
     "Tips": [
         "What is the quick switcher?",
-        "How do I save bandwidth?",
         "How do I organize servers?",
         "How do I fix my mic?",
     ],
     "Action": [
         "Open my settings",
         "What is Limey V1?",
-        "Copy the support invite",
     ],
     "Companion": [
         "What is Limey V1?",
         "What is Discord?",
-        "Open the download page",
     ],
 };
 
@@ -148,8 +134,7 @@ export function CompanionModal() {
                     <div style={{ opacity: 0.8 }}>
                         <p style={{ margin: "0 0 8px" }}>
                             Hi! I'm Limey, your little companion. Ask me anything about Discord or Limey V1 — or tell
-                            me to <b>do stuff for you</b>: “open my settings”, “open plugins”, “restart Discord”,
-                            “copy the support invite”, “open the download page”. You can even ask for a joke.
+                            me to <b>do stuff for you</b>: “open my settings”, “open plugins”, “restart Discord”.
                         </p>
                         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                             {suggestions.map(s => (
@@ -184,7 +169,7 @@ export function CompanionModal() {
 
                 {history.length > 0 && followUpChips.length > 0 && (
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                        {followUpChips.map(s => (
+                        {followUpChips.slice(0, 3).map(s => (
                             <Button
                                 key={s}
                                 size={Button.Sizes.SMALL}
