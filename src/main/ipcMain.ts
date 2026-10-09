@@ -22,26 +22,18 @@ import "./settings";
 
 import { debounce } from "@shared/debounce";
 import { IpcEvents } from "@shared/IpcEvents";
-import { BrowserWindow, ipcMain, nativeTheme, shell, systemPreferences } from "electron";
-import monacoHtml from "file://monacoWin.html?minify&base64";
-import { FSWatcher, readFileSync, watch, writeFileSync } from "fs";
-import { open, readFile } from "fs/promises";
+import { ipcMain, shell, systemPreferences } from "electron";
+import { readFileSync, watch } from "fs";
+import { readFile } from "fs/promises";
 import { release } from "os";
 import { join } from "path";
 
 import { registerCspIpcHandlers } from "./csp/manager";
-import { ALLOWED_PROTOCOLS, QUICK_CSS_PATH, SETTINGS_DIR } from "./utils/constants";
-import { makeLinksOpenExternally } from "./utils/externalLinks";
+import { ALLOWED_PROTOCOLS, SETTINGS_DIR } from "./utils/constants";
 
 const RENDERER_CSS_PATH = join(__dirname, IS_VESKTOP ? "limeyV1DesktopRenderer.css" : "renderer.css");
 
 registerCspIpcHandlers();
-
-function readCss() {
-    return readFile(QUICK_CSS_PATH, "utf-8").catch(() => "");
-}
-
-ipcMain.handle(IpcEvents.OPEN_QUICKCSS, () => shell.openPath(QUICK_CSS_PATH));
 
 ipcMain.handle(IpcEvents.OPEN_EXTERNAL, (_, url) => {
     try {
@@ -55,12 +47,6 @@ ipcMain.handle(IpcEvents.OPEN_EXTERNAL, (_, url) => {
     shell.openExternal(url)
         .catch(err => console.error("[Limey V1] Failed to open external link", url, err));
 });
-
-
-ipcMain.handle(IpcEvents.GET_QUICK_CSS, () => readCss());
-ipcMain.handle(IpcEvents.SET_QUICK_CSS, (_, css) =>
-    writeFileSync(QUICK_CSS_PATH, css)
-);
 
 ipcMain.handle(IpcEvents.GET_THEMES_LIST, () => []);
 ipcMain.handle(IpcEvents.GET_THEME_SYSTEM_VALUES, () => {
@@ -77,20 +63,8 @@ ipcMain.handle(IpcEvents.GET_THEME_SYSTEM_VALUES, () => {
 
 ipcMain.handle(IpcEvents.OPEN_SETTINGS_FOLDER, () => shell.openPath(SETTINGS_DIR));
 
-let fsWatchers = [] as FSWatcher[];
-
 ipcMain.handle(IpcEvents.INIT_FILE_WATCHERS, ({ sender }) => {
-    fsWatchers.forEach(w => w.close());
-
-    let quickCssWatcher: FSWatcher | undefined;
-    let rendererCssWatcher: FSWatcher | undefined;
-
-    open(QUICK_CSS_PATH, "a+").then(fd => {
-        fd.close();
-        quickCssWatcher = watch(QUICK_CSS_PATH, { persistent: false }, debounce(async () => {
-            sender.postMessage(IpcEvents.QUICK_CSS_UPDATE, await readCss());
-        }, 50));
-    }).catch(() => { });
+    let rendererCssWatcher: ReturnType<typeof watch> | undefined;
 
     if (IS_DEV) {
         rendererCssWatcher = watch(RENDERER_CSS_PATH, { persistent: false }, async () => {
@@ -98,43 +72,9 @@ ipcMain.handle(IpcEvents.INIT_FILE_WATCHERS, ({ sender }) => {
         });
     }
 
-    fsWatchers = [quickCssWatcher, rendererCssWatcher].filter(Boolean) as FSWatcher[];
-
     sender.once("destroyed", () => {
-        quickCssWatcher?.close();
         rendererCssWatcher?.close();
-        fsWatchers = [];
     });
-});
-
-ipcMain.on(IpcEvents.GET_MONACO_THEME, e => {
-    e.returnValue = nativeTheme.shouldUseDarkColors ? "vs-dark" : "vs-light";
-});
-
-ipcMain.handle(IpcEvents.OPEN_MONACO_EDITOR, async () => {
-    const title = "Limey V1 QuickCSS Editor";
-    const existingWindow = BrowserWindow.getAllWindows().find(w => w.title === title);
-    if (existingWindow && !existingWindow.isDestroyed()) {
-        existingWindow.focus();
-        return;
-    }
-
-    const win = new BrowserWindow({
-        title,
-        autoHideMenuBar: true,
-        darkTheme: true,
-        backgroundColor: nativeTheme.shouldUseDarkColors ? "#1e1e1e" : "white",
-        webPreferences: {
-            preload: join(__dirname, IS_DISCORD_DESKTOP ? "preload.js" : "limeyV1DesktopPreload.js"),
-            contextIsolation: true,
-            nodeIntegration: false,
-            sandbox: false
-        }
-    });
-
-    makeLinksOpenExternally(win);
-
-    await win.loadURL(`data:text/html;base64,${monacoHtml}`);
 });
 
 ipcMain.handle(IpcEvents.GET_RENDERER_CSS, () => readFile(RENDERER_CSS_PATH, "utf-8"));

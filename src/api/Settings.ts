@@ -40,7 +40,6 @@ export type SettingsPluginUiElements = {
 export interface Settings {
     autoUpdate: boolean;
     autoUpdateNotification: boolean,
-    useQuickCss: boolean;
     eagerPatches: boolean;
     enableReactDevtools: boolean;
     frameless: boolean;
@@ -94,7 +93,6 @@ export interface Settings {
 const DefaultSettings: Settings = {
     autoUpdate: true,
     autoUpdateNotification: true,
-    useQuickCss: true,
     eagerPatches: false, // Eagerly patching no longer works due to module factories with the same id being able to have different sources now.
     enableReactDevtools: false,
     frameless: false,

@@ -54,31 +54,8 @@ const commonOptions = {
     })
 };
 
-const MonacoWorkerEntryPoints = [
-    "vs/language/css/css.worker.js",
-    "vs/editor/editor.worker.js"
-];
-
 /** @type {import("esbuild").BuildOptions[]} */
 const buildConfigs = [
-    {
-        entryPoints: MonacoWorkerEntryPoints.map(entry => `node_modules/monaco-editor/esm/${entry}`),
-        bundle: true,
-        minify: true,
-        format: "iife",
-        outbase: "node_modules/monaco-editor/esm/",
-        outdir: "dist/vendor/monaco"
-    },
-    {
-        entryPoints: ["browser/monaco.ts"],
-        bundle: true,
-        minify: true,
-        format: "iife",
-        outfile: "dist/vendor/monaco/index.js",
-        loader: {
-            ".ttf": "file"
-        }
-    },
     {
         ...commonOptions,
         outfile: "dist/browser.js",

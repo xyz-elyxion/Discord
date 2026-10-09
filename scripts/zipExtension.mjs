@@ -5,8 +5,7 @@
  */
 
 import { createWriteStream } from "fs";
-import { readFile, stat } from "fs/promises";
-import { join } from "path";
+import { readFile } from "fs/promises";
 import { zipSync } from "fflate";
 
 const files = [
@@ -24,15 +23,6 @@ const files = [
     "dist/browser.js",
     "dist/browser.css",
 ];
-
-// Optional monaco vendor bundle (QuickCSS editor)
-try {
-    const vendorDir = "dist/vendor/monaco";
-    for (const f of ["index.js"]) {
-        await stat(join(vendorDir, f));
-        files.push(`${vendorDir}/${f}`);
-    }
-} catch { /* monaco not built — skip */ }
 
 const zipData = {};
 for (const file of files) {

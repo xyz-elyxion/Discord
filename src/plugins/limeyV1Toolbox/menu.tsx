@@ -184,25 +184,7 @@ export function buildPluginMenuEntries(includeEmpty = false) {
 }
 
 export function buildThemeMenuEntries() {
-    const { useQuickCss } = useSettings(["useQuickCss"]);
-
-    return (
-        <>
-            <Menu.MenuCheckboxItem
-                id="toggle-quickcss"
-                checked={useQuickCss}
-                label={"Enable QuickCSS"}
-                action={() => {
-                    Settings.useQuickCss = !useQuickCss;
-                }}
-            />
-            <Menu.MenuItem
-                id="edit-quickcss"
-                label="Edit QuickCSS"
-                action={() => LimeyV1Native.quickCss.openEditor()}
-            />
-        </>
-    );
+    return null;
 }
 
 function buildCustomPluginEntries() {
@@ -286,12 +268,6 @@ export function renderPopout(onClose: () => void) {
                 id="notifications"
                 label="Open Notification Log"
                 action={openNotificationLogModal}
-            />
-
-            <Menu.MenuItem
-                id="quickcss"
-                label="QuickCSS"
-                action={() => LimeyV1Native.quickCss.openEditor()}
             />
 
             {buildPluginMenu()}

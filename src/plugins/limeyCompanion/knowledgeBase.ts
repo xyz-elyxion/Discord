@@ -43,7 +43,7 @@ export const knowledgeBase: CompanionEntry[] = [
     {
         topic: "Limey V1",
         keywords: ["theme", "themes", "css", "custom", "style"],
-        answer: "Go to Settings → Themes (or QuickCSS) to paste any CSS — including BetterDiscord themes. The built-in editor even has autocompletion."
+        answer: "Go to Settings → Themes to paste any CSS — including BetterDiscord themes."
     },
     {
         topic: "Limey V1",
@@ -117,16 +117,10 @@ export const knowledgeBase: CompanionEntry[] = [
         answer: "DMs are direct messages between users (or small group DMs). You can DM anyone who shares a server with you, unless their privacy settings block it."
     },
 
-    // ─── Limey V1 deep dive ─────────────────────────────────────────────
-    {
-        topic: "Limey V1",
-        keywords: ["quickcss", "editor", "monaco", "autocomplete"],
-        answer: "QuickCSS is the built-in live CSS editor (powered by Monaco, the editor VS Code uses). Anything you type applies to Discord instantly and syncs across devices with Settings Sync."
-    },
     {
         topic: "Limey V1",
         keywords: ["betterdiscord", "bd", "themes compatible", "convert"],
-        answer: "Limey V1 can import BetterDiscord themes directly — just paste the BD theme CSS into QuickCSS or drop the .theme.css file into your themes folder. Most BD themes work out of the box."
+        answer: "Limey V1 can import BetterDiscord themes directly — just drop the .theme.css file into your themes folder. Most BD themes work out of the box."
     },
     {
         topic: "Limey V1",
@@ -151,7 +145,7 @@ export const knowledgeBase: CompanionEntry[] = [
     {
         topic: "Limey V1",
         keywords: ["keyboard", "shortcut", "keybind", "hotkey"],
-        answer: "Discord has built-in keybinds (Settings → Keybinds) and plugins can register their own. Check each plugin's settings for shortcuts — for example QuickCSS and many toggles support hotkeys."
+        answer: "Discord has built-in keybinds (Settings → Keybinds) and plugins can register their own. Check each plugin's settings for shortcuts — many toggles support hotkeys."
     },
     {
         topic: "Limey V1",

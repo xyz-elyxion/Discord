@@ -43,7 +43,6 @@ function BackupAndRestoreTab() {
                 <Heading tag="h4">Settings Export contains:</Heading>
                 <Text variant="text-md/normal" className={Margins.bottom8}>
                     <ul>
-                        <li>&mdash; Custom QuickCSS</li>
                         <li>&mdash; Theme Links</li>
                         <li>&mdash; Plugin Settings</li>
                     </ul>

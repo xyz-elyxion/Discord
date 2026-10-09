@@ -19,11 +19,6 @@
 export const enum IpcEvents {
     INIT_FILE_WATCHERS = "LimeyV1InitFileWatchers",
 
-    OPEN_QUICKCSS = "LimeyV1OpenQuickCss",
-    GET_QUICK_CSS = "LimeyV1GetQuickCss",
-    SET_QUICK_CSS = "LimeyV1SetQuickCss",
-    QUICK_CSS_UPDATE = "LimeyV1QuickCssUpdate",
-
     GET_SETTINGS = "LimeyV1GetSettings",
     SET_SETTINGS = "LimeyV1SetSettings",
 
@@ -37,9 +32,6 @@ export const enum IpcEvents {
     GET_REPO = "LimeyV1GetRepo",
     UPDATE = "LimeyV1Update",
     BUILD = "LimeyV1Build",
-
-    OPEN_MONACO_EDITOR = "LimeyV1OpenMonacoEditor",
-    GET_MONACO_THEME = "LimeyV1GetMonacoTheme",
 
     GET_PLUGIN_IPC_METHOD_MAP = "LimeyV1GetPluginIpcMethodMap",
 

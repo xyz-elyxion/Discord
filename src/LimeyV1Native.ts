@@ -58,19 +58,6 @@ export default {
         openFolder: () => invoke<void>(IpcEvents.OPEN_SETTINGS_FOLDER),
     },
 
-    quickCss: {
-        get: () => invoke<string>(IpcEvents.GET_QUICK_CSS),
-        set: (css: string) => invoke<void>(IpcEvents.SET_QUICK_CSS, css),
-
-        addChangeListener(cb: (newCss: string) => void) {
-            ipcRenderer.on(IpcEvents.QUICK_CSS_UPDATE, (_, css) => cb(css));
-        },
-
-        openFile: () => invoke<void>(IpcEvents.OPEN_QUICKCSS),
-        openEditor: () => invoke<void>(IpcEvents.OPEN_MONACO_EDITOR),
-        getEditorTheme: () => sendSync<string>(IpcEvents.GET_MONACO_THEME),
-    },
-
     native: {
         getVersions: () => process.versions as Partial<NodeJS.ProcessVersions>,
         supportsWindowsMaterial: () => sendSync<boolean>(IpcEvents.SUPPORTS_WINDOWS_MATERIAL),

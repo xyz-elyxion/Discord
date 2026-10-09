@@ -43,18 +43,16 @@ export async function importSettings(data: string) {
     if (!isSafeObject(parsed))
         throw new Error("Unsafe Settings");
 
-    if ("settings" in parsed && "quickCss" in parsed) {
+    if ("settings" in parsed) {
         Object.assign(PlainSettings, parsed.settings);
         await LimeyV1Native.settings.set(parsed.settings);
-        await LimeyV1Native.quickCss.set(parsed.quickCss);
     } else
         throw new Error("Invalid Settings. Is this even a Limey V1 Settings file?");
 }
 
 export async function exportSettings({ minify }: { minify?: boolean; } = {}) {
     const settings = LimeyV1Native.settings.get();
-    const quickCss = await LimeyV1Native.quickCss.get();
-    return JSON.stringify({ settings, quickCss }, null, minify ? undefined : 4);
+    return JSON.stringify({ settings }, null, minify ? undefined : 4);
 }
 
 export async function downloadSettingsBackup() {

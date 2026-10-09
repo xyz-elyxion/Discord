@@ -21,20 +21,12 @@
 
 // Be very careful with imports in this file to avoid circular dependency issues.
 // Only import pure modules that don't import other parts of LimeyV1.
-import monacoHtmlLocal from "file://monacoWin.html?minify";
 import * as DataStore from "@api/DataStore";
 import type { Settings } from "@api/Settings";
-import { debounce } from "@shared/debounce";
 import { localStorage } from "@utils/localStorage";
-import { getStylusWebStoreUrl } from "@utils/web";
-import { EXTENSION_BASE_URL, metaReady, RENDERER_CSS_URL } from "@utils/web-metadata";
+import { metaReady, RENDERER_CSS_URL } from "@utils/web-metadata";
 
-// listeners for ipc.on
-const cssListeners = new Set<(css: string) => void>();
 const NOOP = () => { };
-const NOOP_ASYNC = async () => { };
-
-const setCssDebounced = debounce((css: string) => LimeyV1Native.quickCss.set(css));
 
 // probably should make this less cursed at some point
 window.LimeyV1Native = {
@@ -70,48 +62,6 @@ window.LimeyV1Native = {
         getUpdates: async () => ({ ok: true, value: [] }),
         update: async () => ({ ok: true, value: false }),
         rebuild: async () => ({ ok: true, value: true }),
-    },
-
-    quickCss: {
-        get: () => DataStore.get("LimeyV1QuickCss").then(s => s ?? ""),
-        set: async (css: string) => {
-            await DataStore.set("LimeyV1QuickCss", css);
-            cssListeners.forEach(l => l(css));
-        },
-        addChangeListener(cb) {
-            cssListeners.add(cb);
-        },
-        openFile: NOOP_ASYNC,
-        async openEditor() {
-            if (IS_USERSCRIPT) {
-                const shouldOpenWebStore = confirm("QuickCSS is not supported on the Userscript. You can instead use the Stylus extension.\n\nDo you want to open the Stylus web store page?");
-                if (shouldOpenWebStore) {
-                    window.open(getStylusWebStoreUrl(), "_blank");
-                }
-                return;
-            }
-
-            const features = `popup,width=${Math.min(window.innerWidth, 1000)},height=${Math.min(window.innerHeight, 1000)}`;
-            const win = open("about:blank", "LimeyV1QuickCss", features);
-            if (!win) {
-                alert("Failed to open QuickCSS popup. Make sure to allow popups!");
-                return;
-            }
-
-            win.baseUrl = EXTENSION_BASE_URL;
-            win.setCss = setCssDebounced;
-            win.getCurrentCss = () => LimeyV1Native.quickCss.get();
-            win.getTheme = this.getEditorTheme;
-
-            win.document.write(monacoHtmlLocal);
-        },
-        getEditorTheme: () => {
-            const { getTheme, Theme } = require("@utils/discord");
-
-            return getTheme() === Theme.Light
-                ? "vs-light"
-                : "vs-dark";
-        }
     },
 
     settings: {

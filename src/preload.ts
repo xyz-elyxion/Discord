@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { debounce } from "@shared/debounce";
 import { IpcEvents } from "@shared/IpcEvents";
 import { contextBridge, webFrame } from "electron/renderer";
 
@@ -33,9 +32,4 @@ if (location.protocol !== "data:") {
         // Not supported in sandboxed preload scripts but Discord doesn't support it either so who cares
         require(process.env.DISCORD_PRELOAD!);
     }
-} // Monaco popout
-else {
-    contextBridge.exposeInMainWorld("setCss", debounce(LimeyV1Native.quickCss.set));
-    contextBridge.exposeInMainWorld("getCurrentCss", LimeyV1Native.quickCss.get);
-    contextBridge.exposeInMainWorld("getTheme", LimeyV1Native.quickCss.getEditorTheme);
 }
