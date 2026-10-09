@@ -685,6 +685,10 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         name: "Limey",
         id: 1503962881794899989n
     },
+    k4g9: {
+        name: "k4g9 - github.com/k4g9",
+        id: 848987722751410206n
+    },
     Nexpid: {
         name: "Nexpid",
         id: 853550207039832084n

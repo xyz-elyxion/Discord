@@ -236,7 +236,7 @@ export default definePlugin({
     }],
     description: "Automatically completes supported Discord quests by simulating the required activity types.\nPorted from k4g9/discord-quest-completer",
     tags: ["Utility", "Fun"],
-    authors: [Devs.Limey, { name: "k4g9 - github.com/k4g9", id: 848987722751410206n }],
+    authors: [Devs.Limey, Devs.k4g9],
     toolboxActions: {
         "Run Quests": runQuestLogic
     },
