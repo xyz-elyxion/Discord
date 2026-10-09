@@ -16,6 +16,8 @@ var sdkJS string
 var static embed.FS
 
 // Handler serves the dashboard. index.html is served at / and /dashboard/.
+// When mounted behind a path prefix (e.g. Limey V1 proxies it at /guard/),
+// requests arrive with that prefix still attached; it is stripped here.
 // The public browser SDK is exposed at /sdk.js so integrations can load it
 // directly from the Sentinel origin, matching docs/integration.md.
 func Handler() http.Handler {
@@ -32,8 +34,15 @@ func Handler() http.Handler {
 			_, _ = io.WriteString(w, sdkJS)
 			return
 		}
-		// don't allow admin static to advertise index at other paths
-		path := strings.TrimPrefix(r.URL.Path, "/dashboard")
+		// mounted under a path prefix (reverse proxy): strip it before lookup
+		prefixes := []string{"/guard", "/dashboard"}
+		path := r.URL.Path
+		for _, p := range prefixes {
+			if path == p || strings.HasPrefix(path, p+"/") {
+				path = strings.TrimPrefix(path, p)
+				break
+			}
+		}
 		if path == "/" || path == "" || path == "/index.html" {
 			if path == "" {
 				path = "/index.html"

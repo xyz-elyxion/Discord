@@ -21,6 +21,16 @@ const CLOUD_PORT = Number(process.env.CLOUD_PORT) || 3099;
 const CLOUD_HOST = "127.0.0.1";
 
 // ------------------------------------------------------------------
+// Limey Guard (Sentinel) — self-hosted anti-bot on an internal port.
+// Spawned like the cloud backend, proxied at /guard/ (console),
+// /v1/challenge, /v1/verify, /v1/token/validate, /sdk.js and /protected/.
+// ------------------------------------------------------------------
+const SENTINEL_BIN = join(ROOT, "sent", "sentinel-server");
+const SENTINEL_PORT = Number(process.env.SENTINEL_PORT) || 3098;
+const SENTINEL_HOST = "127.0.0.1";
+let sentinelUp = false;
+
+// ------------------------------------------------------------------
 // Persistent storage — PostgreSQL (Supabase) via the `pg` client.
 // Uses the DATABASE_URL env var. When it is not set, falls back to local
 // JSON files in data/ (local dev). See pgkv.js.
@@ -1639,6 +1649,85 @@ function proxyCloud(req, res, overridePath) {
     req.pipe(upstream);
 }
 
+// ------------------------------------------------------------------
+// Limey Guard (Sentinel) — spawn + proxy. Mirrors startCloud(): the
+// Go binary listens on 127.0.0.1 only; all public access goes through
+// this Node server on the single public port.
+// ------------------------------------------------------------------
+function startSentinel() {
+    if (!existsSync(SENTINEL_BIN)) {
+        console.log("[guard] sentinel binary not found — PoW protection disabled (build sent/cmd/server)");
+        return;
+    }
+
+    const child = spawn(SENTINEL_BIN, [], {
+        env: {
+            ...process.env,
+            SENTINEL_ADDR: `${SENTINEL_HOST}:${SENTINEL_PORT}`,
+            SENTINEL_PG_DSN: process.env.SENTINEL_PG_DSN || process.env.DATABASE_URL || "",
+            SENTINEL_SELF_HOSTNAME: process.env.SENTINEL_SELF_HOSTNAME || "",
+        },
+        stdio: "inherit"
+    });
+
+    child.on("error", err => console.error("[guard] failed to start:", err.message));
+    child.on("exit", code => {
+        sentinelUp = false;
+        if (code !== null) console.error(`[guard] sentinel exited with code ${code}`);
+        if (!startSentinel.stopping) {
+            startSentinel.backoff = Math.min((startSentinel.backoff || 1000) * 2, 30000);
+            console.error(`[guard] restarting sentinel in ${startSentinel.backoff}ms`);
+            setTimeout(startSentinel, startSentinel.backoff);
+        }
+    });
+
+    let tries = 0;
+    const probe = setInterval(() => {
+        const req = http.get({ host: SENTINEL_HOST, port: SENTINEL_PORT, path: "/v1/health", timeout: 1000 }, res => {
+            res.resume();
+            if (!sentinelUp) console.log(`[guard] sentinel ready at http://${SENTINEL_HOST}:${SENTINEL_PORT}`);
+            sentinelUp = true;
+            clearInterval(probe);
+        });
+        req.on("error", () => {
+            if (++tries >= 15) {
+                console.error("[guard] sentinel did not become ready (is Postgres reachable? set SENTINEL_PG_DSN)");
+                clearInterval(probe);
+            }
+        });
+    }, 1000);
+}
+
+function proxySentinel(req, res, overridePath) {
+    if (!sentinelUp) return send(res, 503, "Limey Guard unavailable");
+
+    const opts = {
+        host: SENTINEL_HOST,
+        port: SENTINEL_PORT,
+        path: overridePath || req.url,
+        method: req.method,
+        headers: { ...req.headers, host: `${SENTINEL_HOST}:${SENTINEL_PORT}` }
+    };
+
+    const upstream = http.request(opts, upRes => {
+        try {
+            if (res.headersSent) return upRes.destroy();
+            res.writeHead(upRes.statusCode || 502, upRes.headers);
+            upRes.pipe(res);
+        } catch (e) {
+            console.error("[proxy] sentinel response error:", e.message);
+            upRes.destroy();
+        }
+    });
+    upstream.on("error", () => {
+        try {
+            if (!res.headersSent) send(res, 502, "Limey Guard error");
+            else res.end();
+        } catch { /* socket already gone */ }
+    });
+    req.pipe(upstream);
+}
+
 const MIME = {
     ".html": "text/html; charset=utf-8",
     ".css": "text/css; charset=utf-8",
@@ -1797,13 +1886,37 @@ const server = http.createServer(async (req, res) => {
             // Exchange the code server-side and bounce the session to the site page
             if (await limeEconomy.handle(req, res, "/v1/limes/callback" + (query ? "?" + query : ""))) return;
         }
-        if (params.get("state") === "dashboard" || params.get("state") === "setup" || params.get("state") === "admin") {
+        const state = params.get("state") || "";
+        // Limey Guard PoW gate: state=pow_<token> requires a valid, unused
+        // Sentinel token bound to the dashboard-login action. Bots that skip
+        // the browser challenge never reach the Discord code exchange.
+        if (state.startsWith("pow_")) {
+            const powToken = state.slice(4);
+            const ok = await new Promise(resolveP => {
+                const body = JSON.stringify({ siteKey: "self", token: powToken, action: "dashboard-login", hostname: (req.headers.host || "").split(":")[0] });
+                const vreq = http.request({
+                    host: SENTINEL_HOST, port: SENTINEL_PORT, path: "/v1/token/validate",
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }
+                }, vres => {
+                    vres.resume();
+                    resolveP(vres.statusCode === 200);
+                });
+                vreq.on("error", () => resolveP(false));
+                vreq.end(body);
+            });
+            if (!ok) {
+                res.writeHead(302, { Location: "/dashboard?login=verification_failed" });
+                return res.end();
+            }
+        }
+        if (state === "dashboard" || state === "setup" || state === "admin") {
             // Dashboard login (optionally from the server-verification setup
             // section, or the admin panel): exchange the code and redirect
             // with a session token. The setup flow additionally carries the
             // guilds scope so the bot can list servers to configure. The
             // admin flow additionally requires the hardcoded admin role.
-            const dest = await handleDashboardOAuth(params, params.get("state") === "setup" ? params.get("guild_id") : null);
+            const dest = await handleDashboardOAuth(params, state === "setup" ? params.get("guild_id") : null);
             res.writeHead(302, { Location: dest });
             return res.end();
         }
@@ -1828,6 +1941,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url === "/v1" || url.startsWith("/v1/")) {
+        // Limey Guard public API (self-hosted anti-bot) — before the cloud
+        // catch-all so Sentinel owns these routes.
+        if (url === "/v1/challenge" || url === "/v1/verify" || url === "/v1/token/validate"
+            || url === "/v1/health" || url === "/v1/ready" || url === "/metrics") {
+            return proxySentinel(req, res);
+        }
         // Community plugin store (handled in-process)
         if (pluginStore && url.startsWith("/v1/plugins/") && await pluginStore.handle(req, res, url)) return;
         if (await handleStatus(req, res, url)) return;
@@ -1847,6 +1966,18 @@ const server = http.createServer(async (req, res) => {
         // Lime Economy (virtual currency + perk tiers)
         if (limeEconomy && url.startsWith("/v1/limes/") && await limeEconomy.handle(req, res, url)) return;
         return proxyCloud(req, res);
+    }
+
+    // Limey Guard: admin console at /guard/*, browser SDK, protected playground.
+    // The Go handler strips the /guard prefix itself (internal/dashboard).
+    if (url === "/guard" || url === "/guard/" || url.startsWith("/guard/")) {
+        return proxySentinel(req, res);
+    }
+    if (url === "/sdk.js") {
+        return proxySentinel(req, res);
+    }
+    if (url === "/protected" || url === "/protected/" || url.startsWith("/protected/")) {
+        return proxySentinel(req, res);
     }
 
     // Monaco editor bundle for the /code playground (built by buildWeb into dist/vendor/monaco)
@@ -1957,6 +2088,7 @@ function startLimebot() {
 }    startBuildIfMissing();
     startCloud();
     startLimebot();
+    startSentinel();
 
 // Wait for PostgreSQL hydration (if configured) before accepting requests
 hydrateKv().then(() => {

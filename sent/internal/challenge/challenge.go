@@ -112,7 +112,12 @@ func Issue(secret, siteKey, action string, difficulty int, ttl time.Duration, no
 		Challenge:  base64.RawURLEncoding.EncodeToString(raw),
 		Salt:       saltEnc,
 		Difficulty: difficulty,
-		MaxNumber:  int64(1) << uint(difficulty), // upper bound; not enforced client-side
+		// Upper bound for the client's search loop. The expected number of
+		// tries is 2^difficulty, but that's a mean, not a cap — a hard cap at
+		// the mean makes ~37% of legitimate solves give up (geometric CDF).
+		// 4× headroom pushes the failure rate below ~1.2% while still keeping
+		// the browser loop bounded. The server never enforces this value.
+		MaxNumber:  (int64(1) << uint(difficulty)) * 4,
 		Signature:  body.MAC,
 	}, nil
 }
