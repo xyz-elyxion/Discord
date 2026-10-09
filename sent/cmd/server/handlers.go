@@ -11,6 +11,7 @@ import (
 
 	"limey.example/sentinel/internal/auth"
 	"limey.example/sentinel/internal/challenge"
+	"limey.example/sentinel/internal/selfscope"
 	"limey.example/sentinel/internal/verification"
 )
 
@@ -32,15 +33,20 @@ func (s *server) handleChallenge(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusBadRequest, "invalid_json", err.Error())
 		return
 	}
+	// self-only scope: challenges exist only for Sentinel's own surfaces
+	if req.SiteKey != selfscope.SiteKey {
+		apiError(w, http.StatusNotFound, "site", "unknown or disabled site key")
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	si, ok, err := s.store.GetSite(ctx, req.SiteKey)
+	si, ok, err := s.store.GetSite(ctx, selfscope.SiteKey)
 	if err != nil {
 		apiError(w, http.StatusBadGateway, "storage", "temporary failure")
 		return
 	}
 	if !ok || !si.Enabled {
-		apiError(w, http.StatusNotFound, "site", "unknown or disabled site key")
+		apiError(w, http.StatusServiceUnavailable, "site", "self site not initialized")
 		return
 	}
 	// bound difficulty by per-site policy default when available
@@ -86,13 +92,18 @@ func (s *server) handleVerify(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	si, ok, err := s.store.GetSite(ctx, req.SiteKey)
+	// self-only scope: verification is only meaningful for Sentinel's own site
+	if req.SiteKey != selfscope.SiteKey {
+		apiError(w, http.StatusNotFound, "site", "unknown or disabled site key")
+		return
+	}
+	si, ok, err := s.store.GetSite(ctx, selfscope.SiteKey)
 	if err != nil {
 		apiError(w, http.StatusBadGateway, "storage", "temporary failure")
 		return
 	}
 	if !ok || !si.Enabled {
-		apiError(w, http.StatusNotFound, "site", "unknown or disabled site key")
+		apiError(w, http.StatusServiceUnavailable, "site", "self site not initialized")
 		return
 	}
 	// reconstruct the parameters the client received; difficulty comes from the
@@ -127,7 +138,7 @@ func (s *server) handleVerify(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	tok, err := s.issuer.Issue(verification.Payload{
-		SiteKey:   req.SiteKey,
+		SiteKey:   selfscope.SiteKey,
 		Action:    req.Action,
 		Hostname:  req.Hostname,
 		Challenge: cid,
@@ -175,8 +186,13 @@ func (s *server) handleTokenValidate(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusBadRequest, "invalid_json", err.Error())
 		return
 	}
+	// self-only scope: token validation only recognizes Sentinel's own site
+	if req.SiteKey != "" && req.SiteKey != selfscope.SiteKey {
+		apiError(w, http.StatusBadRequest, "token_binding", "token not valid for this sentinel")
+		return
+	}
 	ver := s.verifier
-	val, err := ver.Validate(req.Token, req.SiteKey, req.Hostname, req.Action)
+	val, err := ver.Validate(req.Token, selfscope.SiteKey, req.Hostname, req.Action)
 	if err != nil {
 		code := "token_invalid"
 		switch err {

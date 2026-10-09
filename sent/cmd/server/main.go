@@ -38,6 +38,7 @@ import (
 	"limey.example/sentinel/internal/metrics"
 	"limey.example/sentinel/internal/policy"
 	"limey.example/sentinel/internal/ratelimit"
+	"limey.example/sentinel/internal/selfscope"
 	"limey.example/sentinel/internal/storage"
 	"limey.example/sentinel/internal/verification"
 )
@@ -243,10 +244,46 @@ func newServer(ctx context.Context, cfg config) (*server, error) {
 		pepper:   cfg.pepperCID,
 		events:   make(chan storage.EventRow, 4096),
 	}
+	// self-only scope: seed the built-in site Sentinel protects (itself).
+	// Idempotent: exists → keep existing secret; missing → create + default policy.
+	if err := seedSelfSite(ctx, st); err != nil {
+		st.Close()
+		return nil, fmt.Errorf("seed self site: %w", err)
+	}
 	s.routes(ctx)
 	// bounded event flusher: drops oldest when the channel is full and logs it
 	go s.flushEvents(ctx)
 	return s, nil
+}
+
+// seedSelfSite ensures the built-in "self" site exists. Runs on every boot;
+// if the site already exists its secret is left untouched.
+func seedSelfSite(ctx context.Context, st *storage.Store) error {
+	seedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	_, ok, err := st.GetSite(seedCtx, selfscope.SiteKey)
+	if err != nil {
+		return err
+	}
+	if ok {
+		return nil
+	}
+	secret := make([]byte, 32)
+	if _, err := rand.Read(secret); err != nil {
+		return err
+	}
+	hostname := getenv("SENTINEL_SELF_HOSTNAME", selfscope.DefaultHostname)
+	if _, err := st.CreateSite(seedCtx, storage.Site{
+		SiteKey:   selfscope.SiteKey,
+		Name:      "Sentinel (self)",
+		Secret:    hex.EncodeToString(secret),
+		Hostnames: []string{hostname, "localhost"},
+		Enabled:   true,
+	}); err != nil {
+		return err
+	}
+	_, err = st.UpsertPolicy(seedCtx, defaultPolicyFor(selfscope.SiteKey))
+	return err
 }
 
 func (s *server) flushEvents(ctx context.Context) {

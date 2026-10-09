@@ -5,11 +5,11 @@ import (
 	"encoding/hex"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"limey.example/sentinel/internal/auth"
+	"limey.example/sentinel/internal/selfscope"
 	"limey.example/sentinel/internal/storage"
 )
 
@@ -52,43 +52,11 @@ type createSiteRequest struct {
 }
 
 func (s *server) handleCreateSite(w http.ResponseWriter, r *http.Request) {
-	var req createSiteRequest
-	if err := readJSON(w, r, &req, 8<<10); err != nil {
-		apiError(w, http.StatusBadRequest, "invalid_json", err.Error())
-		return
-	}
-	req.SiteKey = strings.TrimSpace(req.SiteKey)
-	if len(req.SiteKey) < 3 || len(req.SiteKey) > 64 {
-		apiError(w, http.StatusBadRequest, "validation", "siteKey length must be 3..64")
-		return
-	}
-	if len(req.Hostnames) == 0 {
-		apiError(w, http.StatusBadRequest, "validation", "at least one hostname required")
-		return
-	}
-	// generate the per-site secret server-side; shown once
-	secret := make([]byte, 32)
-	_, _ = rand.Read(secret)
-	ctx, cancel := contextWithTimeout(r)
-	defer cancel()
-	si, err := s.store.CreateSite(ctx, storage.Site{
-		SiteKey:   req.SiteKey,
-		Name:      req.Name,
-		Secret:    hex.EncodeToString(secret),
-		Hostnames: req.Hostnames,
-		Enabled:   true,
-	})
-	if err != nil {
-		apiError(w, http.StatusConflict, "site_exists", "siteKey already registered")
-		return
-	}
-	actor(r, s.store, "site.create", req.SiteKey)
-	// Also create a default policy for the site.
-	_, _ = s.store.UpsertPolicy(ctx, defaultPolicyFor(req.SiteKey))
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"site":   toSiteDTO(si),
-		"secret": si.Secret, // shown exactly once; rotation available later
-	})
+	// Sentinel protects only itself (internal/selfscope): site registration
+	// for third-party origins is not a feature. The self site is seeded at
+	// startup and cannot be replaced or duplicated.
+	apiError(w, http.StatusForbidden, "self_only",
+		"sentinel protects only itself; site registration is disabled (built-in site key: "+selfscope.SiteKey+")")
 }
 
 func defaultPolicyFor(siteKey string) storage.Policy {
@@ -103,6 +71,11 @@ func defaultPolicyFor(siteKey string) storage.Policy {
 }
 
 func (s *server) handleDeleteSite(w http.ResponseWriter, r *http.Request) {
+	// The self site is Sentinel's own identity and cannot be removed.
+	if r.PathValue("key") == selfscope.SiteKey {
+		apiError(w, http.StatusForbidden, "self_only", "the built-in self site cannot be deleted")
+		return
+	}
 	key := r.PathValue("key")
 	ctx, cancel := contextWithTimeout(r)
 	defer cancel()
@@ -115,7 +88,12 @@ func (s *server) handleDeleteSite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleRotate(w http.ResponseWriter, r *http.Request) {
+	// The self secret is rotated like any other; third-party sites cannot exist.
 	key := r.PathValue("key")
+	if key != selfscope.SiteKey {
+		apiError(w, http.StatusNotFound, "site", "unknown site key")
+		return
+	}
 	secret := make([]byte, 32)
 	_, _ = rand.Read(secret)
 	ctx, cancel := contextWithTimeout(r)
@@ -146,6 +124,11 @@ func (s *server) handleUpsertPolicy(w http.ResponseWriter, r *http.Request) {
 	var in storage.Policy
 	if err := readJSON(w, r, &in, 16<<10); err != nil {
 		apiError(w, http.StatusBadRequest, "invalid_json", err.Error())
+		return
+	}
+	// self-only scope: policies may only target the built-in self site
+	if in.SiteKey != selfscope.SiteKey {
+		apiError(w, http.StatusForbidden, "self_only", "policies may only target the built-in site ("+selfscope.SiteKey+")")
 		return
 	}
 	if in.SiteKey == "" {
