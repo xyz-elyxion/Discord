@@ -136,11 +136,17 @@ export const Toasts = {
      * createToast so the payload matches what the current renderer expects.
      */
     show(data: ToastData) {
-        ToastsExports.showToast(DiscordCreateToast({
-            message: data.message,
-            type: data.type,
-            options: data.options
-        }));
+        try {
+            ToastsExports.showToast(DiscordCreateToast(
+                data.message,
+                data.type,
+                data.options
+            ));
+        } catch {
+            // Fallback for when Discord changes this API again: only the legacy
+            // { text, variant } shape still works.
+            ToastsExports.showToast({ text: data.message, variant: (data.type === "message" ? "default" : data.type) as any });
+        }
     },
 
     pop: ToastsExports.popToast,
