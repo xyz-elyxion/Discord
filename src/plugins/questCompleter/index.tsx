@@ -63,19 +63,43 @@ function notifyFailure(message: string) {
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
+// Distinguish auth rejections (401/403) so quest loops can abort instead of
+// hammering the API every interval forever.
+class QuestAuthError extends Error {
+    constructor(status: number) {
+        super(status === 401
+            ? "Discord rejected the request (401 Unauthorized) — the quest may require a real client session, or your account has been flagged for quest automation. Try completing it manually."
+            : `Discord refused the request (${status} Forbidden).`);
+        this.name = "QuestAuthError";
+    }
+}
+
+function errMessage(error: unknown): string {
+    if (error instanceof Error && error.message) return error.message;
+    // RestAPI/DiscordAPIError variants and raw response bodies don't always
+    // expose .message — stringify whatever we got so toasts never say "undefined".
+    try { return JSON.stringify(error); } catch { return String(error); }
+}
+
 // The quest endpoints are not exposed through stores, so this plugin talks to
 // the same REST surface as the reference selfbot. RestAPI attaches the user's
 // auth token and client headers automatically.
 function questGet(url: string) {
-    return RestAPI.get({ url, retries: 2 }).then(res => res.body);
+    return RestAPI.get({ url, retries: 2 }).then(res => res.body).catch(throwIfAuthError);
 }
 
 function questPost(url: string, body: Record<string, any>) {
-    return RestAPI.post({ url, body, retries: 2 }).then(res => res.body);
+    return RestAPI.post({ url, body, retries: 2 }).then(res => res.body).catch(throwIfAuthError);
 }
 
 function questDelete(url: string) {
-    return RestAPI.del({ url }).then(res => res.body);
+    return RestAPI.del({ url }).then(res => res.body).catch(throwIfAuthError);
+}
+
+function throwIfAuthError(error: unknown): never {
+    const status = (error as any)?.status ?? (error as any)?.statusCode;
+    if (status === 401 || status === 403) throw new QuestAuthError(status);
+    throw error;
 }
 
 function isExpired(quest: Quest) {
@@ -165,7 +189,7 @@ async function completePlayQuest(quest: Quest, questName: string, applicationNam
         const secondsDone = getProgress(quest, taskType);
         const res = await heartbeat(quest, { application_id: quest.config.application.id, terminal: false });
         if (res) quest.user_status = res;
-        notify(`${questName}: playing as ${applicationName} — ${Math.max(0, Math.ceil((target - secondsDone) / 60))} minute(s) remaining`);
+        notify(`${questName}: playing as ${applicationName} — ${Math.max(0, Math.ceil((target - getProgress(quest, taskType))) / 60)} minute(s) remaining`);
 
         if (isCompleted(quest)) break;
         await sleep(interval * 1000);
@@ -319,7 +343,7 @@ async function runQuest(quest: Quest) {
             notify(`${questName}: enrolled (${isAndroid ? "mobile" : "desktop"})`, true);
         } catch (error) {
             // enrollment is heavily rate-limited (~45 min), so a failure here is fatal for this run
-            notifyFailure(`${questName}: failed to enroll — ${(error as Error).message}`);
+            notifyFailure(`${questName}: failed to enroll — ${errMessage(error)}`);
             return;
         }
     }
@@ -358,14 +382,16 @@ async function runQuest(quest: Quest) {
                     await claimReward(quest);
                     notifySuccess(`${questName}: reward claimed!`);
                 } catch (error) {
-                    notifyFailure(`${questName}: failed to claim reward — ${(error as Error).message}`);
+                    notifyFailure(`${questName}: failed to claim reward — ${errMessage(error)}`);
                 }
             }
         } else {
             notify(`${questName}: progress sent, but the quest is not marked complete yet.`);
         }
     } catch (error) {
-        notifyFailure(`${questName}: ${(error as Error).message}`);
+        // One clear failure message per quest; the loop is already aborted so
+        // this does not repeat (previously a 401 here spammed every 20s).
+        notifyFailure(`${questName}: ${errMessage(error)}`);
     }
 }
 
@@ -433,8 +459,8 @@ function makeQuestsCommand(): Command {
             if (action === "start") {
                 processQuests().catch(error => {
                     logger.error("Failed to process quests", error);
-                    notifyFailure(`Quests failed: ${(error as Error).message}`);
-                    sendBotMessage(ctx.channel.id, { content: `Quest Completer error: ${(error as Error).message}` });
+                    notifyFailure(`Quests failed: ${errMessage(error)}`);
+                    sendBotMessage(ctx.channel.id, { content: `Quest Completer error: ${errMessage(error)}` });
                 });
                 return sendBotMessage(ctx.channel.id, { content: "Starting quest processing..." });
             }
@@ -452,7 +478,7 @@ function makeQuestsCommand(): Command {
                 return sendBotMessage(ctx.channel.id, { content });
             } catch (error) {
                 logger.error("Failed to list quests", error);
-                return sendBotMessage(ctx.channel.id, { content: `Quest Completer error: ${(error as Error).message}` });
+                return sendBotMessage(ctx.channel.id, { content: `Quest Completer error: ${errMessage(error)}` });
             }
         }
     };
@@ -475,7 +501,7 @@ export default definePlugin({
     "Run Quests": () => {
         processQuests().catch(error => {
             logger.error("Failed to process quests", error);
-            notifyFailure(`Quests failed: ${(error as Error).message}`);
+            notifyFailure(`Quests failed: ${errMessage(error)}`);
         });
     }
     },
@@ -486,7 +512,7 @@ export default definePlugin({
         setTimeout(() => {
             processQuests().catch(error => {
                 logger.error("Failed to process quests", error);
-                notifyFailure(`Quests failed: ${(error as Error).message}`);
+                notifyFailure(`Quests failed: ${errMessage(error)}`);
             });
         }, 10_000);
     },
