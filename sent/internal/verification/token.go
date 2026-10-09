@@ -68,7 +68,7 @@ type Issuer struct {
 // protection is disabled and tokens are merely single-attempt re-checks.
 func NewIssuer(secret string, store ReplayStore) (*Issuer, error) {
 	if len(secret) < MinSecretLen {
-		return nil, fmt.Errorf("verification: TOKEN_SECRET must be at least %d bytes", MinSecretLen)
+		return nil, fmt.Errorf("verification: SENTINEL_TOKEN_SECRET missing or too short (need >= %d bytes; generate one with `openssl rand -hex 32`)", MinSecretLen)
 	}
 	return &Issuer{secret: []byte(secret), store: store, now: time.Now}, nil
 }
@@ -130,7 +130,7 @@ func (v *Verifier) auth(payload string) []byte {
 // NewVerifier builds a standalone validator (for integrations that only verify).
 func NewVerifier(secret string, store ReplayStore) (*Verifier, error) {
 	if len(secret) < MinSecretLen {
-		return nil, fmt.Errorf("verification: TOKEN_SECRET must be at least %d bytes", MinSecretLen)
+		return nil, fmt.Errorf("verification: SENTINEL_TOKEN_SECRET missing or too short (need >= %d bytes; generate one with `openssl rand -hex 32`)", MinSecretLen)
 	}
 	return &Verifier{secret: []byte(secret), store: store, now: time.Now}, nil
 }

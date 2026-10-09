@@ -1659,6 +1659,10 @@ function startSentinel() {
         console.log("[guard] sentinel binary not found — PoW protection disabled (build sent/cmd/server)");
         return;
     }
+    try {
+        // hosting uploads strip the executable bit; restore it (same-owner)
+        require("fs").chmodSync(SENTINEL_BIN, 0o755);
+    } catch { /* best effort */ }
 
     const child = spawn(SENTINEL_BIN, [], {
         env: {
@@ -1890,6 +1894,9 @@ const server = http.createServer(async (req, res) => {
         // Limey Guard PoW gate: state=pow_<token> requires a valid, unused
         // Sentinel token bound to the dashboard-login action. Bots that skip
         // the browser challenge never reach the Discord code exchange.
+        // When Guard is not deployed, the client sends state=dashboard and
+        // logs in without PoW (fail-open), so this only enforces when a
+        // token is actually presented.
         if (state.startsWith("pow_")) {
             const powToken = state.slice(4);
             const ok = await new Promise(resolveP => {

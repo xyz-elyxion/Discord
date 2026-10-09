@@ -257,13 +257,17 @@ func newServer(ctx context.Context, cfg config) (*server, error) {
 }
 
 // seedSelfSite ensures the built-in "self" site exists. Runs on every boot;
-// if the site already exists its secret is left untouched.
+// if the site already exists its secret is left untouched. Failures are
+// logged and tolerated: on a fresh database where migrations have not run
+// yet, seeding must not crash-loop the whole Limey V1 stack — Sentinel
+// reports "not ready" via /v1/ready until the tables exist.
 func seedSelfSite(ctx context.Context, st *storage.Store) error {
 	seedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	_, ok, err := st.GetSite(seedCtx, selfscope.SiteKey)
 	if err != nil {
-		return err
+		slog.Warn("[guard] self-site seed skipped (will retry on next boot)", "err", err)
+		return nil
 	}
 	if ok {
 		return nil
