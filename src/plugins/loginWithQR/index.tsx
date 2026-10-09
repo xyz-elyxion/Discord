@@ -50,16 +50,12 @@ export default definePlugin({
     }),
 
     patches: [
-        // Prevent paste event from firing when the QRModal is open
-        {
-            find: ".clipboardData&&(",
-            // Find the handleGlobalPaste function and prevent it from firing when the modal is open.
-            // Does this have any side effects? Maybe
-            replacement: {
-                match: /handleGlobalPaste:(\i)/,
-                replace: "handleGlobalPaste:(...args)=>!$self.qrModalOpen&&$1(...args)",
-            },
-        },
+        // NOTE: The old approach patched `handleGlobalPaste:(\i)` in Discord's
+        // paste-handler module, but Discord now destructures that key inside its
+        // module factory, so injecting an arrow function there produced
+        // "SyntaxError: Invalid destructuring assignment target" while eval'ing
+        // the patched module. The paste-block is instead implemented (patch-free)
+        // by the capture-phase paste listener below.
         // Insert a Scan QR Code button in the My Account tab
         {
             find: "UserSettingsAccountProfileCard",
@@ -99,6 +95,15 @@ export default definePlugin({
 
     qrModalOpen: false,
 
+    onPaste(e: ClipboardEvent) {
+        // Prevent paste from also hitting Discord's global paste handler while
+        // the QR modal is open (so users can paste a login uri without side effects)
+        if (this.qrModalOpen) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+        }
+    },
+
     insertScanQrButton: (button: ReactElement) => (
         <div className={cl("settings-btns")}>
             <Button size={Button.Sizes.SMALL} onClick={openQrModal}>
@@ -123,9 +128,12 @@ export default definePlugin({
     start() {
         // Preload images
         preload();
+
+        document.addEventListener("paste", this.onPaste, true);
     },
 
     stop() {
+        document.removeEventListener("paste", this.onPaste, true);
         unload?.();
     },
 });

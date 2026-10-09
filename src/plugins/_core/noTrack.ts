@@ -22,15 +22,28 @@ import { Devs } from "@utils/constants";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { Flux, FluxDispatcher } from "@webpack/common";
-import { findByCodeLazy, findByPropsLazy } from "@webpack";
+import { findByCode, findByProps } from "@webpack";
 
-// May not exist on every web build (e.g. user settings proto manager absent);
-// proxyLazy throws on later property access when the module is missing, so we
-// resolve the proxies once below — all call sites use optional chaining.
-let SettingsManager: any = findByCodeLazy("updateAsync", "type==1");
-const NativeModule = findByPropsLazy("getDiscordUtils") as any;
-try { void SettingsManager?.updateAsync; } catch { SettingsManager = undefined; }
-try { void NativeModule?.getDiscordUtils; } catch { }
+// These modules may not exist on every web build (e.g. the user settings proto
+// manager was removed from web). Resolving them eagerly through proxyLazy used
+// to crash later property access ("Reflect.get called on non-object"), so they
+// are resolved on first *use* instead — and call sites guard with optional
+// chaining and a warn log rather than failing during plugin start.
+let nativeModuleCache: { resolved: boolean; settingsManager: any; nativeModule: any; } = { resolved: false, settingsManager: null, nativeModule: null };
+
+function resolveNativeModules() {
+    if (nativeModuleCache.resolved) return nativeModuleCache;
+    nativeModuleCache.resolved = true;
+
+    try { nativeModuleCache.settingsManager = findByCode("updateAsync", "type==1") ?? null; } catch { }
+    try { nativeModuleCache.nativeModule = findByProps("getDiscordUtils") ?? null; } catch { }
+
+    if (!nativeModuleCache.settingsManager || !nativeModuleCache.nativeModule) {
+        new Logger("NoTrack", "#8caaee").warn("Discord native modules not found on this build; process monitor cannot be blocked");
+    }
+
+    return nativeModuleCache;
+}
 
 const settings = definePluginSettings({
     disableAnalytics: {
@@ -204,13 +217,15 @@ export default definePlugin({
 
     disableProcessMonitor() {
         try {
-            SettingsManager?.updateAsync?.(
+            const { settingsManager, nativeModule } = resolveNativeModules();
+
+            settingsManager?.updateAsync?.(
                 "status",
                 (s: any) => (s.showCurrentGame = { value: false }),
                 0
             );
 
-            const DiscordUtils = NativeModule?.getDiscordUtils?.();
+            const DiscordUtils = nativeModule?.getDiscordUtils?.();
             if (!DiscordUtils) {
                 new Logger("NoTrack", "#8caaee").warn("Could not find DiscordUtils; process monitor not disabled");
                 return;
@@ -229,7 +244,7 @@ export default definePlugin({
 
     enableProcessMonitor() {
         try {
-            SettingsManager?.updateAsync?.(
+            resolveNativeModules().settingsManager?.updateAsync?.(
                 "status",
                 (s: any) => (s.showCurrentGame = { value: true }),
                 0
