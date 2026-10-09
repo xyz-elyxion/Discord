@@ -10,7 +10,8 @@ import { Command } from "@limeyV1/discord-types";
 import { Logger } from "@utils/Logger";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { RestAPI, showToast, Toasts } from "@webpack/common";
+import { showToast, Toasts } from "@webpack/common";
+import { findByPropsLazy } from "@webpack";
 
 import {
     AllQuestsResponse,
@@ -82,18 +83,72 @@ function errMessage(error: unknown): string {
 }
 
 // The quest endpoints are not exposed through stores, so this plugin talks to
-// the same REST surface as the reference selfbot. RestAPI attaches the user's
-// auth token and client headers automatically.
+// the same REST surface as the reference selfbot
+// (aiko-chan-ai/Discord-Quest-Auto-Completion-Selfbot). The reference talks to
+// /api/v10 with explicit client headers and that exact path is confirmed
+// working on real accounts — the web client's RestAPI (/api/v9 + browser
+// headers) gets the same heartbeats rejected with 401.
+
+const AuthStore = findByPropsLazy("getToken") as { getToken: () => string | null; };
+
+const CLIENT_PROPERTIES = {
+    os: "Windows",
+    browser: "Discord Client",
+    release_channel: "stable",
+    client_version: "1.0.9236",
+    os_version: "10.0.19045",
+    os_arch: "x64",
+    app_arch: "x64",
+    system_locale: "en-US",
+    has_client_mods: false,
+    client_launch_id: crypto.randomUUID(),
+    browser_user_agent: navigator.userAgent,
+    browser_version: (navigator.userAgent.match(/Chrome\/(\S+)/)?.[1]) ?? "138.0.0.0",
+    os_sdk_version: "19045",
+    client_build_number: 539951,
+    native_build_number: 81687,
+    client_event_source: null,
+    launch_signature: crypto.randomUUID(),
+    client_heartbeat_session_id: crypto.randomUUID(),
+    client_app_state: "focused"
+};
+
+const QUEST_API = "https://discord.com/api/v10";
+
+function questHeaders(): Record<string, string> {
+    return {
+        "Content-Type": "application/json",
+        Authorization: AuthStore.getToken() ?? "",
+        "accept-language": "en-US",
+        "x-debug-options": "bugReporterEnabled",
+        "x-discord-locale": "en-US",
+        "x-super-properties": btoa(JSON.stringify(CLIENT_PROPERTIES))
+    };
+}
+
+async function questRequest(method: "GET" | "POST" | "DELETE", url: string, body?: Record<string, any>): Promise<any> {
+    const res = await fetch(`${QUEST_API}${url}`, {
+        method,
+        headers: questHeaders(),
+        body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    if (res.status === 401 || res.status === 403) throw new QuestAuthError(res.status);
+    if (!res.ok) throw new Error(`Discord API error ${res.status} for ${url}`);
+    if (res.status === 204) return null;
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+}
+
 function questGet(url: string) {
-    return RestAPI.get({ url, retries: 2 }).then(res => res.body).catch(throwIfAuthError);
+    return questRequest("GET", url).catch(throwIfAuthError);
 }
 
 function questPost(url: string, body: Record<string, any>) {
-    return RestAPI.post({ url, body, retries: 2 }).then(res => res.body).catch(throwIfAuthError);
+    return questRequest("POST", url, body).catch(throwIfAuthError);
 }
 
 function questDelete(url: string) {
-    return RestAPI.del({ url }).then(res => res.body).catch(throwIfAuthError);
+    return questRequest("DELETE", url).catch(throwIfAuthError);
 }
 
 function throwIfAuthError(error: unknown): never {
