@@ -7,7 +7,6 @@
 import { Logger } from "@utils/Logger";
 import type { PluginNative } from "@utils/types";
 
-import LimeyV1Native from "../../LimeyV1Native";
 import {
     COMPANION_EVENT_CODES,
     type CompanionEventFailure,
