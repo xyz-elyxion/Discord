@@ -1,16 +1,12 @@
 /*
  * Limey V1, a Discord client mod
- * Copyright (c) 2026 Limey V1 contributors
+ * Copyright (c) 2026 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
- *
- * Ported from k4g9/discord-quest-completer (MIT), "Better Quest Completer"
- * https://github.com/k4g9/discord-quest-completer
- * Rewritten to use Limey V1's webpack/REST/Notifications APIs instead of the
- * upstream's raw webpackChunkdiscord_app access.
  */
 
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
-import { showNotification } from "@api/Notifications";
+import { type NotificationData,showNotification } from "@api/Notifications";
+import { type Quest, QuestTaskType } from "@plugins/questify/utils/types";
 import { Devs } from "@utils/constants";
 import definePlugin, { IconComponent } from "@utils/types";
 import { findByPropsLazy, findComponentByCodeLazy, findStoreLazy } from "@webpack";
@@ -22,8 +18,6 @@ import {
     RestAPI,
     RunningGameStore
 } from "@webpack/common";
-
-import { type Quest, QuestTaskType } from "../questify/utils/types";
 
 const QuestStore = findStoreLazy("QuestStore") as { quests: Map<string, Quest>; };
 const QuestIcon = findComponentByCodeLazy("10.47a.76.76") as IconComponent;
@@ -38,32 +32,85 @@ const supportedTasks: QuestTaskType[] = [
     QuestTaskType.WATCH_VIDEO_ON_MOBILE
 ];
 
-function notify(title: string, body: string) {
-    showNotification({ title, body, dismissOnClick: false });
+function notify(title: string, body: string, options?: Partial<NotificationData>) {
+    showNotification({ title, body, dismissOnClick: false, ...options });
+}
+
+function describeError(error: unknown) {
+    const status = (error as { status?: number })?.status;
+    const message = (error as Error)?.message ?? String(error);
+    return status ? `HTTP ${status} - ${message}` : message;
+}
+
+function reportError(error: unknown) {
+    console.error("[BetterQuestCompleter]", error);
+    notify(
+        "Better Quest Completer failed",
+        describeError(error),
+        { variant: "error" }
+    );
 }
 
 async function runQuestLogic() {
-    const quests = [...QuestStore.quests.values()]
-        .filter(quest =>
-            quest.userStatus?.enrolledAt
-            && !quest.userStatus?.completedAt
-            && new Date(quest.config.expiresAt).getTime() > Date.now()
-            && supportedTasks.find(task => Object.keys(quest.config.taskConfigV2.tasks).includes(task))
-        );
+    try {
+        await runQuestLogicInner();
+    } catch (error) {
+        reportError(error);
+    }
+}
+
+async function runQuestLogicInner() {
+    const allQuests = [...QuestStore.quests.values()];
+    const quests = allQuests.filter(quest => {
+        try {
+            return quest.userStatus?.enrolledAt
+                && !quest.userStatus?.completedAt
+                && new Date(quest.config.expiresAt).getTime() > Date.now()
+                && quest.config.taskConfigV2?.tasks != null
+                && supportedTasks.some(task => quest.config.taskConfigV2.tasks[task] != null);
+        } catch (error) {
+            console.warn("[BetterQuestCompleter] Skipping malformed quest", quest?.id, error);
+            return false;
+        }
+    });
 
     if (quests.length === 0) {
-        notify("You don't have any uncompleted quests!", "Please make sure you have a quest selected.");
+        const enrolledNotDone = allQuests.filter(quest =>
+            quest.userStatus?.enrolledAt
+            && !quest.userStatus?.completedAt
+        ).length;
+
+        if (allQuests.length === 0) {
+            notify(
+                "No quests found",
+                "Discord hasn't loaded any quests yet. Open the quest panel (Shop -> Quests) so it can fetch them, then click again.",
+                { variant: "warning" }
+            );
+        } else if (enrolledNotDone === 0) {
+            notify(
+                "You have no enrolled quests",
+                `Found ${allQuests.length} quests, but you haven't accepted any. Open the quest card and enroll first.`,
+                { variant: "warning" }
+            );
+        } else {
+            notify(
+                "No completable quests",
+                `Found ${enrolledNotDone} enrolled quest(s), but all are completed, expired, or not a spoofable task type.`,
+                { variant: "warning" }
+            );
+        }
         return;
     }
+    console.info("[BetterQuestCompleter] Working on", quests.length, "quest(s)");
 
-    const doJob = () => {
+    const doJob = async () => {
         const quest = quests.pop();
         if (!quest) return;
 
         const pid = Math.floor(Math.random() * 30000) + 1000;
         const applicationId = quest.config.application.id;
         const applicationName = quest.config.application.name;
-        const questName = quest.config.messages.questName;
+        const questName = quest.config.messages?.questName ?? quest.config.application?.name ?? "Unknown quest";
         const taskName = supportedTasks.find(task => quest.config.taskConfigV2.tasks[task] != null)!;
         const secondsNeeded = quest.config.taskConfigV2.tasks[taskName]!.target;
         let secondsDone = quest.userStatus?.progress?.[taskName]?.value ?? 0;
@@ -78,7 +125,10 @@ async function runQuestLogic() {
                 const diff = maxAllowed - secondsDone;
                 const timestamp = secondsDone + speed;
                 if (diff >= speed) {
-                    const res = await RestAPI.post({ url: `/quests/${quest.id}/video-progress`, body: { timestamp: Math.min(secondsNeeded, timestamp + Math.random()) } });
+                    const res = await RestAPI.post({ url: `/quests/${quest.id}/video-progress`, body: { timestamp: Math.min(secondsNeeded, timestamp + Math.random()) } })
+                        .catch(error => {
+                            throw new Error(`Video progress request failed: ${describeError(error)}`);
+                        });
                     completed = res.body.completed_at != null;
                     secondsDone = Math.min(secondsNeeded, timestamp);
                 }
@@ -89,18 +139,19 @@ async function runQuestLogic() {
             if (!completed) {
                 await RestAPI.post({ url: `/quests/${quest.id}/video-progress`, body: { timestamp: secondsNeeded } });
             }
-            notify("Quest completed!", `${questName} - quest was successfully completed.`);
-            doJob();
+            notify("Quest completed!", `${questName} - quest was successfully completed.`, { variant: "success" });
+            doJob().catch(reportError);
         };
-        notify(`Spoofing video for: ${questName}.`, "❤️ Better Quest Completer");
-        videoQuest();
+        notify(`Spoofing video for: ${questName}.`, "This should finish within a minute.", { variant: "info" });
+        await videoQuest();
 
         const playOnDesktopQuest = () => {
             if (!isApp) {
                 notify(`Use the desktop app to complete the: ${applicationName} quest!`, "This no longer works in browser for non-video quests.");
                 return;
             }
-            RestAPI.get({ url: `/applications/public`, query: { application_ids: applicationId } }).then(res => {
+            RestAPI.get({ url: "/applications/public", query: { application_ids: applicationId } })
+                .then(res => {
                 const appData = res.body[0];
                 const exeName = appData.executables?.find((exe: { os: string; name: string; }) => exe.os === "win32")?.name?.replace(">", "") ?? appData.name.replace(/[/\\:*?"<>|]/g, "");
 
@@ -135,13 +186,14 @@ async function runQuestLogic() {
                         FluxDispatcher.dispatch({ type: "RUNNING_GAMES_CHANGE", removed: [fakeGame], added: [], games: [] });
                         FluxDispatcher.unsubscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", listener);
 
-                        doJob();
+                        doJob().catch(reportError);
                     }
                 };
                 FluxDispatcher.subscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", listener);
 
-                notify(`Spoofed your game to: ${applicationName}.`, `Wait for ${Math.ceil((secondsNeeded - secondsDone) / 60)} more minutes.`);
-            });
+                notify(`Spoofed your game to: ${applicationName}.`, `Wait for ${Math.ceil((secondsNeeded - secondsDone) / 60)} more minutes.`, { variant: "info" });
+            })
+                .catch(error => reportError(new Error(`Could not set up game spoof for ${applicationName}: ${describeError(error)}`)));
         };
 
         const streamOnDesktopQuest = () => {
@@ -159,17 +211,17 @@ async function runQuestLogic() {
             const listener = (data: { userStatus: { streamProgressSeconds: number; progress: Record<string, { value: number; }>; }; }) => {
                 const progress = quest.config.configVersion === 1 ? data.userStatus.streamProgressSeconds : Math.floor(data.userStatus.progress.STREAM_ON_DESKTOP.value);
                 if (progress >= secondsNeeded) {
-                    notify("Quest completed!", `${questName} - quest was successfully completed.`);
+                    notify("Quest completed!", `${questName} - quest was successfully completed.`, { variant: "success" });
 
                     StreamMetadataUtils.getStreamerActiveStreamMetadata = realFunc;
                     FluxDispatcher.unsubscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", listener);
 
-                    doJob();
+                    doJob().catch(reportError);
                 }
             };
             FluxDispatcher.subscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", listener);
 
-            notify(`Spoofed your stream to ${applicationName}. Stream any window in voice channel for ${Math.ceil((secondsNeeded - secondsDone) / 60)} more minutes.`, "Remember that you need at least 1 other person to be in the voice channel!");
+            notify(`Spoofed your stream to ${applicationName}. Stream any window in voice channel for ${Math.ceil((secondsNeeded - secondsDone) / 60)} more minutes.`, "Remember that you need at least 1 other person to be in the voice channel!", { variant: "info" });
         };
 
         const playActivityQuest = async () => {
@@ -180,7 +232,7 @@ async function runQuestLogic() {
             }
             const streamKey = `call:${channelId}:1`;
 
-            notify(`Completing quest: ${applicationName} - ${questName}`, "❤️ Better Quest Completer");
+            notify(`Completing quest: ${applicationName} - ${questName}`, "Sending activity heartbeats...", { variant: "info" });
 
             while (true) {
                 const res = await RestAPI.post({ url: `/quests/${quest.id}/heartbeat`, body: { stream_key: streamKey, terminal: false } });
@@ -194,14 +246,14 @@ async function runQuestLogic() {
                 }
             }
 
-            notify("Quest completed!", `${questName} - quest was successfully completed.`);
-            doJob();
+            notify("Quest completed!", `${questName} - quest was successfully completed.`, { variant: "success" });
+            doJob().catch(reportError);
         };
 
         switch (taskName) {
             case "WATCH_VIDEO":
             case "WATCH_VIDEO_ON_MOBILE":
-                videoQuest();
+                await videoQuest();
                 break;
             case "PLAY_ON_DESKTOP":
                 playOnDesktopQuest();
@@ -210,11 +262,11 @@ async function runQuestLogic() {
                 streamOnDesktopQuest();
                 break;
             case "PLAY_ACTIVITY":
-                playActivityQuest();
+                await playActivityQuest();
                 break;
         }
     };
-    doJob();
+    await doJob();
 }
 
 const QuestButton: ChatBarButtonFactory = () => (
