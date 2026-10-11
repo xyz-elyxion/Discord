@@ -29,6 +29,7 @@ import * as $MessagePopover from "./MessagePopover";
 import * as $MessageUpdater from "./MessageUpdater";
 import * as $Notices from "./Notices";
 import * as $Notifications from "./Notifications";
+import * as $ProfileSections from "./ProfileSections";
 export * as PluginManager from "./PluginManager";
 import * as $ServerList from "./ServerList";
 import * as $Settings from "./Settings";
@@ -123,3 +124,8 @@ export const MessageUpdater = $MessageUpdater;
  * An API allowing you to get an user setting
  */
 export const UserSettings = $UserSettings;
+
+/**
+ * An API allowing you to add sections to the user profile panel near the 'Member Since' area
+ */
+export const ProfileSections = $ProfileSections;

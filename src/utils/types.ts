@@ -26,6 +26,7 @@ import { MessageAccessoryFactory } from "@api/MessageAccessories";
 import { MessageDecorationFactory } from "@api/MessageDecorations";
 import { MessageClickListener, MessageEditListener, MessageSendListener } from "@api/MessageEvents";
 import { MessagePopoverButtonData } from "@api/MessagePopover";
+import { ProfileSectionData } from "@api/ProfileSections";
 import { Command, FluxEvents } from "@limeyV1/discord-types";
 import { ReactNode } from "react";
 import { LiteralUnion } from "type-fest";
@@ -241,6 +242,11 @@ export interface PluginDef {
      * Registers an audio processor that can modify audio before playback. Requires the AudioPlayerAPI dependency.
      */
     audioProcessor?: AudioProcessor;
+
+    /**
+     * Adds a section to the user profile panel near the 'Member Since' area. Requires the ProfileSectionsAPI dependency.
+     */
+    renderProfileSection?: ProfileSectionData;
 
     onMessageClick?: MessageClickListener;
     onBeforeMessageSend?: MessageSendListener;

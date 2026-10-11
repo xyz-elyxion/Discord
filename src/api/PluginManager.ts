@@ -16,9 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { addAudioProcessor, removeAudioProcessor } from "./AudioPlayer";
 import { addProfileBadge, removeProfileBadge } from "@api/Badges";
 import { addChatBarButton, addChatBarButtonWrapper, removeChatBarButton, removeChatBarButtonWrapper } from "@api/ChatButtons";
+import { addAudioProcessor, removeAudioProcessor } from "@api/AudioPlayer";
+import { addProfileSection, removeProfileSection } from "@api/ProfileSections";
 import { addChannelToolbarButton, addHeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "./HeaderBar";
 import { registerCommand, unregisterCommand } from "@api/Commands";
 import { addContextMenuPatch, removeContextMenuPatch } from "@api/ContextMenu";
@@ -207,7 +208,7 @@ export const startPlugin = traceFunction("startPlugin", function startPlugin(p: 
         name, commands, contextMenus, managedStyle, userProfileBadge,
         onBeforeMessageEdit, onBeforeMessageSend, onMessageClick,
         headerBarButton, chatBarButton, chatBarButtonWrapper,
-        audioProcessor,
+        audioProcessor, renderProfileSection,
         renderMemberListDecorator, renderMessageAccessory, renderMessageDecoration, messagePopoverButton
     } = p;
 
@@ -268,6 +269,7 @@ export const startPlugin = traceFunction("startPlugin", function startPlugin(p: 
         }
     }
     if (audioProcessor) addAudioProcessor(name, audioProcessor);
+    if (renderProfileSection) addProfileSection(name, renderProfileSection.render, renderProfileSection.priority);
     if (renderMemberListDecorator) addMemberListDecorator(name, renderMemberListDecorator);
     if (renderMessageDecoration) addMessageDecoration(name, renderMessageDecoration);
     if (renderMessageAccessory) addMessageAccessory(name, renderMessageAccessory);
@@ -281,7 +283,7 @@ export const stopPlugin = traceFunction("stopPlugin", function stopPlugin(p: Plu
         name, commands, contextMenus, managedStyle, userProfileBadge,
         onBeforeMessageEdit, onBeforeMessageSend, onMessageClick,
         headerBarButton, chatBarButton, chatBarButtonWrapper,
-        audioProcessor,
+        audioProcessor, renderProfileSection,
         renderMemberListDecorator, renderMessageAccessory, renderMessageDecoration, messagePopoverButton
     } = p;
 
@@ -337,6 +339,7 @@ export const stopPlugin = traceFunction("stopPlugin", function stopPlugin(p: Plu
         removeHeaderBarButton(name);
     }
     if (audioProcessor) removeAudioProcessor(name);
+    if (renderProfileSection) removeProfileSection(name);
     if (renderMemberListDecorator) removeMemberListDecorator(name);
     if (renderMessageDecoration) removeMessageDecoration(name);
     if (renderMessageAccessory) removeMessageAccessory(name);
@@ -349,7 +352,7 @@ export const initPluginManager = onlyOnce(function init() {
     const pluginsValues = Object.values(Plugins);
     const settings = Settings.plugins;
 
-    const pluginKeysToBind: Array<keyof PluginDef & `${"on" | "render"}${string}`> = [
+    const pluginKeysToBind: (keyof PluginDef & `${"on" | "render"}${string}`)[] = [
         "onBeforeMessageEdit", "onBeforeMessageSend", "onMessageClick",
         "renderMemberListDecorator", "renderMessageAccessory", "renderMessageDecoration"
     ];
@@ -385,6 +388,7 @@ export const initPluginManager = onlyOnce(function init() {
         if (p.chatBarButtonWrapper) neededApiPlugins.add("ChatInputButtonAPI");
         if (p.headerBarButton) neededApiPlugins.add("HeaderBarAPI");
         if (p.audioProcessor) neededApiPlugins.add("AudioPlayerAPI");
+        if (p.renderProfileSection) neededApiPlugins.add("ProfileSectionsAPI");
         if (p.renderMemberListDecorator) neededApiPlugins.add("MemberListDecoratorsAPI");
         if (p.renderMessageAccessory) neededApiPlugins.add("MessageAccessoriesAPI");
         if (p.renderMessageDecoration) neededApiPlugins.add("MessageDecorationsAPI");
@@ -392,7 +396,7 @@ export const initPluginManager = onlyOnce(function init() {
         if (p.userProfileBadge) neededApiPlugins.add("BadgeAPI");
 
         for (const key of pluginKeysToBind) {
-            p[key] &&= p[key].bind(p) as any;
+            p[key] &&= (p[key] as any).bind(p) as any;
         }
     }
 
