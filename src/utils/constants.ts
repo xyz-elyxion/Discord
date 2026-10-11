@@ -139,6 +139,14 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         name: "fres",
         id: 843448897737064448n
     },
+    Drag: {
+        name: "dragalt_",
+        id: 1189903210564038697n
+    },
+    neoarz: {
+        name: "neoarz",
+        id: 218675193592283137n
+    },
     Nickyux: {
         name: "Nickyux",
         id: 427146305651998721n
