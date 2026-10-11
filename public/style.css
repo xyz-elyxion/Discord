@@ -1097,22 +1097,78 @@ code {
     background: #101805;
 }
 
-.css-tile {
+/* Limes reward tile demo (homepage feature) */
+.lime-tile {
     background: #0f0f0f;
     border: 1px solid #262626;
     border-radius: 12px;
     padding: 20px;
-    font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
-    font-size: 0.85rem;
-    line-height: 1.7;
-    white-space: pre;
-    overflow-x: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
-.t-sel { color: #79c0ff; }
-.t-prop { color: #ffa657; }
-.t-val { color: var(--lime); }
+.lime-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
 
+.lime-balance {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.lime-streak {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.08);
+    border-radius: 999px;
+    padding: 3px 10px;
+}
+
+.lime-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.lime-chip {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #e4e4e7;
+    background: #262626;
+    border-radius: 999px;
+    padding: 4px 12px;
+}
+
+.lime-chip-done {
+    color: #b5e853;
+    background: rgba(156, 204, 60, 0.12);
+}
+
+.lime-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: #262626;
+    overflow: hidden;
+}
+
+.lime-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--primary);
+    transition: width 0.4s ease;
+}
+
+.lime-hint {
+    font-size: 0.75rem;
+    color: #737373;
+}
 .priv-tile {
     background: #0f0f0f;
     border: 1px solid #262626;
