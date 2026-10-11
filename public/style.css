@@ -86,7 +86,7 @@ body {
     box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
 }
 
-a:any-link {
+a:any-link:not(.btn) {
     color: var(--primary);
 }
 
