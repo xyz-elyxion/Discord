@@ -274,6 +274,27 @@
         #toast.show { transform: translateX(-50%) translateY(0); }
         #toast.ok { border-color: color-mix(in srgb, #3ba55c 50%, transparent); }
         #toast.err { border-color: color-mix(in srgb, #f04747 50%, transparent); }
+        /* Limey Sentinel widget (shared site widget) */
+        .sentinel-root { margin: 4px 0; }
+        .sentinel-box {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px;
+            background: var(--bg); cursor: pointer; user-select: none; max-width: 100%;
+            transition: border-color 0.15s;
+        }
+        .sentinel-box:hover { border-color: var(--lime); }
+        .sentinel-check {
+            width: 18px; height: 18px; flex: 0 0 18px; border-radius: 5px;
+            border: 2px solid var(--border); display: inline-flex;
+            align-items: center; justify-content: center; font-size: 0.8rem; color: #1a1a1a;
+        }
+        .sentinel-root.is-done .sentinel-check { background: var(--lime); border-color: var(--lime); }
+        .sentinel-root.is-done .sentinel-check::before { content: "✓"; }
+        .sentinel-root.is-busy .sentinel-check { border-radius: 50%; border-top-color: var(--lime); animation: sentinel-spin 0.8s linear infinite; }
+        @keyframes sentinel-spin { to { transform: rotate(360deg); } }
+        .sentinel-label { font-size: 0.9rem; color: var(--text); }
+        .sentinel-status { font-size: 0.78rem; color: var(--text-dim); margin-left: auto; }
+        .sentinel-status.is-error { color: #f04747; }
     </style>
 </head>
 <body>
@@ -375,6 +396,7 @@
                         <span id="limes-streak">🔥 0 day streak</span>
                         <span id="limes-tier"></span>
                     </div>
+                    <div class="sentinel-root-inline" id="sentinelDaily"></div>
                     <button class="btn-claim" id="daily-btn" disabled>Claim daily</button>
                 </div>
 
@@ -404,6 +426,7 @@
                         <input id="redeem-code" placeholder="LIME-XXXXXX-XXXXXX" autocomplete="off" spellcheck="false">
                         <button class="btn-claim" id="redeem-btn">Redeem</button>
                     </div>
+                    <div class="sentinel-root-inline" id="sentinelRedeem"></div>
                 </div>
 
                 <!-- transaction history -->
@@ -650,6 +673,7 @@
 
     <div id="toast"></div>
 
+<script src="/sentinel.js"></script>
 <script>
     // Same-origin in production (server.js proxies /v1/*). Only hit the bot
     // API directly when the page itself is served from the bot in local dev.
@@ -1039,6 +1063,32 @@
         }
     }
 
+    /* ---------- Limey Sentinel helpers (per-action POW solve) ---------- */
+    function ensureSentinel(mountId, onComplete) {
+        if (!window.sentinel || !$(mountId)) return null;
+        try { $(mountId).innerHTML = ""; } catch { /* noop */ }
+        return window.sentinel.attach($(mountId), {
+            label: "Human check",
+            autostart: false,
+            onComplete,
+        });
+    }
+    // Solve lazily right before the action; returns a fresh payload or null.
+    async function solveSentinelNow(mountId) {
+        if (!window.sentinel) return null;
+        $(mountId)?.replaceChildren();
+        const holder = $(mountId);
+        const widget = window.sentinel.attach(holder, {
+            autostart: true,
+            onComplete: () => { /* resolve handled via result() */ },
+        });
+        const result = await widget.result();
+        return result?.ok ? result.payload : null;
+    }
+    function sentinelFailureToast(err) {
+        toast(/sentinel|Human check/i.test(err?.message || "") ? err.message : "Human check failed — try again", "err");
+    }
+
     /* ---------- redeem a donation code ---------- */
     async function redeemCode() {
         const input = $("redeem-code");
@@ -1048,10 +1098,12 @@
         btn.disabled = true;
         btn.textContent = "…";
         try {
+            const captcha = await solveSentinelNow("sentinelRedeem");
+            if (!captcha) throw new Error("Human check failed — try again");
             const data = await api("/v1/dashboard/redeem", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code })
+                body: JSON.stringify({ code, sentinel: captcha })
             });
             const parts = [];
             if (data.limes) parts.push(`+${data.limes} Limes`);
@@ -1061,10 +1113,12 @@
             loadHistory();
             refreshMe();
         } catch (err) {
-            toast(err.message, "err");
+            sentinelFailureToast(err);
+            if (!/sentinel|Human check/i.test(err?.message || "")) toast(err.message, "err");
         } finally {
             btn.disabled = false;
             btn.textContent = "Redeem";
+            $("sentinelRedeem").replaceChildren();
         }
     }
 
@@ -1112,7 +1166,13 @@
         btn.disabled = true;
         btn.textContent = "Claiming…";
         try {
-            const data = await api("/v1/dashboard/daily", { method: "POST" });
+            const captcha = await solveSentinelNow("sentinelDaily");
+            if (!captcha) throw new Error("Human check failed — try again");
+            const data = await api("/v1/dashboard/daily", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sentinel: captcha })
+            });
             limesData.balance = data.balance;
             limesData.streak = data.streak;
             $("limes-balance").textContent = data.balance;
@@ -1128,8 +1188,11 @@
             } else {
                 btn.disabled = false;
                 btn.textContent = "Claim daily 🍋";
-                toast(err.message, "err");
+                sentinelFailureToast(err);
+                if (!/sentinel|Human check/i.test(err?.message || "")) toast(err.message, "err");
             }
+        } finally {
+            $("sentinelDaily").replaceChildren();
         }
     }
 

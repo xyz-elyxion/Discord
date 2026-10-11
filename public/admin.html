@@ -100,6 +100,37 @@
         font-size: 12px;
         margin: 0 0 0 auto;
     }
+    /* Limey Sentinel stats card */
+    .sentinel-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin: 12px 0;
+    }
+    .sentinel-stat {
+        background: #0d0f13;
+        border: 1px solid #343842;
+        border-radius: 6px;
+        padding: 10px 12px;
+    }
+    .sentinel-stat b {
+        display: block;
+        font-size: 20px;
+        color: #9eea6f;
+    }
+    .sentinel-stat span {
+        font-size: 12px;
+        color: #8b909b;
+    }
+    .sentinel-rejects {
+        font-size: 12px;
+        color: #b8bdc7;
+        line-height: 1.7;
+    }
+    .sentinel-rejects em {
+        color: #ff6b6b;
+        font-style: normal;
+    }
 </style>
 </head>
 <body>
@@ -121,6 +152,21 @@
     </div>
 
     <div id="content" class="hidden">
+        <div class="card">
+            <h2>🍋 Limey Sentinel</h2>
+            <p class="sub" style="margin-bottom:4px">Proof-of-work captcha stats. Repeated failed solvers from one IP get harder challenges automatically (3 fails → 4x, 10 → 10x, for 15 min).</p>
+            <div class="sentinel-stats">
+                <div class="sentinel-stat"><b id="stIssued">—</b><span>Challenges issued</span></div>
+                <div class="sentinel-stat"><b id="stSolved">—</b><span>Solved</span></div>
+                <div class="sentinel-stat"><b id="stConsumed">—</b><span>Consumed (submits)</span></div>
+                <div class="sentinel-stat"><b id="stRejected">—</b><span>Rejected</span></div>
+                <div class="sentinel-stat"><b id="stActive">—</b><span>Active (unused) puzzles</span></div>
+                <div class="sentinel-stat"><b id="stWatch">—</b><span>IPs on watchlist</span></div>
+            </div>
+            <div class="sentinel-rejects" id="stRejects" style="display:none"></div>
+            <button id="sentinelRefresh" style="background:transparent;color:#9eea6f;border:1px solid #343842">Refresh stats</button>
+        </div>
+
         <div class="card">
             <h2>Donation codes</h2>
             <p class="sub" style="margin-bottom:8px">Generate codes for donors. They redeem them at /limes for Limes and/or a perk tier (30 days).</p>
@@ -266,6 +312,31 @@
     document.getElementById("usrbgRemove").onclick = usrbgRemove;
     document.getElementById("usrbgLoad").onclick = usrbgLoad;
 
+    // ---------- Limey Sentinel stats ----------
+    async function loadSentinelStats() {
+        const res = await fetch("/v1/sentinel/stats", { headers: authHeaders() });
+        if (!res.ok) return; // 401 handled by the lock() below via /v1/admin/me
+        const d = await res.json();
+        document.getElementById("stIssued").textContent = d.issued ?? 0;
+        document.getElementById("stSolved").textContent = d.solved ?? 0;
+        document.getElementById("stConsumed").textContent = d.consumed ?? 0;
+        document.getElementById("stRejected").textContent = d.totalRejected ?? 0;
+        document.getElementById("stActive").textContent = d.activeChallenges ?? 0;
+        document.getElementById("stWatch").textContent = d.watchlistedIps ?? 0;
+        const rj = d.rejected && Object.keys(d.rejected).length ? d.rejected : null;
+        const el = document.getElementById("stRejects");
+        if (rj) {
+            el.style.display = "";
+            el.innerHTML = "Rejections by reason: " + Object.entries(rj)
+                .map(([k, v]) => `${k} <em>${v}</em>`)
+                .join(" · ");
+        } else {
+            el.style.display = "";
+            el.textContent = "No rejections yet — all clean.";
+        }
+    }
+    document.getElementById("sentinelRefresh").onclick = loadSentinelStats;
+
     document.getElementById("gendon").onclick = async () => {
         const msg = document.getElementById("donmsg");
         const limes = Number(document.getElementById("donlimes").value) || 0;
@@ -317,6 +388,7 @@
             if (!res.ok) throw new Error("unauthorized");
             unlock(await res.json());
             usrbgLoad();
+            loadSentinelStats();
         } catch {
             lock();
         }

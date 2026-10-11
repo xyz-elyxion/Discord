@@ -22,7 +22,6 @@
  */
 
 "use strict";
-
 const { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } = require("crypto");
 
 const ALGORITHM = "SHA-256";
@@ -45,6 +44,75 @@ const SECRET = process.env.SENTINEL_SECRET
 const used = new Map();
 
 // ---------------------------------------------------------------------------
+// Stats + adaptive difficulty (small-scale "Security Center")
+// ---------------------------------------------------------------------------
+
+const stats = { issued: 0, solved: 0, consumed: 0, rejected: {} };
+
+// Per-IP failure tracking: repeated failed verifications (bots hammering the
+// endpoint) make that IP's next challenges progressively harder. No reputation
+// database — just a decaying Map. A successful solve clears the penalty.
+const IP_FAIL_WINDOW_MS = 15 * 60_000;
+const ipFailures = new Map(); // ip -> { count, updatedAt }
+
+function noteRejected(reason) {
+    stats.rejected[reason] = (stats.rejected[reason] || 0) + 1;
+}
+
+function noteIpFailure(ip) {
+    if (!ip) return;
+    const entry = ipFailures.get(ip) || { count: 0, updatedAt: 0 };
+    entry.count += 1;
+    entry.updatedAt = Date.now();
+    ipFailures.set(ip, entry);
+}
+
+function noteIpSuccess(ip) {
+    if (ip) ipFailures.delete(ip);
+}
+
+/** How much to inflate the difficulty for this IP: 1x normally, 4x after
+ *  3 recent failures, 10x after 10. */
+function difficultyMultiplierFor(ip) {
+    const entry = ipFailures.get(ip);
+    if (!entry) return 1;
+    if (Date.now() - entry.updatedAt > IP_FAIL_WINDOW_MS) {
+        ipFailures.delete(ip);
+        return 1;
+    }
+    if (entry.count >= 10) return 10;
+    if (entry.count >= 3) return 4;
+    return 1;
+}
+
+function pruneIpFailures() {
+    for (const [ip, entry] of ipFailures) {
+        if (Date.now() - entry.updatedAt > IP_FAIL_WINDOW_MS) ipFailures.delete(ip);
+    }
+}
+
+function clientIp(req) {
+    return String(req?.headers?.["x-forwarded-for"] || "")
+        .split(",")[0].trim()
+        || req?.socket?.remoteAddress
+        || "";
+}
+
+/** Opaque snapshot for the admin dashboard. Never exposes IPs — only counts. */
+function statsSnapshot() {
+    pruneIpFailures();
+    return {
+        issued: stats.issued,
+        solved: stats.solved,
+        consumed: stats.consumed,
+        rejected: { ...stats.rejected },
+        totalRejected: Object.values(stats.rejected).reduce((n, c) => n + c, 0),
+        activeChallenges: used.size,
+        watchlistedIps: ipFailures.size,
+    };
+}
+
+// ---------------------------------------------------------------------------
 // Challenge creation + verification
 // ---------------------------------------------------------------------------
 
@@ -54,11 +122,13 @@ function hmacSignature(salt, algorithm, challenge, maxNumber, expires) {
         .digest("base64url");
 }
 
-function createChallenge(maxNumber = DEFAULT_MAX_NUMBER) {
+function createChallenge(maxNumber = DEFAULT_MAX_NUMBER, difficultyMultiplier = 1) {
     maxNumber = Math.min(
         Math.max(Math.floor(Number(maxNumber) || DEFAULT_MAX_NUMBER), MIN_MAX_NUMBER),
         MAX_MAX_NUMBER
     );
+    maxNumber = Math.min(Math.round(maxNumber * difficultyMultiplier), MAX_MAX_NUMBER * difficultyMultiplier);
+    maxNumber = Math.min(maxNumber, 30_000_000); // absolute ceil even at 10x
     const salt = randomBytes(12).toString("hex");
     const number = randomInt(1, maxNumber);
     const challenge = createHash("sha256").update(`${salt}${number}`).digest("hex");
@@ -107,31 +177,69 @@ function pruneUsed() {
  */
 function verifyPayload(raw, opts = {}) {
     const p = parsePayload(raw);
-    if (!p) return { ok: false, error: "invalid payload" };
-    if (p.algorithm !== ALGORITHM) return { ok: false, error: "unsupported algorithm" };
+    if (!p) {
+        noteRejected("invalid payload");
+        return { ok: false, error: "invalid payload" };
+    }
+    if (p.algorithm !== ALGORITHM) {
+        noteRejected("unsupported algorithm");
+        return { ok: false, error: "unsupported algorithm" };
+    }
 
     const { salt, challenge, number, maxNumber, signature, expires } = p;
-    if (typeof salt !== "string" || !/^[0-9a-f]{8,64}$/.test(salt)) return { ok: false, error: "bad salt" };
-    if (typeof challenge !== "string" || !/^[0-9a-f]{64}$/.test(challenge)) return { ok: false, error: "bad challenge" };
-    if (!Number.isInteger(expires) || expires < Date.now()) return { ok: false, error: "challenge expired" };
-    if (expires > Date.now() + TTL_MS * 2) return { ok: false, error: "challenge expiry too far out" };
-    if (!Number.isInteger(maxNumber) || maxNumber < MIN_MAX_NUMBER || maxNumber > MAX_MAX_NUMBER) {
+    if (typeof salt !== "string" || !/^[0-9a-f]{8,64}$/.test(salt)) {
+        noteRejected("bad salt");
+        return { ok: false, error: "bad salt" };
+    }
+    if (typeof challenge !== "string" || !/^[0-9a-f]{64}$/.test(challenge)) {
+        noteRejected("bad challenge");
+        return { ok: false, error: "bad challenge" };
+    }
+    if (!Number.isInteger(expires) || expires < Date.now()) {
+        noteRejected("challenge expired");
+        return { ok: false, error: "challenge expired" };
+    }
+    if (expires > Date.now() + TTL_MS * 2) {
+        noteRejected("expiry too far out");
+        return { ok: false, error: "challenge expiry too far out" };
+    }
+    if (!Number.isInteger(maxNumber) || maxNumber < MIN_MAX_NUMBER || maxNumber > 30_000_000) {
+        noteRejected("bad maxNumber");
         return { ok: false, error: "bad maxNumber" };
     }
-    if (!Number.isInteger(number) || number < 0 || number > maxNumber) return { ok: false, error: "bad number" };
+    if (!Number.isInteger(number) || number < 0 || number > maxNumber) {
+        noteRejected("bad number");
+        return { ok: false, error: "bad number" };
+    }
 
-    if (typeof signature !== "string") return { ok: false, error: "missing signature" };
+    if (typeof signature !== "string") {
+        noteRejected("missing signature");
+        return { ok: false, error: "missing signature" };
+    }
     const expected = hmacSignature(salt, p.algorithm, challenge, maxNumber, expires);
     const a = Buffer.from(signature);
     const b = Buffer.from(expected);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) return { ok: false, error: "bad signature" };
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+        noteRejected("bad signature");
+        return { ok: false, error: "bad signature" };
+    }
 
     const computed = createHash("sha256").update(`${salt}${number}`).digest("hex");
-    if (computed !== challenge) return { ok: false, error: "puzzle mismatch" };
+    if (computed !== challenge) {
+        noteRejected("puzzle mismatch");
+        return { ok: false, error: "puzzle mismatch" };
+    }
+
+    noteIpSuccess(opts.ip);
+    stats.solved += 1;
 
     if (opts.consume) {
-        if (used.has(challenge)) return { ok: false, error: "challenge already used" };
+        if (used.has(challenge)) {
+            noteRejected("replay");
+            return { ok: false, error: "challenge already used" };
+        }
         used.set(challenge, expires);
+        stats.consumed += 1;
         if (used.size > 20_000) pruneUsed();
     }
     return { ok: true };
@@ -178,14 +286,15 @@ async function handle(req, res, url) {
         return res.end(), true;
     }
 
-    // GET /v1/sentinel/challenge — issue a fresh POW puzzle.
+// GET /v1/sentinel/challenge — increment the issued counter too.
     if (method === "GET" && (url === "/v1/sentinel/challenge" || url.startsWith("/v1/sentinel/challenge?"))) {
+        stats.issued += 1;
         let maxNumber = DEFAULT_MAX_NUMBER;
         try {
             const query = new URL("http://localhost" + url).searchParams;
             if (query.has("maxnumber")) maxNumber = Number(query.get("maxnumber"));
         } catch { /* default difficulty */ }
-        return send(res, 200, createChallenge(maxNumber)), true;
+        return send(res, 200, createChallenge(maxNumber, difficultyMultiplierFor(clientIp(req)))), true;
     }
 
     // POST /v1/sentinel/verify — stateless check { captcha | payload }.
@@ -204,8 +313,12 @@ async function handle(req, res, url) {
                 : typeof parsed?.payload === "string"
                     ? parsed.payload
                     : raw;
-            const result = verifyPayload(payload);
-            if (!result.ok) return send(res, 403, result), true;
+            const ip = clientIp(req);
+            const result = verifyPayload(payload, { ip });
+            if (!result.ok) {
+                noteIpFailure(ip);
+                return send(res, 403, result), true;
+            }
             return send(res, 200, { ok: true }), true;
         } catch {
             return send(res, 400, { ok: false, error: "invalid request" }), true;
@@ -218,4 +331,4 @@ async function handle(req, res, url) {
     return false;
 }
 
-module.exports = { handle, createChallenge, verifyPayload, ALGORITHM, VERSION, DEFAULT_MAX_NUMBER, TTL_MS };
+module.exports = { handle, createChallenge, verifyPayload, statsSnapshot, noteIpFailure, ALGORITHM, VERSION, DEFAULT_MAX_NUMBER, TTL_MS };

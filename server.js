@@ -1415,10 +1415,37 @@ async function handleDashboard(req, res, url) {
 
     if (!limeEconomy) return json(res, 503, { error: "economy backend unavailable" }), true;
 
+    // Limey Sentinel gate: Limes actions require a fresh POW solve so bots
+    // can't farm the daily claim or brute-force donation codes.
+    async function sentinelGate(bodyObj) {
+        if (!sentinel) return { ok: true };
+        const payload = bodyObj?.sentinel;
+        if (typeof payload !== "string") return { ok: false, error: "Human check required — reload the page and try again.", status: 403 };
+        const result = sentinel.verifyPayload(payload, { consume: true });
+        if (!result.ok) return { ok: false, error: "Human check failed — reload the page and try again." + (result.error ? ` (${result.error})` : ""), status: 403 };
+        return { ok: true };
+    }
+    // Cheap GET so dashboard.html can promise a puzzle exists before rendering
+    // the widget (also surfaces "sentinel down" as an explicit 503).
+    if (url === "/v1/dashboard/challenge" && req.method === "GET") {
+        if (!session) return json(res, 401, { error: "not logged in" }), true;
+        if (!sentinel) return json(res, 503, { error: "sentinel unavailable" }), true;
+        // proxy the real challenge issuer so difficulty-tiering logic applies
+        return sentinel.handle(
+            { method: "GET", headers: req.headers, socket: req.socket },
+            res,
+            "/v1/sentinel/challenge"
+        ), true;
+    }
+
     // Claim the daily Limes from the dashboard (proxied with the session's
     // verified Discord id — no client-supplied userId)
     if (url === "/v1/dashboard/daily" && req.method === "POST") {
         if (!session) return json(res, 401, { error: "not logged in" }), true;
+        let body = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch { /* ignore */ }
+        const gate = await sentinelGate(body);
+        if (!gate.ok) return json(res, gate.status || 403, { error: gate.error, code: "sentinel_required" }), true;
         try {
             const { status, payload } = await economyProxy("/v1/limes/earn/daily", {});
             if (status >= 500) console.error("[dashboard] daily claim upstream failure:", JSON.stringify(payload));
@@ -1441,6 +1468,8 @@ async function handleDashboard(req, res, url) {
         if (!session) return json(res, 401, { error: "not logged in" }), true;
         let body = {};
         try { body = JSON.parse((await readBody(req)) || "{}"); } catch { /* ignore */ }
+        const gate = await sentinelGate(body);
+        if (!gate.ok) return json(res, gate.status || 403, { error: gate.error, code: "sentinel_required" }), true;
         const { status, payload } = await economyProxy("/v1/limes/donation-codes/redeem", { code: body.code });
         return json(res, status, payload), true;
     }
@@ -1842,6 +1871,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url === "/v1" || url.startsWith("/v1/")) {
+        // Limey Sentinel stats — admin-only snapshot for the /admin panel
+        // (must run BEFORE the generic /v1/sentinel/* handler 404s it)
+        if (sentinel && url === "/v1/sentinel/stats" && req.method === "GET") {
+            const adminSession = dashGetSession(req);
+            if (!adminSession?.admin) return json(res, 401, { error: "not authorized" }), true;
+            return json(res, 200, sentinel.statsSnapshot()), true;
+        }
         // Limey Sentinel proof-of-work captcha (handled in-process)
         if (sentinel && url.startsWith("/v1/sentinel/") && await sentinel.handle(req, res, url)) return;
         // Community plugin store (handled in-process)
