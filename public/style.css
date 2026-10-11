@@ -11,8 +11,8 @@
     --card-foreground: #fafafa;
     --popover: #101013;
     --popover-foreground: #fafafa;
-    --primary: #a3e635;
-    --primary-foreground: #14210a;
+    --primary: #9ccc3c;
+    --primary-foreground: #101805;
     --secondary: #1c1c1f;
     --secondary-foreground: #fafafa;
     --muted: #161618;
@@ -35,13 +35,13 @@
     --text: var(--foreground);
     --text-dim: var(--muted-foreground);
     --lime: var(--primary);
-    --lime-strong: #bef264;
+    --lime-strong: #a8d84a;
     --lime-dark: #1a2e05;
 
     /* Elevation shadows tuned for the dark theme */
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
     --shadow-md: 0 6px 24px -8px rgb(0 0 0 / 0.6);
-    --glow: 0 0 24px color-mix(in srgb, var(--primary) 22%, transparent);
+    --glow: 0 0 14px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
 *, ::before, ::after {
@@ -63,8 +63,9 @@ body {
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    overflow-x: clip;
     /* Subtle depth so pure-black sections never look flat */
-    background-image: radial-gradient(ellipse 80% 50% at 50% -20%, color-mix(in srgb, var(--primary) 4%, transparent), transparent);
+    background-image: radial-gradient(ellipse 80% 50% at 50% -20%, color-mix(in srgb, var(--primary) 3%, transparent), transparent);
     background-attachment: fixed;
 }
 
@@ -137,8 +138,8 @@ code {
 }
 
 .brand-dot {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background: var(--primary);
     box-shadow: var(--glow);
@@ -146,8 +147,8 @@ code {
 }
 
 .brand:hover .brand-dot {
-    transform: scale(1.25);
-    box-shadow: 0 0 32px color-mix(in srgb, var(--primary) 40%, transparent);
+    transform: scale(1.2);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .nav-links {
@@ -186,7 +187,7 @@ code {
     padding: 110px 0 90px;
     text-align: center;
     background:
-        radial-gradient(ellipse 55% 45% at 50% -5%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 70%),
+        radial-gradient(ellipse 55% 45% at 50% -5%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%),
         var(--background);
     border-bottom: 1px solid var(--border);
 }
@@ -269,10 +270,10 @@ code {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 13px 26px;
-    border-radius: 9999px;
+    padding: 11px 22px;
+    border-radius: 10px;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.95rem;
     line-height: 1.2;
     text-decoration: none;
     transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
@@ -286,14 +287,14 @@ code {
 .btn-primary {
     background: var(--primary);
     color: var(--primary-foreground);
-    border: 1px solid var(--primary);
+    border: 1px solid color-mix(in srgb, var(--primary) 80%, black);
     box-shadow: var(--glow);
 }
 
 .btn-primary:hover {
     background: var(--lime-strong);
     border-color: var(--lime-strong);
-    box-shadow: 0 0 36px color-mix(in srgb, var(--primary) 32%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .btn-ghost {
@@ -638,6 +639,13 @@ code {
     .hero-actions .btn {
         width: 100%;
         max-width: 320px;
+    }
+
+    .hint {
+        padding: 0 8px;
+        max-width: 340px;
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .section {
