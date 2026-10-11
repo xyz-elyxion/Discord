@@ -15,6 +15,49 @@ import { findByProps } from "@webpack";
 const STORE_KEY = "accountManager.accounts";
 const logger = new Logger("AccountManager");
 
+/**
+ * `window.localStorage` does not exist in every Discord build this plugin can
+ * run in, so reading and writing the auth token must go through Discord's own
+ * authState module (the same thing the login flow itself uses).
+ */
+function authTokenModule(): { getToken?: () => string; setToken?: (t: string) => void; } | null {
+    try {
+        return findByProps("getToken", "setToken") ?? null;
+    } catch {
+        return null;
+    }
+}
+
+function currentToken(): string | null {
+    const mod = authTokenModule();
+    try {
+        const viaApi = mod?.getToken?.();
+        if (typeof viaApi === "string" && viaApi) return viaApi;
+    } catch (e) {
+        logger.warn("auth getToken failed", e);
+    }
+    try {
+        const raw = (globalThis as any).localStorage?.getItem?.("token");
+        const value = raw ? JSON.parse(raw) : null;
+        if (typeof value === "string" && value) return value;
+    } catch { /* localStorage may be undefined here too. */ }
+    return null;
+}
+
+function applyToken(token: string): void {
+    const mod = authTokenModule();
+    if (typeof mod?.setToken === "function") {
+        mod.setToken(token);
+        return;
+    }
+    const ls = (globalThis as any).localStorage;
+    if (ls) {
+        ls.setItem("token", JSON.stringify(token));
+        return;
+    }
+    throw new Error("No token API is available in this client build.");
+}
+
 const TOKEN_SUFFIXES = [".", "_", "-"];
 /** Token shapes: bot tokens may be dotted, user tokens end in a base64-ish suffix. */
 function looksLikeToken(token: string): boolean {
@@ -142,7 +185,13 @@ async function switchToAccount(entry: AccountEntry & { token?: string }, sendRes
     } catch (e) {
         logger.warn("authState.logout threw", e);
     }
-    localStorage.setItem("token", JSON.stringify(token));
+    try {
+        applyToken(token);
+    } catch (e) {
+        logger.error("applyToken failed", e);
+        sendResult(`Could not apply the new token: ${e instanceof Error ? e.message : String(e)}`);
+        return;
+    }
     sendResult(`Switching to **${entry.name}** (${entry.id}); reloading…`);
     location.assign(location.pathname);
 }
@@ -259,8 +308,7 @@ export default definePlugin({
                             return;
                         }
                         case "whoami": {
-                            const raw = localStorage.getItem("token");
-                            const current = raw ? JSON.parse(raw) : null;
+                            const current = currentToken();
                             if (typeof current !== "string" || !looksLikeToken(current)) {
                                 reply("No usable token found in the client.");
                                 return;
