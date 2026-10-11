@@ -7,8 +7,6 @@
     <meta name="description" content="Your Limey V1 dashboard — account, verification, Limes wallet, build status and more.">
     <link rel="icon" href="/browser/icon.png" type="image/png">
     <link rel="stylesheet" href="/style.css">
-    <!-- Limey Guard PoW SDK — protects the login flow -->
-    <script src="/sdk.js" defer></script>
     <style>
         .dash-wrap { padding: 40px 24px 72px; }
         .dash-header {
@@ -1238,26 +1236,8 @@
     }
 
     /* ---------- boot ---------- */
-    // Limey Guard PoW: the dashboard login (an OAuth redirect a bot could
-    // hammer) is protected by a proof-of-work challenge solved in the
-    // browser before the user is sent to Discord. Token → server state.
-    async function guardProtect() {
-        // Fail-open: Guard is an optional layer. If the SDK didn't load
-        // (e.g. sentinel binary not built on this deploy), log in without
-        // PoW instead of bricking the dashboard.
-        if (typeof LimeyGuard === "undefined" || !LimeyGuard?.protect) return "";
-        try {
-            const g = await LimeyGuard.protect({
-                sentinelUrl: window.location.origin,
-                siteKey: "self",
-                action: "dashboard-login",
-            });
-            if (!g.verified) return null;
-            // state prefix tells the server to validate this PoW token at the
-            // OAuth callback before exchanging the Discord code.
-            return "pow_" + g.token;
-        } catch { return null; }
-    }
+    // Guard removed — login is a plain OAuth redirect.
+    async function guardProtect() { return ""; }
     function wireLogin() {
         $("login-btn").onclick = async () => {
             const btn = $("login-btn");
@@ -1267,10 +1247,7 @@
             btn.disabled = false;
             btn.textContent = btn.dataset.label || "Login with Discord";
             if (state === null) {
-                // Guard IS loaded but the challenge failed — worth a retry.
-                const err = $("login-error");
-                err.textContent = "Human verification failed — please retry.";
-                err.style.display = "block";
+                // Should not happen anymore (guardProtect always "") — defensive no-op.
                 return;
             }
             const redirect = window.location.origin + "/v1/oauth/callback";

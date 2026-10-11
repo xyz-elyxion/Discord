@@ -6,7 +6,6 @@
  * Go toolchain available but no Go module cache warmed for our module paths.
  * This script cross-compiles the two Go helpers that server.js spawns:
  *
- *   sent/sentinel-server   (Limey Guard — PoW anti-bot)
  *   cloud/limeycloud-backend (settings-sync cloud API)
  *
  * Rules:
@@ -28,7 +27,6 @@ const GOOS = process.env.GOHOST_BIN_GOOS || "linux";
 const GOARCH = process.env.GOHOST_BIN_GOARCH || "amd64";
 
 const TARGETS = [
-    { dir: "sent", pkg: "./cmd/server", out: "sentinel-server" },
     { dir: "cloud", pkg: ".", out: "limeycloud-backend" }
 ];
 
