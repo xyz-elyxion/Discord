@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+import { addAudioProcessor, removeAudioProcessor } from "./AudioPlayer";
 import { addProfileBadge, removeProfileBadge } from "@api/Badges";
 import { addChatBarButton, addChatBarButtonWrapper, removeChatBarButton, removeChatBarButtonWrapper } from "@api/ChatButtons";
 import { addChannelToolbarButton, addHeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "./HeaderBar";
@@ -206,6 +207,7 @@ export const startPlugin = traceFunction("startPlugin", function startPlugin(p: 
         name, commands, contextMenus, managedStyle, userProfileBadge,
         onBeforeMessageEdit, onBeforeMessageSend, onMessageClick,
         headerBarButton, chatBarButton, chatBarButtonWrapper,
+        audioProcessor,
         renderMemberListDecorator, renderMessageAccessory, renderMessageDecoration, messagePopoverButton
     } = p;
 
@@ -265,6 +267,7 @@ export const startPlugin = traceFunction("startPlugin", function startPlugin(p: 
             addHeaderBarButton(name, headerBarButton.render, headerBarButton.priority);
         }
     }
+    if (audioProcessor) addAudioProcessor(name, audioProcessor);
     if (renderMemberListDecorator) addMemberListDecorator(name, renderMemberListDecorator);
     if (renderMessageDecoration) addMessageDecoration(name, renderMessageDecoration);
     if (renderMessageAccessory) addMessageAccessory(name, renderMessageAccessory);
@@ -278,6 +281,7 @@ export const stopPlugin = traceFunction("stopPlugin", function stopPlugin(p: Plu
         name, commands, contextMenus, managedStyle, userProfileBadge,
         onBeforeMessageEdit, onBeforeMessageSend, onMessageClick,
         headerBarButton, chatBarButton, chatBarButtonWrapper,
+        audioProcessor,
         renderMemberListDecorator, renderMessageAccessory, renderMessageDecoration, messagePopoverButton
     } = p;
 
@@ -332,6 +336,7 @@ export const stopPlugin = traceFunction("stopPlugin", function stopPlugin(p: Plu
         removeChannelToolbarButton(name);
         removeHeaderBarButton(name);
     }
+    if (audioProcessor) removeAudioProcessor(name);
     if (renderMemberListDecorator) removeMemberListDecorator(name);
     if (renderMessageDecoration) removeMessageDecoration(name);
     if (renderMessageAccessory) removeMessageAccessory(name);
@@ -379,6 +384,7 @@ export const initPluginManager = onlyOnce(function init() {
         if (p.chatBarButton) neededApiPlugins.add("ChatInputButtonAPI");
         if (p.chatBarButtonWrapper) neededApiPlugins.add("ChatInputButtonAPI");
         if (p.headerBarButton) neededApiPlugins.add("HeaderBarAPI");
+        if (p.audioProcessor) neededApiPlugins.add("AudioPlayerAPI");
         if (p.renderMemberListDecorator) neededApiPlugins.add("MemberListDecoratorsAPI");
         if (p.renderMessageAccessory) neededApiPlugins.add("MessageAccessoriesAPI");
         if (p.renderMessageDecoration) neededApiPlugins.add("MessageDecorationsAPI");

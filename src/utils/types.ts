@@ -19,6 +19,7 @@
 import { ProfileBadge } from "@api/Badges";
 import { ChatBarButtonData, ChatBarButtonWrapperData } from "@api/ChatButtons";
 import { HeaderBarButtonData } from "@api/HeaderBar";
+import { AudioProcessor } from "@api/AudioPlayer";
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { MemberListDecoratorFactory } from "@api/MemberListDecorators";
 import { MessageAccessoryFactory } from "@api/MessageAccessories";
@@ -235,6 +236,11 @@ export interface PluginDef {
      * Adds a button to the header bar or channel toolbar. Requires the HeaderBarAPI dependency.
      */
     headerBarButton?: HeaderBarButtonData;
+
+    /**
+     * Registers an audio processor that can modify audio before playback. Requires the AudioPlayerAPI dependency.
+     */
+    audioProcessor?: AudioProcessor;
 
     onMessageClick?: MessageClickListener;
     onBeforeMessageSend?: MessageSendListener;
