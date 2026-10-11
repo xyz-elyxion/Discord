@@ -17,7 +17,8 @@
 */
 
 import { ProfileBadge } from "@api/Badges";
-import { ChatBarButtonData } from "@api/ChatButtons";
+import { ChatBarButtonData, ChatBarButtonWrapperData } from "@api/ChatButtons";
+import { HeaderBarButtonData } from "@api/HeaderBar";
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { MemberListDecoratorFactory } from "@api/MemberListDecorators";
 import { MessageAccessoryFactory } from "@api/MessageAccessories";
@@ -228,6 +229,12 @@ export interface PluginDef {
 
     messagePopoverButton?: MessagePopoverButtonData;
     chatBarButton?: ChatBarButtonData;
+    chatBarButtonWrapper?: ChatBarButtonWrapperData;
+
+    /**
+     * Adds a button to the header bar or channel toolbar. Requires the HeaderBarAPI dependency.
+     */
+    headerBarButton?: HeaderBarButtonData;
 
     onMessageClick?: MessageClickListener;
     onBeforeMessageSend?: MessageSendListener;

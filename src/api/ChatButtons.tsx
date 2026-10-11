@@ -125,6 +125,33 @@ export function _injectButtons(buttons: ReactNode[], props: ChatBarProps) {
 export const addChatBarButton = (id: string, render: ChatBarButtonFactory, icon: IconComponent) => ChatBarButtonMap.set(id, { render, icon });
 export const removeChatBarButton = (id: string) => ChatBarButtonMap.delete(id);
 
+export type ChatBarButtonWrapper = (buttons: ReactNode) => ReactNode;
+
+export interface ChatBarButtonWrapperData {
+    wrapper: ChatBarButtonWrapper;
+    priority: number;
+}
+
+/**
+ * Registry for plugins that need to wrap the entire chat bar button container.
+ * Wrappers are applied in ascending priority order (lower number = outermost wrapper).
+ */
+export const ChatBarButtonWrappers = new Map<string, ChatBarButtonWrapperData>();
+
+export const addChatBarButtonWrapper = (id: string, wrapper: ChatBarButtonWrapper, priority: number = 0) => ChatBarButtonWrappers.set(id, { wrapper, priority });
+export const removeChatBarButtonWrapper = (id: string) => ChatBarButtonWrappers.delete(id);
+
+export function _wrapButtons(buttons: ReactNode) {
+    const sorted = [...ChatBarButtonWrappers.values()]
+        .sort((a, b) => a.priority - b.priority);
+
+    let wrapped = buttons;
+    for (const { wrapper } of sorted) {
+        wrapped = wrapper(wrapped);
+    }
+    return wrapped;
+}
+
 export interface ChatBarButtonProps {
     children: ReactNode;
     tooltip: string;
