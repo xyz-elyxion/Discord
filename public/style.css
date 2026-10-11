@@ -154,20 +154,150 @@ code {
 .nav-links {
     display: flex;
     gap: 6px;
+    align-items: center;
 }
 
 .nav-links a {
-    color: var(--muted-foreground);
+    color: var(--primary);
     text-decoration: none;
     font-size: 0.95rem;
+    font-weight: 500;
     padding: 6px 12px;
     border-radius: 9999px;
-    transition: color 0.15s, background 0.15s;
+    transition: color 0.15s, background 0.15s, filter 0.15s;
 }
 
 .nav-links a:hover {
-    color: var(--foreground);
-    background: var(--accent);
+    color: var(--lime-strong);
+    filter: brightness(1.1);
+    background: rgba(156, 204, 60, 0.08);
+}
+
+.nav-links a[aria-current="page"] {
+    background: rgba(156, 204, 60, 0.12);
+}
+
+/* Mega-dropdown nav (three-column popover style) */
+.nav-drop {
+    position: relative;
+}
+
+.nav-drop > button {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+}
+
+.nav-drop > button:hover,
+.nav-drop[data-open] > button {
+    color: var(--lime-strong);
+    background: rgba(156, 204, 60, 0.08);
+}
+
+.nav-drop > button .caret {
+    transition: transform 0.2s;
+    display: inline-flex;
+}
+
+.nav-drop[data-open] > button .caret {
+    transform: rotate(180deg);
+}
+
+.nav-popover {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 260px;
+    background: #141414;
+    border: 1px solid #262626;
+    border-radius: 14px;
+    padding: 10px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    visibility: hidden;
+    transform-origin: top center;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    translate: -50% 0;
+    z-index: 60;
+}
+
+.nav-drop[data-open] .nav-popover {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.nav-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    color: #d4d4d4;
+    text-decoration: none;
+    position: relative;
+    transition: color 0.15s;
+}
+
+.nav-item:hover {
+    color: #fff;
+}
+
+.nav-item::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    background: #262626;
+    opacity: 0;
+    transform: scale(0.96);
+    transition: opacity 0.15s, transform 0.15s;
+    z-index: -1;
+}
+
+.nav-item:hover::after {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.nav-item svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--primary);
+}
+
+.nav-item .nav-item-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #fafafa;
+}
+
+.nav-item .nav-item-desc {
+    font-size: 0.8rem;
+    color: #737373;
+    line-height: 1.45;
+}
+
+.nav-item:hover .nav-item-desc {
+    color: #a3a3a3;
+}
+
+.nav-popover-divider {
+    height: 1px;
+    background: #262626;
+    margin: 8px 6px;
 }
 
 /* Status banner (bot-driven outage/rate-limit notice) — destructive-muted */
