@@ -19,6 +19,7 @@
         "build": "node --require=./scripts/suppressExperimentalWarnings.js scripts/build/build.mjs",
         "buildStandalone": "pnpm build --standalone",
         "buildWeb": "node --require=./scripts/suppressExperimentalWarnings.js scripts/build/buildWeb.mjs && node scripts/zipExtension.mjs",
+        "buildHost": "node scripts/build/goBinaries.mjs && pnpm buildWeb",
         "buildWebStandalone": "pnpm buildWeb --standalone",
         "buildReporter": "pnpm buildWebStandalone --reporter --skip-extension",
         "buildReporterDesktop": "pnpm build --reporter",

@@ -1,5 +1,6 @@
 dist
 node_modules
+.gocache/
 
 *.exe
 limeyV1_installer
