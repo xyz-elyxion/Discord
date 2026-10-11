@@ -52,3 +52,8 @@ declare module "*.css?managed" {
     const name: string;
     export default name;
 }
+
+declare module "https://*" {
+    const content: any;
+    export default content;
+}
