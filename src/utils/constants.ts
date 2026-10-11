@@ -147,6 +147,22 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         name: "Moowi",
         id: 246128594756173824n
     },
+    zyqunix: {
+        name: "zyqunix",
+        id: 1201415921802170388n
+    },
+    ShadyGoat: {
+        name: "Shady Goat",
+        id: 376079696489742338n
+    },
+    Fafa: {
+        name: "Fafa",
+        id: 428188716641812481n
+    },
+    voidbbg: {
+        name: "voidbbg",
+        id: 117126234588184582n
+    },
     neoarz: {
         name: "neoarz",
         id: 218675193592283137n
