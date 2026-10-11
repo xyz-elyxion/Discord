@@ -17,8 +17,8 @@
 */
 
 import { definePluginSettings } from "@api/Settings";
-import { BackupRestoreIcon, CloudIcon, MainSettingsIcon, PatchHelperIcon, PlaceholderIcon, PluginsIcon, UpdaterIcon, VesktopSettingsIcon } from "@components/Icons";
-import { BackupAndRestoreTab, CloudTab, LimeyV1Tab, PatchHelperTab, PluginsTab, UpdaterTab } from "@components/settings/tabs";
+import { BackupRestoreIcon, ChangelogIcon, CloudIcon, MainSettingsIcon, PatchHelperIcon, PlaceholderIcon, PluginsIcon, UpdaterIcon, VesktopSettingsIcon } from "@components/Icons";
+import { BackupAndRestoreTab, ChangelogTab, CloudTab, LimeyV1Tab, PatchHelperTab, PluginsTab, UpdaterTab } from "@components/settings/tabs";
 import { Devs } from "@utils/constants";
 import { isTruthy } from "@utils/guards";
 import definePlugin, { IconProps, OptionType } from "@utils/types";
@@ -193,6 +193,13 @@ export default definePlugin({
                 panelTitle: "Limey V1 Updater",
                 Component: UpdaterTab,
                 Icon: UpdaterIcon
+            }),
+            buildEntry({
+                key: "limeyV1_changelog",
+                title: "Changelog",
+                panelTitle: "Limey V1 Changelog",
+                Component: ChangelogTab,
+                Icon: ChangelogIcon
             }),
             buildEntry({
                 key: "limeyV1_cloud",

@@ -32,7 +32,7 @@ export * as WebpackPatcher from "./webpack/patchWebpack";
 export { PlainSettings, Settings };
 
 import { enableStyle, initStyles } from "@api/Styles";
-import { openSettingsTabModal, UpdaterTab } from "@components/settings";
+import { ChangelogTab, openSettingsTabModal } from "@components/settings";
 import { debounce } from "@shared/debounce";
 import { StartAt } from "@utils/types";
 import { SettingsRouter } from "@webpack/common";
@@ -127,8 +127,8 @@ async function runUpdateCheck() {
             if (Settings.autoUpdateNotification) {
                 notify({
                     title: "Limey V1 has been updated!",
-                    body: "Click here to restart",
-                    onClick: relaunch
+                    body: "Click here to see what changed",
+                    onClick: () => openSettingsTabModal(ChangelogTab!)
                 });
             }
             return;
@@ -136,8 +136,8 @@ async function runUpdateCheck() {
 
         notify({
             title: "A Limey V1 update is available!",
-            body: "Click here to view the update",
-            onClick: () => openSettingsTabModal(UpdaterTab!)
+            body: "Click here to view the changelog",
+            onClick: () => openSettingsTabModal(ChangelogTab!)
         });
     } catch (err) {
         UpdateLogger.error("Failed to check for updates", err);
