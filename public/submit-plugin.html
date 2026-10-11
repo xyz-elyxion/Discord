@@ -73,6 +73,53 @@
             color: var(--text-dim);
         }
         .login-note a { color: var(--lime); }
+
+        /* Limey Sentinel (self-hosted POW captcha) */
+        .sentinel-root { margin: 4px 0; }
+        .sentinel-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg);
+            cursor: pointer;
+            user-select: none;
+            max-width: 100%;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .sentinel-box:hover { border-color: var(--lime); }
+        .sentinel-box[aria-checked="true"] { border-color: var(--lime); }
+        .sentinel-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            border: 2px solid var(--border);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            color: #1a1a1a;
+            background: transparent;
+            flex: 0 0 18px;
+        }
+        .sentinel-root.is-done .sentinel-check { background: var(--lime); border-color: var(--lime); }
+        .sentinel-root.is-done .sentinel-check::before { content: "✓"; }
+        .sentinel-root.is-busy .sentinel-check {
+            border-radius: 50%;
+            border-top-color: var(--lime);
+            animation: sentinel-spin 0.8s linear infinite;
+        }
+        @keyframes sentinel-spin { to { transform: rotate(360deg); } }
+        .sentinel-label { font-size: 0.95rem; color: var(--text); }
+        .sentinel-status { font-size: 0.8rem; color: var(--text-dim); margin-left: auto; }
+        .sentinel-status.is-error { color: #ff6b6b; }
+        .sentinel-fine {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 6px;
+        }
     </style>
 </head>
 <body>
@@ -133,6 +180,9 @@
                 <label><input type="checkbox" id="hasCommands" name="hasCommands"> Has slash commands</label>
             </div>
             <p class="hint" id="attachNote" style="display:none"></p>
+            <!-- Limey Sentinel — self-hosted POW captcha (no third-party service) -->
+            <div id="sentinelMount"></div>
+            <p class="sentinel-fine">Protected by Limey Sentinel — a proof-of-work human check. Your browser solves a small math puzzle locally; nothing is uploaded, no IP is logged, no third-party captcha service is involved.</p>
             <button class="submit-btn" type="submit" id="submitBtn">Submit plugin</button>
             <p class="msg" id="msg"></p>
             <p class="login-note">Submissions are reviewed manually. Abuse of this form will get your Discord ID blacklisted.</p>
@@ -175,10 +225,38 @@
         </div>
     </footer>
 
+    <script src="/sentinel.js"></script>
     <script>
         const form = document.getElementById("form");
         const msg = document.getElementById("msg");
         const btn = document.getElementById("submitBtn");
+
+        // ---- Limey Sentinel (self-hosted POW captcha) ----
+        // Auto-solves on page load so the puzzle is already done by the time
+        // the user fills the form (the fetch+solve takes ~1-3s on localhost,
+        // far faster than typing). Resets and re-solves on demand after a
+        // failed submission so the user can retry without a full reload.
+        const sentinelState = { payload: null };
+        let sentinelWidget = null;
+
+        function initSentinel() {
+            if (!window.sentinel) return; // script missing offline — form still works
+            const mount = document.getElementById("sentinelMount");
+            sentinelWidget = window.sentinel.attach(mount, {
+                autostart: true,
+                onComplete: res => {
+                    sentinelState.payload = res.payload || null;
+                },
+            });
+        }
+
+        function resetSentinel() {
+            sentinelState.payload = null;
+            try { sentinelWidget?.reset(); } catch { /* ignore */ }
+        }
+
+        // (Run once the DOM is ready — this script is at the end of <body>.)
+        initSentinel();
 
         // Handoff from the /code workshop: prefill name + attach project files
         let stash = null;
@@ -215,6 +293,7 @@
             if (stash && stash.files && typeof stash.files === "object" && Object.keys(stash.files).length) {
                 payload.files = stash.files;
             }
+            if (sentinelState.payload) payload.sentinel = sentinelState.payload;
 
             try {
                 const res = await fetch("/v1/plugins/submit", {
@@ -241,6 +320,9 @@
                         }
                         msg.textContent = "";
                         msg.appendChild(ul);
+                    } else if (res.status === 403 && /sentinel|Human check/i.test(data.error || "")) {
+                        msg.textContent = data.error || "Human check failed — reload the page.";
+                        resetSentinel();
                     } else {
                         msg.textContent = data.error || `Failed (${res.status}).`;
                     }

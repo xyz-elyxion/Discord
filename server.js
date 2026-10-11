@@ -1053,12 +1053,25 @@ try {
 }
 
 // ------------------------------------------------------------------
+// Limey Sentinel — self-hosted proof-of-work captcha (ALTCHA Sentinel
+// inspired), mounted at /v1/sentinel/*. Free, no third-party service.
+// ------------------------------------------------------------------
+let sentinel;
+try {
+    sentinel = require("./sentinel-backend");
+    console.log("[sentinel] backend loaded (pow captcha: " + (process.env.SENTINEL_SECRET ? "env secret" : "process key") + ")");
+} catch (err) {
+    console.error("[sentinel] failed to load backend:", err.message);
+}
+
+// ------------------------------------------------------------------
 // Community Plugin Store backend — user-submitted plugins, mounted at /v1/plugins/*
 // ------------------------------------------------------------------
 let pluginStore;
 try {
     pluginStore = require("./lime-pluginstore-backend");
     if (typeof pluginStore.attachKv === "function") pluginStore.attachKv(kvSet, kvGet);
+    if (sentinel && typeof pluginStore.attachSentinel === "function") pluginStore.attachSentinel(sentinel.verifyPayload);
     console.log("[pluginstore] backend loaded");
 } catch (err) {
     console.error("[pluginstore] failed to load backend:", err.message);
@@ -1829,6 +1842,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url === "/v1" || url.startsWith("/v1/")) {
+        // Limey Sentinel proof-of-work captcha (handled in-process)
+        if (sentinel && url.startsWith("/v1/sentinel/") && await sentinel.handle(req, res, url)) return;
         // Community plugin store (handled in-process)
         if (pluginStore && url.startsWith("/v1/plugins/") && await pluginStore.handle(req, res, url)) return;
         if (await handleStatus(req, res, url)) return;

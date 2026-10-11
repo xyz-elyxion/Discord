@@ -19,6 +19,15 @@ const ROOT = __dirname;
 const DATA_FILE = join(ROOT, "data", "plugin-store.json");
 const ADMIN_TOKEN = process.env.PLUGINSTORE_ADMIN_TOKEN || process.env.USRBG_ADMIN_TOKEN || process.env.ADMIN_TOKEN;
 
+// Limey Sentinel (self-hosted POW captcha) protects the public submit
+// endpoint from bots. server.js injects the optional verify fn; when it can't
+// be loaded the gate is passing through a hard override so the store always
+// stays usable.
+let sentinelVerify = null;
+function attachSentinel(verifyFn) {
+    sentinelVerify = typeof verifyFn === "function" ? verifyFn : null;
+}
+
 // How many plugins one Discord user may have pending at once
 const MAX_PENDING_PER_USER = 3;
 // Hard caps so the store can't be flooded
@@ -142,6 +151,32 @@ function validateSubmission(body) {
     };
 }
 
+// With optional Sentinel enforcement (server.js injects the bound verify fn
+// once the backend exists; when it doesn't, submissions stay allowed so the
+// store degrades gracefully without the captcha module).
+function sentinelPayloadFromBody(body) {
+    if (typeof body !== "object" || body === null) return null;
+    return body.sentinel ?? body.captcha ?? body.st ?? null;
+}
+
+/**
+ * Returns { ok: true } when the payload checks out (or when Sentinel isn't
+ * wired in), or { ok: false, error, httpStatus } describing the rejection.
+ */
+function checkSentinel(body) {
+    if (!sentinelVerify) return { ok: true };
+    const payload = sentinelPayloadFromBody(body);
+    const result = typeof payload === "string" ? sentinelVerify(payload, { consume: true }) : null;
+    if (!result || !result.ok) {
+        return {
+            ok: false,
+            error: "Human check failed — reload the page and try again." + (result && result.error ? " (" + result.error + ")" : ""),
+            httpStatus: 403,
+        };
+    }
+    return { ok: true };
+}
+
 // ---------------------------------------------------------------------------
 // HTTP handling
 // ---------------------------------------------------------------------------
@@ -201,11 +236,26 @@ async function handle(req, res, url) {
         return send(res, 200, { plugins: list }), true;
     }
 
-    // POST /v1/plugins/submit — public submission
+    // POST /v1/plugins/submit — public submission (protected by Limey Sentinel
+    // proof-of-work captcha when the backend is wired in by server.js).
     if (method === "POST" && url === "/v1/plugins/submit") {
-        let body;
-        try { body = JSON.parse((await readBody(req)) || "{}"); } catch {
+        let rawBody;
+        try {
+            rawBody = await readBody(req);
+        } catch {
             return send(res, 400, { error: "Invalid JSON body." }), true;
+        }
+        let body;
+        try { body = JSON.parse(rawBody || "{}"); } catch {
+            return send(res, 400, { error: "Invalid JSON body." }), true;
+        }
+
+        // Limey Sentinel human check — a valid, un-replayed POW payload is
+        // required before the submission is even parsed further.
+        const sentinelCheck = checkSentinel(body);
+        if (!sentinelCheck.ok) {
+            console.log(`[pluginstore] sentinel rejected submission (${sentinelCheck.error || "no payload"})`);
+            return send(res, sentinelCheck.httpStatus || 403, { error: sentinelCheck.error }), true;
         }
 
         const { errors, value } = validateSubmission(body);
@@ -283,4 +333,4 @@ async function handle(req, res, url) {
     return false;
 }
 
-module.exports = { handle, hydrate, attachKv, _db: () => store, slugify, validateSubmission };
+module.exports = { handle, hydrate, attachKv, attachSentinel, _db: () => store, slugify, validateSubmission };
