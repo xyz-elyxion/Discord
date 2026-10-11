@@ -43,6 +43,41 @@ const settings = definePluginSettings({
         description: "Do not log blocked users.",
         default: false
     },
+    friendDirectMessages: {
+        type: OptionType.BOOLEAN,
+        description: "Receive ephemeral messages in your friends' DMs when they join a voice channel.",
+        default: true
+    },
+    friendDirectMessagesShowMembers: {
+        type: OptionType.BOOLEAN,
+        description: "Show a list of other members in the voice channel when receiving a DM notification.",
+        default: true
+    },
+    friendDirectMessagesShowMemberCount: {
+        type: OptionType.BOOLEAN,
+        description: "Show the count of other members in the voice channel when receiving a DM notification.",
+        default: false
+    },
+    friendDirectMessagesSelf: {
+        type: OptionType.BOOLEAN,
+        description: "Receive notifications in your friends' DMs even if you are in the same voice channel as them.",
+        default: false
+    },
+    friendDirectMessagesSilent: {
+        type: OptionType.BOOLEAN,
+        description: "Join messages in your friends' DMs will be silent.",
+        default: false
+    },
+    allowedFriends: {
+        type: OptionType.STRING,
+        description: "Comma or space separated list of friends' user IDs you want to receive join messages from (empty = all friends).",
+        default: ""
+    },
+    ignoredFriends: {
+        type: OptionType.STRING,
+        description: "Comma or space separated list of friends' user IDs you do NOT want to receive join messages from.",
+        default: ""
+    },
     soundboardFileType: {
         type: OptionType.SELECT,
         description: "File format for downloading soundboard sounds.",

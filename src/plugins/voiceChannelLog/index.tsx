@@ -13,6 +13,7 @@ import { ApplicationStore, ChannelStore, Menu, RelationshipStore, SelectedChanne
 
 import { LogIcon, OpenLogsButton } from "./components/LogsButton";
 import { openVoiceChannelLog } from "./components/VoiceChannelLogModal";
+import { handleFriendJoinMessages } from "./friendDms";
 import { addLogEntry, setCallStartTime } from "./logs";
 import settings from "./settings";
 import { EmbeddedActivityEvent, PreviousVoiceState, SoundEvent, VoiceChannelLogEntry, VoiceState } from "./types";
@@ -103,6 +104,8 @@ export default definePlugin({
         },
 
         VOICE_STATE_UPDATES({ voiceStates }: { voiceStates: VoiceState[]; }) {
+            handleFriendJoinMessages(voiceStates);
+
             const clientUserId = UserStore.getCurrentUser().id;
             const suppressJoins = Date.now() - clientJoinedAt < 5000;
 
