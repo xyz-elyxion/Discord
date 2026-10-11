@@ -14,7 +14,7 @@
         .lime-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
 
         .wallet-card {
-            background: var(--surface);
+            background: var(--card);
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 24px 28px;
@@ -29,7 +29,7 @@
         .wallet-meta { color: var(--text-dim); font-size: 0.9rem; }
         .wallet-user { display: flex; flex-direction: column; gap: 4px; }
         .wallet-user input {
-            background: var(--bg-alt);
+            background: var(--card);
             border: 1px solid var(--border);
             border-radius: 8px;
             color: var(--text);
@@ -38,9 +38,9 @@
             width: 220px;
         }
         .btn-lime {
-            background: var(--lime-dark);
+            background: rgba(156, 204, 60, 0.12);
             color: var(--text);
-            border: 1px solid var(--lime-dark);
+            border: 1px solid rgba(156, 204, 60, 0.12);
             border-radius: 8px;
             padding: 8px 18px;
             font-size: 0.95rem;
@@ -52,7 +52,7 @@
 
         .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; padding-bottom: 64px; }
         .tier-card {
-            background: var(--surface);
+            background: var(--card);
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 28px;
@@ -78,7 +78,7 @@
         .tier-actions .btn-lime { flex: 1; }
 
         .earn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 32px 0 64px; }
-        .earn-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+        .earn-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
         .earn-card .amount { color: var(--lime); font-weight: 700; font-size: 1.2rem; }
         .earn-card .label { color: var(--text-dim); font-size: 0.9rem; }
 
@@ -155,7 +155,7 @@
         <div class="wallet-card" style="display:block">
             <label for="donationCode" class="wallet-meta" style="display:block;margin-bottom:8px">Donation code</label>
             <div style="display:flex; gap:12px; align-items:center">
-                <input id="donationCode" placeholder="LIME-XXXXXX-XXXXXX" style="background:var(--bg-alt); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:10px 14px; font-size:1rem; flex:1; font-family:monospace; text-transform:uppercase" />
+                <input id="donationCode" placeholder="LIME-XXXXXX-XXXXXX" style="background:var(--card); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:10px 14px; font-size:1rem; flex:1; font-family:monospace; text-transform:uppercase" />
                 <button class="btn-lime" id="redeemBtn">Redeem</button>
             </div>
             <p id="redeemStatus" class="wallet-meta" style="margin-top:10px"></p>

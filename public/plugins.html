@@ -35,7 +35,7 @@
             padding: 12px 18px;
             border-radius: 10px;
             border: 1px solid var(--border);
-            background: var(--surface);
+            background: var(--card);
             color: var(--text);
             font-size: 1rem;
             outline: none;
@@ -55,26 +55,26 @@
             padding-bottom: 72px;
         }
         .plugin-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
+            background: #171717;
+            border: 1px solid #262626;
+            border-radius: 12px;
             padding: 20px;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            transition: border-color 0.15s, transform 0.15s;
+            transition: border-color 0.15s;
         }
         .plugin-card:hover {
-            border-color: var(--lime-dark);
-            transform: translateY(-2px);
+            border-color: #404040;
         }
         .plugin-card h3 {
-            color: var(--lime);
+            color: #fafafa;
             font-size: 1.05rem;
+            font-weight: 700;
             margin: 0;
         }
         .plugin-card p {
-            color: var(--text-dim);
+            color: #a3a3a3;
             font-size: 0.9rem;
             flex: 1;
         }
@@ -88,7 +88,7 @@
             font-size: 0.72rem;
             padding: 3px 10px;
             border-radius: 999px;
-            background: var(--lime-dark);
+            background: rgba(156, 204, 60, 0.12);
             color: var(--lime);
             text-transform: uppercase;
             letter-spacing: 0.05em;

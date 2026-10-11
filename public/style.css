@@ -7,7 +7,7 @@
 :root {
     --background: #09090b;
     --foreground: #fafafa;
-    --card: #101013;
+    --card: #171717;
     --card-foreground: #fafafa;
     --popover: #101013;
     --popover-foreground: #fafafa;
@@ -21,7 +21,7 @@
     --accent-foreground: #fafafa;
     --destructive: #b91c1c;
     --destructive-foreground: #fef2f2;
-    --border: #27272a;
+    --border: #262626;
     --input: #2a2a2e;
     --ring: #a3e635;
 
@@ -451,7 +451,7 @@ code {
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    background: var(--lime-dark);
+    background: rgba(156, 204, 60, 0.12);
     border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
     color: var(--primary);
     font-weight: 700;
