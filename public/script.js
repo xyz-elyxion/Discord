@@ -43,4 +43,23 @@
             })
             .catch(() => { /* status endpoint unreachable — no banner */ });
     }
+
+    // "Plugin packed" feature — spotlight a random built-in plugin on every visit
+    const featuredName = document.getElementById("featured-plugin-name");
+    const featuredDesc = document.getElementById("featured-plugin-desc");
+    if (featuredName && featuredDesc) {
+        fetch("/plugins.json")
+            .then(res => (res.ok ? res.json() : Promise.reject(new Error(res.status))))
+            .then(plugins => {
+                // Real, user-facing plugins only: named, not required internals
+                const valid = plugins.filter(p =>
+                    p && p.name && p.description && !p.required && !p.filePath.startsWith("_")
+                );
+                if (!valid.length) throw new Error("no plugins");
+                const featured = valid[Math.floor(Math.random() * valid.length)];
+                featuredName.textContent = featured.name;
+                featuredDesc.textContent = featured.description;
+            })
+            .catch(() => { /* keep the static default tile */ });
+    }
 })();

@@ -1,210 +1,304 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Limey V1 — Admin Panel</title>
-<link rel="icon" href="/favicon.ico" />
-<link rel="stylesheet" href="/style.css" />
-<style>
-    body {
-        background: #0d0f13;
-        color: #e6e6e6;
-        font-family: "gg sans", "Segoe UI", system-ui, sans-serif;
-        display: flex;
-        justify-content: center;
-        padding: 48px 16px;
-        min-height: 100vh;
-        margin: 0;
-        box-sizing: border-box;
-    }
-    .panel {
-        width: 100%;
-        max-width: 720px;
-        background: #16181d;
-        border: 1px solid #2a2d34;
-        border-radius: 12px;
-        padding: 32px;
-    }
-    h1 {
-        margin: 0 0 4px;
-        font-size: 24px;
-        color: #9eea6f;
-    }
-    .sub {
-        color: #8b909b;
-        font-size: 14px;
-        margin-bottom: 24px;
-    }
-    .card {
-        background: #1d2026;
-        border: 1px solid #2a2d34;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 16px;
-    }
-    label {
-        display: block;
-        font-size: 13px;
-        color: #b8bdc7;
-        margin: 12px 0 4px;
-    }
-    input, select {
-        width: 100%;
-        box-sizing: border-box;
-        background: #0d0f13;
-        color: #e6e6e6;
-        border: 1px solid #343842;
-        border-radius: 6px;
-        padding: 10px 12px;
-        font-size: 14px;
-    }
-    input:focus, select:focus {
-        outline: none;
-        border-color: #9eea6f;
-    }
-    button {
-        background: #9eea6f;
-        color: #10130a;
-        border: none;
-        border-radius: 6px;
-        padding: 10px 18px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        margin-top: 12px;
-    }
-    button:hover { filter: brightness(1.1); }
-    .msg { margin-top: 12px; font-size: 13px; min-height: 18px; }
-    .msg.err { color: #ff6b6b; }
-    .msg.ok { color: #9eea6f; }
-    .hidden { display: none; }
-    h2 { font-size: 16px; margin: 0 0 8px; }
-    .whoami {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 14px;
-        color: #b8bdc7;
-    }
-    .whoami img {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-    }
-    .logout {
-        background: transparent;
-        color: #ff6b6b;
-        border: 1px solid #ff6b6b;
-        padding: 4px 10px;
-        font-size: 12px;
-        margin: 0 0 0 auto;
-    }
-    /* Limey Sentinel stats card */
-    .sentinel-stats {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
-        margin: 12px 0;
-    }
-    .sentinel-stat {
-        background: #0d0f13;
-        border: 1px solid #343842;
-        border-radius: 6px;
-        padding: 10px 12px;
-    }
-    .sentinel-stat b {
-        display: block;
-        font-size: 20px;
-        color: #9eea6f;
-    }
-    .sentinel-stat span {
-        font-size: 12px;
-        color: #8b909b;
-    }
-    .sentinel-rejects {
-        font-size: 12px;
-        color: #b8bdc7;
-        line-height: 1.7;
-    }
-    .sentinel-rejects em {
-        color: #ff6b6b;
-        font-style: normal;
-    }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limey V1 — Admin Panel</title>
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        /* Page-local layout only — all colors/radii come from the shared tokens */
+        .admin-main {
+            padding: 48px 0 96px;
+        }
+        .admin-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: clamp(1.7rem, 3.5vw, 2.2rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin: 0 0 4px;
+        }
+        .admin-sub {
+            color: var(--muted-foreground);
+            font-size: 0.95rem;
+            margin-bottom: 32px;
+        }
+        .admin-card {
+            margin-bottom: 16px;
+        }
+        .admin-card:last-child {
+            margin-bottom: 0;
+        }
+        .admin-card > h2 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--foreground);
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            margin: 0 0 8px;
+        }
+        .admin-card > .admin-sub {
+            margin: -4px 0 12px;
+        }
+        .admin-card label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--foreground);
+            margin: 12px 0 4px;
+        }
+        .admin-card input,
+        .admin-card select,
+        .admin-card textarea {
+            width: 100%;
+            box-sizing: border-box;
+            background: var(--background);
+            color: var(--foreground);
+            border: 1px solid var(--input);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color 0.15s;
+        }
+        .admin-card textarea {
+            font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+            color: var(--primary);
+        }
+        .admin-card input:focus,
+        .admin-card select:focus,
+        .admin-card textarea:focus {
+            outline: none;
+            border-color: color-mix(in srgb, var(--primary) 60%, var(--input));
+        }
+        .admin-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .msg {
+            margin-top: 12px;
+            font-size: 0.85rem;
+            min-height: 18px;
+        }
+        .msg.err { color: #ff6b6b; }
+        .msg.ok { color: var(--primary); }
+        .hidden { display: none; }
+        .whoami {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            color: var(--muted-foreground);
+        }
+        .whoami img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+        }
+        .whoami .whoami-name {
+            color: var(--foreground);
+            font-weight: 600;
+            margin-right: auto;
+        }
+        /* Limey Sentinel stats */
+        .sentinel-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 12px 0;
+        }
+        @media (max-width: 560px) {
+            .sentinel-stats { grid-template-columns: repeat(2, 1fr); }
+        }
+        .sentinel-stat {
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .sentinel-stat b {
+            display: block;
+            font-size: 1.4rem;
+            color: var(--primary);
+        }
+        .sentinel-stat span {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+        }
+        .sentinel-rejects {
+            font-size: 0.8rem;
+            color: var(--muted-foreground);
+            line-height: 1.7;
+        }
+        .sentinel-rejects em {
+            color: #ff6b6b;
+            font-style: normal;
+        }
+        .usrbg-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 8px;
+        }
+        .usrbg-row .usrbg-id {
+            font-size: 0.8rem;
+            word-break: break-all;
+            color: var(--muted-foreground);
+        }
+        .usrbg-row img {
+            height: 40px;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 <body>
-<div class="panel">
-    <h1>Limey V1 Admin</h1>
-    <p class="sub">Sign in with Discord. Access is restricted to the admin role in the Limey server.</p>
-
-    <div class="card" id="login">
-        <button id="loginbtn">Login with Discord</button>
-        <div class="msg" id="loginmsg"></div>
-    </div>
-
-    <div class="card hidden" id="whoami">
-        <div class="whoami">
-            <img id="meavatar" alt="" />
-            <span id="mename"></span>
-            <button class="logout" id="logoutbtn">Log out</button>
+    <div id="status-banner" class="status-banner hidden"></div>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <a href="/">Site</a>
+                <a href="/admin" aria-current="page">Admin</a>
+            </nav>
         </div>
-    </div>
+    </header>
 
-    <div id="content" class="hidden">
-        <div class="card">
-            <h2>🍋 Limey Sentinel</h2>
-            <p class="sub" style="margin-bottom:4px">Proof-of-work captcha stats. Repeated failed solvers from one IP get harder challenges automatically (3 fails → 4x, 10 → 10x, for 15 min).</p>
-            <div class="sentinel-stats">
-                <div class="sentinel-stat"><b id="stIssued">—</b><span>Challenges issued</span></div>
-                <div class="sentinel-stat"><b id="stSolved">—</b><span>Solved</span></div>
-                <div class="sentinel-stat"><b id="stConsumed">—</b><span>Consumed (submits)</span></div>
-                <div class="sentinel-stat"><b id="stRejected">—</b><span>Rejected</span></div>
-                <div class="sentinel-stat"><b id="stActive">—</b><span>Active (unused) puzzles</span></div>
-                <div class="sentinel-stat"><b id="stWatch">—</b><span>IPs on watchlist</span></div>
+    <main class="admin-main">
+        <div class="container narrow">
+            <h1 class="admin-title">🍋 Admin Panel</h1>
+            <p class="admin-sub">Sign in with Discord. Access is restricted to the admin role in the Limey server.</p>
+
+            <div class="card admin-card" id="login">
+                <button class="btn btn-primary" id="loginbtn">Login with Discord</button>
+                <div class="msg" id="loginmsg"></div>
             </div>
-            <div class="sentinel-rejects" id="stRejects" style="display:none"></div>
-            <button id="sentinelRefresh" style="background:transparent;color:#9eea6f;border:1px solid #343842">Refresh stats</button>
-        </div>
 
-        <div class="card">
-            <h2>Donation codes</h2>
-            <p class="sub" style="margin-bottom:8px">Generate codes for donors. They redeem them at /limes for Limes and/or a perk tier (30 days).</p>
-            <label for="donlimes">Limes (optional)</label>
-            <input type="number" id="donlimes" placeholder="e.g. 1000" min="0" />
-            <label for="dontier">Tier (optional)</label>
-            <select id="dontier">
-                <option value="">None</option>
-                <option value="seedling">Seedling</option>
-                <option value="grove">Grove</option>
-                <option value="orchard">Orchard</option>
-            </select>
-            <label for="doncount">How many</label>
-            <input type="number" id="doncount" value="1" min="1" max="50" />
-            <button id="gendon">Generate codes</button>
-            <div class="msg" id="donmsg"></div>
-            <textarea id="doncodes" rows="4" class="hidden" style="width:100%;margin-top:8px;background:#0d0f13;color:#9eea6f;border:1px solid #343842;border-radius:6px;padding:10px 12px;font-size:13px;font-family:monospace" readonly></textarea>
-        </div>
-
-        <div class="card">
-            <h2>USRBG banners</h2>
-            <p class="sub" style="margin-bottom:8px">Give anyone a custom Discord profile banner without Nitro. Banners set here show up for all Limey V1 users with the USRBG plugin.</p>
-            <label for="usrbgUserId">Discord user ID</label>
-            <input type="text" id="usrbgUserId" inputmode="numeric" placeholder="e.g. 123456789012345678" />
-            <label for="usrbgUrl">Banner image URL</label>
-            <input type="url" id="usrbgUrl" placeholder="https://i.imgur.com/yourimage.png" />
-            <img id="usrbgPreview" alt="" style="display:none;margin-top:10px;max-width:100%;border-radius:8px;border:1px solid #343842;aspect-ratio:600/240;object-fit:cover" />
-            <div>
-                <button id="usrbgSet">Set banner</button>
-                <button id="usrbgRemove" style="background:transparent;color:#ff6b6b;border:1px solid #ff6b6b">Remove banner</button>
-                <button id="usrbgLoad" style="background:transparent;color:#9eea6f;border:1px solid #343842">Load current banners</button>
+            <div class="card admin-card hidden" id="whoami">
+                <div class="whoami">
+                    <img id="meavatar" alt="" />
+                    <span class="whoami-name" id="mename"></span>
+                    <button class="btn btn-secondary" id="logoutbtn">Log out</button>
+                </div>
             </div>
-            <div class="msg" id="usrbgMsg"></div>
-            <div id="usrbgList" style="margin-top:8px"></div>
-        </div>
-    </div>
-</div>
 
+            <div id="content" class="hidden">
+                <div class="card admin-card">
+                    <h2>🍋 Limey Sentinel</h2>
+                    <p class="admin-sub">Proof-of-work captcha stats. Repeated failed solvers from one IP get harder challenges automatically (3 fails → 4x, 10 → 10x, for 15 min).</p>
+                    <div class="sentinel-stats">
+                        <div class="sentinel-stat"><b id="stIssued">—</b><span>Challenges issued</span></div>
+                        <div class="sentinel-stat"><b id="stSolved">—</b><span>Solved</span></div>
+                        <div class="sentinel-stat"><b id="stConsumed">—</b><span>Consumed (submits)</span></div>
+                        <div class="sentinel-stat"><b id="stRejected">—</b><span>Rejected</span></div>
+                        <div class="sentinel-stat"><b id="stActive">—</b><span>Active (unused) puzzles</span></div>
+                        <div class="sentinel-stat"><b id="stWatch">—</b><span>IPs on watchlist</span></div>
+                    </div>
+                    <div class="sentinel-rejects" id="stRejects" style="display:none"></div>
+                    <div class="admin-actions">
+                        <button class="btn btn-ghost" id="sentinelRefresh">Refresh stats</button>
+                    </div>
+                </div>
+
+                <div class="card admin-card">
+                    <h2>Donation codes</h2>
+                    <p class="admin-sub">Generate codes for donors. They redeem them at /limes for Limes and/or a perk tier (30 days).</p>
+                    <label for="donlimes">Limes (optional)</label>
+                    <input type="number" id="donlimes" placeholder="e.g. 1000" min="0" />
+                    <label for="dontier">Tier (optional)</label>
+                    <select id="dontier">
+                        <option value="">None</option>
+                        <option value="seedling">Seedling</option>
+                        <option value="grove">Grove</option>
+                        <option value="orchard">Orchard</option>
+                    </select>
+                    <label for="doncount">How many</label>
+                    <input type="number" id="doncount" value="1" min="1" max="50" />
+                    <div class="admin-actions">
+                        <button class="btn btn-primary" id="gendon">Generate codes</button>
+                    </div>
+                    <div class="msg" id="donmsg"></div>
+                    <textarea id="doncodes" rows="4" class="hidden" readonly></textarea>
+                </div>
+
+                <div class="card admin-card">
+                    <h2>USRBG banners</h2>
+                    <p class="admin-sub">Give anyone a custom Discord profile banner without Nitro. Banners set here show up for all Limey V1 users with the USRBG plugin.</p>
+                    <label for="usrbgUserId">Discord user ID</label>
+                    <input type="text" id="usrbgUserId" inputmode="numeric" placeholder="e.g. 123456789012345678" />
+                    <label for="usrbgUrl">Banner image URL</label>
+                    <input type="url" id="usrbgUrl" placeholder="https://i.imgur.com/yourimage.png" />
+                    <img id="usrbgPreview" alt="" style="display:none;margin-top:10px;max-width:100%;border-radius:8px;border:1px solid var(--border);aspect-ratio:600/240;object-fit:cover" />
+                    <div class="admin-actions">
+                        <button class="btn btn-primary" id="usrbgSet">Set banner</button>
+                        <button class="btn btn-ghost" id="usrbgLoad">Load current banners</button>
+                        <button class="btn btn-ghost" id="usrbgRemove" style="color:#ff6b6b">Remove banner</button>
+                    </div>
+                    <div class="msg" id="usrbgMsg"></div>
+                    <div id="usrbgList" style="margin-top:8px"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-bottom">
+                    <div class="footer-copy">
+                        <div>&copy; <span class="footer-year">2026</span> Limey V1</div>
+                        <div>Admin area — restricted access</div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+    (function () {
+        var drops = document.querySelectorAll('.nav-drop');
+        function closeAll(except) {
+            drops.forEach(function (d) {
+                if (d !== except) {
+                    d.removeAttribute('data-open');
+                    var b = d.querySelector('button');
+                    if (b) b.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+        drops.forEach(function (d) {
+            var btn = d.querySelector('button');
+            if (!btn) return;
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var open = d.hasAttribute('data-open');
+                closeAll(d);
+                if (open) d.removeAttribute('data-open'); else d.setAttribute('data-open', '');
+                btn.setAttribute('aria-expanded', String(!open));
+            });
+        });
+        document.addEventListener('click', function () { closeAll(null); });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeAll(null);
+        });
+
+        var footerYear = document.querySelector(".footer-year");
+        if (footerYear) footerYear.textContent = new Date().getFullYear();
+    })();
+    </script>
 <script>
     const SESSION_KEY = "limey-admin-session";
 
@@ -266,20 +360,20 @@
             return uShow("❌ Failed to load banners (" + status + ").", false);
         }
         const entries = Object.entries(data);
-        if (!entries.length) { list.innerHTML = '<p class="sub">No banners set yet.</p>'; return; }
+        if (!entries.length) { list.innerHTML = '<p class="msg">No banners set yet.</p>'; return; }
         list.innerHTML = "";
         for (const [id, entry] of entries) {
             const row = document.createElement("div");
-            row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;background:#0d0f13;border:1px solid #343842;border-radius:6px;padding:8px 12px;margin-bottom:8px";
+            row.className = "usrbg-row";
             const name = document.createElement("span");
             name.textContent = id;
-            name.style.cssText = "font-size:13px;word-break:break-all";
+            name.className = "usrbg-id";
             const img = document.createElement("img");
             img.src = entry.url; img.loading = "lazy"; img.onerror = () => img.remove();
-            img.style.cssText = "height:40px;border-radius:4px";
             const del = document.createElement("button");
             del.textContent = "Remove";
-            del.style.cssText = "background:transparent;color:#ff6b6b;border:1px solid #ff6b6b;padding:4px 10px;font-size:12px;margin:0";
+            del.className = "btn btn-ghost";
+            del.style.cssText = "color:#ff6b6b;padding:4px 10px;font-size:0.75rem";
             del.onclick = async () => {
                 document.getElementById("usrbgUserId").value = id;
                 await usrbgRemove();

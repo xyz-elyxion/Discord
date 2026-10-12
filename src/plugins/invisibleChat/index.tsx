@@ -132,9 +132,6 @@ export async function buildEmbed(message: any, revealed: string): Promise<void> 
         rawTitle: "Decrypted Message",
         color: "#45f5f5",
         rawDescription: revealed,
-        footer: {
-            text: "Made with ❤️ by c0dine and Sammy!",
-        },
     });
 
     if (urlCheck?.length) {
