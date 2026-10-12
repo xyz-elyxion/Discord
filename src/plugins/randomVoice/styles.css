@@ -1,0 +1,15 @@
+.lime-random-voice-record {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.lime-random-voice-keybind {
+    color: "var(--text-muted)"
+}
+
+.lime-random-voice-recording {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}

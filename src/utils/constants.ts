@@ -749,6 +749,10 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         name: "omaw",
         id: 1155026301791514655n
     },
+    xijexo: {
+        name: "xijexo",
+        id: 1284113557201620995n
+    },
     justjxke: {
         name: "justjxke",
         id: 852558183087472640n
@@ -848,6 +852,18 @@ export const Devs = /* #__PURE__*/ Object.freeze({
     Reycko: {
         name: "Reycko",
         id: 1123725368004726794n
+    },
+    mmeta: {
+        name: "mmeta",
+        id: 297075664530440192n
+    },
+    MrDiamond: {
+        name: "MrDiamond",
+        id: 523338295644782592n
+    },
+    keircn: {
+        name: "Key",
+        id: 1230319937155760131n
     },
     NassCT: {
         name: "NassCT",
