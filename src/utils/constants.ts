@@ -789,6 +789,26 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         name: "Buzzy",
         id: 1273353654644117585n
     },
+    soapphia: {
+        name: "soap phia",
+        id: 1012095822957133976n
+    },
+    sketchmyname: {
+        name: "sketchmyname",
+        id: 1412164910443663491n
+    },
+    dka: {
+        name: "DKA",
+        id: 119386840624005121n
+    },
+    heart_menace: {
+        name: "heart_menace",
+        id: 281162701303185408n
+    },
+    TheArmagan: {
+        name: "TheArmagan",
+        id: 707309693449535599n
+    },
     benjii: {
         name: "Benjii",
         id: 463702169443368970n
