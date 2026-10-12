@@ -44,6 +44,25 @@ function Icon({ height = 24, width = 24, className, children, viewBox, ...svgPro
 }
 
 /**
+ * Fire/Flame icon (Material Design "local_fire_department"-like shape), used e.g. by the Streaks plugin badge
+ */
+export function FireIcon(props: IconProps) {
+    return (
+        <Icon
+            {...props}
+            className={classes(props.className, "vc-fire-icon")}
+            viewBox="0 0 24 24"
+        >
+            <path
+                fill="currentColor"
+                d="M13.5 0.67S14.73 7.33 9.68 12.38C7.54 14.52 6 15.62 6 18.5C6 21.54 8.46 24 11.5 24C14.54 24 17 21.54 17 18.5C17 17.7 16.85 16.93 16.57 16.21C15.5 17.7 13.62 18.5 13.62 18.5C13.62 18.5 15.56 16.03 14.8 13.12C13.35 10.86 11.5 9.38 11.5 9.38C11.5 9.38 12.68 12.72 10.79 14.55C9.53 15.77 8.71 16.22 8.71 16.22C8.71 16.22 9.05 13.9 7.83 11.59C7.17 10.35 6.39 9.45 5.87 8.15C4.84 5.5 5.9 2.42 5.9 2.42S6.39 5.3 8.42 6.5C9.42 7.09 10.5 8.3 10.5 8.3S10.51 4.3 13.5 0.67Z"
+                transform="translate(-2, 0)"
+            />
+        </Icon>
+    );
+}
+
+/**
  * Discord's link icon, as seen in the Message context menu "Copy Message Link" option
  */
 export function LinkIcon({ height = 24, width = 24, className }: IconProps) {
