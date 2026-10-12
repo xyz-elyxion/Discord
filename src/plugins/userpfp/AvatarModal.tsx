@@ -9,8 +9,7 @@ import { Heading } from "@components/Heading";
 import { Margins } from "@components/margins";
 import { classNameFactory } from "@utils/css";
 import type { RenderModalProps } from "@limeyV1/discord-types";
-import { IconUtils, Modal, TextInput, showToast, UserStore } from "@webpack/common";
-import React, { useState } from "react";
+import { IconUtils, Modal, React, TextInput, showToast, UserStore, useRef, useState } from "@webpack/common";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { data, KEY_DATASTORE } from ".";
