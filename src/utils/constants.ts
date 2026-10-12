@@ -832,6 +832,18 @@ export const Devs = /* #__PURE__*/ Object.freeze({
     yash: {
         name: "yash",
         id: 889150838658977874n
+    },
+    Cortex: {
+        name: "Cortex",
+        id: 913205935319691335n
+    },
+    Synth: {
+        name: "synthxcx",
+        id: 1116836557396119613n
+    },
+    vei: {
+        name: "Vei",
+        id: 239414094799699968n
     }
 } satisfies Record<string, Dev>);
 
