@@ -1,0 +1,60 @@
+/*
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2026 Limey V1 contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import "./style.css";
+
+import ErrorBoundary from "@components/ErrorBoundary";
+import { Devs } from "@utils/constants";
+import { UserStore } from "@webpack/common";
+import definePlugin from "@utils/types";
+
+import { useAuthorizationStore } from "./lib/stores/AuthorizationStore";
+import { useSongStore } from "./lib/stores/SongStore";
+import settings from "./settings";
+import ProfileSongs from "./ui/songs/ProfileSongs";
+import WidgetSongs from "./ui/songs/WidgetSongs";
+
+export default definePlugin({
+    name: "SongSpotlight",
+    description: "Show off songs on your profile",
+    dependencies: ["ProfileSectionsAPI"],
+    tags: ["Appearance", "Media"],
+    authors: [Devs.Nexpid],
+    settings,
+    patches: [
+        // Full profile modal sections (lazy loaded)
+        {
+            find: ".MUTUAL_GUILDS})),",
+            replacement: {
+                match: /(\i).push\({text.{0,50}.ACTIVITY\}\),/,
+                replace: '$&$1.push({text:"Song Spotlight",section:"SONG_SPOTLIGHT"}),',
+            },
+        },
+        {
+            find: ".hasUnsavedChanges()&&",
+            replacement: {
+                match: /({user:(\i),.{0,80}return (\i===))/,
+                replace: '$1"SONG_SPOTLIGHT"?$self.renderWidgetSongs({user:$2}):$3',
+            },
+        },
+    ],
+
+    flux: {
+        CONNECTION_OPEN: () => {
+            useSongStore.getState().$refresh();
+        },
+    },
+    start() {
+        useSongStore.getState().$refresh();
+        useAuthorizationStore.persist.rehydrate();
+    },
+
+    renderProfileSection: {
+        render: ({ userId, isSideBar }) => <ProfileSongs user={UserStore.getUser(userId)} isSideBar={isSideBar} />,
+        priority: 0,
+    },
+    renderWidgetSongs: ErrorBoundary.wrap(WidgetSongs, { noop: true }),
+});

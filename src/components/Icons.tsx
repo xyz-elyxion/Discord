@@ -63,6 +63,24 @@ export function FireIcon(props: IconProps) {
 }
 
 /**
+ * Headphones icon (Material Design shape), used e.g. by the SongLink plugin
+ */
+export function HeadphonesIcon(props: IconProps) {
+    return (
+        <Icon
+            {...props}
+            className={classes(props.className, "vc-headphones-icon")}
+            viewBox="0 0 24 24"
+        >
+            <path
+                fill="currentColor"
+                d="M12 3a9 9 0 0 0-9 9v6a3 3 0 0 0 3 3h2v-8H6v-1a6 6 0 1 1 12 0v1h-2v8h2a3 3 0 0 0 3-3v-6a9 9 0 0 0-9-9m-6 12h1v4H6a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1m13 3a1 1 0 0 1-1 1h-1v-4h1a1 1 0 0 1 1 1z"
+            />
+        </Icon>
+    );
+}
+
+/**
  * Discord's link icon, as seen in the Message context menu "Copy Message Link" option
  */
 export function LinkIcon({ height = 24, width = 24, className }: IconProps) {
