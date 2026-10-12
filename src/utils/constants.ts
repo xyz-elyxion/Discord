@@ -809,6 +809,14 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         name: "TheArmagan",
         id: 707309693449535599n
     },
+    VillainsRule: {
+        name: "VillainsRule",
+        id: 0n
+    },
+    yonn2222: {
+        name: "yonn2222",
+        id: 821835831844012103n
+    },
     benjii: {
         name: "Benjii",
         id: 463702169443368970n
