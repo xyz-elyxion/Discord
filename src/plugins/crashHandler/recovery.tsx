@@ -456,7 +456,25 @@ function mountOverlay() {
     background: #c42b1c;
     color: #ffffff;
 }
-        `;
+@keyframes vc-recovery-dot {
+    0% { opacity: .15; transform: scale(.7); }
+    35% { opacity: 1; transform: scale(1); }
+    70% { opacity: .15; transform: scale(.7); }
+    100% { opacity: .15; transform: scale(.7); }
+}
+@keyframes vc-recovery-fade-in {
+    from { opacity: 0; transform: scale(.97); }
+    to { opacity: 1; transform: scale(1); }
+}
+@keyframes vc-recovery-glow {
+    0% { opacity: .5; }
+    50% { opacity: 1; }
+    100% { opacity: .5; }
+}
+#${OVERLAY_HOST_ID} .vc-recovery-window {
+    animation: vc-recovery-fade-in .28s ease both;
+}
+`;
         document.head.appendChild(style);
     }
     const container = document.createElement("div");
@@ -743,6 +761,69 @@ const ICONS = {
     lock: "M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6z",
     close: "M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
 };
+
+function WindowsLogo({ size = 72 }: { size?: number; }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 100 100"
+            fill="#ffffff"
+            aria-hidden="true"
+        >
+            <rect x="2" y="2" width="45" height="45" rx="4" />
+            <rect x="53" y="2" width="45" height="45" rx="4" />
+            <rect x="2" y="53" width="45" height="45" rx="4" />
+            <rect x="53" y="53" width="45" height="45" rx="4" />
+        </svg>
+    );
+}
+
+const BOOT_DURATION_MS = 2_000;
+
+const splashSpinnerStyle: React.CSSProperties = {
+    position: "relative",
+    width: 64,
+    height: 64
+};
+
+/** WinRE-style boot splash: Windows logo + spinning dots + status line */
+function BootSplash() {
+    return (
+        <div style={{ ...backdropStyle, flexDirection: "column", gap: 30 }}>
+            <div style={{ animation: "vc-recovery-glow 2s ease-in-out infinite" }}>
+                <WindowsLogo />
+            </div>
+            <div style={splashSpinnerStyle} aria-label="Loading">
+                {[0, 1, 2, 3, 4, 5].map(i => (
+                    <div
+                        key={i}
+                        style={{
+                            position: "absolute",
+                            top: "50%",
+                            left: "50%",
+                            width: 8,
+                            height: 8,
+                            marginLeft: -4,
+                            marginTop: -4,
+                            borderRadius: 4,
+                            background: "#ffffff",
+                            transform: `rotate(${i * 60}deg) translateY(-24px)`,
+                            animation: `vc-recovery-dot 1.2s linear ${-(i * 0.2)}s infinite`
+                        }}
+                    />
+                ))}
+            </div>
+            <div style={{
+                color: "rgba(255, 255, 255, .92)",
+                fontSize: 15,
+                letterSpacing: ".2px"
+            }}>
+                Preparing Recovery Mode…
+            </div>
+        </div>
+    );
+}
 
 /* ------------------------------------------- screens -------------------------------------------- */
 
@@ -1126,7 +1207,14 @@ function BackTile({ onBack }: { onBack: () => void; }) {
 }
 
 function RecoveryScreen() {
+    const [booted, setBooted] = React.useState(false);
     const [screen, setScreen] = React.useState<WinreScreen>("choose");
+
+    // Windows-style boot sequence: spinner splash first, then the menu fades in
+    React.useEffect(() => {
+        const timer = setTimeout(() => setBooted(true), BOOT_DURATION_MS);
+        return () => clearTimeout(timer);
+    }, []);
 
     const titles: Record<WinreScreen, string> = {
         choose: "Choose an option",
@@ -1151,9 +1239,11 @@ function RecoveryScreen() {
                         : screen === "history" ? <HistoryScreen open={s => setScreen(s)} />
                             : <ReportScreen open={s => setScreen(s)} />;
 
+    if (!booted) return <BootSplash />;
+
     return (
         <div style={backdropStyle}>
-            <div style={windowStyle}>
+            <div className="vc-recovery-window" style={windowStyle}>
                 <div style={titleBarStyle}>
                     <span style={{ fontSize: 13, color: "#1b1b1b" }}>Recovery</span>
                     <button
