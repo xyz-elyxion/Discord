@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { getMimeFromExtension } from "./mime";
+import { getMimeFromExtension } from "../fileUpload/utils/getMediaUrl";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { insertTextIntoChatInputBox } from "@utils/discord";
 import { CloudUploadPlatform } from "@limeyV1/discord-types/enums";
