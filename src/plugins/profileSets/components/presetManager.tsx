@@ -1,13 +1,12 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2026 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2026 Limey V1 contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import { Button } from "@components/Button";
 import { Heading } from "@components/Heading";
 import { classes } from "@utils/misc";
-import { findComponentByCodeLazy } from "@webpack";
 import { openModal, React, SelectedGuildStore, TextInput, useStateFromStores } from "@webpack/common";
 
 import { cl, settings } from "../index";
@@ -18,8 +17,6 @@ import { ImportProfilesModal } from "./confirmModal";
 import { PresetList } from "./presetList";
 
 const PRESETS_PER_PAGE = 5;
-
-const ManaButton = findComponentByCodeLazy('"data-mana-component":"button"');
 
 type PresetManagerProps = {
     section?: PresetSection;
@@ -37,21 +34,17 @@ export function PresetManager({ section, guildId }: PresetManagerProps) {
     const lastRandomIndexRef = React.useRef<number>(-1);
     const resolvedSection: PresetSection = section ?? "main";
     const isServerSection = resolvedSection === "server";
-    const { useBasePresetsForServerProfiles } = settings.use(["useBasePresetsForServerProfiles"]);
     const lastSelectedGuildId = useStateFromStores(
         [SelectedGuildStore],
         () => SelectedGuildStore.getLastSelectedGuildId() ?? SelectedGuildStore.getGuildId()
     );
     const resolvedGuildId = isServerSection ? (guildId ?? lastSelectedGuildId ?? undefined) : undefined;
     const canUseGuild = !isServerSection || Boolean(resolvedGuildId);
-    const storageSection: PresetSection = isServerSection && useBasePresetsForServerProfiles
-        ? "main"
-        : resolvedSection;
 
     React.useEffect(() => {
         let isActive = true;
         (async () => {
-            await loadPresets(storageSection);
+            await loadPresets(resolvedSection);
             if (!isActive) return;
             setSelectedPreset(-1);
             setCurrentPage(1);
@@ -61,7 +54,7 @@ export function PresetManager({ section, guildId }: PresetManagerProps) {
         return () => {
             isActive = false;
         };
-    }, [resolvedGuildId, resolvedSection, storageSection]);
+    }, [resolvedGuildId, resolvedSection]);
 
     const filteredPresets = !searchMode
         ? presets
@@ -83,9 +76,7 @@ export function PresetManager({ section, guildId }: PresetManagerProps) {
         const trimmedName = presetName.trim();
         if (!trimmedName) return;
         setIsSaving(true);
-        await savePreset(trimmedName, storageSection, resolvedGuildId, {
-            isGuildProfile: isServerSection
-        });
+        await savePreset(trimmedName, resolvedSection, resolvedGuildId);
         setPresetName("");
         setIsSaving(false);
         const newTotalPages = Math.ceil(presets.length / PRESETS_PER_PAGE);
@@ -187,6 +178,29 @@ export function PresetManager({ section, guildId }: PresetManagerProps) {
                         {searchMode ? "Cancel Search" : "Search"}
                     </Button>
                 )}
+                <Button
+                    size="small"
+                    variant="secondary"
+                    onClick={handleRandomPreset}
+                    disabled={!presets.length || !canUseGuild}
+                >
+                    Random
+                </Button>
+                <Button
+                    size="small"
+                    variant="secondary"
+                    onClick={() => importPresets(forceUpdate, showImportPrompt, resolvedSection, resolvedGuildId)}
+                    disabled={!canUseGuild}
+                >
+                    Import
+                </Button>
+                <Button
+                    size="small"
+                    variant="secondary"
+                    onClick={() => exportPresets(resolvedSection)}
+                >
+                    Export All
+                </Button>
             </div>
 
             {hasPresets && (
@@ -207,8 +221,7 @@ export function PresetManager({ section, guildId }: PresetManagerProps) {
                             forceUpdate();
                         }}
                         guildId={resolvedGuildId}
-                        isGuildProfile={isServerSection}
-                        section={storageSection}
+                        section={resolvedSection}
                         currentPage={currentPage}
                         onPageChange={handlePageChange}
                     />
@@ -255,32 +268,6 @@ export function PresetManager({ section, guildId }: PresetManagerProps) {
                     <hr className={cl("block")} />
                 </>
             )}
-
-            <div className={cl("import")}>
-                <ManaButton
-                    size="sm"
-                    variant="expressive"
-                    onClick={handleRandomPreset}
-                    className={cl("random")}
-                    disabled={!presets.length || !canUseGuild}
-                    text="Random"
-                />
-                <Button
-                    size="small"
-                    variant="secondary"
-                    onClick={() => importPresets(forceUpdate, showImportPrompt, storageSection, resolvedGuildId)}
-                    disabled={!canUseGuild}
-                >
-                    Import
-                </Button>
-                <Button
-                    size="small"
-                    variant="secondary"
-                    onClick={() => exportPresets(storageSection)}
-                >
-                    Export All
-                </Button>
-            </div>
             <hr className={cl("block")} />
             {resolvedSection === "server" && (
                 <hr className={cl("block")} />

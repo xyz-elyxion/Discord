@@ -535,6 +535,20 @@ export function PluginsIcon(props: IconProps) {
     );
 }
 
+export function UserIcon(props: IconProps) {
+    return (
+        <Icon
+            {...props}
+            viewBox="0 0 24 24"
+        >
+            <path
+                fill={props.fill || "currentColor"}
+                d="M12 2a5 5 0 1 1 .001 10.001A5 5 0 0 1 12 2zM3.5 20.7919C3.5 17.3728 6.34953 15.1 11.99 15.1C17.6425 15.1 20.5179 17.3756 20.5885 20.79C20.591 20.9066 20.495 21 20.38 21H3.7C3.58105 21 3.48799 20.9076 3.50001 20.7919Z"
+            />
+        </Icon>
+    );
+}
+
 export function CloudIcon(props: IconProps) {
     return (
         <Icon

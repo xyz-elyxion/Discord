@@ -1,15 +1,13 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2026 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2026 Limey V1 contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import { getUserSettingLazy } from "@api/UserSettings";
 import { AvatarDecorationData, CustomStatus, DisplayNameStyles, Nameplate, ProfileEffect, ProfilePreset } from "@limeyV1/discord-types";
-import { findStoreLazy } from "@webpack";
-import { FluxDispatcher, GuildMemberStore, IconUtils, UserProfileStore, UserStore } from "@webpack/common";
+import { FluxDispatcher, GuildMemberStore, IconUtils, UserProfileSettingsStore, UserProfileStore, UserStore } from "@webpack/common";
 
-const UserProfileSettingsStore = findStoreLazy("UserProfileSettingsStore");
 const CustomStatusSettings = getUserSettingLazy("status", "customStatus")!;
 
 type PendingChanges = Record<string, unknown> & {
@@ -28,7 +26,7 @@ type PendingChanges = Record<string, unknown> & {
     pendingPrimaryGuildId?: string | null;
 };
 
-type ImageInput = string | { imageUri: string; [key: string]: unknown; } | null | undefined;
+type ImageInput = string | { imageUri: string;[key: string]: unknown; } | null | undefined;
 type AvatarDecorationLike = AvatarDecorationData & {
     label?: string;
     type?: number;
@@ -62,9 +60,17 @@ function openProfileImagePreview(
     image: Extract<ImageInput, { imageUri: string; }>,
     guildId?: string
 ) {
+    const mimeType = /^data:([^;,]+)/.exec(image.imageUri)?.[1] ?? "";
     dispatch("PROFILE_CUSTOMIZATION_OPEN_PREVIEW_MODAL", {
-        image,
-        file: {},
+        pendingImage: {
+            assetOrigin: "NEW_ASSET",
+            imageUri: image.imageUri,
+            staticImageUri: undefined,
+            description: image.description,
+            originalAsset: undefined,
+            originalMd5: null
+        },
+        file: { type: mimeType },
         uploadType,
         guildId,
         analyticsSource: guildId ? "user settings guild profile" : "user settings user profile",

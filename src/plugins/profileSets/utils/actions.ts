@@ -1,26 +1,23 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2026 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2026 Limey V1 contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import { isNonNullish } from "@utils/guards";
 import { ProfilePreset } from "@limeyV1/discord-types";
-import { findStoreLazy } from "@webpack";
-import { showToast, Toasts } from "@webpack/common";
+import { showToast, UserProfileSettingsStore } from "@webpack/common";
 
 import { getCurrentProfile } from "./profile";
 import { addPreset, movePresetInArray, presets, PresetSection, type ProfilePresetEx, removePreset, replaceAllPresets, savePresetsData, updatePreset } from "./storage";
 
-const UserProfileSettingsStore = findStoreLazy("UserProfileSettingsStore");
-
 function isImageInput(value: unknown): value is string | { imageUri: string; } {
     if (typeof value === "string") return value.length > 0;
-    return typeof value === "object" && isNonNullish(value) && "imageUri" in value && typeof (value as { imageUri: unknown }).imageUri === "string";
+    return typeof value === "object" && isNonNullish(value) && "imageUri" in value && typeof (value as { imageUri: unknown; }).imageUri === "string";
 }
 
-function getFreshPendingAvatar(isGuildProfile: boolean, guildId?: string): string | null {
-    const pending = (isGuildProfile && guildId
+function getFreshPendingAvatar(section: PresetSection, guildId?: string): string | null {
+    const pending = (section === "server" && guildId
         ? UserProfileSettingsStore.getPendingChanges?.(guildId)
         : UserProfileSettingsStore.getPendingChanges?.()) ?? {};
     const pendingObj = pending as Record<string, unknown>;
@@ -29,15 +26,9 @@ function getFreshPendingAvatar(isGuildProfile: boolean, guildId?: string): strin
     return typeof selected === "string" ? selected : selected.imageUri;
 }
 
-export async function savePreset(
-    name: string,
-    section: PresetSection,
-    guildId?: string,
-    options: { isGuildProfile?: boolean; } = {}
-) {
-    const isGuildProfile = options.isGuildProfile ?? section === "server";
-    const profile = await getCurrentProfile(guildId, { isGuildProfile });
-    const freshPendingAvatar = getFreshPendingAvatar(isGuildProfile, guildId);
+export async function savePreset(name: string, section: PresetSection, guildId?: string) {
+    const profile = await getCurrentProfile(guildId, { isGuildProfile: section === "server" });
+    const freshPendingAvatar = getFreshPendingAvatar(section, guildId);
     const effectiveAvatar = freshPendingAvatar ?? profile.avatarDataUrl ?? null;
 
     const newPreset: ProfilePresetEx = {
@@ -142,7 +133,7 @@ export async function importPresets(
             await savePresetsData(section);
             forceUpdate();
         } catch {
-            showToast("Failed to import presets. The file might be invalid.", Toasts.Type.FAILURE);
+            showToast("Failed to import presets. The file might be invalid.", "failure");
         }
     };
     input.click();

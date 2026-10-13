@@ -1,6 +1,6 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2026 Vendicated and contributors
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2026 Limey V1 contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -22,7 +22,6 @@ interface PresetListProps {
     onLoad: (index: number) => void;
     onUpdate: () => void;
     guildId?: string;
-    isGuildProfile: boolean;
     section: PresetSection;
     currentPage: number;
     onPageChange: (page: number) => void;
@@ -36,7 +35,6 @@ export function PresetList({
     onLoad,
     onUpdate,
     guildId,
-    isGuildProfile,
     section,
     currentPage,
     onPageChange
@@ -44,6 +42,7 @@ export function PresetList({
     type EditableProfile = Omit<ProfilePreset, "name" | "timestamp">;
     const [renaming, setRenaming] = React.useState<number>(-1);
     const [renameText, setRenameText] = React.useState("");
+    const isGuildProfile = section === "server";
 
     return (
         <div className={cl("list-container")}>
@@ -163,7 +162,7 @@ export function PresetList({
                                                     onUpdate();
                                                 }}
                                             />
-                                            {showMoveOptions && <Menu.MenuSeparator />}
+                                            <Menu.MenuSeparator />
                                             {actualIndex > 0 && (
                                                 <Menu.MenuItem
                                                     id="move-up"
@@ -195,7 +194,7 @@ export function PresetList({
                                                     }}
                                                 />
                                             )}
-                                            <Menu.MenuSeparator />
+                                            {showMoveOptions && <Menu.MenuSeparator />}
                                             <Menu.MenuItem
                                                 id="delete"
                                                 label="Delete"
