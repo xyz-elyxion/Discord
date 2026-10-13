@@ -1006,12 +1006,6 @@ function TroubleshootScreen({ open }: { open: (s: WinreScreen) => void; }) {
             label: "Recovery History",
             sublabel: "See the last 50 recovery events on this device",
             action: () => open("history")
-        },
-        {
-            icon: ICONS.report,
-            label: "Privacy & Diagnostics",
-            sublabel: "Inspect the diagnostic report — it stays on your device until you copy it",
-            action: () => open("report")
         }
     ];
 
@@ -1027,6 +1021,7 @@ function TroubleshootScreen({ open }: { open: (s: WinreScreen) => void; }) {
             <div style={listStyle}>
                 {options.map((o, i) => <WinreTile key={o.label} index={i} option={o} />)}
             </div>
+            <BackTile onBack={() => open("choose")} />
         </>
     );
 }
