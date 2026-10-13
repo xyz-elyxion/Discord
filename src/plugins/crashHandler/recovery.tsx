@@ -7,8 +7,6 @@
 import { DataStore } from "@api/index";
 import { onPluginStartFailure, pluginRequiresRestart, plugins as Plugins, startPlugin, stopPlugin } from "@api/PluginManager";
 import { Settings } from "@api/Settings";
-import { BaseText } from "@components/BaseText";
-import { Button } from "@components/Button";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { onceReady } from "@webpack";
 import { createRoot, React } from "@webpack/common";
@@ -22,10 +20,11 @@ const logger = new Logger("CrashRecovery");
 
 /*
  * Recovery Mode: crash-loop protection, last-known-good plugin snapshots, plugin quarantine,
- * diagnostics, and the floating recovery panel that opens over Discord's crash screen
- * ("Well, this is awkward..."). Everything persists in the local DataStore only — recovery is
- * fully offline, and nothing is ever uploaded or shared automatically (see buildReport and the
- * built-in Privacy Controls).
+ * diagnostics, and the recovery screen that opens over Discord's crash screen
+ * ("Well, this is awkward..."). The screen mimics Windows 11's Recovery (blue backdrop,
+ * "Recovery" window, numbered options, keyboard selection). Everything persists in the local
+ * DataStore only — recovery is fully offline, and nothing is ever uploaded or shared
+ * automatically (see buildReport and the Privacy & Report option).
  */
 
 const STORE_CRASHES = "vc-crash-recovery-crashes";
@@ -409,9 +408,18 @@ export async function buildReport(): Promise<RecoveryReport> {
     };
 }
 
-/* ------------------------------------ overlay + panel ----------------------------------------- */
+/* ------------------------------------------------ overlay -------------------------------------- */
+/*
+ * Win11 Recovery (WinRE) look:
+ *   - full-screen blue backdrop
+ *   - a floating "Recovery" window with a proper title bar and close button
+ *   - numbered option tiles chosen by mouse or keyboard (1..9), Esc goes back / closes
+ *   - screens: Choose an option -> Troubleshoot (Advanced options) -> sub-screens for
+ *     quarantine, dependency checker, history and the privacy report
+ */
 
 const OVERLAY_HOST_ID = "vc-crash-recovery-overlay";
+const OVERLAY_STYLE_ID = "vc-crash-recovery-style";
 
 let overlayRoot: null | ReturnType<typeof createRoot> = null;
 let overlayOpen = false;
@@ -424,6 +432,32 @@ function mountOverlay() {
     if (!document.body) {
         document.addEventListener("DOMContentLoaded", mountOverlay, { once: true });
         return;
+    }
+    if (!document.getElementById(OVERLAY_STYLE_ID)) {
+        const style = document.createElement("style");
+        style.id = OVERLAY_STYLE_ID;
+        style.textContent = `
+#${OVERLAY_HOST_ID},
+#${OVERLAY_HOST_ID} * {
+    box-sizing: border-box;
+}
+#${OVERLAY_HOST_ID} .vc-recovery-tile {
+    transition: background 80ms ease, border-color 80ms ease;
+}
+#${OVERLAY_HOST_ID} .vc-recovery-tile:hover {
+    background: #eaf2fc;
+    border-color: #1265c4;
+}
+#${OVERLAY_HOST_ID} .vc-recovery-tile:focus-visible {
+    outline: 2px solid #1265c4;
+    outline-offset: 2px;
+}
+#${OVERLAY_HOST_ID} .vc-recovery-close:hover {
+    background: #c42b1c;
+    color: #ffffff;
+}
+        `;
+        document.head.appendChild(style);
     }
     const container = document.createElement("div");
     container.id = OVERLAY_HOST_ID;
@@ -461,14 +495,687 @@ function unmountOverlay() {
     document.getElementById(OVERLAY_HOST_ID)?.remove();
 }
 
-const openButtonStyle: React.CSSProperties = {
+/* ------------------------------------------------ theme ---------------------------------------- */
+
+const WINRE_BLUE = "#1265c4";
+
+const backdropStyle: React.CSSProperties = {
     position: "fixed",
-    bottom: 24,
-    left: "50%",
-    transform: "translateX(-50%)",
+    inset: 0,
     zIndex: 99999,
-    boxShadow: "0 8px 24px rgba(0,0,0,.5)"
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    background: `radial-gradient(1100px 700px at 50% 32%, #1a72d2 0%, ${WINRE_BLUE} 55%, #0d4f9e 100%)`,
+    fontFamily: "'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif"
 };
+
+const windowStyle: React.CSSProperties = {
+    width: 640,
+    maxWidth: "94vw",
+    maxHeight: "86vh",
+    display: "flex",
+    flexDirection: "column",
+    background: "#ffffff",
+    color: "#1b1b1b",
+    borderRadius: 8,
+    overflow: "hidden",
+    boxShadow: "0 32px 80px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .35)"
+};
+
+const titleBarStyle: React.CSSProperties = {
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: 40,
+    padding: "0 0 0 12px",
+    borderBottom: "1px solid #e6e6e6",
+    background: "#f9f9f9"
+};
+
+const closeBtnStyle: React.CSSProperties = {
+    width: 46,
+    height: 40,
+    display: "grid",
+    placeItems: "center",
+    background: "transparent",
+    border: "none",
+    color: "#262626",
+    cursor: "pointer",
+    fontSize: 16
+};
+
+const contentStyle: React.CSSProperties = {
+    flex: 1,
+    overflowY: "auto",
+    padding: "18px 26px 22px"
+};
+
+const headingStyle: React.CSSProperties = {
+    margin: "2px 0 4px",
+    fontSize: 21,
+    fontWeight: 600,
+    color: "#191919"
+};
+
+const subHeadingStyle: React.CSSProperties = {
+    margin: "0 0 14px",
+    fontSize: 13.5,
+    color: "#5c5c5c",
+    lineHeight: 1.45
+};
+
+const bannerStyle: React.CSSProperties = {
+    margin: "0 0 14px",
+    padding: "8px 12px",
+    background: "#fff4ce",
+    borderLeft: "3px solid #ffb900",
+    fontSize: 13,
+    color: "#413119",
+    lineHeight: 1.4
+};
+
+const bannerDangerStyle: React.CSSProperties = {
+    ...bannerStyle,
+    background: "#fde7e9",
+    borderLeftColor: "#c42b1c",
+    color: "#5a1a1e"
+};
+
+const listStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8
+};
+
+const tileStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    width: "100%",
+    padding: "10px 14px",
+    background: "#ffffff",
+    border: "1px solid #dcdcdc",
+    borderRadius: 6,
+    cursor: "pointer",
+    textAlign: "left",
+    color: "inherit",
+    font: "inherit"
+};
+
+const iconTileStyle: React.CSSProperties = {
+    flexShrink: 0,
+    width: 36,
+    height: 36,
+    display: "grid",
+    placeItems: "center",
+    borderRadius: 4,
+    background: "#eaf2fc",
+    color: WINRE_BLUE
+};
+
+const tileLabelStyle: React.CSSProperties = {
+    flex: 1,
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: 2
+};
+
+const tileBodyStyle: React.CSSProperties = {
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#191919"
+};
+
+const tileSubStyle: React.CSSProperties = {
+    fontSize: 12.5,
+    color: "#5c5c5c",
+    lineHeight: 1.35
+};
+
+const numberBadgeStyle: React.CSSProperties = {
+    flexShrink: 0,
+    minWidth: 22,
+    height: 22,
+    padding: "0 6px",
+    display: "grid",
+    placeItems: "center",
+    border: "1px solid #c8c8c8",
+    borderRadius: 11,
+    fontSize: 11,
+    fontWeight: 600,
+    color: "#444444"
+};
+
+const footerStyle: React.CSSProperties = {
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    height: 34,
+    padding: "0 14px",
+    borderTop: "1px solid #e6e6e6",
+    background: "#f3f3f3",
+    fontSize: 11.5,
+    color: "#5c5c5c"
+};
+
+const actionButtonStyle: React.CSSProperties = {
+    padding: "6px 14px",
+    background: "#ffffff",
+    border: "1px solid #c8c8c8",
+    borderRadius: 4,
+    font: "inherit",
+    fontSize: 13,
+    color: "#191919",
+    cursor: "pointer"
+};
+
+const flashStyle: React.CSSProperties = {
+    margin: "0 0 12px",
+    padding: "8px 12px",
+    background: "#f2f8ff",
+    borderLeft: "3px solid " + WINRE_BLUE,
+    fontSize: 13,
+    color: "#1d3a5c",
+    lineHeight: 1.4
+};
+
+const rowsBoxStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    border: "1px solid #e1e1e1",
+    borderRadius: 6,
+    padding: "10px 12px",
+    maxHeight: 260,
+    overflowY: "auto"
+};
+
+const rowStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 8,
+    fontSize: 13,
+    color: "#333333",
+    lineHeight: 1.4
+};
+
+const textareaStyle: React.CSSProperties = {
+    width: "100%",
+    minHeight: 110,
+    marginTop: 4,
+    fontSize: 11,
+    fontFamily: "monospace",
+    whiteSpace: "pre",
+    resize: "vertical",
+    background: "#f6f6f6",
+    color: "#333333",
+    border: "1px solid #dcdcdc",
+    borderRadius: 4,
+    padding: 8
+};
+
+/* ------------------------------------------- icons --------------------------------------------- */
+
+function WinreIcon({ d, size = 20 }: { d: string; size?: number; }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d={d} />
+        </svg>
+    );
+}
+
+const ICONS = {
+    continue: "M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z",
+    wrench: "M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z",
+    restart: "M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z",
+    report: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z",
+    shield: "M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z",
+    search: "M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
+    history: "M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 1 1 7 7v2a9 9 0 1 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z",
+    restore: "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z",
+    back: "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z",
+    lock: "M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6z",
+    close: "M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+};
+
+/* ------------------------------------------- screens -------------------------------------------- */
+
+type WinreScreen = "choose" | "troubleshoot" | "quarantine" | "dependency" | "history" | "report";
+
+interface WinreOption {
+    icon: string;
+    label: string;
+    sublabel?: string;
+    action: () => void;
+}
+
+function sessionSummary() {
+    const failures = [...new Set(sessionFailures.map(f => f.plugin))];
+    const parts: string[] = [];
+    parts.push(crashesCount === 0 ? "No crashes this session" : `${crashesCount} crash(es) this session${lastCrashMessage ? ` — last: ${lastCrashMessage}` : ""}`);
+    parts.push(failures.length ? `Startup failures: ${failures.join(", ")}` : "All enabled plugins started");
+    const quarantinedNames = Object.keys(quarantine);
+    if (quarantinedNames.length) parts.push(`Quarantined: ${quarantinedNames.join(", ")}`);
+    return parts.join(" · ");
+}
+
+function useWinreNumberKeys(options: WinreOption[], onBack?: () => void) {
+    React.useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                e.preventDefault();
+                onBack?.();
+                return;
+            }
+            const n = Number(e.key);
+            if (!Number.isInteger(n) || n < 1 || n > Math.min(options.length, 9)) return;
+            e.preventDefault();
+            options[n - 1].action();
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    });
+}
+
+function WinreTile({ index, option }: { index: number; option: WinreOption; }) {
+    return (
+        <div
+            role="button"
+            tabIndex={0}
+            className="vc-recovery-tile"
+            style={tileStyle}
+            onClick={() => option.action()}
+            onKeyDown={e => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    option.action();
+                }
+            }}
+        >
+            <div style={iconTileStyle}>
+                <WinreIcon d={option.icon} />
+            </div>
+            <div style={tileLabelStyle}>
+                <div style={tileBodyStyle}>{option.label}</div>
+                {option.sublabel && <div style={tileSubStyle}>{option.sublabel}</div>}
+            </div>
+            <div style={numberBadgeStyle}>{index + 1}</div>
+        </div>
+    );
+}
+
+function WinreHeading({ title, sub }: { title: string; sub?: string; }) {
+    return (
+        <>
+            <h2 style={headingStyle}>{title}</h2>
+            {sub && <p style={subHeadingStyle}>{sub}</p>}
+        </>
+    );
+}
+
+function WinreFlash({ text, danger }: { text: string; danger?: boolean; }) {
+    return <p style={danger ? bannerDangerStyle : flashStyle}>{text}</p>;
+}
+
+function ChooseScreen({ open }: { open: (s: WinreScreen) => void; }) {
+    const options: WinreOption[] = [
+        {
+            icon: ICONS.continue,
+            label: "Continue",
+            sublabel: "Close Recovery Mode and return to Discord",
+            action: () => closeOverlay()
+        },
+        {
+            icon: ICONS.wrench,
+            label: "Troubleshoot",
+            sublabel: "Advanced options — repair, restore, quarantine and diagnostics",
+            action: () => open("troubleshoot")
+        },
+        {
+            icon: ICONS.restart,
+            label: "Safe Restart",
+            sublabel: "Restart Discord with your fixes applied",
+            action: () => void relaunch()
+        },
+        {
+            icon: ICONS.report,
+            label: "Diagnostics & Report",
+            sublabel: "Review what went wrong this session; the report is yours to copy, never ours to send",
+            action: () => open("report")
+        }
+    ];
+
+    useWinreNumberKeys(options, closeOverlay);
+
+    return (
+        <>
+            <WinreHeading title="Choose an option" sub={sessionSummary()} />
+            {overlayReason && <p style={bannerStyle}>{overlayReason}</p>}
+            <div style={listStyle}>
+                {options.map((o, i) => <WinreTile key={o.label} index={i} option={o} />)}
+            </div>
+        </>
+    );
+}
+
+function TroubleshootScreen({ open }: { open: (s: WinreScreen) => void; }) {
+    const [flash, setFlash] = React.useState<string | null>(null);
+    const lastGoodEntry = getLastKnownGood();
+
+    const options: WinreOption[] = [
+        {
+            icon: ICONS.wrench,
+            label: "One-Click Repair",
+            sublabel: "Automatically quarantine the plugins suspected of causing crashes",
+            action: async () => {
+                const applied = await applyRepairPlan();
+                setFlash(
+                    applied.length
+                        ? `One-Click Repair quarantined: ${applied.join(", ")}. Use Safe Restart to apply it fully.`
+                        : "One-Click Repair found nothing to quarantine."
+                );
+            }
+        },
+        {
+            icon: ICONS.restore,
+            label: "Restore Last Known Good",
+            sublabel: lastGoodEntry
+                ? `Revert to the last healthy configuration (saved ${new Date(lastGoodEntry.time).toLocaleString()} on build ${lastGoodEntry.gitHash.slice(0, 7)})`
+                : "Revert to your last healthy configuration (none saved yet)",
+            action: async () => {
+                const ok = await restoreLastKnownGood();
+                setFlash(ok
+                    ? "Last Known Good configuration restored. Use Safe Restart if some plugins didn't come back on their own."
+                    : "No Last Known Good configuration saved yet — one is taken after a healthy session.");
+            }
+        },
+        {
+            icon: ICONS.shield,
+            label: "Plugin Quarantine",
+            sublabel: "View and restore plugins held out of startup",
+            action: () => open("quarantine")
+        },
+        {
+            icon: ICONS.search,
+            label: "Dependency Checker",
+            sublabel: "Check enabled plugins for missing or disabled dependencies",
+            action: () => open("dependency")
+        },
+        {
+            icon: ICONS.history,
+            label: "Recovery History",
+            sublabel: "See the last 50 recovery events on this device",
+            action: () => open("history")
+        },
+        {
+            icon: ICONS.report,
+            label: "Privacy & Diagnostics",
+            sublabel: "Inspect the diagnostic report — it stays on your device until you copy it",
+            action: () => open("report")
+        }
+    ];
+
+    useWinreNumberKeys(options, () => open("choose"));
+
+    return (
+        <>
+            <WinreHeading
+                title="Advanced options"
+                sub="Repair or roll back the plugin environment, then use Safe Restart on the blue screen to apply it."
+            />
+            {flash && <WinreFlash text={flash} />}
+            <div style={listStyle}>
+                {options.map((o, i) => <WinreTile key={o.label} index={i} option={o} />)}
+            </div>
+        </>
+    );
+}
+
+function QuarantineScreen({ open }: { open: (s: WinreScreen) => void; }) {
+    const [entries, setEntries] = React.useState<Record<string, QuarantineEntry>>(() => getQuarantine());
+
+    React.useEffect(() => {
+        const listener = () => setEntries(getQuarantine());
+        uiUpdateListeners.add(listener);
+        return () => { uiUpdateListeners.delete(listener); };
+    }, []);
+
+    const names = Object.keys(entries);
+
+    return (
+        <>
+            <WinreHeading
+                title="Plugin Quarantine"
+                sub={names.length
+                    ? "Quarantined plugins stay disabled until you restore them."
+                    : "Nothing is currently quarantined. Plugins end up here via One-Click Repair or startup failures."}
+            />
+            {names.length > 0 && (
+                <div style={rowsBoxStyle}>
+                    {names.map(n => (
+                        <div key={n} style={{ display: "flex", alignItems: "center", gap: 10, marginTop: names.indexOf(n) ? 6 : 0 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#191919" }}>{n}</div>
+                                <div style={{ fontSize: 12, color: "#5c5c5c" }}>{entries[n].reason}</div>
+                            </div>
+                            <button
+                                style={actionButtonStyle}
+                                onClick={() => {
+                                    unquarantinePlugin(n);
+                                    setEntries(getQuarantine());
+                                }}
+                            >
+                                Restore
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+            <BackTile onBack={() => open("troubleshoot")} />
+        </>
+    );
+}
+
+function DependencyScreen({ open }: { open: (s: WinreScreen) => void; }) {
+    const [dep, setDep] = React.useState<DependencyCheckResult | null>(null);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        checkDependencies().then(d => {
+            if (!cancelled) setDep(d);
+        });
+        return () => { cancelled = true; };
+    }, []);
+
+    return (
+        <>
+            <WinreHeading
+                title="Dependency Checker"
+                sub="All plugins kept in startup are checked for missing or disabled dependencies."
+            />
+            {dep == null
+                ? <p style={subHeadingStyle}>Checking…</p>
+                : dep.ok
+                    ? <p style={{ ...flashStyle, borderLeftColor: "#6bb700", background: "#f3fbec", color: "#253b0d" }}>
+                        All enabled plugins resolved their dependencies and started.
+                    </p>
+                    : (
+                        <div style={rowsBoxStyle}>
+                            {dep.entries.map((e, i) => (
+                                <div key={i} style={rowStyle}>• {e}</div>
+                            ))}
+                        </div>
+                    )}
+            <BackTile onBack={() => open("troubleshoot")} />
+        </>
+    );
+}
+
+function HistoryScreen({ open }: { open: (s: WinreScreen) => void; }) {
+    const [rev, setRev] = React.useState(0);
+
+    React.useEffect(() => {
+        const listener = () => setRev(r => r + 1);
+        uiUpdateListeners.add(listener);
+        return () => { uiUpdateListeners.delete(listener); };
+    }, []);
+
+    const events = getHistory().slice(-15).reverse();
+
+    return (
+        <>
+            <WinreHeading
+                title="Recovery History"
+                sub="The most recent recovery events (crashes, repairs, quarantines, restores) from the last 50 stored."
+            />
+            {events.length === 0
+                ? <p style={subHeadingStyle}>No events yet.</p>
+                : (
+                    <div style={rowsBoxStyle}>
+                        {events.map(h => (
+                            <div key={h.id} style={rowStyle}>
+                                <span style={{ color: "#5c5c5c", fontVariantNumeric: "tabular-nums" }}>
+                                    [{new Date(h.time).toLocaleString()}]
+                                </span>
+                                <span><strong>{h.type}</strong> — {h.detail}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            <BackTile onBack={() => open("troubleshoot")} />
+        </>
+    );
+}
+
+function ReportScreen({ open }: { open: (s: WinreScreen) => void; }) {
+    const [reportText, setReportText] = React.useState("");
+    const lastGoodEntry = getLastKnownGood();
+    const versionMismatch = lastGoodEntry != null && lastGoodEntry.gitHash !== gitHash;
+    const failures = [...new Set(sessionFailures.map(f => f.plugin))];
+
+    return (
+        <>
+            <WinreHeading
+                title="Privacy & Diagnostics"
+                sub="Diagnostics stay on your device. Nothing is shared automatically — copy the report only if you choose to."
+            />
+            <div style={{ ...flashStyle, background: "#f6f6f6", color: "#333333", borderLeftColor: "#c8c8c8" }}>
+                {crashesCount === 0 ? "No crashes this session." : `${crashesCount} crash(es) this session${lastCrashMessage ? ` — last: ${lastCrashMessage}` : ""}.`}
+                {failures.length ? ` Startup failures: ${failures.join(", ")}.` : " All enabled plugins started."}
+            </div>
+            {lastGoodEntry && versionMismatch && (
+                <p style={bannerStyle}>
+                    The snapshot from build {lastGoodEntry.gitHash.slice(0, 7)} differs from this build ({gitHash.slice(0, 7)}).
+                    If the update itself is what crashes, restore Last Known Good and reinstall the previous Limey V1 build with your installer (Update Rollback).
+                </p>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <button
+                    style={actionButtonStyle}
+                    onClick={async () => {
+                        setReportText(JSON.stringify(await buildReport(), null, 2));
+                    }}
+                >
+                    Generate Report
+                </button>
+                {reportText && (
+                    <>
+                        <button style={actionButtonStyle} onClick={() => void copyToClipboard(reportText)}>
+                            Copy
+                        </button>
+                        <button style={actionButtonStyle} onClick={() => setReportText("")}>
+                            Hide
+                        </button>
+                    </>
+                )}
+            </div>
+            {reportText && <textarea readOnly value={reportText} style={textareaStyle} onFocus={e => e.currentTarget.select()} />}
+            <BackTile onBack={() => open("troubleshoot")} />
+        </>
+    );
+}
+
+function BackTile({ onBack }: { onBack: () => void; }) {
+    return (
+        <div style={{ display: "flex", justifyContent: "flex-start", marginTop: 12 }}>
+            <div
+                role="button"
+                tabIndex={0}
+                className="vc-recovery-tile"
+                style={{ ...tileStyle, width: "auto", padding: "6px 10px" }}
+                onClick={onBack}
+                onKeyDown={e => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onBack();
+                    }
+                }}
+            >
+                <WinreIcon d={ICONS.back} size={16} />
+                <span style={{ fontSize: 13, fontWeight: 600 }}>Back</span>
+                <span style={{ ...numberBadgeStyle, marginLeft: 4 }}>Esc</span>
+            </div>
+        </div>
+    );
+}
+
+function RecoveryScreen() {
+    const [screen, setScreen] = React.useState<WinreScreen>("choose");
+
+    const titles: Record<WinreScreen, string> = {
+        choose: "Choose an option",
+        troubleshoot: "Troubleshoot",
+        quarantine: "Plugin Quarantine",
+        dependency: "Dependency Checker",
+        history: "Recovery History",
+        report: "Privacy & Diagnostics"
+    };
+
+    const escAction = () => {
+        if (screen === "choose") closeOverlay();
+        else if (screen === "troubleshoot") setScreen("choose");
+        else setScreen("troubleshoot");
+    };
+
+    const body =
+        screen === "choose" ? <ChooseScreen open={s => setScreen(s)} />
+            : screen === "troubleshoot" ? <TroubleshootScreen open={s => setScreen(s)} />
+                : screen === "quarantine" ? <QuarantineScreen open={s => setScreen(s)} />
+                    : screen === "dependency" ? <DependencyScreen open={s => setScreen(s)} />
+                        : screen === "history" ? <HistoryScreen open={s => setScreen(s)} />
+                            : <ReportScreen open={s => setScreen(s)} />;
+
+    return (
+        <div style={backdropStyle}>
+            <div style={windowStyle}>
+                <div style={titleBarStyle}>
+                    <span style={{ fontSize: 13, color: "#1b1b1b" }}>Recovery</span>
+                    <button
+                        aria-label="Close Recovery Mode"
+                        className="vc-recovery-close"
+                        style={closeBtnStyle}
+                        onClick={closeOverlay}
+                    >
+                        <WinreIcon d={ICONS.close} size={12} />
+                    </button>
+                </div>
+                <div style={contentStyle}>{body}</div>
+                <div style={footerStyle}>
+                    <span>Recovery Mode — Limey V1{screen !== "choose" ? ` › ${titles[screen]}` : ""}</span>
+                    <span>Pick an option with the mouse, or press its number 1–9 · Esc goes back</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const RecoveryScreenWrapped = ErrorBoundary.wrap(RecoveryScreen, { noop: true });
 
 function OverlayRoot() {
     const [open, setOpen] = React.useState(overlayOpen);
@@ -479,235 +1186,36 @@ function OverlayRoot() {
         return () => { overlayStateListeners.delete(listener); };
     }, []);
 
-    return open
-        ? <RecoveryPanel />
-        : (
-            <Button variant="dangerPrimary" onClick={() => openRecoveryOverlay("Recovery Mode opened manually.")} style={openButtonStyle}>
-                🩺 Open Recovery Mode
-            </Button>
-        );
-}
-
-const panelStyle: React.CSSProperties = {
-    position: "fixed",
-    bottom: 24,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: 620,
-    maxWidth: "94vw",
-    maxHeight: "78vh",
-    overflowY: "auto",
-    background: "var(--background-base-lowest, #111214)",
-    color: "var(--text-default, #dbdee1)",
-    borderRadius: 10,
-    boxShadow: "0 12px 40px rgba(0,0,0,.55)",
-    padding: 14,
-    zIndex: 99999,
-    fontSize: 14
-};
-
-const RecoveryPanel = ErrorBoundary.wrap(function RecoveryPanel() {
-    const [rev, setRev] = React.useState(0);
-    const refresh = () => setRev(r => r + 1);
-
-    const [plan, setPlan] = React.useState<string[]>([]);
-    const [dep, setDep] = React.useState<DependencyCheckResult | null>(null);
-    const [applied, setApplied] = React.useState<string[] | null>(null);
-    const [restored, setRestored] = React.useState<boolean | null>(null);
-    const [reportText, setReportText] = React.useState("");
-
-    // reload diagnostics whenever something mutated (rev) or session state changed
-    React.useEffect(() => {
-        let cancelled = false;
-        buildRepairPlan().then(p => { if (!cancelled) setPlan(p); });
-        checkDependencies().then(d => { if (!cancelled) setDep(d); });
-        return () => { cancelled = true; };
-    }, [rev]);
-
-    React.useEffect(() => {
-        const listener = () => setRev(r => r + 1);
-        uiUpdateListeners.add(listener);
-        return () => { uiUpdateListeners.delete(listener); };
-    }, []);
-
-    // Latest Known Good differences tell the user whether a mod update may be related
-    const lastGoodEntry = getLastKnownGood();
-    const versionMismatch = lastGoodEntry != null && lastGoodEntry.gitHash !== gitHash;
+    if (open) return <RecoveryScreenWrapped />;
 
     return (
-        <div style={panelStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <BaseText size="lg" weight="semibold">Recovery Mode</BaseText>
-                <Button variant="secondary" size="xs" onClick={closeOverlay}>Close</Button>
-            </div>
-            {overlayReason && <BaseText size="sm" color="text-muted">{overlayReason}</BaseText>}
-
-            <StatusSection rev={rev} />
-
-            <section style={{ marginTop: 10 }}>
-                <BaseText size="sm" weight="semibold">One-Click Repair</BaseText>
-                {plan.map((p, i) => <BaseText key={i} size="sm" color="text-muted">• {p}</BaseText>)}
-                {applied != null && (
-                    <BaseText size="sm" color="text-muted">
-                        {applied.length ? `Quarantined after repair: ${applied.join(", ")}. Use Safe Restart for it to take full effect.` : "Nothing needed quarantining."}
-                    </BaseText>
-                )}
-                {restored != null && (
-                    <BaseText size="sm" color="text-muted">
-                        {restored ? "Last Known Good configuration restored." : "No Last Known Good configuration saved yet."}
-                    </BaseText>
-                )}
-            </section>
-
-            <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Button variant="dangerPrimary" size="small" onClick={async () => {
-                    setApplied(await applyRepairPlan());
-                    refresh();
-                }}>
-                    One-Click Repair
-                </Button>
-                <Button variant="secondary" size="small" onClick={async () => {
-                    setRestored(await restoreLastKnownGood());
-                    refresh();
-                }}>
-                    Restore Last Known Good
-                </Button>
-                <Button variant="secondary" size="small" onClick={() => relaunch()}>
-                    Safe Restart
-                </Button>
-            </div>
-
-            {/* Last Known Good + Update Rollback */}
-            <section style={{ marginTop: 10 }}>
-                <BaseText size="sm" weight="semibold">Last Known Good</BaseText>
-                {lastGoodEntry ? (
-                    <BaseText size="sm" color="text-muted">
-                        Saved {new Date(lastGoodEntry.time).toLocaleString()} on build {lastGoodEntry.gitHash.slice(0, 7)}.
-                        {versionMismatch && " This snapshot comes from a different build — if the update itself is what crashes, restore it above and reinstall the previous Limey V1 build with your installer (Update Rollback)."}
-                    </BaseText>
-                ) : (
-                    <BaseText size="sm" color="text-muted">No good session remembered yet.</BaseText>
-                )}
-            </section>
-
-            {/* Dependency Checker */}
-            <section style={{ marginTop: 10 }}>
-                <BaseText size="sm" weight="semibold">Dependency Checker</BaseText>
-                {dep == null ? null : dep.ok
-                    ? <BaseText size="sm" color="text-muted">All enabled plugins resolved their dependencies and started.</BaseText>
-                    : dep.entries.map((d, i) => <BaseText key={i} size="sm" color="text-muted">• {d}</BaseText>)}
-            </section>
-
-            {/* Plugin Quarantine management */}
-            <QuarantineSection />
-
-            {/* Recovery History */}
-            <HistorySection rev={rev} />
-
-            {/* Privacy Controls */}
-            <section style={{ marginTop: 10, borderTop: "1px solid var(--background-base-lower, #1e1f22)", paddingTop: 10 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <BaseText size="sm" weight="semibold">Privacy Controls</BaseText>
-                    <Button
-                        variant="link"
-                        size="min"
-                        onClick={async () => {
-                            setReportText(JSON.stringify(await buildReport(), null, 2));
-                        }}
-                    >
-                        Inspect diagnostic report
-                    </Button>
-                </div>
-                <BaseText size="xs" color="text-muted">
-                    Diagnostics stay on your device. Nothing is shared automatically — copy the report only if you choose to.
-                </BaseText>
-                {reportText && (
-                    <>
-                        <textarea
-                            readOnly
-                            value={reportText}
-                            style={{
-                                width: "100%", minHeight: 90, marginTop: 4, fontSize: 11, fontFamily: "monospace",
-                                whiteSpace: "pre", background: "var(--background-base-lower, #1e1f22)",
-                                color: "inherit", border: "none", borderRadius: 4, padding: 6
-                            }}
-                            onFocus={e => e.currentTarget.select()}
-                        />
-                        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                            <Button variant="secondary" size="xs" onClick={() => void copyToClipboard(reportText)}>Copy</Button>
-                            <Button variant="secondary" size="xs" onClick={() => setReportText("")}>Hide</Button>
-                        </div>
-                    </>
-                )}
-            </section>
-        </div>
-    );
-}, { noop: true });
-
-function StatusSection({ rev }: { rev: number; }) {
-    void rev;
-    const failures = [...new Set(sessionFailures.map(f => f.plugin))];
-    return (
-        <section style={{ marginTop: 6 }}>
-            <BaseText size="sm" weight="semibold">Current session</BaseText>
-            <BaseText size="sm" color="text-muted">
-                {crashesCount === 0
-                    ? "No crashes recorded this session."
-                    : `${crashesCount} crash(es) this session${lastCrashMessage ? ` — last: ${lastCrashMessage}` : ""}.`}
-                {" "}
-                {failures.length ? `Startup failures: ${failures.join(", ")}.` : "All enabled plugins started."}
-                {Object.keys(quarantine).length ? ` Quarantined: ${Object.keys(quarantine).join(", ")}.` : ""}
-            </BaseText>
-        </section>
-    );
-}
-
-function QuarantineSection() {
-    const [q, setQ] = React.useState<Record<string, QuarantineEntry>>(() => getQuarantine());
-
-    React.useEffect(() => {
-        const listener = () => setQ(getQuarantine());
-        uiUpdateListeners.add(listener);
-        return () => { uiUpdateListeners.delete(listener); };
-    }, []);
-
-    const names = Object.keys(q);
-
-    return (
-        <section style={{ marginTop: 10 }}>
-            <BaseText size="sm" weight="semibold">Plugin Quarantine</BaseText>
-            <BaseText size="sm" color="text-muted">Quarantined plugins stay disabled until you restore them.</BaseText>
-            {names.length === 0
-                ? <BaseText size="sm" color="text-muted">Nothing is currently quarantined.</BaseText>
-                : names.map(n => (
-                    <div key={n} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
-                        <BaseText size="sm">{n}</BaseText>
-                        <BaseText size="xs" color="text-muted">{q[n].reason}</BaseText>
-                        <Button variant="link" size="min" onClick={() => { unquarantinePlugin(n); setQ(getQuarantine()); }}>
-                            Restore
-                        </Button>
-                    </div>
-                ))}
-        </section>
-    );
-}
-
-function HistorySection({ rev }: { rev: number; }) {
-    void rev;
-    const events = getHistory().slice(-12).reverse();
-    return (
-        <section style={{ marginTop: 10 }}>
-            <BaseText size="sm" weight="semibold">Recovery History</BaseText>
-            <div style={{ maxHeight: 150, overflowY: "auto", marginTop: 4 }}>
-                {events.length === 0
-                    ? <BaseText size="sm" color="text-muted">No events yet.</BaseText>
-                    : events.map(h => (
-                        <BaseText key={h.id} size="sm" color="text-muted">
-                            [{new Date(h.time).toLocaleString()}] {h.type}: {h.detail}
-                        </BaseText>
-                    ))}
-            </div>
-        </section>
+        <button
+            className="vc-recovery-tile"
+            style={{
+                position: "fixed",
+                bottom: 24,
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 99999,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "9px 16px",
+                background: WINRE_BLUE,
+                color: "#ffffff",
+                border: "1px solid rgba(255, 255, 255, .35)",
+                borderRadius: 6,
+                font: "inherit",
+                fontSize: 13.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 8px 24px rgba(0, 0, 0, .35)"
+            }}
+            onClick={() => openRecoveryOverlay("Recovery Mode opened manually.")}
+        >
+            <WinreIcon d={ICONS.wrench} size={16} />
+            Open Recovery Mode
+        </button>
     );
 }
 
