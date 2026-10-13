@@ -762,19 +762,32 @@ const ICONS = {
     close: "M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
 };
 
-function WindowsLogo({ size = 72 }: { size?: number; }) {
+function LimeyLogo({ size = 72 }: { size?: number; }) {
     return (
         <svg
             width={size}
             height={size}
             viewBox="0 0 100 100"
-            fill="#ffffff"
+            fill="none"
             aria-hidden="true"
         >
-            <rect x="2" y="2" width="45" height="45" rx="4" />
-            <rect x="53" y="2" width="45" height="45" rx="4" />
-            <rect x="2" y="53" width="45" height="45" rx="4" />
-            <rect x="53" y="53" width="45" height="45" rx="4" />
+            {/* lime wheel: rind, pith, flesh and segment spokes */}
+            <circle cx="50" cy="50" r="30" fill="#f2fbe8" />
+            <circle cx="50" cy="50" r="23" fill="#a3e635" />
+            {[0, 60, 120, 180, 240, 300].map(deg => (
+                <line
+                    key={deg}
+                    x1="50"
+                    y1="50"
+                    x2="50"
+                    y2="20"
+                    stroke="#f2fbe8"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    transform={`rotate(${deg + 12} 50 50)`}
+                />
+            ))}
+            <circle cx="50" cy="50" r="3" fill="#f2fbe8" />
         </svg>
     );
 }
@@ -792,7 +805,7 @@ function BootSplash() {
     return (
         <div style={{ ...backdropStyle, flexDirection: "column", gap: 30 }}>
             <div style={{ animation: "vc-recovery-glow 2s ease-in-out infinite" }}>
-                <WindowsLogo />
+                <LimeyLogo />
             </div>
             <div style={splashSpinnerStyle} aria-label="Loading">
                 {[0, 1, 2, 3, 4, 5].map(i => (

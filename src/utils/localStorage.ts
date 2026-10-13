@@ -16,4 +16,51 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-export const { localStorage } = window;
+/**
+ * Userscript sandboxes (Tampermonkey, Greasemonkey, ...) may expose a `window.localStorage`
+ * that is `undefined`, or one that throws `SecurityError` just for being touched. Both used
+ * to crash the bundle at import time or every settings read/write afterwards. Probe the real
+ * storage instead of blindly trusting `window.localStorage`, and degrade to an in-memory shim
+ * so Limey V1 always keeps loading: with the shim, data lives for the current session only.
+ */
+
+function getRealLocalStorage(): Storage | null {
+    try {
+        const ls = window.localStorage;
+        if (!ls) return null;
+        // Probe: some contexts hand out a Storage object that throws on first use
+        const probe = "__limeyV1LocalStorageProbe";
+        ls.setItem(probe, "1");
+        ls.removeItem(probe);
+        return ls;
+    } catch {
+        return null;
+    }
+}
+
+function createMemoryStorage(): Storage {
+    const map = new Map<string, string>();
+    return {
+        get length() { return map.size; },
+        clear() { map.clear(); },
+        getItem(key) {
+            return map.has(key) ? map.get(key)! : null;
+        },
+        key(index) {
+            return [...map.keys()][index] ?? null;
+        },
+        removeItem(key) {
+            map.delete(key);
+        },
+        setItem(key, value) {
+            map.set(key, String(value));
+        }
+    };
+}
+
+const realStorage = getRealLocalStorage();
+
+export const localStorage: Storage = realStorage ?? (() => {
+    console.warn("Limey V1: window.localStorage is unavailable in this context; falling back to volatile in-memory storage (data will not persist across reloads).");
+    return createMemoryStorage();
+})();
