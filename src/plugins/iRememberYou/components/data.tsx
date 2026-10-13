@@ -150,7 +150,7 @@ export class Data {
     }
 
     writeGuildsOwnersToCollection() {
-        const target: Set<{ user: User; source?: Guild, extra: IUserExtra; }> =
+        const target: Set<{ user: User; source?: Guild; extra: IUserExtra; }> =
             new Set();
         const now = Date.now();
 

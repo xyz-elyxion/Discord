@@ -8,7 +8,7 @@ import { PickerContent, PickerContentHeader, PickerContentRow, PickerContentRowG
 import { sendSticker } from "../upload";
 import { clPicker, FFmpegStateContext } from "../utils";
 import { debounce } from "@shared/debounce";
-import { Modal, openModal, React, TextInput } from "@webpack/common";
+import { Modal,openModal, React, TextInput } from "@webpack/common";
 import { JSX } from "react";
 
 import { CategoryImage, CategoryScroller, CategoryWrapper, StickerCategory } from "./categories";

@@ -56,7 +56,7 @@ export default definePlugin({
             find: '("ChannelTextAreaButtons")',
             replacement: [
                 {
-                    match: /(?<=(,\i\.stickers?\.button.{0,50}\i\.push\(\(.{0,100})\},"sticker"\)\))/,
+                    match: /(?<=(,\i\.stickers\?\.button.{0,50}\i\.push\(\(.{0,100})\},"sticker"\)\))/,
                     replace: "$1,stickersType:\"stickers+\"},\"stickers+\"))"
                 },
             ]

@@ -17,7 +17,7 @@ import { isV1, migrate } from "../migrate-v1";
 import { deleteStickerPack, getStickerPack, getStickerPackMetas, saveStickerPack } from "../stickers";
 import { SettingsTabsKey, Sticker, StickerPack, StickerPackMeta } from "../types";
 import { cl, clPicker, Mutex } from "../utils";
-import { Button, React, showToast, TabBar, TextArea } from "@webpack/common";
+import { Button, React, showToast,TabBar, TextArea } from "@webpack/common";
 import { JSX } from "react";
 
 const mutex = new Mutex();
