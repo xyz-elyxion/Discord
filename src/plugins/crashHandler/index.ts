@@ -26,6 +26,8 @@ import { maybePromptToUpdate } from "@utils/updater";
 import { filters, findBulk, proxyLazyWebpack } from "@webpack";
 import { closeAllModals, DraftType, ExpressionPickerStore, FluxDispatcher, NavigationRouter, SelectedChannelStore } from "@webpack/common";
 
+import { cleanupRecovery, handleRecoverableCrash, initRecovery, openRecoveryOverlay } from "./recovery";
+
 const CrashHandlerLogger = new Logger("CrashHandler");
 
 const { ModalStack, DraftManager } = proxyLazyWebpack(() => {
@@ -57,8 +59,15 @@ let hasCrashedOnce = false;
 let isRecovering = false;
 let shouldAttemptRecover = true;
 
+
 export default definePlugin({
     name: "CrashHandler",
+    start() {
+        initRecovery();
+    },
+    stop() {
+        cleanupRecovery();
+    },
     permissions: [
         {
             id: "localDataStore",
@@ -86,6 +95,13 @@ export default definePlugin({
     handleCrash(_this: any, errorState: any) {
         DataStore.del("KeepCurrentChannel_previousData");
 
+        // Record the crash for Recovery Mode (Crash Loop protection, history, repair recommendations)
+        try {
+            handleRecoverableCrash(errorState);
+        } catch (err) {
+            CrashHandlerLogger.error("Failed to record crash for recovery", err);
+        }
+
         if (IS_DEV) {
             try {
                 if (errorState?.info && "componentStack" in errorState.info) {
@@ -112,6 +128,13 @@ export default definePlugin({
                             noPersist: true
                         });
                     } catch { }
+
+                    // Crash Loop Protection: automatically enter Recovery Mode instead of just failing
+                    try {
+                        openRecoveryOverlay("Crash Loop Protection: Discord crashed twice in rapid succession and automatic recovery was skipped. Diagnostics and repair actions are below.");
+                    } catch (err) {
+                        CrashHandlerLogger.error("Failed to open Recovery Mode", err);
+                    }
 
                     return;
                 }

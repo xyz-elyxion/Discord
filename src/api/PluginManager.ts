@@ -49,6 +49,32 @@ export const PMLogger = logger;
 let enabledPluginsSubscribedFlux = false;
 const subscribedFluxEventsPlugins = new Set<string>();
 
+const pluginStartFailureListeners = new Set<PluginStartFailureListener>();
+let activeStartupStage: StartAt | null = null;
+
+export type PluginStartFailureListener = (name: string, error: unknown, stage: StartAt | null) => void;
+
+/**
+ * Register a callback invoked whenever a plugin fails while the plugin manager is starting it
+ * (a thrown start(), a failing command registration, ...). Useful for recovery tooling that wants
+ * to know which plugin is misbehaving at startup.
+ * @returns an unregister function
+ */
+export function onPluginStartFailure(listener: PluginStartFailureListener) {
+    pluginStartFailureListeners.add(listener);
+    return () => {
+        pluginStartFailureListeners.delete(listener);
+    };
+}
+
+function notifyPluginStartFailure(name: string, error: unknown) {
+    for (const listener of pluginStartFailureListeners) {
+        try {
+            listener(name, error, activeStartupStage);
+        } catch { }
+    }
+}
+
 export function isPluginEnabled(p: string) {
     return (
         Plugins[p]?.required ||
@@ -121,15 +147,20 @@ export function pluginRequiresRestart(p: Plugin) {
 
 export const startAllPlugins = traceFunction("startAllPlugins", function startAllPlugins(target: StartAt) {
     logger.info(`Starting plugins (stage ${target})`);
-    for (const name in Plugins) {
-        if (isPluginEnabled(name) && (!IS_REPORTER || isReporterTestable(Plugins[name], ReporterTestable.Start))) {
-            const p = Plugins[name];
+    activeStartupStage = target;
+    try {
+        for (const name in Plugins) {
+            if (isPluginEnabled(name) && (!IS_REPORTER || isReporterTestable(Plugins[name], ReporterTestable.Start))) {
+                const p = Plugins[name];
 
-            const startAt = p.startAt ?? StartAt.WebpackReady;
-            if (startAt !== target) continue;
+                const startAt = p.startAt ?? StartAt.WebpackReady;
+                if (startAt !== target) continue;
 
-            startPlugin(Plugins[name]);
+                startPlugin(Plugins[name]);
+            }
         }
+    } finally {
+        activeStartupStage = null;
     }
 });
 
@@ -222,6 +253,7 @@ export const startPlugin = traceFunction("startPlugin", function startPlugin(p: 
             p.start();
         } catch (e) {
             logger.error(`Failed to start ${name}\n`, e);
+            notifyPluginStartFailure(name, e);
             return false;
         }
     }
@@ -235,6 +267,7 @@ export const startPlugin = traceFunction("startPlugin", function startPlugin(p: 
                 registerCommand(cmd, name);
             } catch (e) {
                 logger.error(`Failed to register command ${cmd.name}\n`, e);
+                notifyPluginStartFailure(name, e);
                 return false;
             }
         }
