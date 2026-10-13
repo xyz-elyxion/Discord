@@ -876,7 +876,31 @@ export const Devs = /* #__PURE__*/ Object.freeze({
     NassCT: {
         name: "NassCT",
         id: 354996937868705793n
-    }
+    },
+    vappstar: {
+        name: "vappstar",
+        id: 747192967311261748n
+    },
+    x3rt: {
+        name: "x3rt",
+        id: 131602100332396544n
+    },
+    benjas333: {
+        name: "benjas333",
+        id: 456577284464443394n
+    },
+    port22exposed: {
+        name: "port",
+        id: 1318383159645311009n
+    },
+    yafyx: {
+        name: "kiniyaku",
+        id: 658209494609821699n
+    },
+    KawaiianPizza: {
+        name: "KawaiianPizza",
+        id: 501000986735673347n
+    },
 } satisfies Record<string, Dev>);
 
 // iife so #__PURE__ works correctly

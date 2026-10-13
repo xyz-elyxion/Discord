@@ -64,6 +64,12 @@ RUN pnpm buildWeb
 # Build the Discord Desktop App artifacts (patcher/renderer/preload) so the
 # runtime server can serve /v1/install/desktop as built without compiling.
 RUN pnpm build
+# Package the browser extension built above (dist/browser.js + dist/browser.css)
+# with the browser/ extension shell into dist/LimeyV1-Extension.zip so the image
+# ships a ready-to-install extension at /dist/LimeyV1-Extension.zip. Idempotent:
+# zipExtension.mjs re-reads the current dist output; `test` fails the build if
+# the zip is ever missing.
+RUN node scripts/zipExtension.mjs && test -f dist/LimeyV1-Extension.zip
 # Stage fflate (used by server.js to package the extension zip in-process),
 # undici (used by server.js to validate the limebot proxy at startup) and pg
 # (PostgreSQL kv persistence). pnpm hoists only direct deps to the top level,
