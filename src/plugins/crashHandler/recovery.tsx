@@ -532,6 +532,11 @@ function closeOverlay() {
     for (const listener of overlayStateListeners) {
         try { listener(); } catch { }
     }
+    // Fully tear down the overlay (and its root element) so nothing — like
+    // the old floating "Open Recovery Mode" button — lingers over Discord
+    // after Recovery Mode was closed. It can be opened again from
+    // Limey V1 Settings or on the next crash.
+    unmountOverlay();
 }
 
 function notifyUiUpdate() {
@@ -1333,35 +1338,7 @@ function OverlayRoot() {
 
     if (open) return <RecoveryScreenWrapped />;
 
-    return (
-        <button
-            className="vc-recovery-tile"
-            style={{
-                position: "fixed",
-                bottom: 24,
-                left: "50%",
-                transform: "translateX(-50%)",
-                zIndex: 99999,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "9px 16px",
-                background: WINRE_BLUE,
-                color: "#ffffff",
-                border: "1px solid rgba(255, 255, 255, .35)",
-                borderRadius: 6,
-                font: "inherit",
-                fontSize: 13.5,
-                fontWeight: 600,
-                cursor: "pointer",
-                boxShadow: "0 8px 24px rgba(0, 0, 0, .35)"
-            }}
-            onClick={() => openRecoveryOverlay("Recovery Mode opened manually.")}
-        >
-            <WinreIcon d={ICONS.wrench} size={16} />
-            Open Recovery Mode
-        </button>
-    );
+    return null;
 }
 
 /* -------------------------------------- init / cleanup --------------------------------------- */
