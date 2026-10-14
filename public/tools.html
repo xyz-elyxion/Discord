@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tools — Limey V1</title>
+    <meta name="description" content="Handy Discord tools by Limey V1 — start with the Account Checker: account age, quality signals and profile investment for any user ID.">
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .tools-header {
+            padding: 64px 0 32px;
+            text-align: center;
+            background: radial-gradient(ellipse 60% 50% at 50% -10%, rgba(255, 255, 255, 0.06), transparent), var(--bg);
+        }
+        .tools-header h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            margin-bottom: 12px;
+        }
+        .tools-header .lede { margin-bottom: 0; }
+
+        .tools-list {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 0 24px 72px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .tool-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            transition: border-color 0.15s;
+        }
+        .tool-card:hover { border-color: rgba(156, 204, 60, 0.12); }
+        .tool-card h2 {
+            color: var(--lime);
+            font-size: 1.15rem;
+            margin: 0 0 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .tool-card .tool-desc {
+            color: var(--text-dim);
+            font-size: 0.92rem;
+            line-height: 1.6;
+            margin: 0 0 16px;
+        }
+
+        /* Account checker widget */
+        .ac-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .ac-input {
+            flex: 1 1 280px;
+            background: #0f0f0f;
+            color: var(--foreground);
+            border: 1px solid var(--input);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .ac-input:focus { border-color: var(--lime); }
+        .ac-btn {
+            background: var(--lime);
+            color: #111;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 22px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: filter 0.15s;
+        }
+        .ac-btn:hover { filter: brightness(1.08); }
+
+        .ac-error {
+            display: none;
+            margin-top: 12px;
+            color: #ff7473;
+            font-size: 0.85rem;
+        }
+
+        .ac-result {
+            display: none;
+            margin-top: 18px;
+            background: #0f0f0f;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+        }
+        .ac-band {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .ac-band-emoji {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+            background: var(--card);
+        }
+        .ac-band-label { font-weight: 700; font-size: 1rem; }
+        .ac-band-note { display: block; color: var(--text-dim); font-size: 0.82rem; margin-top: 2px; }
+
+        .ac-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 20px;
+        }
+        @media (max-width: 600px) { .ac-stats { grid-template-columns: 1fr; } }
+        .ac-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 0.88rem;
+            padding: 4px 0;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+        }
+        .ac-row:last-child { border-bottom: none; }
+        .ac-row-label { color: var(--text-dim); }
+        .ac-row-value { font-weight: 600; text-align: right; }
+
+        .ac-score-bar {
+            height: 6px;
+            border-radius: 4px;
+            background: #1a1a1a;
+            overflow: hidden;
+            margin-top: 14px;
+        }
+        .ac-score-fill { height: 100%; width: 0; border-radius: 4px; background: var(--lime); transition: width 0.4s ease; }
+        .ac-score-fill.warn { background: #faa61a; }
+        .ac-score-fill.bad { background: #ed4245; }
+
+        .ac-footnote {
+            margin-top: 14px;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        .tool-soon {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .tool-soon .pill {
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(156, 204, 60, 0.12);
+            color: var(--lime);
+        }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <div class="nav-drop" id="navPluginsDrop">
+                    <button type="button" aria-haspopup="true" aria-expanded="false">Plugins
+                        <span class="caret"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
+                    </button>
+                    <div class="nav-popover" role="menu">
+                        <a class="nav-item" href="/plugins/" role="menuitem">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.2 2.2 9.2 5.3a1 1 0 0 1-.7.6l-3.2.9a1 1 0 0 0-.5 1.7l2.4 2.3a1 1 0 0 1 .3.9l-.6 3.2a1 1 0 0 0 1.5 1.1l2.8-1.6a1 1 0 0 1 1 0l2.8 1.6a1 1 0 0 0 1.5-1.1l-.6-3.2a1 1 0 0 1 .3-.9l2.4-2.3a1 1 0 0 0-.5-1.7l-3.2-.9a1 1 0 0 1-.7-.6l-1-3.1a1 1 0 0 0-1.9 0z"/></svg>
+                            <div>
+                                <span class="nav-item-title">Built-in plugins</span>
+                                <span class="nav-item-desc">100+ plugins that ship with Limey V1</span>
+                            </div>
+                        </a>
+                        <a class="nav-item" href="/submit-plugin.html" role="menuitem">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                            <div>
+                                <span class="nav-item-title">Submit a plugin</span>
+                                <span class="nav-item-desc">Share your own plugins with the community</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <div class="nav-drop" id="navMoreDrop">
+                    <button type="button" aria-haspopup="true" aria-expanded="false">More
+                        <span class="caret"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
+                    </button>
+                    <div class="nav-popover" role="menu">
+                        <a class="nav-item" href="/tools.html" role="menuitem">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            <div>
+                                <span class="nav-item-title">Tools</span>
+                                <span class="nav-item-desc">Handy utilities — Account Checker and more</span>
+                            </div>
+                        </a>
+                        <a class="nav-item" href="/usrbg.html" role="menuitem">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                            <div>
+                                <span class="nav-item-title">USRBG</span>
+                                <span class="nav-item-desc">User banners, no Nitro required</span>
+                            </div>
+                        </a>
+                        <a class="nav-item" href="/code" role="menuitem">
+                            <div>
+                                <span class="nav-item-title">CSS Workshop</span>
+                            </div>
+                        </a>
+                        <a class="nav-item" href="/rules.html" role="menuitem">
+                            <div>
+                                <span class="nav-item-title">Community rules</span>
+                            </div>
+                        </a>
+                        <a class="nav-item" href="/terms" role="menuitem">
+                            <div>
+                                <span class="nav-item-title">Terms of Service</span>
+                            </div>
+                        </a>
+                        <a class="nav-item" href="/privacy" role="menuitem">
+                            <div>
+                                <span class="nav-item-title">Privacy Policy</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <a href="/download">Download</a>
+                <a href="/limes">Limes</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="tools-header">
+        <div class="container">
+            <p class="eyebrow">Free utilities</p>
+            <h1>Limey V1 <span class="accent">Tools</span></h1>
+            <p class="lede">Small, honest utilities that help you make sense of Discord — no accounts required, everything runs in your browser.</p>
+        </div>
+    </section>
+
+    <main class="tools-list">
+        <section class="tool-card">
+            <h2>🔍 Account Checker</h2>
+            <p class="tool-desc">
+                Curious how established a Discord account is? Paste an ID, a <code>@mention</code> or a profile
+                link and this tool derives the account creation date from the ID itself. For the full picture —
+                badges, Nitro and profile investment — use the <strong>AccountChecker</strong> plugin that ships with Limey V1.
+            </p>
+
+            <form id="ac-form" class="ac-form" autocomplete="off">
+                <input id="ac-input" class="ac-input" type="text" placeholder="User ID, @mention, or discord.com/users/… link" />
+                <button class="ac-btn" type="submit">Check</button>
+            </form>
+            <div id="ac-error" class="ac-error"></div>
+
+            <div id="ac-result" class="ac-result">
+                <div class="ac-band">
+                    <span id="ac-band-emoji" class="ac-band-emoji">🙂</span>
+                    <div>
+                        <span id="ac-band-label" class="ac-band-label">Average</span>
+                        <span id="ac-band-note" class="ac-band-note"></span>
+                    </div>
+                </div>
+
+                <div class="ac-stats">
+                    <div class="ac-row"><span class="ac-row-label">Account created</span><span id="ac-created" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Account age</span><span id="ac-age" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">User ID</span><span id="ac-id" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Worker / process shard</span><span id="ac-worker" class="ac-row-value">—</span></div>
+                </div>
+
+                <div class="ac-score-bar"><span id="ac-score-fill" class="ac-score-fill"></span></div>
+
+                <p class="ac-footnote">
+                    Age and worker info come from the snowflake ID — nothing is sent to a server, this page parses it locally.
+                    For badges, Nitro and profile-investment checks, enable the <a href="/plugins/">AccountChecker plugin</a> in Limey V1
+                    and right-click any user → <strong>Check&nbsp;Account</strong>.
+                </p>
+            </div>
+        </section>
+
+        <section class="tool-card">
+            <h2>🧪 More tools</h2>
+            <p class="tool-desc">The tools shelf is growing — have an idea? Suggest it in our Discord community.</p>
+            <p class="tool-soon"><span class="pill">Coming soon</span><span>Theme validator · Snowflake decoder · ID inspector</span></p>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-top">
+                <a href="/" class="footer-brand" aria-label="Limey V1">
+                    <span class="footer-logo">🍋</span>
+                    <span class="footer-name">Limey V1</span>
+                </a>
+                <ul class="footer-social">
+                    <li><a href="https://github.com/xyz-elyxion/Discord" target="_blank" rel="noopener" aria-label="GitHub"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.55v-2.17c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18.92-.26 1.91-.39 2.89-.39.98 0 1.97.13 2.89.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.78 1.05.78 2.12v3.14c0 .3.21.66.8.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg></a></li>
+                    <li><a href="https://discord.gg/n8rmQJRAzV" target="_blank" rel="noopener" aria-label="Discord"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.058a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a></li>
+                </ul>
+            </div>
+            <div class="footer-bottom">
+                <div class="footer-copy">
+                    <div>&copy; <span class="footer-year">2026</span> Limey V1</div>
+                    <div>GPL-3.0</div>
+                    <div class="fine">Discord is a trademark of Discord Inc. This project is not affiliated with or endorsed by Discord Inc.</div>
+                </div>
+                <nav aria-label="Footer">
+                    <ul class="footer-main-links">
+                        <li><a href="/">Home</a></li>
+                        <li><a href="/plugins/">Plugins</a></li>
+                        <li><a href="/tools.html">Tools</a></li>
+                        <li><a href="/download">Download</a></li>
+                        <li><a href="/usrbg.html">USRBG</a></li>
+                        <li><a href="/limes">Limes</a></li>
+                    </ul>
+                    <ul class="footer-legal-links">
+                        <li><a href="/terms">Terms</a></li>
+                        <li><a href="/privacy">Privacy</a></li>
+                        <li><a href="/rules.html">Community rules</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+    (function () {
+        var form = document.getElementById("ac-form");
+        var input = document.getElementById("ac-input");
+        var err = document.getElementById("ac-error");
+        var result = document.getElementById("ac-result");
+
+        var BANDS = [
+            { min: 0,  label: "Early bird",  emoji: "🐣", color: "bad",  note: "Created within the last month — a very fresh account." },
+            { min: 31, label: "New-ish",     emoji: "🌱", color: "warn", note: "Under a year old. Fine for fun, be a bit careful in trades." },
+            { min: 365, label: "Established", emoji: "🙂", color: "",    note: "A normal, moderately aged account." },
+            { min: 1095, label: "Seasoned",   emoji: "💪", color: "",    note: "Three years or older — long-term Discord resident." },
+            { min: 2190, label: "Old guard",  emoji: "🏅", color: "",    note: "Six years or older — around since the early days." }
+        ];
+
+        function parseSnowflake(text) {
+            var m = String(text || "").trim().match(/\d{15,25}/);
+            return m ? m[0] : null;
+        }
+
+        function bandFor(days) {
+            var band = BANDS[0];
+            for (var i = 0; i < BANDS.length; i++) {
+                if (days >= BANDS[i].min) band = BANDS[i];
+            }
+            return band;
+        }
+
+        function scoreFor(days) {
+            // Same weighting family as the plugin: ~4 points per year of age, capped
+            return Math.min(100, Math.round((days / 365) * 4) + 12);
+        }
+
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            err.style.display = "none";
+            var id = parseSnowflake(input.value);
+            if (!id) {
+                err.textContent = "Couldn't find a user ID in that. Paste their ID, a mention like <@123…>, or a discord.com/users/… link.";
+                err.style.display = "block";
+                return;
+            }
+
+            var createdAt = new Date(Number((BigInt(id) >> 22n) + 1420070400000n));
+            var ageMs = Date.now() - createdAt.getTime();
+            var days = Math.max(0, Math.floor(ageMs / 86400000));
+            var band = bandFor(days);
+            var score = Math.max(0, Math.min(100, scoreFor(days)));
+
+            document.getElementById("ac-band-emoji").textContent = band.emoji;
+            document.getElementById("ac-band-emoji").style.background = "rgba(156,204,60,0.12)";
+            document.getElementById("ac-band-label").textContent = band.label + " — " + score + "/100";
+            document.getElementById("ac-band-note").textContent = band.note;
+            document.getElementById("ac-created").textContent = createdAt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+            document.getElementById("ac-age").textContent = days.toLocaleString() + " days";
+            document.getElementById("ac-id").textContent = id;
+            document.getElementById("ac-worker").textContent = String(Number(BigInt(id) >> 17n) & 31);
+
+            var fill = document.getElementById("ac-score-fill");
+            fill.style.width = Math.max(2, score) + "%";
+            fill.className = "ac-score-fill " + band.color;
+
+            result.style.display = "block";
+        });
+    })();
+    </script>
+
+    <script src="/script.js"></script>
+</body>
+</html>
