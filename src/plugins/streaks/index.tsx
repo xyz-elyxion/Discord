@@ -14,7 +14,6 @@ import { Message } from "@limeyV1/discord-types";
 import { ChannelStore, moment, Tooltip, UserStore } from "@webpack/common";
 
 import { settings } from "./settings";
-import { useAuthorizationStore } from "./stores/AuthorizationStore";
 import { useStreaksStore } from "./stores/StreaksStore";
 
 const cl = classNameFactory("vc-streaks-");
@@ -62,7 +61,7 @@ const StreakBadge = ({ userId }: { userId: string; }) => {
 
 export default definePlugin({
     name: "Streaks",
-    description: "Shows a streak next to a user when you exchange DMs with them on consecutive days.",
+    description: "Shows a streak next to a user when you exchange DMs with them on consecutive days. Streaks are tracked locally on your device — no account or login needed.",
     authors: [Devs.Moowi, Devs.thororen],
     tags: ["Friends", "Fun"],
     dependencies: ["MessageDecorationsAPI", "MemberListDecoratorsAPI"],
@@ -70,11 +69,7 @@ export default definePlugin({
 
     flux: {
         async CONNECTION_OPEN() {
-            useAuthorizationStore.getState().init();
-            if (useAuthorizationStore.getState().isAuthorized()) {
-                await useStreaksStore.getState().migrate();
-                await useStreaksStore.getState().fetch();
-            }
+            await useStreaksStore.getState().load();
         },
         async MESSAGE_CREATE({ optimistic, type, message, channelId }: { optimistic: boolean; type: string; message: Message; channelId: string; }) {
             if (optimistic || type !== "MESSAGE_CREATE" || message.state === "SENDING") return;
@@ -87,29 +82,10 @@ export default definePlugin({
             if (!recipientId) return;
 
             const me = UserStore.getCurrentUser()?.id;
-            if (!useAuthorizationStore.getState().isAuthorized()) return;
-
-            const today = moment().format("YYYY-MM-DD");
-            const cached = useStreaksStore.getState().streaks[recipientId];
-            const myFlag = cached && cached.today_date != null && cached.today_date === today && (cached.user_a_id === me ? cached.user_a_today : cached.user_b_today);
-            const theirFlag = cached && cached.today_date != null && cached.today_date === today && (cached.user_a_id === me ? cached.user_b_today : cached.user_a_today);
-
             if (message.author.id === me) {
-                if (!myFlag) {
-                    useStreaksStore.getState().update(recipientId);
-                }
+                await useStreaksStore.getState().mark(recipientId, "me");
             } else if (message.author.id === recipientId) {
-                if (!theirFlag) {
-                    setTimeout(async () => {
-                        const before = useStreaksStore.getState().streaks[recipientId]?.count;
-                        await useStreaksStore.getState().refresh(recipientId);
-                        const after = useStreaksStore.getState().streaks[recipientId]?.count;
-
-                        if (before === after) {
-                            useStreaksStore.getState().update(recipientId);
-                        }
-                    }, 1000);
-                }
+                await useStreaksStore.getState().mark(recipientId, "them");
             }
         },
     },
