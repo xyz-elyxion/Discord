@@ -35,6 +35,7 @@ export * as PluginManager from "./PluginManager";
 import * as $ServerList from "./ServerList";
 import * as $Settings from "./Settings";
 import * as $Styles from "./Styles";
+import * as $SurfaceClasses from "./SurfaceClasses";
 import * as $UserSettings from "./UserSettings";
 
 /**
@@ -101,6 +102,12 @@ export const Settings = $Settings;
  * a
  */
 export const Styles = $Styles;
+/**
+ * An API allowing plugins to attach semantic data attributes and a limited
+ * set of props to stable Discord layout surfaces without patching compiled
+ * Discord JSX directly. Used by the SurfaceClassesAPI plugin.
+ */
+export const SurfaceClasses = $SurfaceClasses;
 /**
  * An API allowing you to display notifications
  */
