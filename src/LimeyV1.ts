@@ -42,6 +42,7 @@ import { NotificationData, showNotification } from "./api/Notifications";
 import { initPluginManager, PMLogger, startAllPlugins } from "./api/PluginManager";
 import { PlainSettings, Settings, SettingsStore } from "./api/Settings";
 import { areLocalSettingsDirty, getCloudSettings, getCloudSyncDirection, markLocalSettingsDirty, putCloudSettings, shouldCloudSync } from "./api/SettingsSync/cloudSync";
+import { isLimeyDisabled, installLimeyOffNotice } from "./utils/limeySwitch";
 import { relaunch } from "./utils/native";
 import { checkForUpdates, update, UpdateLogger } from "./utils/updater";
 import { onceReady } from "./webpack";
@@ -173,15 +174,22 @@ async function init() {
     }
 }
 
-initPluginManager();
-initStyles();
-startAllPlugins(StartAt.Init);
-init();
+if (isLimeyDisabled()) {
+    // Turned off (e.g. via Recovery Mode): keep the boot inert — no plugins,
+    // no patches registered, no styles — and show the small corner notice
+    // with the "Turn back on" button instead.
+    installLimeyOffNotice();
+} else {
+    initPluginManager();
+    initStyles();
+    startAllPlugins(StartAt.Init);
+    init();
 
-document.addEventListener("DOMContentLoaded", () => {
-    startAllPlugins(StartAt.DOMContentLoaded);
+    document.addEventListener("DOMContentLoaded", () => {
+        startAllPlugins(StartAt.DOMContentLoaded);
 
-    if (IS_DISCORD_DESKTOP && Settings.nativeTitleBar) {
-        enableStyle(nativeTitleBarStyles);
-    }
-}, { once: true });
+        if (IS_DISCORD_DESKTOP && Settings.nativeTitleBar) {
+            enableStyle(nativeTitleBarStyles);
+        }
+    }, { once: true });
+}

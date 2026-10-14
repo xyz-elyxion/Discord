@@ -14,6 +14,7 @@ import gitHash from "~git-hash";
 
 import { Logger } from "@utils/Logger";
 import { copyToClipboard } from "@utils/clipboard";
+import { setLimeyDisabled } from "@utils/limeySwitch";
 import { relaunch } from "@utils/native";
 
 const logger = new Logger("CrashRecovery");
@@ -266,6 +267,38 @@ async function suspectList(): Promise<string[]> {
     return [...suspects];
 }
 
+/* ------------------------------------- reset limey v1 ----------------------------------------- */
+
+/**
+ * Wipes Limey V1 back to a clean slate: every plugin toggle and per-plugin
+ * setting is removed (built-in defaults re-apply on the next boot), plugins
+ * are un-quarantined and all recovery state is erased.
+ *
+ * Call relaunch() afterwards to apply the reset.
+ */
+export async function resetLimeyV1() {
+    // Reset plugin configuration (toggles + per-plugin settings)
+    for (const name of Object.keys(Settings.plugins)) {
+        delete Settings.plugins[name];
+    }
+
+    // Clear plugin quarantine and all recovery bookkeeping
+    crashes = [];
+    history = [];
+    lastGood = undefined;
+    quarantine = {};
+    recentFailedSessions = [];
+    await Promise.allSettled([
+        DataStore.set(STORE_CRASHES, []),
+        DataStore.set(STORE_HISTORY, []),
+        DataStore.del(STORE_LAST_GOOD),
+        DataStore.set(STORE_QUARANTINE, {}),
+        DataStore.set(STORE_SESSIONS, [])
+    ]);
+
+    await pushHistory(makeEvent("repair", "Limey V1 was reset (plugin settings back to defaults, recovery state cleared)"));
+}
+
 /* ----------------------------------- dependency checker -------------------------------------- */
 
 export interface DependencyCheckResult {
@@ -317,7 +350,7 @@ function markSessionFailed() {
         const lastTwo = recentFailedSessions.slice(-2);
         if (lastTwo.length >= 2 && lastTwo.every(s => !s.ok)) {
             void pushHistory(makeEvent("auto-recovery", "Two consecutive failed sessions — Crash Loop Protection opened Recovery Mode"));
-            openRecoveryOverlay("Crash Loop Protection: this session keeps failing (also on last startup). Use One-Click Repair, then Safe Restart.");
+            openRecoveryOverlay("Crash Loop Protection: this session keeps failing (also on last startup). Use One-Click Repair in Troubleshoot, then restart Discord or use Turn off Limey V1.");
         }
     });
 }
@@ -361,7 +394,7 @@ export function handleStartupFailure(name: string, error: unknown, stage: string
 
     if (sessionFailures.length >= 3) {
         void pushHistory(makeEvent("auto-recovery", "3+ plugin startup failures this session — Recovery Mode opened automatically"));
-        openRecoveryOverlay("Multiple plugins failed during startup. Quarantine them via One-Click Repair, then Safe Restart.");
+        openRecoveryOverlay("Multiple plugins failed during startup. Quarantine them via One-Click Repair, then restart Discord or use Turn off Limey V1.");
     }
 }
 
@@ -759,7 +792,9 @@ const ICONS = {
     restore: "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z",
     back: "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z",
     lock: "M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6z",
-    close: "M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+    close: "M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
+    power: "M12 2v10M18.4 6.6a9 9 0 1 1-12.77.04",
+    delete: "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
 };
 
 function LimeyLogo({ size = 72 }: { size?: number; }) {
@@ -932,10 +967,13 @@ function ChooseScreen({ open }: { open: (s: WinreScreen) => void; }) {
             action: () => open("troubleshoot")
         },
         {
-            icon: ICONS.restart,
-            label: "Safe Restart",
-            sublabel: "Restart Discord with your fixes applied",
-            action: () => void relaunch()
+            icon: ICONS.power,
+            label: "Turn off Limey V1",
+            sublabel: "Turn off all Limey V1 plugins, patches and styles until you turn it back on from the notice it shows at startup",
+            action: () => {
+                setLimeyDisabled(true);
+                void relaunch();
+            }
         },
         {
             icon: ICONS.report,
@@ -971,7 +1009,7 @@ function TroubleshootScreen({ open }: { open: (s: WinreScreen) => void; }) {
                 const applied = await applyRepairPlan();
                 setFlash(
                     applied.length
-                        ? `One-Click Repair quarantined: ${applied.join(", ")}. Use Safe Restart to apply it fully.`
+                        ? `One-Click Repair quarantined: ${applied.join(", ")}. Restart Discord to apply it fully.`
                         : "One-Click Repair found nothing to quarantine."
                 );
             }
@@ -985,7 +1023,7 @@ function TroubleshootScreen({ open }: { open: (s: WinreScreen) => void; }) {
             action: async () => {
                 const ok = await restoreLastKnownGood();
                 setFlash(ok
-                    ? "Last Known Good configuration restored. Use Safe Restart if some plugins didn't come back on their own."
+                    ? "Last Known Good configuration restored. Restart Discord if some plugins didn't come back on their own."
                     : "No Last Known Good configuration saved yet — one is taken after a healthy session.");
             }
         },
@@ -1006,6 +1044,15 @@ function TroubleshootScreen({ open }: { open: (s: WinreScreen) => void; }) {
             label: "Recovery History",
             sublabel: "See the last 50 recovery events on this device",
             action: () => open("history")
+        },
+        {
+            icon: ICONS.delete,
+            label: "Reset Limey V1",
+            sublabel: "Restore every plugin setting to its default and clear Recovery Mode state, then restart",
+            action: async () => {
+                await resetLimeyV1();
+                void relaunch();
+            }
         }
     ];
 
@@ -1015,7 +1062,7 @@ function TroubleshootScreen({ open }: { open: (s: WinreScreen) => void; }) {
         <>
             <WinreHeading
                 title="Advanced options"
-                sub="Repair or roll back the plugin environment, then use Safe Restart on the blue screen to apply it."
+                sub="Repair or roll back the plugin environment, then restart Discord (or use Turn off Limey V1 on the first screen) to apply it."
             />
             {flash && <WinreFlash text={flash} />}
             <div style={listStyle}>

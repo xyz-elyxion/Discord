@@ -20,13 +20,14 @@ import { openNotificationLogModal } from "@api/Notifications/notificationLog";
 import { useSettings } from "@api/Settings";
 import { Divider } from "@components/Divider";
 import { FormSwitch } from "@components/FormSwitch";
-import { FolderIcon, GithubIcon, LogIcon, PaintbrushIcon, RestartIcon } from "@components/Icons";
+import { BackupRestoreIcon, FolderIcon, GithubIcon, LogIcon, PaintbrushIcon, RestartIcon } from "@components/Icons";
 import { QuickAction, QuickActionCard } from "@components/settings/QuickAction";
 import { SpecialCard } from "@components/settings/SpecialCard";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { openContributorModal } from "@components/settings/tabs/plugins/ContributorModal";
 import { openPluginModal } from "@components/settings/tabs/plugins/PluginModal";
 import SettingsPlugin from "@plugins/_core/settings";
+import { openRecoveryOverlay, resetLimeyV1 } from "@plugins/crashHandler/recovery";
 import { gitRemote } from "@shared/limeyV1UserAgent";
 import { IS_WINDOWS } from "@utils/constants";
 import { Margins } from "@utils/margins";
@@ -162,6 +163,28 @@ function LimeyV1Settings() {
                             />
                         </>
                     )}
+                    <QuickAction
+                        Icon={BackupRestoreIcon}
+                        text="Open Recovery Mode"
+                        action={() => openRecoveryOverlay()}
+                    />
+                    <QuickAction
+                        Icon={PaintbrushIcon}
+                        text="Reset Limey V1"
+                        action={() => openModal(props => (
+                            <ConfirmModal
+                                {...props}
+                                title="Reset Limey V1"
+                                subtitle="This restores every plugin setting to its default and clears Recovery Mode state (quarantine, crash history, Last Known Good). This cannot be undone."
+                                confirmText="Reset & Restart"
+                                variant="primary"
+                                onConfirm={async () => {
+                                    await resetLimeyV1();
+                                    relaunch();
+                                }}
+                            />
+                        ))}
+                    />
                     <QuickAction
                         Icon={GithubIcon}
                         text="View Source Code"
