@@ -164,6 +164,85 @@
             background: rgba(156, 204, 60, 0.12);
             color: var(--lime);
         }
+
+        /* Shared lookup result bits (invite / server / user lookups) */
+        .lk-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            object-fit: cover;
+            background: #101010;
+            border: 1px solid var(--border);
+            display: none;
+        }
+        .lk-head {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 10px;
+        }
+        .lk-head h3 {
+            margin: 0;
+            font-size: 1.05rem;
+            color: var(--foreground);
+        }
+        .lk-desc {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            line-height: 1.55;
+            margin: 0 0 12px;
+        }
+        .lk-note {
+            margin-top: 10px;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+        }
+
+        /* Friend graph visualiser */
+        .fg-toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .ac-btn-ghost {
+            background: #0f0f0f;
+            color: var(--foreground);
+            border: 1px solid var(--input);
+        }
+        .ac-btn-ghost:hover { background: var(--accent); }
+        .fg-canvas-wrap {
+            background: #0d0d0d;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .fg-canvas-wrap canvas {
+            display: block;
+            width: 100%;
+            height: 420px;
+        }
+        .fg-legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+        }
+        .fg-legend span::before {
+            content: "";
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: -1px;
+            background: var(--lime);
+        }
+        .fg-legend .lg-me::before { background: var(--lime); }
+        .fg-legend .lg-friend::before { background: #6a86e8; }
+        .fg-legend .lg-shared::before { background: #9ccc3c88; }
     </style>
 </head>
 <body>
@@ -294,6 +373,123 @@
         </section>
 
         <section class="tool-card">
+            <h2>👤 User lookup</h2>
+            <p class="tool-desc">
+                Paste someone's ID, <code>@mention</code> or profile link to see when their account was
+                created, how old it is and which worker shard it belongs to. An "Open profile" deep link
+                lets Discord itself fill in the rest.
+            </p>
+            <form id="ul-form" class="ac-form" autocomplete="off">
+                <input id="ul-input" class="ac-input" type="text" placeholder="User ID, @mention, or discord.com/users/… link" />
+                <button class="ac-btn" type="submit">Look up</button>
+            </form>
+            <div id="ul-error" class="ac-error"></div>
+            <div id="ul-result" class="ac-result">
+                <div class="ac-band">
+                    <span id="ul-band-emoji" class="ac-band-emoji">🙂</span>
+                    <div>
+                        <span id="ul-band-label" class="ac-band-label">Established</span>
+                        <span id="ul-band-note" class="ac-band-note"></span>
+                    </div>
+                </div>
+                <div class="ac-stats">
+                    <div class="ac-row"><span class="ac-row-label">Account created</span><span id="ul-created" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Account age</span><span id="ul-age" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">User ID</span><span id="ul-id" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Worker / shard</span><span id="ul-worker" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Profile link</span><span id="ul-link" class="ac-row-value">—</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tool-card">
+            <h2>📨 Invite lookup</h2>
+            <p class="tool-desc">
+                Paste a <code>discord.gg/…</code> invite (raw code or full URL) to see what's behind it —
+                server name, description, approximate member and online counts, and the invite channel.
+                Resolved through our server against Discord's public API, nothing else.
+            </p>
+            <form id="il-form" class="ac-form" autocomplete="off">
+                <input id="il-input" class="ac-input" type="text" placeholder="discord.gg/your-invite or raw invite code" />
+                <button class="ac-btn" type="submit">Look up</button>
+            </form>
+            <div id="il-error" class="ac-error"></div>
+            <div id="il-result" class="ac-result">
+                <div class="lk-head">
+                    <img id="il-icon" class="lk-icon" alt="" />
+                    <div>
+                        <h3 id="il-name">—</h3>
+                        <span id="il-id" class="ac-row-label"></span>
+                    </div>
+                </div>
+                <p id="il-desc" class="lk-desc"></p>
+                <div class="ac-stats">
+                    <div class="ac-row"><span class="ac-row-label">Members (approx.)</span><span id="il-members" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Online (approx.)</span><span id="il-online" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Invite channel</span><span id="il-channel" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Expires</span><span id="il-expires" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Guild created</span><span id="il-created" class="ac-row-value">—</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tool-card">
+            <h2>🛡 Server lookup</h2>
+            <p class="tool-desc">
+                Paste a server (guild) ID — enable Developer Mode in Discord or Copy ID from a server
+                context menu — to see when it was created, plus live presence numbers when the server
+                publishes its widget.
+            </p>
+            <form id="gl-form" class="ac-form" autocomplete="off">
+                <input id="gl-input" class="ac-input" type="text" placeholder="Server / guild ID (17–20 digits)" />
+                <button class="ac-btn" type="submit">Look up</button>
+            </form>
+            <div id="gl-error" class="ac-error"></div>
+            <div id="gl-result" class="ac-result">
+                <div class="lk-head">
+                    <img id="gl-icon" class="lk-icon" alt="" />
+                    <div>
+                        <h3 id="gl-name">—</h3>
+                        <span id="gl-id" class="ac-row-label"></span>
+                    </div>
+                </div>
+                <div class="ac-stats">
+                    <div class="ac-row"><span class="ac-row-label">Server created</span><span id="gl-created" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Server age</span><span id="gl-age" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Online now (widget)</span><span id="gl-online" class="ac-row-value">—</span></div>
+                    <div class="ac-row"><span class="ac-row-label">Widget invite</span><span id="gl-invite" class="ac-row-value">—</span></div>
+                </div>
+                <p id="gl-note" class="lk-note"></p>
+            </div>
+        </section>
+
+        <section class="tool-card">
+            <h2>🕸 Friend graph visualiser</h2>
+            <p class="tool-desc">
+                Turn friend lists into a living social web. Run <code>/friendgraph</code> in Discord with the
+                AccountChecker plugin to copy your friends as JSON, paste it here, and drag nodes around.
+                Paste several people's exports to reveal shared friends between groups — nodes merge by name.
+            </p>
+            <div class="fg-toolbar">
+                <button id="fg-import-btn" class="ac-btn ac-btn-ghost" type="button">Import JSON</button>
+                <button id="fg-demo-btn" class="ac-btn ac-btn-ghost" type="button">Load demo</button>
+                <button id="fg-clear-btn" class="ac-btn ac-btn-ghost" type="button">Clear</button>
+            </div>
+            <textarea id="fg-import" class="ac-input" rows="3" style="display:none; margin-bottom:8px;" placeholder='Paste graph JSON here — e.g. {"me":"You","friends":["Alice","Bob"]}, or an array of those'></textarea>
+            <div id="fg-error" class="ac-error"></div>
+            <div id="fg-empty" class="lk-note">Nothing imported yet — try <strong>Load demo</strong> to see what this looks like, or copy your graph from Discord with <code>/friendgraph</code>.</div>
+            <div id="fg-wrap" class="fg-canvas-wrap" style="display:none;">
+                <canvas id="fg-canvas"></canvas>
+            </div>
+            <div id="fg-legend" class="fg-legend" style="display:none;">
+                <span class="lg-me">Exported by someone</span>
+                <span class="lg-friend"> Friend</span>
+                <span class="lg-shared"> Shared between exports</span>
+            </div>
+            <p class="ac-footnote">Everything below runs locally in your browser — imported friend lists never leave your device.</p>
+        </section>
+
+        <section class="tool-card">
             <h2>🧪 More tools</h2>
             <p class="tool-desc">The tools shelf is growing — have an idea? Suggest it in our Discord community.</p>
             <p class="tool-soon"><span class="pill">Coming soon</span><span>Theme validator · Snowflake decoder · ID inspector</span></p>
@@ -401,6 +597,372 @@
 
             result.style.display = "block";
         });
+
+        // Expose shared helpers for the other tools on this page
+        window.LimeyTools = { parseSnowflake, bandFor, scoreFor };
+    })();
+    </script>
+
+    <script>
+    // User / invite / server lookup + friend graph visualiser.
+    // Helpers come from the account-checker script above (window.LimeyTools).
+    (function () {
+        "use strict";
+
+        const LT = window.LimeyTools || {};
+        const parseSnowflake = LT.parseSnowflake || (t => { const m = String(t || "").trim().match(/\d{15,25}/); return m ? m[0] : null; });
+        const bandFor = LT.bandFor || (() => ({ min: 0, label: "Established", emoji: "🙂", color: "", note: "" }));
+        const scoreFor = LT.scoreFor || (() => 12);
+
+        const $ = id => document.getElementById(id);
+        function show(id, on) { $(id).style.display = on ? "block" : "none"; }
+        function fail(errEl, msg) { $(errEl).textContent = msg; show(errEl, true); }
+
+        // ------------------------------------------------------------------
+        // User lookup
+        // ------------------------------------------------------------------
+        $("ul-form").addEventListener("submit", e => {
+            e.preventDefault();
+            show("ul-error", false);
+            const id = parseSnowflake($("ul-input").value);
+            if (!id) return fail("ul-error", "Couldn't find a user ID in that. Paste their ID, a mention like <@123…>, or a discord.com/users/… link.");
+
+            const createdAt = new Date(Number((BigInt(id) >> 22n) + 1420070400000n));
+            const days = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / 86400000));
+            const band = bandFor(days);
+
+            $("ul-band-emoji").textContent = band.emoji;
+            $("ul-band-label").textContent = band.label + " — " + scoreFor(days) + "/100";
+            $("ul-band-note").textContent = band.note;
+            $("ul-created").textContent = createdAt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+            $("ul-age").textContent = days.toLocaleString() + " days";
+            $("ul-id").textContent = id;
+            $("ul-worker").textContent = String(Number(BigInt(id) >> 17n) & 31);
+
+            const link = $("ul-link");
+            link.innerHTML = "";
+            const a = document.createElement("a");
+            a.href = "https://discord.com/users/" + id;
+            a.target = "_blank";
+            a.rel = "noopener";
+            a.textContent = "Open in Discord →";
+            link.appendChild(a);
+
+            show("ul-result", true);
+        });
+
+        // ------------------------------------------------------------------
+        // Invite lookup
+        // ------------------------------------------------------------------
+        function parseInviteCode(text) {
+            const m = String(text || "").trim().match(/(?:discord\.gg|discord(?:app)?\.com\/(?:invite|resolve))\/([A-Za-z0-9_-]+)/) || String(text || "").trim().match(/^([A-Za-z0-9_-]{2,32})$/);
+            return m ? m[1] : null;
+        }
+        function fmtDate(v) { try { return new Date(v).toLocaleString(); } catch { return String(v); } }
+
+        $("il-form").addEventListener("submit", async e => {
+            e.preventDefault();
+            show("il-error", false);
+            show("il-result", false);
+            const code = parseInviteCode($("il-input").value);
+            if (!code) return fail("il-error", "That doesn't look like an invite. Paste a discord.gg/… link or the raw invite code.");
+
+            let data;
+            try {
+                const res = await fetch("/v1/tools/lookup/invite/" + encodeURIComponent(code));
+                data = await res.json();
+                if (res.status === 404) return fail("il-error", "Discord says that invite is unknown or expired.");
+                if (!res.ok) return fail("il-error", "Lookup failed (" + res.status + ") — try again in a moment.");
+            } catch (err) {
+                return fail("il-error", "Lookup failed — is the site's lookup backend reachable?");
+            }
+
+            const g = data.guild || {};
+            $("il-name").textContent = g.name || "Unknown server";
+            $("il-id").textContent = "ID " + (g.id || "unknown");
+            $("il-desc").textContent = g.description || "";
+            $("il-members").textContent = g.member_count ? g.member_count.toLocaleString() : "unavailable";
+            $("il-online").textContent = g.online_count ? g.online_count.toLocaleString() : "unavailable";
+            $("il-channel").textContent = data.channel && data.channel.name ? "#" + data.channel.name : "unknown";
+            $("il-expires").textContent = data.expires_at ? fmtDate(data.expires_at) : "never";
+            $("il-created").textContent = g.id
+                ? new Date(Number((BigInt(g.id) >> 22n) + 1420070400000n)).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
+                : "—";
+
+            const icon = $("il-icon");
+            if (g.icon) {
+                icon.src = "https://cdn.discordapp.com/icons/" + g.id + "/" + g.icon + ".png?size=128";
+                icon.style.display = "block";
+            } else {
+                icon.style.display = "none";
+            }
+            show("il-result", true);
+        });
+
+        // ------------------------------------------------------------------
+        // Server (guild) lookup
+        // ------------------------------------------------------------------
+        $("gl-form").addEventListener("submit", async e => {
+            e.preventDefault();
+            show("gl-error", false);
+            show("gl-result", false);
+            $("gl-note").textContent = "";
+            const id = parseSnowflake($("gl-input").value);
+            if (!id) return fail("gl-error", "That doesn't look like a server ID. Enable Developer Mode in Discord, right-click the server and Copy ID.");
+
+            const createdAt = new Date(Number((BigInt(id) >> 22n) + 1420070400000n));
+            const days = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / 86400000));
+
+            $("gl-name").textContent = "Unknown (widget off?)";
+            $("gl-created").textContent = createdAt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+            $("gl-age").textContent = days.toLocaleString() + " days";
+            $("gl-online").textContent = "—";
+            $("gl-invite").textContent = "—";
+            $("gl-icon").style.display = "none";
+
+            try {
+                const res = await fetch("/v1/tools/lookup/guild/" + id);
+                const data = await res.json();
+                if (res.ok && data.name) {
+                    $("gl-name").textContent = data.name;
+                    $("gl-online").textContent = (data.presence_count || 0).toLocaleString() + " members online";
+                    $("gl-invite").textContent = data.instant_invite || "none";
+                    $("gl-note").textContent = "Live numbers come from the server's public widget (help → widget in server settings).";
+                } else if (res.status === 404) {
+                    $("gl-note").textContent = "Discord reports no widget for that ID — either the server disabled it or the ID is wrong.";
+                } else {
+                    $("gl-note").textContent = "Widget unavailable (" + res.status + ") — showing only what the ID tells us.";
+                }
+            } catch (err) {
+                $("gl-note").textContent = "Widget lookup failed — showing only what the ID tells us.";
+            }
+            show("gl-result", true);
+        });
+
+        // ------------------------------------------------------------------
+        // Friend graph visualiser
+        // ------------------------------------------------------------------
+        const G = { nodes: [], edges: [], byName: new Map() };
+        const canvas = $("fg-canvas");
+        const ctx = canvas.getContext("2d");
+        let hoverName = null;
+        let dragNode = null;
+        let raf = 0;
+
+        function ensureNode(rawName, isExporter) {
+            const name = String(rawName).trim();
+            if (!name) return null;
+            const key = name.toLowerCase();
+            let node = G.byName.get(key);
+            if (!node) {
+                node = {
+                    name,
+                    x: canvas.clientWidth / 2 + (Math.random() - 0.5) * 260,
+                    y: canvas.clientHeight / 2 + (Math.random() - 0.5) * 200,
+                    vx: 0, vy: 0,
+                    exporter: false,
+                    pinned: false,
+                };
+                G.nodes.push(node);
+                G.byName.set(key, node);
+            }
+            if (isExporter) node.exporter = true;
+            return node;
+        }
+
+        function addExport(entry) {
+            if (!entry || typeof entry !== "object") return false;
+            const me = entry.me || entry.name;
+            const friendsArr = Array.isArray(entry.friends) ? entry.friends : null;
+            if (typeof me !== "string" || !friendsArr) return false;
+            const meNode = ensureNode(me, true);
+            if (!meNode) return false;
+            for (const fr of friendsArr) {
+                const label = typeof fr === "object" ? (fr.label || fr.name || fr.id) : fr;
+                const node = ensureNode(label, false);
+                if (node && node !== meNode) {
+                    const a = meNode, b = node;
+                    G.edges.push([a, b]);
+                }
+            }
+            return true;
+        }
+
+        function deg(n) {
+            let d = 0;
+            for (const [a, b] of G.edges) if (a === n || b === n) d++;
+            return d;
+        }
+
+        function importText(text) {
+            show("fg-error", false);
+            let data;
+            try { data = JSON.parse(text); } catch { return; }
+            const list = Array.isArray(data) ? data : (Array.isArray(data.exports) ? data.exports : [data]);
+            let ok = 0;
+            for (const entry of list) if (addExport(entry)) ok++;
+            if (ok > 0) {
+                show("fg-empty", false);
+                show("fg-wrap", true);
+                show("fg-legend", true);
+                layoutFresh();
+            } else {
+                fail("fg-error", "JSON parsed, but no usable entries found. Expected {\"me\":\"You\",\"friends\":[\"Alice\"]} — check the /friendgraph output shape.");
+            }
+        }
+
+        const ta = $("fg-import");
+        $("fg-import-btn").addEventListener("click", () => {
+            const visible = ta.style.display !== "none";
+            ta.style.display = visible ? "none" : "block";
+            if (!visible) ta.focus();
+        });
+        ta.addEventListener("input", () => importText(ta.value));
+
+        const DEMO = [
+            { me: "Alice", friends: ["Bob", "Cara", "Dave", "Erin"] },
+            { me: "Bob", friends: ["Cara", "Finn", "Gwen", "Hari"] },
+            { me: "Cara", friends: ["Dave", "Gwen", "Imani", "Jo"], },
+            { me: "Finn", friends: ["Hari", "Imani", "Kat", "Liam"] },
+            { me: "Kate", friends: ["Gwen", "Hari", "Liam"] },
+        ];
+        $("fg-demo-btn").addEventListener("click", () => { DEMO.forEach(addExport); show("fg-empty", false); show("fg-wrap", true); show("fg-legend", true); layoutFresh(); });
+        $("fg-clear-btn").addEventListener("click", () => {
+            G.nodes.length = 0; G.edges.length = 0; G.byName.clear();
+            show("fg-wrap", false); show("fg-legend", false); show("fg-empty", true);
+        });
+
+        function layoutFresh() {
+            const w = canvas.clientWidth, h = canvas.clientHeight;
+            G.nodes.forEach((n, i) => {
+                const angle = (i / Math.max(1, G.nodes.length)) * Math.PI * 2;
+                n.x = w / 2 + Math.cos(angle) * Math.min(w, h) * 0.32;
+                n.y = h / 2 + Math.sin(angle) * Math.min(w, h) * 0.32;
+                n.vx = n.vy = 0;
+            });
+            if (!raf) raf = requestAnimationFrame(step);
+        }
+
+        function tick() {
+            const nodes = G.nodes, edges = G.edges;
+            const w = canvas.clientWidth, h = canvas.clientHeight;
+            // Repulsion
+            for (let i = 0; i < nodes.length; i++) {
+                const a = nodes[i];
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const b = nodes[j];
+                    let dx = b.x - a.x, dy = b.y - a.y;
+                    let d2 = dx * dx + dy * dy || 1;
+                    const f = Math.min(2200 / d2, 2.5);
+                    const d = Math.sqrt(d2);
+                    dx /= d; dy /= d;
+                    a.vx -= dx * f; a.vy -= dy * f;
+                    b.vx += dx * f; b.vy += dy * f;
+                }
+            }
+            // Springs
+            for (const [a, b] of edges) {
+                const dx = b.x - a.x, dy = b.y - a.y;
+                const d = Math.sqrt(dx * dx + dy * dy) || 1;
+                const f = (d - 70) * 0.01;
+                const ux = dx / d, uy = dy / d;
+                a.vx += ux * f; a.vy += uy * f;
+                b.vx -= ux * f; b.vy -= uy * f;
+            }
+            for (const n of nodes) {
+                n.vx += (w / 2 - n.x) * 0.0012;
+                n.vy += (h / 2 - n.y) * 0.0012;
+                if (n !== dragNode) {
+                    n.vx *= 0.86; n.vy *= 0.86;
+                    n.x += n.vx; n.y += n.vy;
+                    n.x = Math.max(30, Math.min(w - 30, n.x));
+                    n.y = Math.max(26, Math.min(h - 26, n.y));
+                }
+            }
+        }
+
+        function draw() {
+            const w = canvas.clientWidth, h = canvas.clientHeight;
+            const dpr = window.devicePixelRatio || 1;
+            if (canvas.width !== w * dpr) {
+                canvas.width = w * dpr;
+                canvas.height = h * dpr;
+            }
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+
+            for (const [a, b] of G.edges) {
+                const hot = hoverName && (a.name === hoverName || b.name === hoverName);
+                ctx.strokeStyle = hot ? "rgba(156,204,60,0.45)" : "rgba(255,255,255,0.08)";
+                ctx.lineWidth = hot ? 1.6 : 1;
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+            }
+            for (const n of G.nodes) {
+                const d = deg(n);
+                const r = 4 + Math.min(d, 12) * 1.1;
+                const shared = d > 1 && !n.exporter;
+                ctx.fillStyle = n.exporter ? "#9ccc3c" : shared ? "rgba(156,204,60,0.5)" : "#6a86e8";
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+                ctx.fill();
+                const showLabel = d === 0 || n.exporter || G.nodes.length <= 48 || n.name === hoverName;
+                if (showLabel) {
+                    ctx.fillStyle = n.name === hoverName ? "#fff" : "rgba(255,255,255,0.55)";
+                    ctx.font = (n.name === hoverName ? "600 " : "") + "10px system-ui, sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText(n.name, n.x, n.y + r + 12);
+                }
+            }
+        }
+
+        function step() {
+            tick();
+            draw();
+            raf = requestAnimationFrame(step);
+        }
+
+        function pick(mx, my) {
+            let best = null, bestD = 16 * 16;
+            for (const n of G.nodes) {
+                const dx = n.x - mx, dy = n.y - my, d2 = dx * dx + dy * dy;
+                if (d2 < bestD) { bestD = d2; best = n; }
+            }
+            return best;
+        }
+
+        function relPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        canvas.addEventListener("pointermove", e => {
+            const p = relPos(e);
+            if (dragNode) { dragNode.x = p.x; dragNode.y = p.y; dragNode.vx = dragNode.vy = 0; e.preventDefault(); return; }
+            const n = pick(p.x, p.y);
+            hoverName = n ? n.name : null;
+            canvas.style.cursor = n ? "grab" : "default";
+        });
+        canvas.addEventListener("pointerdown", e => {
+            const p = relPos(e);
+            const n = pick(p.x, p.y);
+            if (n) {
+                dragNode = n;
+                canvas.setPointerCapture(e.pointerId);
+                canvas.style.cursor = "grabbing";
+                e.preventDefault();
+            }
+        });
+        canvas.addEventListener("pointerup", e => {
+            if (dragNode) {
+                try { canvas.releasePointerCapture(e.pointerId); } catch {}
+            }
+            dragNode = null;
+            canvas.style.cursor = "default";
+        });
+        window.addEventListener("resize", () => { if (G.nodes.length) layoutFresh(); });
     })();
     </script>
 

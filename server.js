@@ -418,6 +418,79 @@ function json(res, status, obj) {
 }
 
 // ---------------------------------------------------------------------------
+// Tools lookup proxy — powers the Tools page (invite + server lookup)
+// ---------------------------------------------------------------------------
+// Discord's REST API does not send CORS headers to arbitrary websites, so the
+// Tools page resolves lookups through the site. Only unauthenticated public
+// endpoints are hit — no bot token involved. Responses are cached for 2 min to
+// stay inside the unauthenticated rate limit.
+
+const LookupTtlMs = 120_000;
+const lookupCache = new Map(); // key -> { at, status, body }
+
+function lookupCacheGet(key) {
+    const hit = lookupCache.get(key);
+    if (hit) {
+        if (Date.now() - hit.at < LookupTtlMs) return hit;
+        lookupCache.delete(key);
+    }
+    return null;
+}
+
+async function handleToolsLookup(req, res, url) {
+    if (!url.startsWith("/v1/tools/lookup/")) return false;
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        res.end();
+        return true;
+    }
+    if (req.method !== "GET") return json(res, 405, { error: "method not allowed" }), true;
+
+    const rest = url.slice("/v1/tools/lookup/".length).split("?")[0];
+    const inviteMatch = rest.match(/^invite\/([a-zA-Z0-9-]{2,32})$/);
+    const guildMatch = rest.match(/^guild\/(\d{10,25})$/);
+    if (!inviteMatch && !guildMatch) return json(res, 404, { error: "unknown lookup" }), true;
+
+    const cached = lookupCacheGet(rest);
+    if (cached) return json(res, cached.status, cached.body), true;
+
+    // Invite resolution gives guild name, member/online counts and channel info.
+    // Guild widget.json only works when the guild enabled the widget; the client
+    // falls back to snowflake-only info when it doesn't.
+    const target = inviteMatch
+        ? `invites/${inviteMatch[1]}?with_counts=true&with_expiration=true`
+        : `guilds/${guildMatch[1]}/widget.json`;
+
+    try {
+        const upstream = await fetch(new URL(target, "https://discord.com/api/v10/"), {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (compatible; LimeyV1Tools/1.0)",
+                Accept: "application/json",
+            },
+            redirect: "follow",
+        });
+        let body;
+        try {
+            body = await upstream.json();
+        } catch {
+            body = null;
+        }
+        if (!body || typeof body !== "object") {
+            return json(res, 502, { error: "unexpected upstream response" }), true;
+        }
+        lookupCache.set(rest, { at: Date.now(), status: upstream.status, body });
+        json(res, upstream.status, body);
+        return true;
+    } catch (err) {
+        console.error("[tools-lookup]", rest, err?.message || err);
+        return json(res, 502, { error: "lookup failed" }), true;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Discord Developer Portal endpoints
 // ---------------------------------------------------------------------------
 
@@ -1888,6 +1961,8 @@ const server = http.createServer(async (req, res) => {
         if (await handleUsrbg(req, res, url)) return;
         // Limey V1 Detector API (handled in-process)
         if (await handleDetector(req, res, url)) return;
+        // Tools page lookup proxy (invite + guild widget)
+        if (await handleToolsLookup(req, res, url)) return;
         // CORS-friendly media proxy for the GifCaptioner plugin
         if (await handleMediaProxy(req, res, url)) return;
         // User dashboard session API (handled in-process)

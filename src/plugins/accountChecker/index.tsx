@@ -8,9 +8,10 @@ import { ApplicationCommandInputType, ApplicationCommandOptionType, sendBotMessa
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Flex } from "@components/Flex";
 import { Devs } from "@utils/constants";
+import { copyToClipboard } from "@utils/clipboard";
 import definePlugin from "@utils/types";
 import type { User } from "@limeyV1/discord-types";
-import { Forms, Menu, Modal, openModal, showToast } from "@webpack/common";
+import { Forms, Menu, Modal, openModal, RelationshipStore, showToast, UserStore } from "@webpack/common";
 
 import { analyzeUser, getBand, isAnalyzing } from "./analysis";
 import CheckerModal, { cl, parseUserId } from "./components/CheckerModal";
@@ -81,6 +82,35 @@ export default definePlugin({
     },
 
     commands: [
+        {
+            name: "friendgraph",
+            description: "Copy your friends as JSON graph data for the Tools-page Friend Graph Visualiser",
+            inputType: ApplicationCommandInputType.BUILT_IN,
+            options: [],
+            execute(_opts, { channel }) {
+                const count = RelationshipStore.getFriendCount();
+                const friendIds = RelationshipStore.getFriendIDs();
+                const me = UserStore.getCurrentUser();
+                const meName = me?.globalName ?? me?.username ?? "You";
+                const friends = friendIds
+                    .map(id => {
+                        const user = UserStore.getUser(id);
+                        return user ? (user.globalName ?? user.username) : null;
+                    })
+                    .filter(n => typeof n === "string" && n.length > 0);
+
+                copyToClipboard(JSON.stringify({ me: meName, friends }))
+                    .then(() => {
+                        sendBotMessage(channel.id, {
+                            content: `🕸 **${count}** friends copied as graph JSON. Paste it into the **Friend Graph Visualiser** on the Limey V1 Tools page — paste several people's exports to see shared friends between groups.`
+                        });
+                    })
+                    .catch(e => {
+                        console.error("[AccountChecker] friendgraph copy failed", e);
+                        showToast("Couldn't copy your friend graph to the clipboard", "failure");
+                    });
+            }
+        },
         {
             name: "accountcheck",
             description: "Check a Discord account's age, badges and profile investment",
