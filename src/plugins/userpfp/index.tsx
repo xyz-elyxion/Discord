@@ -64,6 +64,26 @@ export const settings = definePluginSettings({
 
 export default definePlugin({
     name: "UserPFP",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Caches avatar lookups so pruned/fetched data replay faster.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Queries the UserPFP public database (userpfp.github.io) for custom avatars.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Allows you to use an animated avatar without Nitro",
     tags: ["Appearance", "Customisation", "Servers"],
     authors: [Devs.Nexpid, Devs.thororen, Devs.soapphia, Devs.sketchmyname],

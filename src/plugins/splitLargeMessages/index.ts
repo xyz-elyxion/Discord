@@ -150,6 +150,26 @@ const listener: MessageSendListener = async (channelId, message) => {
 
 export default definePlugin({
     name: "SplitLargeMessages",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Uses Discord's own events and stores to read the content, authors and attachments of messages you can already see.",
+            risk: "A buggy or abused plugin could collect, copy or act on private conversations."
+        },
+        {
+            id: "modifyMessages",
+            title: "Alter outgoing messages",
+            description: "Splits messages longer than Discord's limit into several sequential messages (with a configurable delay).",
+            risk: "A long message becomes several sends; check for rate limits if spamming channels."
+        }
+    ],
     description: "Splits oversized messages into Discord-sized chunks before sending.",
     dependencies: ["MessageEventsAPI"],
     tags: ["Chat", "Utility"],

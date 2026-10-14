@@ -118,6 +118,14 @@ export function confirmEnable(plugin: { name: string; description: string; permi
 
 export default definePlugin({
     name: "PermissionsManager",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps the list of plugins you have approved in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     description: "Shows you what permissions a plugin needs, what it does and why that could be bad before you enable it. Also blocks userplugins that do not declare permissions.",
     authors: [Devs.Ven],
     required: true,

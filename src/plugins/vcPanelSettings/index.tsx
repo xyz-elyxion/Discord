@@ -241,6 +241,14 @@ function VoiceSettings() {
 
 export default definePlugin({
     name: "VCPanelSettings",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Control voice settings right from the voice panel",
     tags: ["Utility", "Voice"],
     authors: [Devs.nin0dev],

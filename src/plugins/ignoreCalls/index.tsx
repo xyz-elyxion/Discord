@@ -91,6 +91,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "IgnoreCalls",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Allows you to ignore calls from specific users or dm groups.",
     tags: ["Voice"],
     authors: [Devs.TheArmagan, Devs.thororen],

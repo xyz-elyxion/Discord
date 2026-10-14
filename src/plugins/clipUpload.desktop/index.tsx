@@ -37,6 +37,26 @@ const ctxMenuPatch: NavContextMenuPatchCallback = (children, props) => {
 
 export default definePlugin({
     name: "ClipUpload",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Downloads the clip's encoder assets from public CDNs (jsDelivr).",
+            risk: "Requests are made with your session; destinations see your IP address."
+        },
+        {
+            id: "fileAccess",
+            title: "Read and package files",
+            description: "Reads the local video file you pick and converts it into a Discord clip upload.",
+            risk: "Local files are processed on your device — never send files you don't own."
+        }
+    ],
     description: "Adds a button to upload a local video file as a Discord clip.",
     authors: [Devs.qdnx, Devs.BachLe2000, Devs.pandaptable, Devs.Nyro, Devs.Jahsohsani],
     tags: ["Media", "Utility"],

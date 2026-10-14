@@ -87,6 +87,38 @@ function handleReactionEvent(event: FluxReactionEvent): void {
 
 export default definePlugin({
     name: "ScheduledMessages",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps your scheduled messages stored in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Uses Discord's own events and stores to read the content, authors and attachments of messages you can already see.",
+            risk: "A buggy or abused plugin could collect, copy or act on private conversations."
+        },
+        {
+            id: "modifyMessages",
+            title: "Alter outgoing messages",
+            description: "Sends your stored messages unprompted on your behalf once their schedule fires.",
+            risk: "Messages can be sent without you watching; keep your schedule tidy."
+        },
+        {
+            id: "sendNotifications",
+            title: "Show notifications",
+            description: "Can notify you when a scheduled message fires or needs attention.",
+            risk: "Frequent notifications could be used to distract or social-engineer you."
+        }
+    ],
     description: "Schedule messages to be sent at a specific time or after a delay.",
     tags: ["Chat", "Utility"],
     dependencies: ["ChatInputButtonAPI", "MessageAccessoriesAPI", "MessageEventsAPI"],

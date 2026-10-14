@@ -176,6 +176,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "VoiceChatUtilities",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "This plugin allows you to perform multiple actions on an entire channel (move, mute, disconnect, etc.) (originally by dutake)",
     tags: ["Chat", "Servers", "Voice"],
     authors: [Devs.D3SOX, Devs.nickwoah],

@@ -38,6 +38,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "BetterCursor",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Spring-animated cursor that trails and rotates with your movement. Custom cursor effects for your client.",
     tags: ["Fun", "Appearance"],
     authors: [Devs.Limey],

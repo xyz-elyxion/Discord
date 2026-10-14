@@ -347,6 +347,14 @@ function installTableRuleForParser(parser: { defaultRules?: MarkdownRules; }) {
 
 export default definePlugin({
     name: "MarkdownTables",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Render GitHub-style markdown tables in Discord messages.",
     tags: ["Chat", "Appearance"],
     authors: [Devs.yafyx],

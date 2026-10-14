@@ -54,6 +54,26 @@ const patchChannelContextMenu: NavContextMenuPatchCallback = (children, { channe
 
 export default definePlugin({
     name: "VoiceChannelLog",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps your voice activity log in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "fileAccess",
+            title: "Write files",
+            description: "Exports your voice log to a file you can save/share by hand.",
+            risk: "Exports can contain voice activity history — share thoughtfully."
+        }
+    ],
     description: "Logs voice channel activity including joins, leaves, soundboard, mute, camera, screenshare, and more.",
     tags: ["Servers", "Utility", "Voice"],
     authors: [Devs.Sqaaakoi, Devs.thororen, Devs.nyx, Devs.Moxxie, Devs.Fres, Devs.amy],

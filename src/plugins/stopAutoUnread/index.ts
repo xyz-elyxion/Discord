@@ -9,6 +9,14 @@ import definePlugin from "@utils/types";
 
 export default definePlugin({
     name: "StopAutoUnread",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Stops Discord from automatically bumping a channel's notification setting to \"All Messages\"",
     tags: ["Notifications"],
     authors: [Devs.SobakinTech],

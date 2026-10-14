@@ -33,6 +33,26 @@ export const settings = definePluginSettings({
 
 export default definePlugin({
     name: "MoreStickers",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Fetches sticker images from third-party sticker platforms (e.g. LINE) via a CORS proxy.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Adds sticker packs from other social media platforms. (e.g. LINE)",
     tags: ["Chat", "Emotes", "Media"],
     authors: [Devs.Leko, Devs.Arjix],

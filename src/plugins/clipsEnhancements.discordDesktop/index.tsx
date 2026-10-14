@@ -47,6 +47,14 @@ const settings = definePluginSettings({
 migratePluginSettings("ClipsEnhancements", "TimelessClips");
 export default definePlugin({
     name: "ClipsEnhancements",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Add more Clip FPS and duration options, custom clip length, RPC tagging and more",
     tags: ["Activity", "Media", "Utility"],
     authors: [Devs.niko, Devs.Joona, Devs.keircn],

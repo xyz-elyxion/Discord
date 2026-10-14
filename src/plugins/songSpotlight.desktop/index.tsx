@@ -19,6 +19,26 @@ import WidgetSongs from "./ui/songs/WidgetSongs";
 
 export default definePlugin({
     name: "SongSpotlight",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Sends the song you choose to the SongSpotlight profile service and fetches Spotify album art.",
+            risk: "Song info is published to a third-party profile service and stays there."
+        }
+    ],
     description: "Show off songs on your profile",
     dependencies: ["ProfileSectionsAPI"],
     tags: ["Appearance", "Media"],

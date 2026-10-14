@@ -561,6 +561,26 @@ let area: Size | null = null;
 
 export default definePlugin({
     name: "BetterImageEditor",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "May fetch image assets used by the editor from their source URLs.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Keeps a shelf of your pictures in the avatar and banner editor, and remembers how you cropped each one.",
     authors: [Devs.heart_menace],
     settings,

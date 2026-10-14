@@ -97,6 +97,20 @@ const ChatBarContextCheckbox: NavContextMenuPatchCallback = children => {
 
 export default definePlugin({
     name: "Signature",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "modifyMessages",
+            title: "Alter outgoing messages",
+            description: "Appends your configured signature to the end of messages you send.",
+            risk: "What you send can be silently different from what you typed; review before sending."
+        }
+    ],
     description: "Automated fingerprint/end text",
     dependencies: ["CommandsAPI", "ChatInputButtonAPI", "MessagePopoverAPI"],
     tags: ["Appearance", "Chat"],

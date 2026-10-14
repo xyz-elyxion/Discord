@@ -130,6 +130,26 @@ function isStickerBlocked(name) {
 
 export default definePlugin({
     name: "StickerBlocker",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Loads a small placeholder image from the plugin's CDN for blocked stickers.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Allows you to block stickers from being displayed.",
     tags: ["Chat", "Emotes", "Utility"],
     authors: [Devs.Samwich],

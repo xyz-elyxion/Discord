@@ -409,6 +409,26 @@ const channelAttachMenuPatch: NavContextMenuPatchCallback = (children, props) =>
 
 export default definePlugin({
     name: "FileUpload",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Uploads files you choose to configured file-hosting services (Zipline, 0x0.st, e-z.host, S3, WebDAV).",
+            risk: "Credits and hosted files are sent to destinations outside Discord — they can be publicly reachable if your host is misconfigured."
+        },
+        {
+            id: "fileAccess",
+            title: "Read local files",
+            description: "Reads the files you select in the chat bar so they can be uploaded to your host.",
+            risk: "Uploaded content may be publicly accessible — double-check before sending credentials/private info."
+        },
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Upload files to hosting services like Zipline, Nest, S3, and WebDAV",
     tags: ["Media"],
     authors: [Devs.creations, Devs.keircn, Devs.ScattrdBlade],

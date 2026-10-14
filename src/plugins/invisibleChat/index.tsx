@@ -145,6 +145,32 @@ export async function buildEmbed(message: any, revealed: string): Promise<void> 
 
 export default definePlugin({
     name: "InvisibleChat",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Uses Discord's own events and stores to read the content, authors and attachments of messages you can already see (to decrypt hidden messages).",
+            risk: "A buggy or abused plugin could collect, copy or act on private conversations."
+        },
+        {
+            id: "modifyMessages",
+            title: "Alter outgoing messages",
+            description: "Encrypts message content before it is sent to the selected channel.",
+            risk: "What you send can be silently different from what you typed; review diffs before sending."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Uses an external helper service (embed.sammcheese.net) to render encrypted message embeds.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Encrypt your Messages in a non-suspicious way!",
     tags: ["Chat"],
     authors: [Devs.SammCheese],

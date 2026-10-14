@@ -166,6 +166,14 @@ function SectionSeparator(title: string) {
 
 export default definePlugin({
     name: "Declutter",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description:
         "Cleans up Discord by removing non-essential UI elements like profile effects, shop tabs, boosts, and more.",
     tags: ["Appearance", "Customisation"],

@@ -21,6 +21,32 @@ import { stopTidalStore } from "./tidal/TidalStore";
 
 export default definePlugin({
     name: "MusicControls",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Talks to the configured music service (Spotify, Tidal, etc.) to control playback and fetch track/lyric info.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        },
+        {
+            id: "sendNotifications",
+            title: "Show notifications",
+            description: "Can show a notification when the playing track changes.",
+            risk: "Frequent notifications could be used to distract or social-engineer you."
+        }
+    ],
     description: "Music Controls and Lyrics for multiple services ",
     authors: [Devs.Ven, Devs.afn, Devs.KraXen72, Devs.Av32000, Devs.nin0dev, Devs.thororen, Devs.vmohammad, Devs.Joona],
     settings,

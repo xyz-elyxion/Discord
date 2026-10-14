@@ -72,6 +72,20 @@ export function removeIndicator() {
 
 export default definePlugin({
     name: "HideServers",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Remembers which servers you hid in your local settings.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     description: "Allows you to hide servers from the guild list and quick switcher by right clicking them",
     tags: ["Servers", "Utility"],
     authors: [Devs.bep],

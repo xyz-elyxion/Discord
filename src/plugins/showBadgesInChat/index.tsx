@@ -117,6 +117,14 @@ function ChatBadges({ author }: { author: User; }) {
 
 export default definePlugin({
     name: "ShowBadgesInChat",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.Inbestigator, Devs.KrystalSkull],
     description: "Shows the message author's badges beside their name in chat.",
     dependencies: ["MessageDecorationsAPI"],

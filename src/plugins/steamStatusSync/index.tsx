@@ -84,6 +84,20 @@ export const settings = definePluginSettings({
 
 export default definePlugin({
     name: "SteamStatusSync",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Reads the public status of your Steam profile via Steam's web API to mirror it into your Discord presence.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Sync your status to Steam! (Online, Away, Invisible, or Offline.)",
     tags: ["Activity", "Appearance", "Customisation"],
     authors: [Devs.niko],

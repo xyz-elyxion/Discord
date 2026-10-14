@@ -51,6 +51,20 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "PlatformSpoofer",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "platformSpoofing",
+            title: "Spoof platform identity",
+            description: "Changes platform metadata (e.g. mobile/desktop flags) that Discord attaches to your presence, activities and voice status.",
+            risk: "You appear to be on a different device to Discord and everyone else; some Discord features may misbehave."
+        }
+    ],
     description: "Spoof what platform or device you're on",
     tags: ["Utility"],
     authors: [Devs.Drag, Devs.neoarz],

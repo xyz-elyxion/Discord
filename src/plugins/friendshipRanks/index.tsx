@@ -169,6 +169,20 @@ const FriendDecoration = ErrorBoundary.wrap(({ userId }: { userId: string; }) =>
 
 export default definePlugin({
     name: "FriendshipRanks",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Loads friend-rank icon images from the plugin's CDN assets.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Adds badges showcasing how long you have been friends with a user for",
     tags: ["Friends"],
     authors: [Devs.Samwich, Devs.lucabeyer],

@@ -83,6 +83,20 @@ async function downloadAll(attachments: MessageAttachment[]) {
 
 export default definePlugin({
     name: "DownloadAllAttachments",
+    permissions: [
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Uses Discord's own events and stores to read the content, authors and attachments of messages you can already see.",
+            risk: "A buggy or abused plugin could collect, copy or act on private conversations."
+        },
+        {
+            id: "fileAccess",
+            title: "Download files",
+            description: "Downloads all attachments of a message to your device through your browser/app downloads.",
+            risk: "Downloads can pull large or malicious files onto your disk; check filenames before opening."
+        }
+    ],
     description: "Adds a popover button to download all attachments in a message at once.",
     tags: ["Utility", "Chat"],
     authors: [Devs.dhopcs],

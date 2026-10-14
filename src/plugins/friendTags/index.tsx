@@ -208,6 +208,20 @@ const userPatch: NavContextMenuPatchCallback = (children, { user }) => {
 
 export default definePlugin({
     name: "FriendTags",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     description: "Allows you to filter by custom tags in the quick switcher by starting a search with &",
     tags: ["Shortcuts"],
     authors: [Devs.Samwich],

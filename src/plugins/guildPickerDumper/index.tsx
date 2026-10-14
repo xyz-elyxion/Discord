@@ -95,6 +95,20 @@ async function zipGuildAssets(guild: Guild, type: "emojis" | "stickers") {
 
 export default definePlugin({
     name: "GuildPickerDumper",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Downloads a server's emoji, sticker and icon assets from Discord's CDNs.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        },
+        {
+            id: "fileAccess",
+            title: "Download files",
+            description: "Saves the downloaded assets (emojis/stickers) to a local folder you choose.",
+            risk: "Downloads could write large numbers of files to disk; check the target folder."
+        }
+    ],
     description: "Context menu to dump and download a server's emojis and stickers.",
     tags: ["Emotes", "Servers", "Utility"],
     authors: [Devs.Cortex, Devs.Samwich, Devs.Synth, Devs.thororen],

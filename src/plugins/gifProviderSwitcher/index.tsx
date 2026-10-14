@@ -82,6 +82,20 @@ async function fetchCategories() {
 migratePluginSettings("GifProviderSwitcher", "TenorGifSearch");
 export default definePlugin({
     name: "GifProviderSwitcher",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Sends your GIF search queries to the selected provider (Giphy or Tenor).",
+            risk: "Search terms leave your device and go to the chosen provider."
+        }
+    ],
     description: "Allows you to use Tenor or Giphy GIF search instead of Klipy",
     authors: [Devs.Lunascape, Devs.Ven],
     tags: ["Media", "Chat", "Emotes"],

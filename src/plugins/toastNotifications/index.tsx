@@ -114,6 +114,20 @@ export const settings = definePluginSettings({
 
 export default definePlugin({
     name: "ToastNotifications",
+    permissions: [
+        {
+            id: "sendNotifications",
+            title: "Show notifications",
+            description: "Displays customizable toast notifications inside Discord.",
+            risk: "Frequent notifications could be used to distract or social-engineer you."
+        },
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Uses Discord's own events and stores to read the content, authors and attachments of messages you can already see.",
+            risk: "A buggy or abused plugin could collect, copy or act on private conversations."
+        }
+    ],
     description: "Show a pop-up toast notification, configurable for DMs, group, friends, or guild channels.",
     tags: ["Appearance", "Customisation", "Notifications"],
     authors: [Devs.Skully, Devs.Ethan, Devs.Buzzy],

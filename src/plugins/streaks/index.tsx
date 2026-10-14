@@ -61,6 +61,20 @@ const StreakBadge = ({ userId }: { userId: string; }) => {
 
 export default definePlugin({
     name: "Streaks",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps your DM streak counts in the client's local DataStore — no account or login involved.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Sees message authors and channel info from Discord events to detect DM activity (message text is not read).",
+            risk: "Metadata about who you DM could be inferred if abused."
+        }
+    ],
     description: "Shows a streak next to a user when you exchange DMs with them on consecutive days. Streaks are tracked locally on your device — no account or login needed.",
     authors: [Devs.Moowi, Devs.thororen],
     tags: ["Friends", "Fun"],

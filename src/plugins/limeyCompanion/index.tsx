@@ -47,6 +47,20 @@ function CompanionButton({ isMainChat }: { isMainChat: boolean; }) {
 
 export default definePlugin({
     name: "LimeyCompanion",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Sends your questions (and any message context you explicitly attach) to the Limey bot service to answer them.",
+            risk: "Question text leaves your device and is processed by an external service."
+        },
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Your little Limey companion: ask it questions about Discord or Limey V1 and it answers with the best-matching predefined sentence. Click the lemon in the chat bar to chat with it.",
     authors: [Devs.Limey],
     tags: ["Utility", "Fun", "Chat"],

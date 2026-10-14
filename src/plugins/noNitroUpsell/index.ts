@@ -10,6 +10,14 @@ import { OverridePremiumTypeStore } from "@webpack/common";
 
 export default definePlugin({
     name: "NoNitroUpsell",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Removes all of Discord's nitro upsells by tricking the client into thinking you have nitro.",
     tags: ["Utility"],
     authors: [Devs.thororen],

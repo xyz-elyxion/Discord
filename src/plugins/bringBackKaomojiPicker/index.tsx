@@ -13,6 +13,14 @@ import { ExpressionPickerTabProps, ExpressionPickerView } from "./types";
 
 export default definePlugin({
     name: "BringBackKaomojiPicker",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Adds the Kaomoji tab back to Discord's expression picker.",
     authors: [Devs.Kaede, Devs.Limey],
     patches: [

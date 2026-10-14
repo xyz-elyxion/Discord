@@ -198,6 +198,20 @@ async function switchToAccount(entry: AccountEntry & { token?: string }, sendRes
 
 export default definePlugin({
     name: "AccountManager",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "accountTokens",
+            title: "Store account tokens",
+            description: "Saves the session tokens of accounts you add so account switching works locally.",
+            risk: "Tokens grant full control of an account; only safe on a device you trust."
+        }
+    ],
     description: "Store, list, verify and switch between multiple Discord accounts from a single `/account` slash command.",
     authors: [Devs.syntt_],
 

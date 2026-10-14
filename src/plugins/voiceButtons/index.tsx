@@ -15,6 +15,14 @@ import { UserChatButton, UserDeafenButton, UserMuteButton } from "./utils";
 
 export default definePlugin({
     name: "VoiceButtons",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Quickly DM, mute, or deafen any user right from the voice-call panel.",
     tags: ["Servers", "Utility", "Voice"],
     authors: [Devs.nicola02nb, Devs.omaw],

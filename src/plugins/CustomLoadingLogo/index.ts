@@ -98,6 +98,20 @@ function stopWatching() {
 
 export default definePlugin({
     name: "CustomLoadingLogo",
+    permissions: [
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Fetches the custom loading-screen image from the URL you configure in settings.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        },
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Replace Discord's loading logo with a custom image while keeping the original animation",
     authors: [Devs.Xaenny],
     settings,

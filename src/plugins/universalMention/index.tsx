@@ -37,6 +37,20 @@ function getCachedUsers(): User[] {
 
 export default definePlugin({
     name: "UniversalMention",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "modifyMessages",
+            title: "Alter outgoing messages",
+            description: "Rewrites user mention targets so users outside the current server can be pinged.",
+            risk: "What you send can differ from what you typed; check mentions before sending."
+        }
+    ],
     authors: [Devs.justjxke],
     description: "Mention any user, regardless of channel access.",
     tags: ["Chat", "Servers", "Utility"],

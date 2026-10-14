@@ -11,6 +11,20 @@ import { MessageStore } from "@webpack/common";
 
 export default definePlugin({
     name: "BetterPlusReacts",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Uses Discord's own events and stores to read the content, authors and attachments of messages you can already see.",
+            risk: "A buggy or abused plugin could collect, copy or act on private conversations."
+        }
+    ],
     authors: [Devs.Joona],
     description: "The amount of plus before :emoji: is the message to add it to",
     tags: ["Chat", "Emotes"],

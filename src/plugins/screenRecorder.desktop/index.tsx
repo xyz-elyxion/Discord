@@ -14,6 +14,26 @@ let recoder: MediaRecorder;
 
 export default definePlugin({
     name: "ScreenRecorder",
+    permissions: [
+        {
+            id: "screenCapture",
+            title: "Capture your screen",
+            description: "Records the screen or window you explicitly pick when you press record.",
+            risk: "Recordings can contain anything you share on screen — review before uploading."
+        },
+        {
+            id: "fileAccess",
+            title: "Read and package files",
+            description: "Encodes your recording locally and attaches it as a message file.",
+            risk: "Files you attach are repackaged — verify the output before sending."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Uploads your recording to the channel through Discord's own attachment API.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Adds an option to record your screen and upload the recording to the channel",
     tags: ["Chat"],
     authors: [Devs.AutumnVN],

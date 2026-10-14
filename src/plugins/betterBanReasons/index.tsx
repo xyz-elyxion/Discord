@@ -107,6 +107,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "BetterBanReasons",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Create custom reasons to use in the Discord ban modal, and/or show a text input by default instead of the options.",
     tags: ["Appearance", "Customisation"],
     authors: [Devs.Inbestigator, Devs.yonn2222],

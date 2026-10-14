@@ -165,6 +165,32 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "KeywordNotify",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Uses Discord's own events and stores to read the content, authors and attachments of messages you can already see.",
+            risk: "A buggy or abused plugin could collect, copy or act on private conversations."
+        },
+        {
+            id: "sendNotifications",
+            title: "Show notifications",
+            description: "Displays notifications or toasts when your keywords are mentioned.",
+            risk: "Frequent notifications could be used to distract or social-engineer you."
+        }
+    ],
     authors: [Devs.camila314, Devs.x3rt, Devs.benjas333],
     description: "Sends a notification if a given message matches certain keywords or regexes",
     settings,

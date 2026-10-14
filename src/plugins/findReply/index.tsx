@@ -88,6 +88,14 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "FindReply",
+    permissions: [
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Uses Discord's own events and stores to read the content, authors and attachments of messages you can already see.",
+            risk: "A buggy or abused plugin could collect, copy or act on private conversations."
+        }
+    ],
     description: "Jumps to the earliest reply to a message in a channel (lets you follow past conversations more easily).",
     dependencies: ["MessagePopoverAPI"],
     tags: ["Chat", "Shortcuts"],

@@ -51,6 +51,26 @@ const RESTRICTED_GUILD_IDS = [LIMEYV1_GUILD_ID];
 
 export default definePlugin({
     name: "MoreCommands",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Some commands (e.g. cat, dog, neko) fetch fun content from third-party APIs (TheCatAPI, TheDogAPI, nekos.best) and share it in your messages.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        },
+        {
+            id: "modifyMessages",
+            title: "Alter outgoing messages",
+            description: "Commands send messages on your behalf, including embeds and images fetched from the APIs above.",
+            risk: "What you send can look different from what you typed; review command output before running."
+        }
+    ],
     description: "Adds various fun and useful commands",
     dependencies: ["CommandsAPI"],
     tags: ["Commands", "Fun", "Shortcuts"],

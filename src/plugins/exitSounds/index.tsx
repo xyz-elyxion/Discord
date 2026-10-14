@@ -101,6 +101,14 @@ const SoundButtonContext: NavContextMenuPatchCallback = (children, { sound }: { 
 
 export default definePlugin({
     name: "ExitSounds",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Play soundboard sounds when you disconnect from voice.",
     tags: ["Fun", "Voice"],
     authors: [Devs.prism],

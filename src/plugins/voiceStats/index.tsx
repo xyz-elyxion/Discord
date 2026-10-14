@@ -136,6 +136,20 @@ const VoiceStatsSection = ErrorBoundary.wrap(({ userId, isSideBar }: { userId: s
 
 export default definePlugin({
     name: "VoiceStats",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Accumulates per-user voice time in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Shows how long you've spent in voice with each user in their profile",
     tags: ["Voice", "Friends"],
     authors: [Devs.Moowi],

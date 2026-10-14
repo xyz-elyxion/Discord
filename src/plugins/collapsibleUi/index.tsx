@@ -441,6 +441,14 @@ const ChatButtonsRow = ErrorBoundary.wrap(({ buttons }: { buttons: ReactNode[]; 
 
 export default definePlugin({
     name: "CollapsibleUI",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Injects data attributes and props into Discord's layout surfaces and injects styles to make them collapsible.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Native collapsible channel, member, chat button, and user area surfaces.",
     tags: ["Appearance", "Customisation", "Chat", "Servers"],
     dependencies: ["HeaderBarAPI", "ChatInputButtonAPI", "SurfaceClassesAPI"],

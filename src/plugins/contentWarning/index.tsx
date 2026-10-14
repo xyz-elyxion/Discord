@@ -150,6 +150,20 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "ContentWarning",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Remembers which content warnings you dismissed.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        }
+    ],
     authors: [Devs.camila314],
     description: "Allows you to specify certain trigger words that will be blurred by default. Hovering/Clicking on the blurred content will reveal it.",
     tags: ["Appearance", "Utility"],

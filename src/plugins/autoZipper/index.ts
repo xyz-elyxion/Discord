@@ -208,6 +208,20 @@ function handlePaste(event: ClipboardEvent) {
 
 export default definePlugin({
     name: "AutoZipper",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "fileAccess",
+            title: "Read and package files",
+            description: "Reads the files you attach and replaces eligible ones with a ZIP archive before sending.",
+            risk: "Files you attach are repackaged — verify the archive contents before sending."
+        }
+    ],
     description: "Automatically zips specified file types and folders before uploading to Discord",
     tags: ["Chat", "Organisation"],
     authors: [Devs.SSnowly],

@@ -124,6 +124,20 @@ function SongLinkerList({ urls }: { urls: string[]; }) {
 
 export default definePlugin({
     name: "SongLink",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Asks the song.link API which streaming platforms host the currently playing song.",
+            risk: "Requests are made with your session; destinations see your IP address."
+        }
+    ],
     description: "Adds streaming service buttons below song links",
     dependencies: ["MessageAccessoriesAPI"],
     tags: ["Media", "Utility"],

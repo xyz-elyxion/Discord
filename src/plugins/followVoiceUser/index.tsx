@@ -71,6 +71,14 @@ const UserContextMenuPatch: NavContextMenuPatchCallback = (children, { channel, 
 
 export default definePlugin({
     name: "FollowVoiceUser",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description: "Follow a friend in voice chat.",
     tags: ["Voice"],
     authors: [Devs.TheArmagan],

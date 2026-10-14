@@ -459,6 +459,26 @@ async function controlQuestById(questId: string, action: "pause" | "resume"): Pr
 
 export default definePlugin({
     name: "OrionQuests",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "networkRequests",
+            title: "Make network requests",
+            description: "Talks to the OrionQuests backend to sync quest engine state for your account.",
+            risk: "Activity data leaves your device to the plugin's own backend."
+        },
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     description:
         "Auto-completes Discord Quests: game, video, stream, activity, and achievement.",
     // version sits below description because UserpluginInstaller reads plugin metadata with a

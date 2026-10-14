@@ -393,6 +393,20 @@ export function findOverride(id: string): SoundOverride | null {
 
 export default definePlugin({
     name: "CustomSounds",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps plugin data (settings, caches, history) in the client's local DataStore.",
+            risk: "Data persists on your device between sessions; deleted content may be retained here."
+        },
+        {
+            id: "fileAccess",
+            title: "Read local files",
+            description: "Reads the local sound files you configure so they can be played through a synthesizer and saved to disk.",
+            risk: "Saves the files to disk; only point it at files you trust."
+        }
+    ],
     description: "Customize Discord's sounds.",
     dependencies: ["AudioPlayerAPI"],
     tags: ["Customisation", "Notifications", "Voice"],

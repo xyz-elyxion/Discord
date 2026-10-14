@@ -26,6 +26,14 @@ function SearchIcon() {
 
 export default definePlugin({
     name: "ServerSearch",
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Modifies Discord's components, styles or internal stores to change behaviour or appearance.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        }
+    ],
     authors: [Devs.camila314],
     description: "Navigate your servers better with a quick search button",
     tags: ["Shortcuts", "Servers"],

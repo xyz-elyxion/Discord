@@ -87,6 +87,20 @@ function isUserBlocked(userId: string) {
 
 export default definePlugin({
     name: "PingNotifications",
+    permissions: [
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Uses Discord's own events and stores to read the content, authors and attachments of messages you can already see.",
+            risk: "A buggy or abused plugin could collect, copy or act on private conversations."
+        },
+        {
+            id: "sendNotifications",
+            title: "Show notifications",
+            description: "Shows a notification when friends ping/mention you in servers.",
+            risk: "Frequent notifications could be used to distract or social-engineer you."
+        }
+    ],
     description: "Customizable notifications with improved mention formatting",
     tags: ["Chat", "Friends", "Notifications", "Servers"],
     authors: [Devs.smuki],

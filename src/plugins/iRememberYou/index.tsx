@@ -18,6 +18,20 @@ import DataUI from "./components/ui";
 
 export default definePlugin({
     name: "IRememberYou",
+    permissions: [
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Keeps a private on-device record of users and servers you encounter, so notifications and profiles can show it.",
+            risk: "Builds a history of who you've met; stays on your device but could be sensitive."
+        },
+        {
+            id: "readMessages",
+            title: "Read message contents",
+            description: "Sees message authors and channel/server info from Discord events to record who you communicate with (not the message text).",
+            risk: "Metadata about your conversations could be inferred if abused."
+        }
+    ],
     description: "Locally saves everyone you've been communicating with (including servers), in case of lose",
     tags: ["Chat", "Servers"],
     authors: [Devs.zoodogood, Devs.keircn, Devs.tt],
