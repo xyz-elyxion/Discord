@@ -1049,15 +1049,6 @@ function TroubleshootScreen({ open }: { open: (s: WinreScreen) => void; }) {
             label: "Recovery History",
             sublabel: "See the last 50 recovery events on this device",
             action: () => open("history")
-        },
-        {
-            icon: ICONS.delete,
-            label: "Reset Limey V1",
-            sublabel: "Restore every plugin setting to its default and clear Recovery Mode state, then restart",
-            action: async () => {
-                await resetLimeyV1();
-                void relaunch();
-            }
         }
     ];
 
