@@ -2082,10 +2082,12 @@ function startLimebot() {
         }
     });
 }    startBuildIfMissing();
-    startCloud();
     startLimebot();
 
-// Wait for PostgreSQL hydration (if configured) before accepting requests
+// Wait for PostgreSQL hydration (if configured) before accepting requests.
+// The cloud sidecar is started AFTER the web server binds, so the first port
+// exposed by process supervisors (e.g. the preview) is the real web server,
+// not the internal cloud sidecar.
 hydrateKv().then(() => {
     return kvGet("limey:status");
 }).then(stored => {
@@ -2095,5 +2097,7 @@ hydrateKv().then(() => {
 }).finally(() => {
     server.listen(PORT, HOST, () => {
         console.log(`Limey V1 web server running at http://${HOST}:${PORT} (persistent storage: ${KV_ENABLED ? "PostgreSQL" : "local files"})`);
+        // Start the cloud settings-sync sidecar (binds on CLOUD_HOST:CLOUD_PORT)
+        startCloud();
     });
 });
