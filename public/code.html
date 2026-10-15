@@ -118,11 +118,25 @@
         .work-area { flex: 1; display: flex; min-width: 0; }
         .editor-pane { flex: 1 1 60%; position: relative; background: #1e1e1e; min-width: 0; }
         #container { position: absolute; inset: 0; }
-        #loading {
+        #fallbackEditor {
             position: absolute; inset: 0;
-            display: flex; align-items: center; justify-content: center;
-            color: var(--text-dim);
+            display: none;
+            box-sizing: border-box;
             background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            outline: none;
+            resize: none;
+            padding: 10px 12px;
+            font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            white-space: pre;
+        }
+        #editorRetry {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            z-index: 27;
+            background: var(--card);
         }
 
         /* ---------- Live theme preview ---------- */
@@ -534,8 +548,9 @@
                 </aside>
                 <div class="work-area">
                     <div class="editor-pane">
-                        <div id="loading">Loading editor…</div>
+                        <textarea id="fallbackEditor" spellcheck="false" aria-label="Plain-text editor"></textarea>
                         <div id="container"></div>
+                        <button class="btn" id="editorRetry" style="display:none" title="The Monaco bundle failed to load — retry it">↻ Retry editor</button>
 
                         <div class="float-panel" id="findPanel">
                             <div class="fp-head"><span>🔎 Find in project</span><button class="close" data-close>✕</button></div>
@@ -886,6 +901,20 @@ export default definePlugin({
         let editor = null;
         let suppressModelEvents = false;
         let currentModelName = null;
+        const fallbackEditor = document.getElementById("fallbackEditor");
+        let taWired = false;
+
+        function useMonaco() { return typeof monaco !== "undefined"; }
+
+        function syncFromTextarea() {
+            const p = activeProject();
+            if (!p || !currentModelName) return;
+            p.files[currentModelName] = fallbackEditor.value;
+            p.updatedAt = new Date().toISOString();
+            scheduleSave();
+            updateStatusbar(null);
+            if (langFor(currentModelName) === "css" && previewOn && autoPreview.checked) schedulePreview();
+        }
 
         function lineCount(s) { return s ? s.split("\n").length : 0; }
 
@@ -965,45 +994,69 @@ export default definePlugin({
             const f = activeFile();
             projName.value = activeProject()?.name || "";
             if (!f) {
-                editor && editor.setModel(null);
                 currentModelName = null;
+                if (useMonaco()) editor && editor.setModel(null);
+                fallbackEditor.style.display = "none";
+                document.getElementById("container").style.visibility = "hidden";
                 updateStatusbar(null);
                 togglePreview();
                 return;
             }
             togglePreview();
-            const model = monaco.editor.createModel(f.content, langFor(f.name));
-            suppressModelEvents = true;
-            if (!editor) {
-                editor = monaco.editor.create(document.getElementById("container"), {
-                    model,
-                    theme: "vs-dark",
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    automaticLayout: true,
-                    tabSize: 4,
-                    wordWrap: "off"
-                });
-                editor.onDidChangeCursorPosition(e => {
-                    document.getElementById("sbPos").textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
-                });
-            } else {
-                editor.setModel(model);
-            }
-            suppressModelEvents = false;
             currentModelName = f.name;
-            model.onDidChangeContent(() => {
-                if (suppressModelEvents || currentModelName !== f.name) return;
-                const p = activeProject();
-                if (!p) return;
-                p.files[f.name] = model.getValue();
-                p.updatedAt = new Date().toISOString();
-                scheduleSave();
-                updateStatusbar(model);
-                if (langFor(f.name) === "css" && previewOn && autoPreview.checked) schedulePreview();
-            });
-            editor.revealPositionInCenter({ lineNumber: 1, column: 1 });
-            updateStatusbar(model);
+            if (useMonaco()) {
+                fallbackEditor.style.display = "none";
+                document.getElementById("container").style.visibility = "visible";
+                const model = monaco.editor.createModel(f.content, langFor(f.name));
+                suppressModelEvents = true;
+                if (!editor) {
+                    editor = monaco.editor.create(document.getElementById("container"), {
+                        model,
+                        theme: "vs-dark",
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        automaticLayout: true,
+                        tabSize: 4,
+                        wordWrap: "off"
+                    });
+                    editor.onDidChangeCursorPosition(e => {
+                        document.getElementById("sbPos").textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+                    });
+                } else {
+                    editor.setModel(model);
+                }
+                suppressModelEvents = false;
+                model.onDidChangeContent(() => {
+                    if (suppressModelEvents || currentModelName !== f.name) return;
+                    const p = activeProject();
+                    if (!p) return;
+                    p.files[f.name] = model.getValue();
+                    p.updatedAt = new Date().toISOString();
+                    scheduleSave();
+                    updateStatusbar(model);
+                    if (langFor(f.name) === "css" && previewOn && autoPreview.checked) schedulePreview();
+                });
+                editor.revealPositionInCenter({ lineNumber: 1, column: 1 });
+            } else {
+                // Plain-text fallback while Monaco loads (or when it failed to load).
+                // The full workshop stays usable: files, templates, exports, import,
+                // snippets, history and the live preview all work from the textarea.
+                document.getElementById("container").style.visibility = "hidden";
+                fallbackEditor.style.display = "block";
+                fallbackEditor.value = f.content;
+                if (!taWired) {
+                    taWired = true;
+                    fallbackEditor.addEventListener("input", syncFromTextarea);
+                    const pos = () => {
+                        const upto = fallbackEditor.value.slice(0, fallbackEditor.selectionStart);
+                        const lines = upto.split("\n");
+                        document.getElementById("sbPos").textContent = `Ln ${lines.length}, Col ${lines[lines.length - 1].length + 1}`;
+                    };
+                    fallbackEditor.addEventListener("click", pos);
+                    fallbackEditor.addEventListener("keyup", pos);
+                }
+            }
+            updateStatusbar(null);
             setStatus("Loaded " + f.name, true);
         }
 
@@ -1315,7 +1368,7 @@ export default definePlugin({
                     r.addEventListener("click", () => {
                         p.activeFile = name;
                         persist(); renderFiles(); loadActiveFile();
-                        const model = editor.getModel();
+                        const model = useMonaco() ? editor?.getModel() : null;
                         if (model) {
                             const m = model.findMatches(q, false, false, false, null, true)[0];
                             if (m) {
@@ -1442,6 +1495,15 @@ import { findByProps, FluxDispatcher } from "@webpack";` }
             }
         }
         function insertText(code) {
+            if (!useMonaco()) {
+                if (!currentModelName) return toast("Open a file first.");
+                const start = fallbackEditor.selectionStart, end = fallbackEditor.selectionEnd;
+                fallbackEditor.value = fallbackEditor.value.slice(0, start) + code + fallbackEditor.value.slice(end);
+                fallbackEditor.selectionStart = fallbackEditor.selectionEnd = start + code.length;
+                fallbackEditor.dispatchEvent(new Event("input"));
+                fallbackEditor.focus();
+                return;
+            }
             const sel = editor ? editor.getSelection() : null;
             if (!sel || !editor.getModel()) return toast("Open a file first.");
             editor.executeEdits("snippet", [{ range: sel, text: code, forceMoveMarkers: true }]);
@@ -1453,13 +1515,16 @@ import { findByProps, FluxDispatcher } from "@webpack";` }
             const f = activeFile();
             if (!f) return setStatus("Nothing to check.", false);
             if (langFor(f.name) === "css") {
-                if (typeof editor !== "undefined" && editor) {
-                    const markers = monaco.editor.getModelMarkers({ resource: editor.getModel() && editor.getModel().uri });
+                if (useMonaco() && editor) {
+                    const model = editor.getModel();
+                    const markers = monaco.editor.getModelMarkers({ resource: model ? model.uri : undefined });
                     const errs = markers.filter(m => m.severity >= 8);
                     openCheckDialog(errs.length
                         ? `⚠ CSS found ${errs.length} problem(s):\n` + errs.map(m =>
                             `[${m.startLineNumber}:${m.startColumn}] ${m.message}`).join("\n")
                         : "✓ CSS parses cleanly (via the Monaco CSS language worker).");
+                } else {
+                    openCheckDialog("ℹ Exact CSS validation needs the Monaco editor — it is still loading or unavailable.\nThe live preview pane is available meanwhile (🖥 from the topbar of the preview head or Ctrl+Shift+P).");
                 }
                 return;
             }
@@ -1657,9 +1722,12 @@ import { findByProps, FluxDispatcher } from "@webpack";` }
                 btn.addEventListener("click", () => {
                     if (s.c === f.content) return toast("That snapshot is already the current content.");
                     if (!confirm(`Restore the ${new Date(s.t).toLocaleString()} version of ${f.name}? The current content will be replaced.`)) return;
-                    const model = editor?.getModel();
-                    if (model) {
+                    if (useMonaco() && editor?.getModel()) {
+                        const model = editor.getModel();
                         editor.executeEdits("history", [{ range: model.getFullModelRange(), text: s.c, forceMoveMarkers: true }]);
+                    } else if (!useMonaco()) {
+                        fallbackEditor.value = s.c;
+                        syncFromTextarea();
                     }
                     document.getElementById("historyDialog").close();
                     toast("Snapshot restored — saved locally." );
@@ -1790,14 +1858,8 @@ import { findByProps, FluxDispatcher } from "@webpack";` }
         document.querySelectorAll("[data-close-dialog]").forEach(b =>
             b.addEventListener("click", () => b.closest("dialog").close()));
 
-        // ---------- Monaco boot ----------
-        let tries = 0;
-        function tryInit() {
-            if (typeof monaco === "undefined") {
-                if (++tries > 100) return setStatus("Failed to load the editor bundle.", false);
-                return setTimeout(tryInit, 100);
-            }
-            document.getElementById("loading").style.display = "none";
+        // ---------- Boot & Monaco (the workspace runs immediately, with or without Monaco) ----------
+        function bootWorkspace() {
             if (!Object.keys(ws.projects).length) {
                 const id = uid();
                 ws.projects[id] = ensureProject({
@@ -1811,14 +1873,37 @@ import { findByProps, FluxDispatcher } from "@webpack";` }
             buildSnippetMenu();
             renderProjects();
             renderFiles();
-            loadActiveFile();
+            loadActiveFile(); // starts in the plain-text fallback, swaps to Monaco when ready
         }
+        bootWorkspace();
 
-        const script = document.createElement("script");
-        script.src = "/vendor/monaco/index.js";
-        script.onload = tryInit;
-        script.onerror = () => setStatus("Failed to load the editor bundle.", false);
-        document.body.appendChild(script);
+        let tries = 0;
+        function editorLoadFailed() {
+            document.getElementById("editorRetry").style.display = "";
+            setStatus("Editor bundle failed to load — plain-text editor active.", false);
+        }
+        function initMonaco() {
+            if (typeof monaco === "undefined") {
+                if (++tries > 100) return editorLoadFailed();
+                return setTimeout(initMonaco, 100);
+            }
+            document.getElementById("editorRetry").style.display = "none";
+            loadActiveFile(); // swaps the fallback textarea over to Monaco in place
+        }
+        function attemptMonacoLoad() {
+            const script = document.createElement("script");
+            script.src = "/vendor/monaco/index.js";
+            script.onload = initMonaco;
+            script.onerror = editorLoadFailed;
+            document.body.appendChild(script);
+        }
+        attemptMonacoLoad();
+        document.getElementById("editorRetry").addEventListener("click", () => {
+            document.getElementById("editorRetry").style.display = "none";
+            tries = 0;
+            setStatus("Retrying the editor bundle…");
+            attemptMonacoLoad();
+        });
 
         const cssLink = document.createElement("link");
         cssLink.rel = "stylesheet";
