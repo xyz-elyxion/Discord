@@ -1826,6 +1826,9 @@ function serveFile(res, filePath, status = 200) {
 const NAMED_PAGES = {
     "/docs": "docs/index.html",
     "/plugins": "plugins.html",
+    "/tools": "tools.html",
+    "/rules": "rules.html",
+    "/usrbg": "usrbg.html",
     "/download": "download.html",
     "/install": "install.html",
     "/limes": "limes.html",
@@ -1844,6 +1847,34 @@ function serveNamedPage(res, url) {
     const page = NAMED_PAGES[url] || NAMED_PAGES[url.replace(/\/+$/, "") || url];
     if (!page) return false;
     serveFile(res, join(PUBLIC, page));
+    return true;
+}
+
+// Canonical clean URLs — every .html page we serve also answers at its
+// extensionless name, and the .html spelling permanently 301-redirects to it
+// (e.g. /tools.html -> /tools). Built from NAMED_PAGES plus the special
+// routes that live outside it.
+const HTML_REDIRECTS = new Map([
+    ["/index.html", "/"],
+    ["/docs/index.html", "/docs"],
+    ["/admin.html", "/admin"],
+    ["/verify.html", "/verify"],
+    // Aliases with their own .html spelling
+    ["/terms-of-service.html", "/terms-of-service"],
+    ["/privacy-policy.html", "/privacy-policy"],
+]);
+for (const [clean, file] of Object.entries(NAMED_PAGES)) {
+    // First key wins so /terms.html (not /terms-of-service) stays canonical
+    if (/^[\w-]+\.html$/.test(file) && !HTML_REDIRECTS.has("/" + file)) {
+        HTML_REDIRECTS.set("/" + file, clean);
+    }
+}
+
+function redirectHtmlToClean(res, url) {
+    const dest = HTML_REDIRECTS.get(url);
+    if (!dest) return false;
+    res.writeHead(301, { Location: dest, "Content-Type": "text/plain; charset=utf-8" });
+    res.end(`301 Moved Permanently — the clean URL is ${dest}`);
     return true;
 }
 
@@ -1875,7 +1906,10 @@ const server = http.createServer(async (req, res) => {
     if (url === "/deep-link") return serveDeepLink(req, res), true;
     if (url === "/connections/entrypoint") return serveConnectionsEntrypoint(req, res), true;
 
-    // Named pages (plugins, download, install, 404, verify)
+    // Canonical clean URLs: /tools.html -> 301 /tools (all named pages)
+    if (redirectHtmlToClean(res, url)) return;
+
+    // Named pages (plugins, tools, download, install, 404, verify, …)
     if (url === "/verify") return serveFile(res, join(PUBLIC, "verify.html")), true;
     if (url === "/favicon.ico") {
         const ico = join(ROOT, "browser", "icon.png");

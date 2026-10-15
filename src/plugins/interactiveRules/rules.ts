@@ -1,11 +1,12 @@
 /*
- * Limey V1 — InteractiveRules plugin
+ * Limey V1, a Discord client mod
+ * Copyright (c) 2026 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 export const RULES_CHANNEL_ID = "1553937108107006043";
 
-export const RULES_PAGE_URL = "https://limey-discord.onrender.com/rules.html";
+export const RULES_PAGE_URL = "https://limey-discord.onrender.com/rules";
 
 export interface Rule {
     num: number;
