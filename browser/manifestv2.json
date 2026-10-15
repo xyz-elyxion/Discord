@@ -28,7 +28,7 @@
         {
             "run_at": "document_start",
             "matches": ["*://*.discord.com/*"],
-            "js": ["dist/LimeyV1.js"],
+            "js": ["dist/browser.js"],
             "all_frames": true,
             "world": "MAIN"
         }
@@ -38,7 +38,7 @@
         "scripts": ["background.js"]
     },
 
-    "web_accessible_resources": ["dist/LimeyV1.js", "dist/LimeyV1.css"],
+    "web_accessible_resources": ["dist/browser.js", "dist/browser.css"],
 
     "browser_specific_settings": {
         "gecko": {

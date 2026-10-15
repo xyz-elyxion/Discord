@@ -34,20 +34,22 @@ const net = require("net");
 // and never depends on a possibly stale/missing build artifact.
 // ------------------------------------------------------------------
 const EXTENSION_ZIP_PATH = join(DIST, "LimeyV1-Extension.zip");
+// [zip entry, source path] — manifest.json and the shell live at the zip root
+// so the unzipped folder can be loaded directly via "Load unpacked".
 const EXTENSION_FILES = [
-    "browser/manifest.json",
-    "browser/manifestv2.json",
-    "browser/background.js",
-    "browser/content.js",
-    "browser/service-worker.js",
-    "browser/GMPolyfill.js",
-    "browser/patch-worker.js",
-    "browser/modifyResponseHeaders.json",
-    "browser/icon.png",
-    "dist/browser.js",
-    "dist/browser.css",
+    ["manifest.json", "browser/manifest.json"],
+    ["manifestv2.json", "browser/manifestv2.json"],
+    ["background.js", "browser/background.js"],
+    ["content.js", "browser/content.js"],
+    ["service-worker.js", "browser/service-worker.js"],
+    ["GMPolyfill.js", "browser/GMPolyfill.js"],
+    ["patch-worker.js", "browser/patch-worker.js"],
+    ["modifyResponseHeaders.json", "browser/modifyResponseHeaders.json"],
+    ["icon.png", "browser/icon.png"],
+    ["dist/browser.js", "dist/browser.js"],
+    ["dist/browser.css", "dist/browser.css"],
 ];
-const EXTENSION_VENDOR_FILES = ["dist/vendor/monaco/index.js"];
+const EXTENSION_VENDOR_FILES = [["vendor/monaco/index.js", "dist/vendor/monaco/index.js"]];
 
 /**
  * Build the extension zip in-process. Returns the zip Buffer, or null if
@@ -70,9 +72,9 @@ function buildExtensionZip() {
 
     const files = [...EXTENSION_FILES, ...EXTENSION_VENDOR_FILES];
     const zipData = {};
-    for (const file of files) {
+    for (const [entry, path] of files) {
         try {
-            zipData[file] = new Uint8Array(readFileSync(join(ROOT, file)));
+            zipData[entry] = new Uint8Array(readFileSync(join(ROOT, path)));
         } catch { /* optional file missing (e.g. monaco vendor) — skip */ }
     }
 

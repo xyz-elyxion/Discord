@@ -2,39 +2,49 @@
  * Limey V1 — package the browser extension into dist/LimeyV1-Extension.zip
  * Uses fflate (already a runtime dependency), no other tools required.
  * Run after `pnpm buildWeb`.
+ *
+ * Layout note: the zip must be directly loadable — "unzip, then Load unpacked
+ * the folder". So manifest.json and the shell files sit at the zip root and
+ * the built bundle stays under dist/ where both manifests reference it.
  */
 
 import { createWriteStream } from "fs";
 import { readFile } from "fs/promises";
 import { zipSync } from "fflate";
 
+// [zip entry, source path] — the extension root must contain manifest.json.
 const files = [
-    // Extension shell (manifests, service worker, content script, etc.)
-    "browser/manifest.json",
-    "browser/manifestv2.json",
-    "browser/background.js",
-    "browser/content.js",
-    "browser/service-worker.js",
-    "browser/GMPolyfill.js",
-    "browser/patch-worker.js",
-    "browser/modifyResponseHeaders.json",
-    "browser/icon.png",
-    // Built mod bundle
-    "dist/browser.js",
-    "dist/browser.css",
+    // Extension manifests (MV3 Chrome/Edge + MV2 Firefox)
+    ["manifest.json", "browser/manifest.json"],
+    ["manifestv2.json", "browser/manifestv2.json"],
+    // Extension shell (service worker, content script, etc.)
+    ["background.js", "browser/background.js"],
+    ["content.js", "browser/content.js"],
+    ["service-worker.js", "browser/service-worker.js"],
+    ["GMPolyfill.js", "browser/GMPolyfill.js"],
+    ["patch-worker.js", "browser/patch-worker.js"],
+    ["modifyResponseHeaders.json", "browser/modifyResponseHeaders.json"],
+    ["icon.png", "browser/icon.png"],
+    // Built mod bundle — dist/browser.js, matching the manifests' content script
+    ["dist/browser.js", "dist/browser.js"],
+    ["dist/browser.css", "dist/browser.css"],
 ];
 
 const zipData = {};
-for (const file of files) {
+for (const [entry, path] of files) {
     try {
-        zipData[file] = new Uint8Array(await readFile(file));
+        zipData[entry] = new Uint8Array(await readFile(path));
     } catch (err) {
-        console.warn(`[zipExtension] skipping missing file ${file}: ${err.message}`);
+        console.warn(`[zipExtension] skipping missing file ${path}: ${err.message}`);
     }
 }
 
 if (!zipData["dist/browser.js"]) {
     console.error("[zipExtension] dist/browser.js missing — run `pnpm buildWeb` first");
+    process.exit(1);
+}
+if (!zipData["manifest.json"]) {
+    console.error("[zipExtension] browser/manifest.json missing — cannot package the extension");
     process.exit(1);
 }
 
