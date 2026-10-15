@@ -234,7 +234,18 @@ function handleInstall(req, res, url) {
         }), true;
     }
     if (url !== "/v1/install/extension") return false;
-    const zip = buildExtensionZip();
+    let zip = buildExtensionZip();
+    if (!zip && existsSync(EXTENSION_ZIP_PATH)) {
+        // dist/browser.js is missing here (partial deploy/build), but the image
+        // ships a zip built during the Docker build stage — serve that instead
+        // of failing the install outright.
+        try {
+            if (statSync(EXTENSION_ZIP_PATH).size > 0) {
+                zip = new Uint8Array(readFileSync(EXTENSION_ZIP_PATH));
+                console.warn("[install] dist/browser.js missing — serving the prebuilt packaged zip from disk");
+            }
+        } catch { /* unreadable zip — fall through to the 503 */ }
+    }
     if (!zip) return json(res, 503, { error: "extension not built yet — run pnpm buildWeb" }), true;
     res.writeHead(200, {
         "Content-Type": "application/zip",
