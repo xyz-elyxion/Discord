@@ -7,10 +7,10 @@
 import { ApplicationCommandInputType, ApplicationCommandOptionType, sendBotMessage } from "@api/Commands";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Flex } from "@components/Flex";
-import { Devs } from "@utils/constants";
-import { copyToClipboard } from "@utils/clipboard";
-import definePlugin from "@utils/types";
 import type { User } from "@limeyV1/discord-types";
+import { copyToClipboard } from "@utils/clipboard";
+import { Devs } from "@utils/constants";
+import definePlugin from "@utils/types";
 import { Forms, Menu, Modal, openModal, RelationshipStore, showToast, UserStore } from "@webpack/common";
 
 import { analyzeUser, getBand, isAnalyzing } from "./analysis";
@@ -99,16 +99,20 @@ export default definePlugin({
                     })
                     .filter(n => typeof n === "string" && n.length > 0);
 
-                copyToClipboard(JSON.stringify({ me: meName, friends }))
-                    .then(() => {
+                // copyToClipboard resolves a promise on web but returns void on
+                // Discord desktop (DiscordNative.clipboard.copy), so await it in
+                // a try/catch instead of chaining .then directly.
+                (async () => {
+                    try {
+                        await copyToClipboard(JSON.stringify({ me: meName, friends }));
                         sendBotMessage(channel.id, {
                             content: `🕸 **${count}** friends copied as graph JSON. Paste it into the **Friend Graph Visualiser** on the Limey V1 Tools page — paste several people's exports to see shared friends between groups.`
                         });
-                    })
-                    .catch(e => {
+                    } catch (e) {
                         console.error("[AccountChecker] friendgraph copy failed", e);
                         showToast("Couldn't copy your friend graph to the clipboard", "failure");
-                    });
+                    }
+                })();
             }
         },
         {
