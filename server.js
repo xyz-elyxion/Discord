@@ -339,6 +339,13 @@ async function hydrateKv() {
         ]);
         if (usrbg) usrbgData = JSON.parse(usrbg);
         if (detector) detectorData = JSON.parse(detector);
+        const bans = await kvGet("limey:bans");
+        if (bans) {
+            try {
+                const parsed = JSON.parse(bans);
+                if (typeof parsed === "object" && !Array.isArray(parsed)) bansData = parsed;
+            } catch { }
+        }
         try {
             const geocache = await kvGet("limey:geocache");
             if (geocache) for (const [ip, v] of Object.entries(JSON.parse(geocache))) geoCache.set(ip, v);
@@ -394,6 +401,29 @@ function saveUsrbgData() {
         writeFileSync(USRBG_FILE, JSON.stringify(usrbgData, null, 2));
     } catch (err) {
         console.error("[usrbg] failed to persist data:", err.message);
+    }
+}
+
+// --
+// Limey V1 bans — admin panel curates the list; Limey V1 clients check it at
+// boot and keep the mod inert while their user id is on it.
+// { userId: { reason, bannedAt, by } }
+// ------------------------------------------------------------------
+const BANS_FILE = join(ROOT, "data", "bans.json");
+
+let bansData = {};
+try {
+    bansData = JSON.parse(readFileSync(BANS_FILE, "utf-8"));
+    if (typeof bansData !== "object" || Array.isArray(bansData)) bansData = {};
+} catch { /* starts empty */ }
+
+function saveBans() {
+    void kvSet("limey:bans", bansData);
+    try {
+        mkdirSync(join(ROOT, "data"), { recursive: true });
+        writeFileSync(BANS_FILE, JSON.stringify(bansData, null, 2));
+    } catch (err) {
+        console.error("[bans] failed to persist data:", err.message);
     }
 }
 
@@ -1558,6 +1588,44 @@ async function handleDashboard(req, res, url) {
         }), true;
     }
 
+    // ------------------------------------------------------------------
+    // Limey V1 bans — admin-session management (public /v1/bans/check is
+    // handled in the main request handler above).
+    // ------------------------------------------------------------------
+    if (url === "/v1/admin/bans" && req.method === "GET") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        return json(res, 200, bansData), true;
+    }
+
+    if (url === "/v1/admin/bans" && req.method === "POST") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        let body = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const userId = String(body.userId || "").trim();
+        if (!/^\d{5,25}$/.test(userId)) return json(res, 400, { error: "userId must be a numeric Discord user id" }), true;
+        bansData[userId] = {
+            reason: String(body.reason || "").slice(0, 500),
+            bannedAt: Date.now(),
+            by: adminSession.discordId
+        };
+        saveBans();
+        return json(res, 200, { userId, ...bansData[userId] }), true;
+    }
+
+    const bansDeleteMatch = /^\/v1\/admin\/bans\/(\d{5,25})$/.exec(url);
+    if (bansDeleteMatch && req.method === "DELETE") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        if (!bansData[bansDeleteMatch[1]]) return json(res, 404, { error: "user is not banned" }), true;
+        delete bansData[bansDeleteMatch[1]];
+        saveBans();
+        return json(res, 200, { unbanned: bansDeleteMatch[1] }), true;
+    }
+
     // POST /v1/admin/limes/donation-codes — the admin page's code generator,
     // authorized by the admin Discord session instead of a shared token.
     if (url === "/v1/admin/limes/donation-codes" && req.method === "POST") {
@@ -1901,6 +1969,16 @@ const server = http.createServer(async (req, res) => {
     //   Deep Link URL                  -> /deep-link
     //   Connection Entrypoint URL      -> /connections/entrypoint
     if (handleDiscordInteractions(req, res, url)) return;
+    // Public boot-time ban check for Limey V1 clients ({ bans } never
+    // exposes who applied it).
+    const bansCheckMatch = /^\/v1\/bans\/check\/(\d{5,25})$/.exec(url);
+    if (bansCheckMatch) {
+        const ban = bansData[bansCheckMatch[1]];
+        if (!ban) return send(res, 200, JSON.stringify({ banned: false }), { "Content-Type": "application/json; charset=utf-8" }), true;
+        return send(res, 200, JSON.stringify({ banned: true, reason: ban.reason || "", bannedAt: ban.bannedAt ?? null }), { "Content-Type": "application/json; charset=utf-8" }), true;
+    }
+    if (url === "/v1/bans/check") return send(res, 400, JSON.stringify({ error: "missing user id" }), { "Content-Type": "application/json; charset=utf-8" }), true;
+
     if (handleDiscordWebhooks(req, res, url)) return;
     if (url === "/linked-roles") return serveFile(res, join(PUBLIC, "verify.html")), true;
     if (url === "/deep-link") return serveDeepLink(req, res), true;

@@ -39,10 +39,11 @@ import { SettingsRouter } from "@webpack/common";
 
 import { get as dsGet } from "./api/DataStore";
 import { NotificationData, showNotification } from "./api/Notifications";
-import { initPluginManager, PMLogger, startAllPlugins } from "./api/PluginManager";
+import { initPluginManager, plugins as Plugins, PMLogger, startAllPlugins, stopPlugin } from "./api/PluginManager";
 import { PlainSettings, Settings, SettingsStore } from "./api/Settings";
 import { areLocalSettingsDirty, getCloudSettings, getCloudSyncDirection, markLocalSettingsDirty, putCloudSettings, shouldCloudSync } from "./api/SettingsSync/cloudSync";
-import { isLimeyDisabled, installLimeyOffNotice } from "./utils/limeySwitch";
+import { checkCurrentBan, installBannedNotice } from "./utils/banSwitch";
+import { installLimeyOffNotice,isLimeyDisabled } from "./utils/limeySwitch";
 import { relaunch } from "./utils/native";
 import { checkForUpdates, update, UpdateLogger } from "./utils/updater";
 import { onceReady } from "./webpack";
@@ -145,8 +146,26 @@ async function runUpdateCheck() {
     }
 }
 
+// Ban gate: after webpack sessions are live, ask the Limey V1 backend whether
+// the current user is banned from the mod. Banned boots fold everything down
+// (limeySwitch-style) instead of starting plugins.
+const banGate = onceReady.then(() => checkCurrentBan());
+
 async function init() {
     await onceReady;
+    const ban = await banGate;
+    if (ban?.banned) {
+        // Stop anything already running (StartAt.Init plugins) and start no
+        // more. Registered webpack patches can't be rewound live — that's an
+        // inherent limit of renderer-side enforcement.
+        for (const name in Plugins) {
+            const p = Plugins[name];
+            if (p.started) stopPlugin(p);
+        }
+        installBannedNotice(ban);
+        return;
+    }
+
     startAllPlugins(StartAt.WebpackReady);
 
     syncSettings();
@@ -186,10 +205,16 @@ if (isLimeyDisabled()) {
     init();
 
     document.addEventListener("DOMContentLoaded", () => {
-        startAllPlugins(StartAt.DOMContentLoaded);
+        void banGate.then(ban => {
+            if (ban?.banned) {
+                installBannedNotice(ban);
+                return;
+            }
+            startAllPlugins(StartAt.DOMContentLoaded);
 
-        if (IS_DISCORD_DESKTOP && Settings.nativeTitleBar) {
-            enableStyle(nativeTitleBarStyles);
-        }
+            if (IS_DISCORD_DESKTOP && Settings.nativeTitleBar) {
+                enableStyle(nativeTitleBarStyles);
+            }
+        });
     }, { once: true });
 }

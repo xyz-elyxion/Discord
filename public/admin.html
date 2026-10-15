@@ -237,6 +237,21 @@
                 </div>
 
                 <div class="card admin-card">
+                    <h2>🚫 Limey V1 bans</h2>
+                    <p class="admin-sub">Ban users from Limey V1 itself. Banned clients keep the mod inert at boot — no plugins, no patches — and show a card with the reason and how to appeal. Unbanning takes effect within an hour (client-side check cache) or on reload.</p>
+                    <label for="banUserId">Discord user ID</label>
+                    <input type="text" id="banUserId" inputmode="numeric" placeholder="e.g. 123456789012345678" />
+                    <label for="banReason">Reason (shown to the user)</label>
+                    <input type="text" id="banReason" placeholder="e.g. Scam bot activity — see /rules" />
+                    <div class="admin-actions">
+                        <button class="btn btn-primary" id="banSet">Ban user</button>
+                        <button class="btn btn-ghost" id="banLoad">Load banned users</button>
+                    </div>
+                    <div class="msg" id="banMsg"></div>
+                    <div id="banList" style="margin-top:8px"></div>
+                </div>
+
+                <div class="card admin-card">
                     <h2>USRBG banners</h2>
                     <p class="admin-sub">Give anyone a custom Discord profile banner without Nitro. Banners set here show up for all Limey V1 users with the USRBG plugin.</p>
                     <label for="usrbgUserId">Discord user ID</label>
@@ -406,6 +421,70 @@
     document.getElementById("usrbgRemove").onclick = usrbgRemove;
     document.getElementById("usrbgLoad").onclick = usrbgLoad;
 
+    // ---------- Limey V1 bans ----------
+    function bShow(text, ok) {
+        const el = document.getElementById("banMsg");
+        el.textContent = text;
+        el.className = "msg " + (ok ? "ok" : "err");
+    }
+
+    async function banCall(method, path, body) {
+        const res = await fetch(path, { method, headers: authHeaders(), body: body === undefined ? undefined : JSON.stringify(body) });
+        let data; try { data = await res.json(); } catch { data = {}; }
+        return { ok: res.ok, status: res.status, data };
+    }
+
+    async function banLoad() {
+        const list = document.getElementById("banList");
+        const { ok, status, data } = await banCall("GET", "/v1/admin/bans");
+        if (!ok) {
+            if (status === 401) lock();
+            return bShow("❌ Failed to load bans (" + status + ").", false);
+        }
+        const entries = Object.entries(data);
+        if (!entries.length) { list.innerHTML = '<p class="msg">No users banned.</p>'; return; }
+        list.innerHTML = "";
+        for (const [id, entry] of entries) {
+            const row = document.createElement("div");
+            row.className = "usrbg-row";
+            const info = document.createElement("span");
+            info.className = "usrbg-id";
+            const when = entry.bannedAt ? new Date(entry.bannedAt).toLocaleDateString() : "?";
+            info.textContent = id + " — " + when + (entry.reason ? " — " + entry.reason : "");
+            const del = document.createElement("button");
+            del.textContent = "Unban";
+            del.className = "btn btn-ghost";
+            del.style.cssText = "padding:4px 10px;font-size:0.75rem";
+            del.onclick = async () => {
+                document.getElementById("banUserId").value = id;
+                await banRemove();
+            };
+            row.append(info, del);
+            list.appendChild(row);
+        }
+    }
+
+    async function banSet() {
+        const userId = document.getElementById("banUserId").value.trim();
+        const reason = document.getElementById("banReason").value.trim();
+        if (!/^\d{5,25}$/.test(userId)) return bShow("User ID must be numeric (right-click a user in Discord → Copy User ID).", false);
+        bShow("Banning " + userId + "…", true);
+        const { ok, status, data } = await banCall("POST", "/v1/admin/bans", { userId, reason });
+        ok ? bShow("✅ Banned " + userId + ". Their active sessions fold down within an hour.", true) : bShow("❌ Error " + status + ": " + (data.error || "unknown"), false);
+        banLoad();
+    }
+
+    async function banRemove() {
+        const userId = document.getElementById("banUserId").value.trim();
+        if (!/^\d{5,25}$/.test(userId)) return bShow("User ID must be numeric.", false);
+        const { ok, status, data } = await banCall("DELETE", "/v1/admin/bans/" + userId);
+        ok ? bShow("✅ Unbanned " + userId + ".", true) : bShow("❌ Error " + status + ": " + (data.error || "unknown"), false);
+        banLoad();
+    }
+
+    document.getElementById("banSet").onclick = banSet;
+    document.getElementById("banLoad").onclick = banLoad;
+
     // ---------- Limey Sentinel stats ----------
     async function loadSentinelStats() {
         const res = await fetch("/v1/sentinel/stats", { headers: authHeaders() });
@@ -482,6 +561,7 @@
             if (!res.ok) throw new Error("unauthorized");
             unlock(await res.json());
             usrbgLoad();
+            banLoad();
             loadSentinelStats();
         } catch {
             lock();
