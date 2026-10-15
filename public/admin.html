@@ -6,6 +6,7 @@
     <title>Limey V1 — Admin Panel</title>
     <link rel="icon" href="/browser/icon.png" type="image/png">
     <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/app-shell.css">
     <style>
         /* Page-local layout only — all colors/radii come from the shared tokens */
         .admin-main {
@@ -180,25 +181,57 @@
     </header>
 
     <main class="admin-main">
-        <div class="container narrow">
-            <h1 class="admin-title">🍋 Admin Panel</h1>
-            <p class="admin-sub">Sign in with Discord. Access is restricted to the admin role in the Limey server.</p>
-
-            <div class="card admin-card" id="login">
-                <button class="btn btn-primary" id="loginbtn">Login with Discord</button>
+        <div class="container">
+            <!-- logged out -->
+            <div class="card admin-card" id="login" style="max-width:480px;margin:48px auto;padding:40px;">
+                <h2 style="justify-content:center">🍋 Admin Panel</h2>
+                <p class="admin-sub" style="margin-bottom:8px">Sign in with Discord. Access is restricted to the admin role in the Limey server.</p>
+                <button class="btn btn-primary" id="loginbtn" style="width:100%">Login with Discord</button>
                 <div class="msg" id="loginmsg"></div>
             </div>
 
-            <div class="card admin-card hidden" id="whoami">
-                <div class="whoami">
-                    <img id="meavatar" alt="" />
-                    <span class="whoami-name" id="mename"></span>
-                    <button class="btn btn-secondary" id="logoutbtn">Log out</button>
-                </div>
-            </div>
+            <div id="content" class="hidden bg-background" data-admin-shell="true">
+                <div class="dash-shell" id="admin-shell">
+                    <aside class="sidebar" id="admin-sidebar">
+                        <div class="ws-switch">
+                            <div class="ws-badge">🍋</div>
+                            <div class="ws-meta">
+                                <span class="ws-name">Admin Panel</span>
+                                <span class="ws-sub">Limey V1</span>
+                            </div>
+                        </div>
 
-            <div id="content" class="hidden">
-                <div class="card admin-card">
+                        <nav class="side-nav">
+                            <span class="nav-group-heading">Tools</span>
+                            <div class="nav-items">
+                                <button class="nav-item active" data-sec="sentinel" data-title="Sentinel"><span class="ni-icon">🛡️</span><span class="label">Sentinel</span></button>
+                                <button class="nav-item" data-sec="donations" data-title="Donation codes"><span class="ni-icon">🎟️</span><span class="label">Donation codes</span></button>
+                                <button class="nav-item" data-sec="bans" data-title="Limey V1 bans"><span class="ni-icon">🚫</span><span class="label">Bans</span></button>
+                                <button class="nav-item" data-sec="tools" data-title="Support tools"><span class="ni-icon">🛠️</span><span class="label">Support tools</span></button>
+                                <button class="nav-item" data-sec="usrbg" data-title="USRBG banners"><span class="ni-icon">🖼️</span><span class="label">USRBG banners</span></button>
+                            </div>
+                        </nav>
+
+                        <div class="side-bottom">
+                            <a class="nav-item" href="/"><span class="ni-icon">↩️</span><span class="label">Back to site</span></a>
+                        </div>
+                    </aside>
+
+                    <div class="dash-main">
+                        <div class="dash-topbar">
+                            <div class="topbar-left">
+                                <button class="tb-btn" id="admin-collapse-btn" title="Toggle sidebar">☰</button>
+                                <div class="crumb"><span>Limey V1</span><span>/</span><span class="crumb-page" id="crumb-page">Sentinel</span></div>
+                            </div>
+                            <div class="whoami hidden" id="whoami" style="margin-left:auto">
+                                <img id="meavatar" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border)" alt="" />
+                                <span class="whoami-name" id="mename"></span>
+                                <button class="btn btn-secondary" id="logoutbtn" style="padding:6px 14px;font-size:0.8rem">Log out</button>
+                            </div>
+                        </div>
+
+                        <div class="shell-section active" data-sec="sentinel">
+                            <div class="card admin-card">
                     <h2>🍋 Limey Sentinel</h2>
                     <p class="admin-sub">Proof-of-work captcha stats. Repeated failed solvers from one IP get harder challenges automatically (3 fails → 4x, 10 → 10x, for 15 min).</p>
                     <div class="sentinel-stats">
@@ -215,8 +248,11 @@
                     </div>
                 </div>
 
-                <div class="card admin-card">
-                    <h2>Donation codes</h2>
+                        </div><!-- /sentinel section -->
+
+                        <div class="shell-section" data-sec="donations">
+                    <div class="card admin-card">
+                        <h2>🎟️ Donation codes</h2>
                     <p class="admin-sub">Generate codes for donors. They redeem them at /limes for Limes and/or a perk tier (30 days).</p>
                     <label for="donlimes">Limes (optional)</label>
                     <input type="number" id="donlimes" placeholder="e.g. 1000" min="0" />
@@ -236,7 +272,10 @@
                     <textarea id="doncodes" rows="4" class="hidden" readonly></textarea>
                 </div>
 
-                <div class="card admin-card">
+                        </div><!-- /donations section -->
+
+                        <div class="shell-section" data-sec="bans">
+                    <div class="card admin-card">
                     <h2>🚫 Limey V1 bans</h2>
                     <p class="admin-sub">Ban users from Limey V1 itself. Banned clients keep the mod inert at boot — no plugins, no patches — and show a card with the reason and how to appeal. Unbanning takes effect within an hour (client-side check cache) or on reload.</p>
                     <label for="banUserId">Discord user ID</label>
@@ -251,7 +290,10 @@
                     <div id="banList" style="margin-top:8px"></div>
                 </div>
 
-                <div class="card admin-card">
+                        </div><!-- /bans section -->
+
+                        <div class="shell-section" data-sec="tools">
+                    <div class="card admin-card">
                     <h2>🛠 Support tools</h2>
                     <p class="admin-sub">Pick a user by ID and see everything linked to them in one view: ban status, USRBG banner, their synced cloud settings (which include the Limey V1 plugin list the client runs), and their Limes wallet. Read-only — every view is audit-logged.</p>
                     <label for="toolUserId">Discord user ID</label>
@@ -263,7 +305,10 @@
                     <div id="toolResult" style="margin-top:8px"></div>
                 </div>
 
-                <div class="card admin-card">
+                        </div><!-- /tools section -->
+
+                        <div class="shell-section" data-sec="usrbg">
+                    <div class="card admin-card">
                     <h2>USRBG banners</h2>
                     <p class="admin-sub">Give anyone a custom Discord profile banner without Nitro. Banners set here show up for all Limey V1 users with the USRBG plugin.</p>
                     <label for="usrbgUserId">Discord user ID</label>
@@ -278,9 +323,12 @@
                     </div>
                     <div class="msg" id="usrbgMsg"></div>
                     <div id="usrbgList" style="margin-top:8px"></div>
-                </div>
-            </div>
-        </div>
+                        </div><!-- /usrbg card -->
+                        </div><!-- /usrbg section -->
+                    </div><!-- /dash-main -->
+                </div><!-- /dash-shell -->
+            </div><!-- /#content -->
+        </div><!-- /container -->
 
         <footer class="footer">
             <div class="container">
@@ -720,6 +768,28 @@
             lock();
         }
     })();
+
+    // ---- Sidebar section switching ----
+    const crumbPage = document.getElementById("crumb-page");
+    document.querySelectorAll("#admin-shell .side-nav .nav-item").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll("#admin-shell .side-nav .nav-item").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const target = btn.dataset.sec;
+            document.querySelectorAll("#admin-shell .shell-section").forEach(s => s.classList.toggle("active", s.dataset.sec === target));
+            if (crumbPage) crumbPage.textContent = btn.dataset.title || target;
+            const signedIn = !document.getElementById("content").classList.contains("hidden");
+            if (target === "sentinel" && signedIn) loadSentinelStats();
+            if (target === "bans" && signedIn) banLoad();
+            if (target === "usrbg" && signedIn) usrbgLoad();
+        });
+    });
+
+    // ---- Sidebar collapse (mirrors the dashboard shell) ----
+    document.getElementById("admin-collapse-btn").addEventListener("click", () => {
+        document.getElementById("admin-shell").classList.toggle("collapsed");
+        document.getElementById("admin-sidebar").classList.toggle("collapsed-text");
+    });
 </script>
 </body>
 </html>

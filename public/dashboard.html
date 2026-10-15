@@ -7,6 +7,7 @@
     <meta name="description" content="Your Limey V1 dashboard — account, verification, Limes wallet, build status and more.">
     <link rel="icon" href="/browser/icon.png" type="image/png">
     <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/app-shell.css">
     <style>
         .dash-wrap { padding: 40px 24px 72px; }
         .dash-header {
@@ -106,87 +107,8 @@
         .links-row .btn-claim { cursor: pointer; }
         .links-row .btn-claim:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* ---------- sidebar shell ---------- */
-        .dash-shell { display: flex; gap: 0; align-items: stretch; min-height: 70vh; }
-        .sidebar {
-            width: 250px; flex-shrink: 0;
-            background: var(--card); border: 1px solid var(--border);
-            border-radius: 14px; padding: 12px;
-            display: flex; flex-direction: column;
-            transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
-            overflow: hidden;
-        }
-        .dash-shell.collapsed .sidebar { width: 0; padding: 0; border: none; opacity: 0; }
-        .dash-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
-        .dash-topbar {
-            background: var(--card); border: 1px solid var(--border);
-            border-radius: 12px; padding: 10px 14px;
-            display: flex; align-items: center; justify-content: space-between; gap: 12px;
-        }
-        .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
-        .tb-btn {
-            background: transparent; border: none; color: var(--muted-foreground);
-            cursor: pointer; padding: 6px; border-radius: 8px; line-height: 0;
-        }
-        .tb-btn:hover { background: rgba(128,128,128,0.12); color: var(--foreground); }
-        .crumb { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--muted-foreground); min-width: 0; }
-        .crumb .crumb-page { color: var(--foreground); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .avatar-sm { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border); object-fit: cover; }
-
-        .ws-switch {
-            display: flex; align-items: center; gap: 10px; padding: 8px;
-            border-radius: 10px; cursor: pointer; transition: background 0.15s;
-        }
-        .ws-switch:hover { background: rgba(128,128,128,0.1); }
-        .ws-avatar { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; background: var(--lime, #9eea6f); }
-        .ws-meta { display: flex; flex-direction: column; overflow: hidden; }
-        .ws-name { font-size: 0.85rem; font-weight: 600; color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ws-sub { font-size: 0.72rem; color: var(--muted-foreground); }
-        .ws-badge {
-            margin-left: auto; width: 22px; height: 22px; border-radius: 50%;
-            background: var(--lime, #9eea6f); color: #101010; font-weight: 700; font-size: 0.8rem;
-            display: flex; align-items: center; justify-content: center;
-        }
-
-        .side-nav { flex: 1; overflow-y: auto; margin-top: 14px; display: flex; flex-direction: column; gap: 16px; scrollbar-width: none; }
-        .side-nav::-webkit-scrollbar { display: none; }
-        .nav-group-heading {
-            padding: 0 10px; margin-bottom: 4px; font-size: 0.68rem; font-weight: 700;
-            letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); opacity: 0.7;
-        }
-        .nav-items { display: flex; flex-direction: column; gap: 2px; }
-        .nav-item {
-            display: flex; align-items: center; gap: 10px; padding: 7px 10px;
-            border-radius: 8px; cursor: pointer; color: var(--muted-foreground);
-            font-size: 0.85rem; transition: background 0.15s, color 0.15s; border: none; background: transparent;
-            width: 100%; text-align: left;
-        }
-        .nav-item:hover { background: rgba(128,128,128,0.1); color: var(--foreground); }
-        .nav-item.active { background: rgba(128,128,128,0.14); color: var(--foreground); font-weight: 600; }
-        .nav-item .ni-icon { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.85; }
-        .nav-item span.label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .sidebar.collapsed-text .nav-item span.label,
-        .sidebar.collapsed-text .nav-group-heading,
-        .sidebar.collapsed-text .ws-meta { display: none; }
-
-        .side-bottom { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 10px; }
-        .side-bottom .nav-item { color: var(--muted-foreground); }
-        .side-bottom .nav-item:hover { color: #f04747; }
-
-        @media (max-width: 860px) {
-            .sidebar { position: absolute; z-index: 30; height: 100%; }
-            .dash-shell { position: relative; }
-            .dash-shell.collapsed .sidebar { width: 250px; padding: 12px; opacity: 1; }
-        }
-
-        .badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            font-size: 0.8rem; font-weight: 600; padding: 4px 12px;
-            border-radius: 9999px; border: 1px solid var(--border); color: var(--muted-foreground);
-        }
-        .badge.ok { color: #3ba55c; border-color: color-mix(in srgb, #3ba55c 40%, transparent); }
-        .badge.err { color: #f04747; border-color: color-mix(in srgb, #f04747 40%, transparent); }
-        .badge.warn { color: #faa61a; border-color: color-mix(in srgb, #faa61a 40%, transparent); }
+        /* Sidebar shell + badges moved to the shared /app-shell.css used by
+           both the user dashboard and the admin panel. */
 
         /* limes */
         .limes-balance { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
@@ -531,7 +453,6 @@
             <!-- server dashboard -->
             <div id="server-view" style="display:none">
                 <div class="dash-grid" id="server-cards">
-                <div class="dash-grid">
                     <!-- server verification setup -->
                     <div class="dash-card wide" id="vsetup-card">
                         <h3>Verification setup</h3>
