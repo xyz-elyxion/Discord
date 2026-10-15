@@ -17,7 +17,7 @@
         .ws-header .lede { margin-bottom: 0; }
 
         .ws-shell {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto 72px;
             background: var(--card);
             border: 1px solid var(--border);
@@ -39,7 +39,7 @@
             border-radius: 8px;
             padding: 7px 12px;
             font-size: 0.9rem;
-            width: 220px;
+            width: 200px;
             outline: none;
         }
         .ws-topbar .proj-name:focus { border-color: var(--lime); }
@@ -62,11 +62,10 @@
         .btn:hover { border-color: var(--lime); color: var(--lime); }
         .btn.primary { background: var(--lime); border-color: var(--lime); color: #1a1a1a; font-weight: 600; }
         .btn.primary:hover { filter: brightness(1.1); color: #1a1a1a; }
-        .btn.danger:hover { border-color: #ff6b6b; color: #ff6b6b; }
 
-        .ws-body { display: flex; min-height: 620px; }
+        .ws-body { display: flex; min-height: 660px; }
         .sidebar {
-            width: 230px;
+            width: 240px;
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
@@ -79,7 +78,8 @@
             letter-spacing: 0.08em;
             color: var(--text-dim);
         }
-        .file-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
+        .file-list { flex: 1 1 0; overflow-y: auto; padding: 4px 8px 8px; min-height: 60px; }
+        .file-list.files-list { flex: 1 1 0; }
         .file-item {
             display: flex;
             align-items: center;
@@ -93,8 +93,16 @@
         }
         .file-item:hover { background: var(--card); }
         .file-item.active { background: var(--card); color: var(--lime); }
-        .file-item .del {
+        .file-item .meta {
             margin-left: auto;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .file-item.active .meta { color: var(--lime); opacity: 0.7; }
+        .file-item .del {
             opacity: 0.4;
             font-size: 0.8rem;
             border: none;
@@ -103,11 +111,12 @@
             cursor: pointer;
             padding: 2px 4px;
         }
-        .file-item .del:hover { opacity: 1; color: #ff6b6b; }
-        .sidebar .side-actions { padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
-        .sidebar .side-actions .btn { flex: 1; font-size: 0.78rem; padding: 7px 8px; }
+        .sidebar .side-actions { padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; }
+        .sidebar .side-actions .btn { flex: 1 1 44%; font-size: 0.76rem; padding: 7px 6px; white-space: nowrap; }
+        .sidebar .side-actions .btn.wide { flex-basis: 100%; }
 
-        .editor-pane { flex: 1; position: relative; background: #1e1e1e; }
+        .work-area { flex: 1; display: flex; min-width: 0; }
+        .editor-pane { flex: 1 1 60%; position: relative; background: #1e1e1e; min-width: 0; }
         #container { position: absolute; inset: 0; }
         #loading {
             position: absolute; inset: 0;
@@ -115,16 +124,299 @@
             color: var(--text-dim);
             background: #1e1e1e;
         }
+
+        /* ---------- Live theme preview ---------- */
+        .preview-pane {
+            width: 38%;
+            min-width: 280px;
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+        }
+        .preview-pane .preview-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        .preview-pane .preview-head .title { font-weight: 600; color: var(--text); }
+        .preview-pane .preview-head .btn { padding: 4px 8px; font-size: 0.72rem; }
+        #previewHost { flex: 1; border: none; background: #1a1b1e; }
+        .preview-empty {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 24px;
+            font-size: 0.82rem;
+            color: var(--text-dim);
+        }
+
+        /* ---------- Status bar ---------- */
+        .ws-statusbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 6px 14px;
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+            font-size: 0.74rem;
+            color: var(--text-dim);
+            flex-wrap: wrap;
+        }
+        .ws-statusbar .sep { opacity: 0.3; }
+        .ws-statusbar button {
+            border: 1px solid transparent;
+            background: none;
+            color: var(--text-dim);
+            font-size: 0.72rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .ws-statusbar button:hover { border-color: var(--border); color: var(--text); }
+        .ws-statusbar button.on { color: var(--lime); border-color: var(--border); }
+        .ws-statusbar .spacer { flex: 1; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* ---------- Floating panels (find / quick open) ---------- */
+        .float-panel {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 18px;
+            z-index: 30;
+            width: 330px;
+            max-width: calc(100% - 36px);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+            overflow: hidden;
+        }
+        .float-panel.open { display: block; }
+        .float-panel .fp-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .float-panel input {
+            display: block;
+            width: calc(100% - 24px);
+            margin: 0 12px 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        .float-panel input:focus { border-color: var(--lime); }
+        .fp-results { max-height: 300px; overflow-y: auto; padding: 0 8px 8px; }
+        .fp-result {
+            padding: 7px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: var(--text);
+        }
+        .fp-result:hover { background: var(--bg); }
+        .fp-result .where {
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .fp-result .snippet {
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: ui-monospace, monospace;
+        }
+        .fp-empty { padding: 10px 12px; font-size: 0.8rem; color: var(--text-dim); }
+
+        /* ---------- Dialogs ---------- */
+        dialog.ws-dialog {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--card);
+            color: var(--text);
+            padding: 0;
+            width: min(680px, 92vw);
+            max-height: 82vh;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+        }
+        dialog.ws-dialog::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px); }
+        .dlg-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 700;
+        }
+        .dlg-head .close {
+            border: none; background: none; color: var(--text-dim);
+            font-size: 1rem; cursor: pointer; padding: 4px 8px;
+        }
+        .dlg-head .close:hover { color: var(--text); }
+        .dlg-body { padding: 16px 18px; max-height: 56vh; overflow-y: auto; }
+        .dlg-foot {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            padding: 12px 18px;
+            border-top: 1px solid var(--border);
+        }
+        .dlg-form label { display: block; font-size: 0.78rem; color: var(--text-dim); margin: 12px 0 4px; }
+        .dlg-form label:first-child { margin-top: 0; }
+        .dlg-form input, .dlg-form textarea {
+            width: 100%;
+            box-sizing: border-box;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 0.86rem;
+            outline: none;
+            resize: vertical;
+        }
+        .dlg-form input:focus, .dlg-form textarea:focus { border-color: var(--lime); }
+        .dlg-hint { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
+        .dlg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .dlg-form .check { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text); margin-top: 12px; }
+        .dlg-form .check input { width: auto; background: none; border: none; }
+        .check-result { font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.6; white-space: pre-wrap; }
+        .check-result .ok { color: var(--lime); }
+        .check-result .bad { color: #ff6b6b; }
+
+        .tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+        .tpl-card {
+            text-align: left;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            color: var(--text);
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+        .tpl-card:hover { border-color: var(--lime); }
+        .tpl-card .t-icon { font-size: 1.3rem; }
+        .tpl-card .t-name { font-weight: 700; margin: 6px 0 3px; }
+        .tpl-card .t-desc { font-size: 0.74rem; color: var(--text-dim); line-height: 1.45; }
+
+        .hist-list { display: flex; flex-direction: column; gap: 6px; }
+        .hist-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+        }
+        .hist-item .when { color: var(--text); }
+        .hist-item .size { color: var(--text-dim); font-size: 0.72rem; margin-left: auto; }
+        .hist-item .restore {
+            border: 1px solid var(--border);
+            background: none;
+            color: var(--lime);
+            border-radius: 6px;
+            font-size: 0.72rem;
+            padding: 4px 10px;
+            cursor: pointer;
+        }
+        .hist-item .restore:hover { border-color: var(--lime); }
+
+        /* ---------- Snippets popover in editor ---------- */
+        .snip-wrap { position: absolute; bottom: 12px; right: 14px; z-index: 25; }
+        .snip-pop {
+            display: none;
+            position: absolute;
+            bottom: 40px;
+            right: 0;
+            width: 260px;
+            max-height: 320px;
+            overflow-y: auto;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+            padding: 6px;
+        }
+        .snip-wrap.open .snip-pop { display: block; }
+        .snip-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.8rem;
+            padding: 8px 10px;
+            cursor: pointer;
+        }
+        .snip-item:hover { background: var(--bg); color: var(--lime); }
+        .snip-item small { display: block; color: var(--text-dim); font-size: 0.68rem; margin-top: 2px; }
+
+        /* ---------- Toast ---------- */
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: 26px;
+            transform: translateX(-50%) translateY(12px);
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 10px;
+            padding: 9px 16px;
+            font-size: 0.82rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 100;
+            max-width: 80vw;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
         .ws-note {
             padding: 10px 16px;
-            font-size: 0.78rem;
+            font-size: 0.76rem;
             color: var(--text-dim);
             border-top: 1px solid var(--border);
         }
         .ws-note a { color: var(--lime); }
+        .ws-note kbd {
+            border: 1px solid var(--border);
+            border-bottom-width: 2px;
+            border-radius: 4px;
+            padding: 0 5px;
+            font-size: 0.68rem;
+            background: var(--bg);
+        }
+        @media (max-width: 900px) {
+            .preview-pane { min-width: 230px; }
+        }
         @media (max-width: 720px) {
             .ws-body { flex-direction: column; }
-            .sidebar { width: 100%; max-height: 180px; border-right: none; border-bottom: 1px solid var(--border); }
+            .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+            .file-list { max-height: 130px; }
+            .work-area { flex-direction: column; height: 620px; }
+            .preview-pane { width: 100%; border-left: none; border-top: 1px solid var(--border); min-height: 240px; }
         }
     </style>
 </head>
@@ -135,7 +427,7 @@
                 <span class="brand-dot"></span>
                 Limey V1
             </a>
-            
+
             <nav class="nav-links">
                 <a href="/">Home</a>
                 <div class="nav-drop" id="navPluginsDrop">
@@ -157,6 +449,13 @@
                                 <span class="nav-item-desc">Share your own plugins with the community</span>
                             </div>
                         </a>
+                        <a class="nav-item" href="/code" role="menuitem">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                            <div>
+                                <span class="nav-item-title">Workshop</span>
+                                <span class="nav-item-desc">Build extensions in your browser</span>
+                            </div>
+                        </a>
                     </div>
                 </div>
                 <div class="nav-drop" id="navMoreDrop">
@@ -169,13 +468,6 @@
                             <div>
                                 <span class="nav-item-title">USRBG</span>
                                 <span class="nav-item-desc">User banners, no Nitro required</span>
-                            </div>
-                        </a>
-                        <a class="nav-item" href="/code" role="menuitem">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                            <div>
-                                <span class="nav-item-title">CSS Workshop</span>
-                                <span class="nav-item-desc">Write and share custom CSS live</span>
                             </div>
                         </a>
                         <a class="nav-item" href="/rules" role="menuitem">
@@ -207,7 +499,7 @@
         <div class="container">
             <p class="eyebrow">Extension workshop</p>
             <h1>Build extensions <span class="accent">right here</span>.</h1>
-            <p class="lede">Like GitHub, but for Limey V1 plugins — create projects, write JS &amp; CSS in Monaco, download, and publish to the community store.</p>
+            <p class="lede">Templates, live theme preview, plugin dry-run checks, real ZIP export and one-click publishing — a full builder for Limey V1 extensions, all in your browser.</p>
         </div>
     </section>
 
@@ -215,8 +507,14 @@
         <div class="ws-shell">
             <div class="ws-topbar">
                 <input class="proj-name" id="projName" placeholder="Project name" maxlength="48">
-                <button class="btn primary" id="newProjBtn">+ New project</button>
-                <button class="btn" id="publishBtn">Publish to store</button>
+                <button class="btn" id="metaBtn" title="Project metadata: description, version, author, tags">⚙️ Meta</button>
+                <button class="btn" id="newProjBtn">+ New</button>
+                <button class="btn" id="templatesBtn" title="Start from a template">📚 Templates</button>
+                <button class="btn" id="importBtn">⬆ Import</button>
+                <input type="file" id="importInput" accept=".zip,.txt,.js,.css" style="display:none">
+                <button class="btn" id="dlZipBtn" title="Download the project as a real .zip">⬇ ZIP</button>
+                <button class="btn" id="dlUmdBtn" title="Download as a single-file installable userscript">⬇ Userscript</button>
+                <button class="btn primary" id="publishBtn">Publish to store</button>
                 <span class="status" id="status">Loading…</span>
             </div>
             <div class="ws-body">
@@ -228,20 +526,122 @@
                     <div class="side-actions">
                         <button class="btn" id="addJsBtn">+ .js</button>
                         <button class="btn" id="addCssBtn">+ .css</button>
+                        <button class="btn" id="renameBtn" title="Rename the active file">✎ Rename</button>
+                        <button class="btn" id="dupFileBtn" title="Duplicate the active file">⧉ Duplicate</button>
+                        <button class="btn wide" id="historyBtn" title="Snapshot history of the active file">🕘 History</button>
+                        <button class="btn wide" id="dupProjBtn" title="Duplicate the whole project">⧉ Copy project</button>
                     </div>
                 </aside>
-                <div class="editor-pane">
-                    <div id="loading">Loading editor…</div>
-                    <div id="container"></div>
+                <div class="work-area">
+                    <div class="editor-pane">
+                        <div id="loading">Loading editor…</div>
+                        <div id="container"></div>
+
+                        <div class="float-panel" id="findPanel">
+                            <div class="fp-head"><span>🔎 Find in project</span><button class="close" data-close>✕</button></div>
+                            <input id="findInput" placeholder="Search all files…">
+                            <div class="fp-results" id="findResults"><div class="fp-empty">Type to search across every file in the project.</div></div>
+                        </div>
+
+                        <div class="float-panel" id="openPanel">
+                            <div class="fp-head"><span>⚡ Quick open</span><button class="close" data-close>✕</button></div>
+                            <input id="openInput" placeholder="Filename…">
+                            <div class="fp-results" id="openResults"></div>
+                        </div>
+
+                        <div class="snip-wrap" id="snipWrap">
+                            <div class="snip-pop" id="snipPop"></div>
+                            <button class="btn" id="snipBtn" title="Insert a ready-made snippet">✚ Snippets</button>
+                        </div>
+                    </div>
+
+                    <div class="preview-pane" id="previewPane" style="display:none">
+                        <div class="preview-head">
+                            <span class="title">Live preview</span>
+                            <label style="display:flex;align-items:center;gap:4px;font-size:0.7rem;cursor:pointer"><input type="checkbox" id="autoPreview" checked> auto</label>
+                            <button class="btn" id="previewRefresh">↻ Refresh</button>
+                            <button class="btn" data-close-preview style="margin-left:auto">✕</button>
+                        </div>
+                        <iframe id="previewHost" title="Live theme preview" sandbox="allow-same-origin"></iframe>
+                    </div>
                 </div>
             </div>
+            <div class="ws-statusbar">
+                <span id="sbLang">—</span>
+                <span class="sep">·</span>
+                <span id="sbPos">Ln 1, Col 1</span>
+                <span class="sep">·</span>
+                <span id="sbSize">0 bytes</span>
+                <span class="spacer" id="sbProj"></span>
+                <button id="sbWrap" title="Toggle word wrap (Ctrl+Shift+W)">⏎ Wrap</button>
+                <button id="sbMinimap" title="Toggle minimap">▤ Minimap</button>
+                <button id="sbFontDec" title="Smaller font">−</button>
+                <button id="sbFontInc" title="Larger font">＋</button>
+                <button id="sbCheck" title="Dry-run the JS plugin (Ctrl+Enter)">▶ Check</button>
+            </div>
             <div class="ws-note">
-                Everything is stored locally in this browser. Download your files to keep them safe, then
-                <a href="/submit-plugin">publish</a> to share with everyone. Plugin boilerplate:
-                <code>export default definePlugin({ name, description, authors, patches, start() {} })</code>
+                <kbd>Ctrl</kbd>+<kbd>S</kbd> save · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> find in project · <kbd>Ctrl</kbd>+<kbd>P</kbd> quick open ·
+                <kbd>Ctrl</kbd>+<kbd>Enter</kbd> plugin check · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> toggle live preview —
+                everything is stored locally, then <a href="/submit-plugin">publish</a> to share. Exports are real <code>".zip"</code> files or single-file userscripts.
             </div>
         </div>
     </main>
+
+    <!-- Project metadata dialog -->
+    <dialog class="ws-dialog" id="metaDialog">
+        <div class="dlg-head"><span>Project metadata</span><button class="close" data-close-dialog>✕</button></div>
+        <div class="dlg-body dlg-form">
+            <label for="metaDesc">Description</label>
+            <textarea id="metaDesc" rows="3" maxlength="300" placeholder="What does your extension do?"></textarea>
+            <div class="dlg-grid">
+                <div>
+                    <label for="metaVersion">Version</label>
+                    <input id="metaVersion" placeholder="1.0.0">
+                </div>
+                <div>
+                    <label for="metaAuthorName">Author</label>
+                    <input id="metaAuthorName" placeholder="you">
+                </div>
+            </div>
+            <label for="metaTags">Tags <span style="opacity:.6">(comma-separated, up to 5)</span></label>
+            <input id="metaTags" placeholder="Utility, Fun">
+            <p class="dlg-hint">Metadata is embedded in your ZIP exports and prefilled when you publish to the store.</p>
+        </div>
+        <div class="dlg-foot">
+            <button class="btn" data-close-dialog>Cancel</button>
+            <button class="btn primary" id="metaSave">Save metadata</button>
+        </div>
+    </dialog>
+
+    <!-- Templates dialog -->
+    <dialog class="ws-dialog" id="templatesDialog">
+        <div class="dlg-head"><span>Start from a template</span><button class="close" data-close-dialog>✕</button></div>
+        <div class="dlg-body">
+            <div class="tpl-grid" id="tplGrid"></div>
+        </div>
+        <div class="dlg-foot">
+            <button class="btn" data-close-dialog>Close</button>
+        </div>
+    </dialog>
+
+    <!-- History dialog -->
+    <dialog class="ws-dialog" id="historyDialog">
+        <div class="dlg-head"><span id="histTitle">History</span><button class="close" data-close-dialog>✕</button></div>
+        <div class="dlg-body">
+            <div class="hist-list" id="histList"></div>
+            <button class="btn" id="histSnapshotNow" style="margin-top:12px">+ Snapshot now</button>
+        </div>
+        <div class="dlg-foot"><button class="btn" data-close-dialog>Close</button></div>
+    </dialog>
+
+    <!-- Plugin check dialog -->
+    <dialog class="ws-dialog" id="checkDialog">
+        <div class="dlg-head"><span>Plugin dry-run</span><button class="close" data-close-dialog>✕</button></div>
+        <div class="dlg-body">
+            <div id="checkResult" class="check-result"></div>
+        </div>
+        <div class="dlg-foot"><button class="btn" data-close-dialog>Close</button></div>
+    </dialog>
 
     <footer class="footer">
         <div class="container">
@@ -279,6 +679,8 @@
         </div>
     </footer>
 
+    <div id="toast"></div>
+
     <script>
         // The Monaco bundle expects the extension host to provide these globals
         // (in Limey V1 the native stub does it; here we wire it to our workspace).
@@ -290,38 +692,170 @@
         window.baseUrl = new URL("/vendor/monaco/", location.origin).toString();
 
         const LS_KEY = "limey-workshop-v1";
-        const BOILER = {
-            "plugin.js": `/* My Limey V1 plugin — edit me! */
+
+        // ---------- Templates (real Limey V1 shapes) ----------
+        const TEMPLATES = {
+            plugin: {
+                icon: "🧩", name: "Plugin boilerplate",
+                desc: "Minimal plugin: name, description, authors, start/stop.",
+                files: {
+                    "plugin.js":
+`//
+// My Limey V1 plugin
+//
+import { Devs } from "@utils/constants";
+import definePlugin from "@utils/types";
+
 export default definePlugin({
     name: "MyPlugin",
     description: "Does something cool.",
     authors: [{ name: "you", id: "0n" }],
     start() {
-        console.log("Hello from my plugin!");
+        console.log("Hello from MyPlugin!");
     },
     stop() { }
-});`,
-            "theme.css": `/* My Limey V1 theme — edit me! */
-:root {
-    --my-accent: #9ee850;
-}
+});
 `
+                }
+            },
+            patch: {
+                icon: "🪄", name: "Patch starter",
+                desc: "Plugin with a shapes patch: find + regex replacement.",
+                files: {
+                    "plugin.js":
+`//
+// A plugin that patches a Discord module via shapes.
+//
+import definePlugin from "@utils/types";
+import { findByProps } from "@webpack";
+
+export default definePlugin({
+    name: "MyPatch",
+    description: "Patches something in Discord.",
+    authors: [{ name: "you", id: "0n" }],
+    patches: [
+        {
+            find: ".the,module,shape,you,want,",
+            replacement: {
+                match: /original\.code\.here/,
+                replace: "patched.code.here"
+            }
+        }
+    ],
+    start() { },
+    stop() { }
+});
+`
+                }
+            },
+            settings: {
+                icon: "🎛️", name: "Plugin + settings",
+                desc: "Plugin with a settings screen (select, text, toggles).",
+                files: {
+                    "plugin.js":
+`//
+// A plugin with a settings UI.
+//
+import { definePluginSettings } from "@api/Settings";
+import definePlugin, { OptionType } from "@utils/types";
+import { Notifications } from "@api/Notifications";
+
+const settings = definePluginSettings({
+    greeting: {
+        description: "What to say",
+        type: OptionType.STRING,
+        default: "Hello!"
+    },
+    notify: {
+        description: "Notify when it happens",
+        type: OptionType.BOOLEAN,
+        default: true
+    }
+});
+
+export default definePlugin({
+    name: "MySettings",
+    description: "Configurable plugin demo.",
+    authors: [{ name: "you", id: "0n" }],
+    settings,
+    start() {
+        if (settings.store.notify) Notifications.showNotification({ title: "Started", body: settings.store.greeting });
+    },
+    stop() { }
+});
+`
+                }
+            },
+            theme: {
+                icon: "🎨", name: "CSS theme",
+                desc: "Theme stylesheet with Discord CSS variables set up.",
+                files: {
+                    "theme.css":
+`/* My Limey V1 theme — edit me! */
+:root {
+    --brand-accent: #9ee850;
+    --bg-overlay-chat: #14161a;
+}
+
+.chatContent_a7d72e .messagesPlaceholder_a7d72e {
+    background: var(--bg-overlay-chat);
+}
+
+/* Try it live: open the 🖥 preview from the topbar */
+`
+                }
+            },
+            userscript: {
+                icon: "📜", name: "Standalone userscript",
+                desc: "Plain script that runs in the browser, no definePlugin.",
+                files: {
+                    "script.js":
+`//
+// Standalone userscript — runs directly in the page.
+//
+(function () {
+    "use strict";
+    console.log("My userscript is alive:", location.hostname);
+})();
+`
+                }
+            },
+            blank: {
+                icon: "📄", name: "Blank",
+                desc: "Just a plugin.js and a theme.css to grow into.",
+                files: { "plugin.js": "", "theme.css": "" }
+            }
         };
 
-        // { projects: { id: { name, files: { "file.js": "content" }, activeFile, updatedAt } }, activeProject }
+        // ---------- Storage model ----------
+        // { projects: { id: { name, meta, files: {"f.js": content}, snapshots: {"f.js":[{t,c}]}, activeFile, updatedAt } }, activeProject }
         let ws = { projects: {}, activeProject: null };
         try {
             const saved = JSON.parse(localStorage.getItem(LS_KEY));
             if (saved && saved.projects && typeof saved.projects === "object") ws = saved;
         } catch { }
 
-        function persist() { localStorage.setItem(LS_KEY, JSON.stringify(ws)); }
+        function ensureProject(p) {
+            if (!p.meta) p.meta = {};
+            if (!p.snapshots) p.snapshots = {};
+            if (!p.updatedAt) p.updatedAt = new Date().toISOString();
+            return p;
+        }
+        function persist() {
+            try { localStorage.setItem(LS_KEY, JSON.stringify(ws)); } catch { setStatus("Storage full — free space or download your work.", false); }
+        }
 
         let saveTimer;
         function scheduleSave() {
             clearTimeout(saveTimer);
             setStatus("Unsaved changes", false);
             saveTimer = setTimeout(() => { persist(); setStatus("Saved ✓", true); }, 600);
+        }
+        function saveNow() {
+            clearTimeout(saveTimer);
+            persist();
+            setStatus("Saved ✓", true);
+            snapshot(true);
         }
 
         function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -336,19 +870,38 @@ export default definePlugin({
             s.className = "status" + (ok ? " saved" : "");
         }
 
+        let toastTimer;
+        function toast(msg) {
+            const t = document.getElementById("toast");
+            t.textContent = msg;
+            t.classList.add("show");
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+        }
+
         // ---------- UI ----------
         const projList = document.getElementById("projList");
         const fileList = document.getElementById("fileList");
         const projName = document.getElementById("projName");
         let editor = null;
         let suppressModelEvents = false;
+        let currentModelName = null;
+
+        function lineCount(s) { return s ? s.split("\n").length : 0; }
 
         function renderProjects() {
             projList.innerHTML = "";
-            for (const [id, p] of Object.entries(ws.projects).sort((a, b) => (b[1].updatedAt || "").localeCompare(a[1].updatedAt || ""))) {
+            const entries = Object.entries(ws.projects)
+                .sort((a, b) => (b[1].updatedAt || "").localeCompare(a[1].updatedAt || ""));
+            for (const [id, p] of entries) {
                 const el = document.createElement("div");
                 el.className = "file-item" + (id === ws.activeProject ? " active" : "");
-                el.textContent = p.name || "untitled";
+                const label = document.createElement("span");
+                label.textContent = (p.name || "untitled").slice(0, 22);
+                label.title = p.name || "untitled";
+                const count = document.createElement("span");
+                count.className = "meta";
+                count.textContent = Object.keys(p.files).length + "f";
                 const del = document.createElement("button");
                 del.className = "del";
                 del.textContent = "✕";
@@ -358,15 +911,19 @@ export default definePlugin({
                     if (!confirm(`Delete project "${p.name}"? This cannot be undone.`)) return;
                     delete ws.projects[id];
                     if (ws.activeProject === id) ws.activeProject = Object.keys(ws.projects)[0] || null;
-                    persist(); renderProjects(); loadActiveFile();
+                    persist(); renderProjects(); renderFiles(); loadActiveFile();
                 });
-                el.appendChild(del);
+                el.append(label, count, del);
                 el.addEventListener("click", () => {
                     ws.activeProject = id;
-                    persist(); renderProjects(); loadActiveFile();
+                    persist(); renderProjects(); renderFiles(); loadActiveFile();
                 });
                 projList.appendChild(el);
             }
+            const p = activeProject();
+            document.getElementById("sbProj").textContent = p
+                ? `${p.name || "untitled"} — ${Object.keys(p.files).length} file(s)`
+                : "No project";
         }
 
         function renderFiles() {
@@ -376,7 +933,11 @@ export default definePlugin({
             for (const name of Object.keys(p.files).sort()) {
                 const el = document.createElement("div");
                 el.className = "file-item" + (name === p.activeFile ? " active" : "");
-                el.textContent = name;
+                const label = document.createElement("span");
+                label.textContent = name;
+                const meta = document.createElement("span");
+                meta.className = "meta";
+                meta.textContent = lineCount(p.files[name]) + " ln";
                 const del = document.createElement("button");
                 del.className = "del";
                 del.textContent = "✕";
@@ -385,10 +946,11 @@ export default definePlugin({
                     e.stopPropagation();
                     if (!confirm(`Delete ${name}?`)) return;
                     delete p.files[name];
+                    delete p.snapshots[name];
                     if (p.activeFile === name) p.activeFile = Object.keys(p.files)[0] || null;
                     persist(); renderFiles(); loadActiveFile();
                 });
-                el.appendChild(del);
+                el.append(label, meta, del);
                 el.addEventListener("click", () => {
                     p.activeFile = name;
                     persist(); renderFiles(); loadActiveFile();
@@ -404,8 +966,12 @@ export default definePlugin({
             projName.value = activeProject()?.name || "";
             if (!f) {
                 editor && editor.setModel(null);
+                currentModelName = null;
+                updateStatusbar(null);
+                togglePreview();
                 return;
             }
+            togglePreview();
             const model = monaco.editor.createModel(f.content, langFor(f.name));
             suppressModelEvents = true;
             if (!editor) {
@@ -415,100 +981,816 @@ export default definePlugin({
                     minimap: { enabled: false },
                     fontSize: 14,
                     automaticLayout: true,
-                    tabSize: 4
+                    tabSize: 4,
+                    wordWrap: "off"
+                });
+                editor.onDidChangeCursorPosition(e => {
+                    document.getElementById("sbPos").textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
                 });
             } else {
                 editor.setModel(model);
             }
             suppressModelEvents = false;
+            currentModelName = f.name;
             model.onDidChangeContent(() => {
-                if (suppressModelEvents) return;
-                activeProject().files[f.name] = model.getValue();
+                if (suppressModelEvents || currentModelName !== f.name) return;
+                const p = activeProject();
+                if (!p) return;
+                p.files[f.name] = model.getValue();
+                p.updatedAt = new Date().toISOString();
                 scheduleSave();
+                updateStatusbar(model);
+                if (langFor(f.name) === "css" && previewOn && autoPreview.checked) schedulePreview();
             });
+            editor.revealPositionInCenter({ lineNumber: 1, column: 1 });
+            updateStatusbar(model);
             setStatus("Loaded " + f.name, true);
         }
 
-        function newProject() {
-            const name = prompt("Project name:", "My Extension");
-            if (name === null) return;
+        function updateStatusbar(model) {
+            const f = activeFile();
+            const lang = langFor(f?.name || "");
+            document.getElementById("sbLang").textContent = lang === "css" ? "CSS" : "JavaScript";
+            document.getElementById("sbSize").textContent = (f ? new Blob([f.content]).size : 0) + " bytes";
+        }
+
+        // ---------- Mirrors for out-of-workspace changes (needed when models switch) ----------
+        document.addEventListener("keydown", e => {
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "s") {
+                e.preventDefault();
+                saveNow();
+                toast("Project saved locally.");
+            } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "f" || e.key === "F")) {
+                e.preventDefault();
+                openFind();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === "p" && !(e.ctrlKey && e.shiftKey)) {
+                e.preventDefault();
+                openQuickOpen();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                runCheck();
+            } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "P" || e.key === "p")) {
+                e.preventDefault();
+                togglePreview();
+            }
+        });
+
+        // ---------- History snapshots ----------
+        const HIST_MAX = 15;
+        function snapshot(force) {
+            const p = activeProject();
+            const f = activeFile();
+            if (!p || !f) return;
+            const cur = p.snapshots[f.name] || (p.snapshots[f.name] = []);
+            const latest = cur.find(s => s.c === f.content);
+            if (latest) return;
+            if (!force) {
+                const last = cur[cur.length - 1];
+                if (last && Date.now() - last.t < 30000) return;
+            }
+            cur.push({ t: Date.now(), c: f.content });
+            while (cur.length > HIST_MAX) cur.shift();
+            persist();
+        }
+
+        // ---------- Download helpers ----------
+        function downloadBlob(data, filename, mime) {
+            const blob = new Blob([data], { type: mime || "application/octet-stream" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+        function fileBase() {
+            const p = activeProject();
+            return (p?.name || "limey-extension").replace(/\s+/g, "-").toLowerCase().replace(/[^a-z0-9\-\._]/g, "") || "limey-extension";
+        }
+
+        // Real ZIP export (STORE method) — no compression dependency.
+        const CRC_TABLE = (() => {
+            const t = new Int32Array(256);
+            for (let i = 0; i < 256; i++) {
+                let c = i;
+                for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+                t[i] = c;
+            }
+            return t;
+        })();
+        function crc32(u8) {
+            let c = 0xFFFFFFFF;
+            for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+            return (c ^ 0xFFFFFFFF) >>> 0;
+        }
+        function makeZip(entries) {
+            const chunks = [];
+            const central = [];
+            let offset = 0;
+            const enc = new TextEncoder();
+            for (const e of entries) {
+                const nameBytes = enc.encode(e.name);
+                const data = enc.encode(e.data);
+                const crc = crc32(data);
+                const local = new DataView(new ArrayBuffer(30));
+                local.setUint32(0, 0x04034b50, true);
+                local.setUint16(4, 20, true);       // version needed
+                local.setUint16(6, 0x0800, true);   // flags: UTF-8 names
+                local.setUint16(8, 0, true);        // method: STORE
+                local.setUint32(14, crc, true);
+                local.setUint32(18, data.length, true);
+                local.setUint32(22, data.length, true);
+                local.setUint16(26, nameBytes.length, true);
+                local.setUint16(28, 0, true);
+                chunks.push(new Uint8Array(local.buffer), nameBytes, data);
+
+                const cd = new DataView(new ArrayBuffer(46));
+                cd.setUint32(0, 0x02014b50, true);
+                cd.setUint16(4, 20, true);
+                cd.setUint16(6, 20, true);
+                cd.setUint16(8, 0x0800, true);
+                cd.setUint16(10, 0, true);
+                cd.setUint32(16, crc, true);
+                cd.setUint32(20, data.length, true);
+                cd.setUint32(24, data.length, true);
+                cd.setUint16(28, nameBytes.length, true);
+                cd.setUint32(42, offset, true);
+                central.push({ head: new Uint8Array(cd.buffer), name: nameBytes });
+
+                offset += 30 + nameBytes.length + data.length;
+            }
+            let cdSize = 0;
+            for (const c of central) {
+                chunks.push(c.head, c.name);
+                cdSize += c.head.length + c.name.length;
+            }
+            const eocd = new DataView(new ArrayBuffer(22));
+            eocd.setUint32(0, 0x06054b50, true);
+            eocd.setUint16(8, central.length, true);
+            eocd.setUint16(10, central.length, true);
+            eocd.setUint32(12, cdSize, true);
+            eocd.setUint32(16, offset, true);
+            chunks.push(new Uint8Array(eocd.buffer));
+            return new Blob(chunks, { type: "application/zip" });
+        }
+
+        async function exportZip() {
+            const p = activeProject();
+            if (!p) return setStatus("Create or open a project first.", false);
+            const files = Object.entries(p.files).map(([name, content]) => ({ name: `${fileBase()}/${name}`, data: content }));
+            files.push({ name: `${fileBase()}/README.txt`, data:
+                `${p.name}\n${p.meta.description || ""}\n` +
+                `Version: ${p.meta.version || "1.0.0"}\nAuthor: ${p.meta.authorName || "unknown"}\nTags: ${p.meta.tags || ""}\n\n` +
+                `Limey V1 plugin files. Install with Limey V1 or paste the code into your own plugin.\n` });
+            downloadBlob(makeZip(files), fileBase() + ".zip");
+            toast("ZIP exported.");
+        }
+
+        function exportUserscript() {
+            const p = activeProject();
+            if (!p) return setStatus("Create or open a project first.", false);
+            const js = Object.entries(p.files).filter(([n]) => n.endsWith(".js"));
+            const css = Object.entries(p.files).filter(([n]) => n.endsWith(".css"));
+            if (!js.length) return setStatus("A userscript needs at least one .js file.", false);
+            let out =
+                '// ==UserScript==\n' +
+                '// @name         ' + (p.name || "My Limey extension") + '\n' +
+                '// @namespace    limey-v1-workshop\n' +
+                '// @version      ' + (p.meta.version || "1.0.0") + '\n';
+            if (p.meta.description) out += '// @description  ' + String(p.meta.description).replace(/\n/g, " ") + '\n';
+            if (p.meta.authorName) out += '// @author       ' + p.meta.authorName + '\n';
+            out +=
+                '// @match        https://*.discord.com/*\n' +
+                '// @grant        none\n' + '// ==/UserScript==\n\n';
+            if (css.length) {
+                const allCss = css.map(([, c]) => c).join("\n");
+                out += '(function () {\nconst style = document.createElement("style");\n';
+                out += 'style.textContent = ' + JSON.stringify(allCss) + ';\n';
+                out += 'document.head.appendChild(style);\n})();\n\n';
+            }
+            for (const [name, code] of js) {
+                out += '// ===== ' + name + ' =====\n' + code + '\n\n';
+            }
+            downloadBlob(out, fileBase() + ".user.js");
+            toast("Userscript exported — install via Tampermonkey/Violentmonkey or Limey V1.");
+        }
+
+        // ---------- Import (ZIP / old .txt bundle / single files) ----------
+        async function inflateRaw(u8, compSize) {
+            const ds = new DecompressionStream("deflate-raw");
+            const stream = new Blob([u8]).stream().pipeThrough(ds);
+            const buf = await new Response(stream).arrayBuffer();
+            return new Uint8Array(buf);
+        }
+
+        async function readZip(buffer) {
+            const u8 = new Uint8Array(buffer);
+            // Find the end-of-central-directory record (scan backwards for its signature).
+            let eocd = -1;
+            const sig = [0x50, 0x4b, 0x05, 0x06];
+            for (let i = u8.length - 22; i >= 0; i--) {
+                if (u8[i] === sig[0] && u8[i + 1] === sig[1] && u8[i + 2] === sig[2] && u8[i + 3] === sig[3]) { eocd = i; break; }
+            }
+            if (eocd < 0) throw new Error("Not a zip file");
+            const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+            const count = dv.getUint16(eocd + 10, true);
+            let ptr = dv.getUint32(eocd + 16, true);
+            const files = {};
+            for (let i = 0; i < count; i++) {
+                if (dv.getUint32(ptr, true) !== 0x02014b50) break;
+                const method = dv.getUint16(ptr + 10, true);
+                const compSize = dv.getUint32(ptr + 20, true);
+                const nameLen = dv.getUint16(ptr + 28, true);
+                const extraLen = dv.getUint16(ptr + 30, true);
+                const commentLen = dv.getUint16(ptr + 32, true);
+                const localOff = dv.getUint32(ptr + 42, true);
+                let name = "";
+                for (let j = 0; j < nameLen; j++) name += String.fromCharCode(u8[ptr + 46 + j]);
+                ptr += 46 + nameLen + extraLen + commentLen;
+                if (name.endsWith("/") || name.includes("__MACOSX") || name.startsWith(".")) continue;
+                const base = name.split("/").pop();
+                if (!/\.(js|css)$/i.test(base)) continue;
+                const localNameLen = dv.getUint16(localOff + 26, true);
+                const localExtraLen = dv.getUint16(localOff + 28, true);
+                const dataStart = localOff + 30 + localNameLen + localExtraLen;
+                const raw = u8.subarray(dataStart, dataStart + compSize);
+                files[base] = method === 8 && typeof DecompressionStream !== "undefined"
+                    ? await inflateRaw(raw, compSize)
+                    : (method === 0 ? raw : null);
+            }
+            // Decode utf-8 text.
+            const out = {};
+            for (const [name, u] of Object.entries(files)) {
+                if (!u) continue;
+                out[name] = new TextDecoder().decode(u);
+            }
+            return out;
+        }
+
+        function parseTxtBundle(text) {
+            const marker = /\/\*\s*=====\s*(.+?)\s*=====\s*\*\//g;
+            const found = [...text.matchAll(marker)];
+            if (!found.length) return null;
+            const files = {};
+            for (let i = 0; i < found.length; i++) {
+                const name = found[i][1].trim();
+                const start = found[i].index + found[i][0].length;
+                const end = i + 1 < found.length ? found[i + 1].index : text.length;
+                files[name] = text.slice(start, end).replace(/^\s+/, "").replace(/\s+$/, "");
+            }
+            return files;
+        }
+
+        async function importFiles() {
+            const input = document.getElementById("importInput");
+            const file = input.files && input.files[0];
+            input.value = "";
+            if (!file) return;
+            let imported = null;
+            try {
+                if (/\.zip$/i.test(file.name)) imported = await readZip(await file.arrayBuffer());
+                else if (/\.txt$/i.test(file.name)) imported = parseTxtBundle(await file.text());
+                else imported = { [file.name]: await file.text() };
+            } catch (err) {
+                setStatus("Import failed: " + err.message, false);
+                return;
+            }
+            const entries = Object.entries(imported || {}).filter(([n, c]) => /\.(js|css)$/i.test(n) && typeof c === "string");
+            if (!entries.length) return setStatus("Nothing importable found in that file.", false);
+            // Prefer creating a new project so an existing one is never silently overwritten.
+            if (!activeProject() || confirm("Import as a new project? Cancel = merge into the current one.")) {
+                const id = uid();
+                ws.projects[id] = ensureProject({ files: {}, activeFile: null });
+                ws.activeProject = id;
+            }
+            const p = ensureProject(activeProject());
+            p.name = p.name || "Imported";
+            for (const [name, content] of entries) {
+                let fname = name, i = 2;
+                while (p.files[fname]) fname = name.replace(/(\.\w+)$/, i++ + "$1");
+                p.files[fname] = content;
+            }
+            p.activeFile = p.activeFile in p.files ? p.activeFile : Object.keys(p.files)[0];
+            p.updatedAt = new Date().toISOString();
+            persist();
+            renderProjects(); renderFiles(); loadActiveFile();
+            setStatus(`Imported ${entries.length} file(s) ✓`, true);
+        }
+
+        // ---------- Find in project ----------
+        function openFind() {
+            closePanels();
+            document.getElementById("findPanel").classList.add("open");
+            document.getElementById("findInput").focus();
+            runFind(document.getElementById("findInput").value);
+        }
+        function runFind(q) {
+            const box = document.getElementById("findResults");
+            const p = activeProject();
+            if (!q || q.length < 2 || !p) {
+                box.innerHTML = '<div class="fp-empty">Type to search across every file in the project.</div>';
+                return;
+            }
+            const needle = q.toLowerCase();
+            box.innerHTML = "";
+            let hits = 0;
+            for (const [name, content] of Object.entries(p.files)) {
+                const lines = content.split("\n");
+                for (let ln = 0; ln < lines.length && hits < 40; ln++) {
+                    const idx = lines[ln].toLowerCase().indexOf(needle);
+                    if (idx < 0) continue;
+                    hits++;
+                    const r = document.createElement("div");
+                    r.className = "fp-result";
+                    const where = document.createElement("div");
+                    where.className = "where";
+                    const file = document.createElement("span");
+                    file.textContent = name;
+                    const line = document.createElement("span");
+                    line.textContent = "Ln " + (ln + 1);
+                    where.append(file, line);
+                    const sn = document.createElement("div");
+                    sn.className = "snippet";
+                    sn.textContent = lines[ln].trim().slice(0, 120);
+                    r.append(where, sn);
+                    r.addEventListener("click", () => {
+                        p.activeFile = name;
+                        persist(); renderFiles(); loadActiveFile();
+                        const model = editor.getModel();
+                        if (model) {
+                            const m = model.findMatches(q, false, false, false, null, true)[0];
+                            if (m) {
+                                editor.revealRangeInCenter(m.range);
+                                editor.setSelection(m.range);
+                            }
+                        }
+                        closePanels();
+                    });
+                    box.appendChild(r);
+                }
+            }
+            if (!hits) box.innerHTML = '<div class="fp-empty">No matches.</div>';
+        }
+
+        // ---------- Quick open ----------
+        function openQuickOpen() {
+            closePanels();
+            document.getElementById("openPanel").classList.add("open");
+            renderQuickOpen("");
+            document.getElementById("openInput").focus();
+            document.getElementById("openInput").select();
+        }
+        function renderQuickOpen(q) {
+            const p = activeProject();
+            const box = document.getElementById("openResults");
+            if (!p) return box.innerHTML = '<div class="fp-empty">No project.</div>';
+            box.innerHTML = "";
+            for (const name of Object.keys(p.files).sort()) {
+                if (q && !name.toLowerCase().includes(q.toLowerCase())) continue;
+                const r = document.createElement("div");
+                r.className = "fp-result";
+                r.textContent = name;
+                r.addEventListener("click", () => {
+                    p.activeFile = name;
+                    persist(); renderFiles(); loadActiveFile();
+                    closePanels();
+                });
+                box.appendChild(r);
+            }
+        }
+
+        function closePanels() {
+            document.getElementById("findPanel").classList.remove("open");
+            document.getElementById("openPanel").classList.remove("open");
+        }
+        document.querySelectorAll(".float-panel .close, [data-close]").forEach(b =>
+            b.addEventListener("click", () => closePanels()));
+
+        // ---------- Snippets ----------
+        const SNIPPETS = [
+            { t: "definePlugin skeleton", d: "Full plugin object to build out", code:
+`definePlugin({
+    name: "MyPlugin",
+    description: "",
+    authors: [{ name: "you", id: "0n" }],
+    settings,
+    start() {
+
+    },
+    stop() { }
+});` },
+            { t: "patches: find + replacement", d: "Shape-based module patch", code:
+`patches: [
+    {
+        find: ".some,discord,shape,",
+        replacement: {
+            match: /find\.regex\.here/,
+            replace: "replacement.$1"
+        }
+    }
+],` },
+            { t: "settings block", d: "definePluginSettings with common types", code:
+`const settings = definePluginSettings({
+    enabled: {
+        description: "Enable this thing",
+        type: OptionType.BOOLEAN,
+        default: true
+    },
+    level: {
+        description: "How much",
+        type: OptionType.SELECT,
+        options: [
+            { label: "Low", value: 1, default: true },
+            { label: "High", value: 2 }
+        ]
+    }
+});` },
+            { t: "FluxDispatcher event", d: "Subscribe to a dispatch event", code:
+`flux: {
+    CONNNECTION_OPEN() {
+        console.log("connection opened");
+    }
+},` },
+            { t: "Notification", d: "Show a Limey notification", code:
+`Notifications.showNotification({
+    title: "Hello",
+    body: "From my plugin",
+    onClick() { }
+});` },
+            { t: "Common imports header", d: "The imports most plugins need", code:
+`import { definePluginSettings } from "@api/Settings";
+import definePlugin, { OptionType } from "@utils/types";
+import { Notifications } from "@api/Notifications";
+import { Devs } from "@utils/constants";
+import { findByProps, FluxDispatcher } from "@webpack";` }
+        ];
+
+        function buildSnippetMenu() {
+            const pop = document.getElementById("snipPop");
+            pop.innerHTML = "";
+            for (const s of SNIPPETS) {
+                const b = document.createElement("button");
+                b.className = "snip-item";
+                b.textContent = s.t;
+                const d = document.createElement("small");
+                d.textContent = s.d;
+                b.appendChild(d);
+                b.addEventListener("click", () => {
+                    insertText(s.code);
+                    document.getElementById("snipWrap").classList.remove("open");
+                });
+                pop.appendChild(b);
+            }
+        }
+        function insertText(code) {
+            const sel = editor ? editor.getSelection() : null;
+            if (!sel || !editor.getModel()) return toast("Open a file first.");
+            editor.executeEdits("snippet", [{ range: sel, text: code, forceMoveMarkers: true }]);
+            editor.focus();
+        }
+
+        // ---------- Plugin dry-run check ----------
+        function runCheck() {
+            const f = activeFile();
+            if (!f) return setStatus("Nothing to check.", false);
+            if (langFor(f.name) === "css") {
+                if (typeof editor !== "undefined" && editor) {
+                    const markers = monaco.editor.getModelMarkers({ resource: editor.getModel() && editor.getModel().uri });
+                    const errs = markers.filter(m => m.severity >= 8);
+                    openCheckDialog(errs.length
+                        ? `⚠ CSS found ${errs.length} problem(s):\n` + errs.map(m =>
+                            `[${m.startLineNumber}:${m.startColumn}] ${m.message}`).join("\n")
+                        : "✓ CSS parses cleanly (via the Monaco CSS language worker).");
+                }
+                return;
+            }
+            let body = f.content
+                .replace(/^\s*import[^;]*?from\s*["'][^"']+["'];?\s*$[\s]*/gm, "")
+                .replace(/^\s*import\s*["'][^"']+["'];?\s*$[\s]*/gm, "")
+                .replace(/export\s+default\s+/m, "return ")
+                .replace(/export\s+(async\s+function|function|const|let|var|class)\b/gm, "$1");
+            let returned = null;
+            let error = null;
+            const collector = val => { if (val && typeof val === "object") returned = val; };
+            try {
+                new Function("definePlugin", "definePluginSettings", "Notifications", body)(
+                    collector,
+                    () => ({ store: {} }),
+                    { showNotification() { } }
+                );
+            } catch (err) {
+                error = err;
+            }
+            if (error) {
+                openCheckDialog(`✕ ${f.name} threw:\n\n${error.message || error}`);
+                return;
+            }
+            if (!returned) {
+                openCheckDialog(`✕ ${f.name} did not return an object. Make sure it ends with:\nexport default definePlugin({ ... });`);
+                return;
+            }
+            const patches = Array.isArray(returned.patches) ? returned.patches.length : 0;
+            const msgs = [
+                `✓ ${returned.name || f.name} loaded in a dry-run.`,
+                `  name:        ${returned.name || "(missing)"}`,
+                `  description: ${returned.description ? "present" : "(missing)"}`,
+                `  authors:     ${Array.isArray(returned.authors) && returned.authors.length ? "yes" : "(none)"}`,
+                `  patches:     ${patches * 1}`,
+                `  start():     ${typeof returned.start === "function" ? "yes" : "(missing)"}`,
+                `  stop():      ${typeof returned.stop === "function" ? "yes" : "(missing)"}`
+            ];
+            openCheckDialog(msgs.join("\n"));
+        }
+
+        function openCheckDialog(text) {
+            const pre = document.getElementById("checkResult");
+            pre.textContent = text;
+            pre.innerHTML = text.split("\n").map(l =>
+                `<div class="${l.startsWith("✓") ? "ok" : l.startsWith("✕") ? "bad" : ""}">${l.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</div>`).join("");
+            document.getElementById("checkDialog").showModal();
+        }
+
+        // ---------- Live CSS preview ----------
+        const previewPane = document.getElementById("previewPane");
+        const previewHost = document.getElementById("previewHost");
+        const autoPreview = document.getElementById("autoPreview");
+        let previewOn = false;
+        let previewTimer;
+
+        function togglePreview() {
+            const f = activeFile();
+            const isCss = f && langFor(f.name) === "css";
+            previewOn = Boolean(previewOn && isCss);
+            previewPane.style.display = previewOn ? "flex" : "none";
+            if (previewOn) renderPreview();
+        }
+
+        function schedulePreview() {
+            clearTimeout(previewTimer);
+            previewTimer = setTimeout(renderPreview, 500);
+        }
+
+        function renderPreview() {
+            const f = activeFile();
+            if (!previewOn) return;
+            const css = f?.content || "";
+            const doc = "<!DOCTYPE html><html><head><meta charset='utf-8'><style>" +
+                // Mock Discord chrome. Users take over from the user's stylesheet.
+                "body{margin:0;font:14px/1.5 system-ui;display:flex;height:100vh;background:#313338;color:#dbdee1}" +
+                ".servers{width:52px;background:#1e1f22;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:8px}" +
+                ".pill{width:34px;height:34px;border-radius:17px;background:#313338}" +
+                ".pill.home{background:#5865f2;color:#fff}" +
+                ".channels{--bg-overlay-chat:#2b2d31;width:180px;background:#2b2d31;padding:10px 6px}" +
+                ".ch{padding:5px 8px;border-radius:6px;color:#949ba4;font-size:13px}" +
+                ".ch.sel{background:rgba(255,255,255,.06);color:#fff}" +
+                ".chat{flex:1;display:flex;flex-direction:column;min-width:0}" +
+                ".chat-head{height:44px;border-bottom:1px solid #1e1f22;display:flex;align-items:center;padding:0 12px;font-weight:600}" +
+                ".msgs{flex:1;overflow:auto;padding:14px 0}" +
+                ".m{display:flex;gap:10px;padding:6px 16px}" +
+                ".avatar{width:34px;height:34px;border-radius:50%;background:#5865f2;flex-shrink:0}" +
+                ".name{font-weight:600;color:#f2f3f5}" +
+                ".bubble{display:flex;gap:8px;align-items:baseline}" +
+                ".time{font-size:10px;color:#949ba4}" +
+                ".input{margin:12px;height:42px;background:#383a40;border-radius:8px;display:flex;align-items:center;padding:0 12px;color:#6d6f78}" +
+                "</style><style>" + css + "</style></head><body>" +
+                "<nav class='servers'><div class='pill home'>D</div><div class='pill'></div><div class='pill'></div></nav>" +
+                "<aside class='channels'><div class='ch sel'># general</div><div class='ch'># off-topic</div><div class='ch'># help</div></aside>" +
+                "<main class='chat'>" +
+                "<div class='chat-head'># general</div>" +
+                "<div class='msgs'>" +
+                "<div class='m'><div class='avatar'></div><div><div class='bubble'><span class='name'>Alice</span><span class='time'>today at 09:41</span></div><div>This is a mock message — theme it with your CSS.</div></div></div>" +
+                "<div class='m'><div class='avatar' style='background:#ed4245'></div><div><div class='bubble'><span class='name'>Bob</span><span class='time'>today at 09:52</span></div><div>Second message so you can see spacing.</div></div></div>" +
+                "<div class='m'><div class='avatar' style='background:#f0b232'></div><div><div class='bubble'><span class='name'>Carol</span><span class='time'>today at 10:03</span></div><div>Third message.</div></div></div>" +
+                "</div>" +
+                "<div class='input'>Message #general</div>" +
+                "</main></body></html>";
+            previewHost.srcdoc = doc;
+        }
+
+        // ---------- Project lifecycle ----------
+        function createProjectFromTemplate(key) {
+            const tpl = TEMPLATES[key] || TEMPLATES.plugin;
             const id = uid();
-            ws.projects[id] = {
-                name: (name || "untitled").slice(0, 48),
-                files: { ...BOILER },
-                activeFile: "plugin.js",
-                updatedAt: new Date().toISOString()
-            };
+            const p = ensureProject({
+                name: tpl.name.replace(/ starter| boilerplate/, "").trim() + " " + new Date().toLocaleDateString(),
+                files: JSON.parse(JSON.stringify(tpl.files)),
+                activeFile: Object.keys(tpl.files)[0]
+            });
+            ws.projects[id] = p;
             ws.activeProject = id;
             persist(); renderProjects(); renderFiles(); loadActiveFile();
+            document.getElementById("templatesDialog").close();
+            toast(`New project from template: ${tpl.name}`);
         }
 
-        function addFile(ext) {
-            const p = activeProject();
-            if (!p) return setStatus("Create a project first.", false);
-            let base = ext === "css" ? "theme" : "plugin";
-            let name = base + "." + ext, i = 2;
-            while (p.files[name]) name = `${base}${i++}.${ext}`;
-            p.files[name] = "";
-            p.activeFile = name;
-            persist(); renderFiles(); loadActiveFile();
-        }
-
-        function downloadActive() {
-            const f = activeFile();
-            if (!f) return setStatus("Nothing to download.", false);
-            const blob = new Blob([f.content], { type: "text/plain" });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = f.name;
-            a.click();
-            URL.revokeObjectURL(a.href);
-        }
-
-        function downloadProject() {
-            const p = activeProject();
-            if (!p) return;
-            const parts = Object.entries(p.files).map(([name, content]) =>
-                `/* ===== ${name} ===== */\n${content}`).join("\n\n");
-            const blob = new Blob([parts], { type: "text/plain" });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = (p.name.replace(/\s+/g, "-").toLowerCase() || "limey-extension") + ".txt";
-            a.click();
-            URL.revokeObjectURL(a.href);
+        function newProject() {
+            document.getElementById("templatesDialog").showModal();
         }
 
         // ---------- Buttons ----------
         document.getElementById("newProjBtn").addEventListener("click", newProject);
+        document.getElementById("dupProjBtn").addEventListener("click", () => {
+            const p = activeProject();
+            if (!p) return setStatus("No project to copy.", false);
+            const id = uid();
+            ws.projects[id] = ensureProject({
+                name: p.name + " (copy)",
+                meta: JSON.parse(JSON.stringify(p.meta)),
+                files: JSON.parse(JSON.stringify(p.files)),
+                activeFile: p.activeFile
+            });
+            ws.activeProject = id;
+            persist(); renderProjects(); renderFiles(); loadActiveFile();
+            toast("Project duplicated.");
+        });
         document.getElementById("addJsBtn").addEventListener("click", () => addFile("js"));
         document.getElementById("addCssBtn").addEventListener("click", () => addFile("css"));
+        document.getElementById("renameBtn").addEventListener("click", () => {
+            const p = activeProject();
+            if (!p || !p.activeFile) return setStatus("Open a file first.", false);
+            const nn = prompt("Rename to:", p.activeFile);
+            if (!nn || nn === p.activeFile) return;
+            const name = nn.includes(".") ? nn : nn + (p.activeFile.match(/\.\w+$/)?.[0] || "");
+            if (p.files[name]) return setStatus("A file with that name exists.", false);
+            p.files[name] = p.files[p.activeFile];
+            p.snapshots[name] = p.snapshots[p.activeFile] || [];
+            delete p.files[p.activeFile];
+            delete p.snapshots[p.activeFile];
+            p.activeFile = name;
+            persist(); renderFiles(); loadActiveFile();
+        });
+        document.getElementById("dupFileBtn").addEventListener("click", () => {
+            const p = activeProject();
+            if (!p || !p.activeFile) return setStatus("Open a file first.", false);
+            const m = p.activeFile.match(/^(.*?)(\.\w+)?$/);
+            let name = `${m[1]}-copy${m[2] || ""}`, i = 2;
+            while (p.files[name]) name = `${m[1]}-copy${i++}${m[2] || ""}`;
+            p.files[name] = p.files[p.activeFile];
+            p.activeFile = name;
+            persist(); renderFiles(); loadActiveFile();
+        });
+        document.getElementById("historyBtn").addEventListener("click", openHistory);
+        document.getElementById("histSnapshotNow").addEventListener("click", () => { snapshot(true); openHistory(); toast("Snapshot saved."); });
+
+        function openHistory() {
+            const p = activeProject();
+            const f = activeFile();
+            const list = document.getElementById("histList");
+            document.getElementById("histTitle").textContent = "History — " + (f?.name || "no file");
+            list.innerHTML = "";
+            if (!p || !f) {
+                list.innerHTML = '<div class="fp-empty">Open a file first.</div>';
+                document.getElementById("historyDialog").showModal();
+                return;
+            }
+            const snaps = p.snapshots[f.name] || [];
+            if (!snaps.length) {
+                list.innerHTML = '<div class="fp-empty">No snapshots yet — they are captured automatically as you edit. Use "+ Snapshot now" to save the current state.</div>';
+            }
+            for (let i = snaps.length - 1; i >= 0; i--) {
+                const s = snaps[i];
+                const item = document.createElement("div");
+                item.className = "hist-item";
+                item.innerHTML = `<span class="when">${new Date(s.t).toLocaleString()}</span><span class="size">${lineCount(s.c)} ln</span>`;
+                const btn = document.createElement("button");
+                btn.className = "restore";
+                btn.textContent = "Restore";
+                btn.addEventListener("click", () => {
+                    if (s.c === f.content) return toast("That snapshot is already the current content.");
+                    if (!confirm(`Restore the ${new Date(s.t).toLocaleString()} version of ${f.name}? The current content will be replaced.`)) return;
+                    const model = editor?.getModel();
+                    if (model) {
+                        editor.executeEdits("history", [{ range: model.getFullModelRange(), text: s.c, forceMoveMarkers: true }]);
+                    }
+                    document.getElementById("historyDialog").close();
+                    toast("Snapshot restored — saved locally." );
+                    saveNow();
+                });
+                item.appendChild(btn);
+                list.appendChild(item);
+            }
+            document.getElementById("historyDialog").showModal();
+        }
+
+        document.getElementById("importBtn").addEventListener("click", () => document.getElementById("importInput").click());
+        document.getElementById("importInput").addEventListener("change", importFiles);
+        document.getElementById("dlZipBtn").addEventListener("click", exportZip);
+        document.getElementById("dlUmdBtn").addEventListener("click", exportUserscript);
+
+        // Meta dialog
+        const metaDialog = document.getElementById("metaDialog");
+        document.getElementById("metaBtn").addEventListener("click", () => {
+            const p = activeProject();
+            if (!p) return setStatus("Create a project first.", false);
+            document.getElementById("metaDesc").value = p.meta.description || "";
+            document.getElementById("metaVersion").value = p.meta.version || "";
+            document.getElementById("metaAuthorName").value = p.meta.authorName || "";
+            document.getElementById("metaTags").value = p.meta.tags || "";
+            metaDialog.showModal();
+        });
+        document.getElementById("metaSave").addEventListener("click", () => {
+            const p = activeProject();
+            if (!p) return;
+            p.meta = {
+                description: document.getElementById("metaDesc").value.trim().slice(0, 300),
+                version: document.getElementById("metaVersion").value.trim().slice(0, 16) || "1.0.0",
+                authorName: document.getElementById("metaAuthorName").value.trim().slice(0, 48),
+                tags: document.getElementById("metaTags").value.trim().split(",").map(t => t.trim()).filter(Boolean).slice(0, 5).join(", ")
+            };
+            p.updatedAt = new Date().toISOString();
+            persist();
+            metaDialog.close();
+            setStatus("Metadata saved ✓", true);
+            renderProjects();
+        });
+
+        // Templates dialog
+        const tplGrid = document.getElementById("tplGrid");
+        for (const [key, tpl] of Object.entries(TEMPLATES)) {
+            const card = document.createElement("button");
+            card.className = "tpl-card";
+            card.innerHTML = `<div class="t-icon">${tpl.icon}</div><div class="t-name">${tpl.name}</div><div class="t-desc">${tpl.desc}</div>`;
+            card.addEventListener("click", () => createProjectFromTemplate(key));
+            tplGrid.appendChild(card);
+        }
+        document.getElementById("templatesBtn").addEventListener("click", () => document.getElementById("templatesDialog").showModal());
+
+        // Find & quick open wiring
+        document.getElementById("findInput").addEventListener("input", e => runFind(e.target.value));
+        document.getElementById("openInput").addEventListener("input", e => renderQuickOpen(e.target.value));
+        document.addEventListener("keydown", e => {
+            if (e.key === "Escape") closePanels();
+        });
+
+        // Snippets button
+        document.getElementById("snipBtn").addEventListener("click", e => {
+            e.stopPropagation();
+            document.getElementById("snipWrap").classList.toggle("open");
+        });
+        document.addEventListener("click", e => {
+            if (!document.getElementById("snipWrap").contains(e.target)) {
+                document.getElementById("snipWrap").classList.remove("open");
+            }
+        });
+
+        // Preview wiring
+        document.getElementById("sbCheck").addEventListener("click", runCheck);
+        document.getElementById("previewRefresh").addEventListener("click", renderPreview);
+        document.querySelector("[data-close-preview]").addEventListener("click", () => {
+            previewOn = false;
+            previewPane.style.display = "none";
+        });
+        autoPreview.addEventListener("change", () => { if (autoPreview.checked) renderPreview(); });
+
+        // StatusBar editor options
+        let wrapOn = false;
+        let minimapOn = false;
+        document.getElementById("sbWrap").addEventListener("click", () => {
+            wrapOn = !wrapOn;
+            editor?.updateOptions({ wordWrap: wrapOn ? "on" : "off" });
+            document.getElementById("sbWrap").classList.toggle("on", wrapOn);
+        });
+        document.getElementById("sbMinimap").addEventListener("click", () => {
+            minimapOn = !minimapOn;
+            editor?.updateOptions({ minimap: { enabled: minimapOn } });
+            document.getElementById("sbMinimap").classList.toggle("on", minimapOn);
+        });
+        let fontSize = 14;
+        document.getElementById("sbFontInc").addEventListener("click", () => { fontSize = Math.min(24, fontSize + 1); editor?.updateOptions({ fontSize }); });
+        document.getElementById("sbFontDec").addEventListener("click", () => { fontSize = Math.max(10, fontSize - 1); editor?.updateOptions({ fontSize }); });
+
+        // Project name element
         projName.addEventListener("input", () => {
             const p = activeProject();
             if (!p) return;
             p.name = projName.value.slice(0, 48);
             p.updatedAt = new Date().toISOString();
             scheduleSave();
+            renderProjects();
         });
+
+        // Publish to the community store (prefill via /submit-plugin handoff).
         document.getElementById("publishBtn").addEventListener("click", () => {
             const p = activeProject();
-            if (p) {
-                // Stash the project so /submit-plugin can prefill and attach the code.
-                try {
-                    sessionStorage.setItem("limey-publish-payload", JSON.stringify({
-                        name: p.name || "",
-                        files: { ...p.files }
-                    }));
-                } catch { /* storage full or unavailable — still navigate */ }
-            }
+            if (!p) return setStatus("Create a project first.", false);
+            saveNow();
+            // Stash the project so /submit-plugin can prefill and attach the code.
+            try {
+                sessionStorage.setItem("limey-publish-payload", JSON.stringify({
+                    name: p.name || "",
+                    description: p.meta.description || "",
+                    tags: (p.meta.tags || "").split(",").map(t => t.trim()).filter(Boolean),
+                    authorName: p.meta.authorName || "",
+                    files: { ...p.files }
+                }));
+            } catch { /* storage full or unavailable — still navigate */ }
             location.href = "/submit-plugin";
         });
 
-        // Download buttons live in the topbar too? Keep keyboard shortcut: Ctrl+S downloads project.
-        document.addEventListener("keydown", e => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); downloadProject(); }
-        });
+        // ---------- Dialog close buttons ----------
+        document.querySelectorAll("[data-close-dialog]").forEach(b =>
+            b.addEventListener("click", () => b.closest("dialog").close()));
 
-        // ---------- Monaco ----------
+        // ---------- Monaco boot ----------
         let tries = 0;
         function tryInit() {
             if (typeof monaco === "undefined") {
@@ -518,15 +1800,15 @@ export default definePlugin({
             document.getElementById("loading").style.display = "none";
             if (!Object.keys(ws.projects).length) {
                 const id = uid();
-                ws.projects[id] = {
+                ws.projects[id] = ensureProject({
                     name: "My Extension",
-                    files: { ...BOILER },
-                    activeFile: "plugin.js",
-                    updatedAt: new Date().toISOString()
-                };
+                    files: JSON.parse(JSON.stringify(TEMPLATES.plugin.files)),
+                    activeFile: "plugin.js"
+                });
                 ws.activeProject = id;
                 persist();
             }
+            buildSnippetMenu();
             renderProjects();
             renderFiles();
             loadActiveFile();

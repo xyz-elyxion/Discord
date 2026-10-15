@@ -321,6 +321,18 @@
         try { stash = JSON.parse(sessionStorage.getItem("limey-publish-payload") || "null"); } catch { stash = null; }
         if (stash && typeof stash === "object") {
             if (stash.name) document.getElementById("name").value = String(stash.name).slice(0, 64);
+            if (stash.description) {
+                const desc = document.getElementById("description");
+                if (desc && !desc.value) desc.value = String(stash.description).slice(0, 300);
+            }
+            if (Array.isArray(stash.tags) && stash.tags.length) {
+                const tags = document.getElementById("tags");
+                if (tags && !tags.value) tags.value = stash.tags.join(", ").slice(0, 120);
+            }
+            if (stash.authorName) {
+                const an = document.getElementById("authorName");
+                if (an && !an.value) an.value = String(stash.authorName).slice(0, 48);
+            }
             const note = document.getElementById("attachNote");
             const fileNames = stash.files && typeof stash.files === "object" ? Object.keys(stash.files) : [];
             if (fileNames.length) {
