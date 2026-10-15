@@ -252,6 +252,18 @@
                 </div>
 
                 <div class="card admin-card">
+                    <h2>🛠 Support tools</h2>
+                    <p class="admin-sub">Pick a user by ID and see everything linked to them in one view: ban status, USRBG banner, their synced cloud settings (which include the Limey V1 plugin list the client runs), and their Limes wallet. Read-only — every view is audit-logged.</p>
+                    <label for="toolUserId">Discord user ID</label>
+                    <input type="text" id="toolUserId" inputmode="numeric" placeholder="e.g. 123456789012345678" />
+                    <div class="admin-actions">
+                        <button class="btn btn-primary" id="toolView">View user</button>
+                    </div>
+                    <div class="msg" id="toolMsg"></div>
+                    <div id="toolResult" style="margin-top:8px"></div>
+                </div>
+
+                <div class="card admin-card">
                     <h2>USRBG banners</h2>
                     <p class="admin-sub">Give anyone a custom Discord profile banner without Nitro. Banners set here show up for all Limey V1 users with the USRBG plugin.</p>
                     <label for="usrbgUserId">Discord user ID</label>
@@ -451,6 +463,11 @@
             info.className = "usrbg-id";
             const when = entry.bannedAt ? new Date(entry.bannedAt).toLocaleDateString() : "?";
             info.textContent = id + " — " + when + (entry.reason ? " — " + entry.reason : "");
+            const spy = document.createElement("button");
+            spy.textContent = "Support view";
+            spy.className = "btn btn-ghost";
+            spy.style.cssText = "padding:4px 10px;font-size:0.75rem";
+            spy.onclick = () => openSupportTools(id);
             const del = document.createElement("button");
             del.textContent = "Unban";
             del.className = "btn btn-ghost";
@@ -459,7 +476,7 @@
                 document.getElementById("banUserId").value = id;
                 await banRemove();
             };
-            row.append(info, del);
+            row.append(info, spy, del);
             list.appendChild(row);
         }
     }
@@ -484,6 +501,142 @@
 
     document.getElementById("banSet").onclick = banSet;
     document.getElementById("banLoad").onclick = banLoad;
+
+    // ---------- Support tools ----------
+    function tShow(text, ok) {
+        const el = document.getElementById("toolMsg");
+        el.textContent = text;
+        el.className = "msg " + (ok ? "ok" : "err");
+    }
+
+    function openSupportTools(userId) {
+        document.getElementById("toolUserId").value = userId;
+        document.getElementById("toolView").scrollIntoView({ behavior: "smooth", block: "center" });
+        loadSupportTools();
+    }
+
+    async function loadSupportTools() {
+        const userId = document.getElementById("toolUserId").value.trim();
+        if (!/^\d{5,25}$/.test(userId)) return tShow("User ID must be numeric (right-click a user in Discord → Copy User ID).", false);
+        tShow("Viewing " + userId + "…", true);
+        const { ok, status, data } = await banCall("GET", "/v1/admin/tools/user/" + userId);
+        if (!ok) {
+            if (status === 401) lock();
+            return tShow("❌ Failed to load (" + status + "): " + (data.error || "unknown"), false);
+        }
+        tShow("✅ Viewed user " + userId + ".", true);
+        renderSupportTools(data);
+    }
+
+    function toolRow(out, title) {
+        const row = document.createElement("div");
+        row.className = "usrbg-row";
+        row.style.alignItems = "flex-start";
+        const label = document.createElement("span");
+        label.style.cssText = "flex:0 0 auto;font-weight:600";
+        label.textContent = title;
+        const body = document.createElement("span");
+        body.className = "usrbg-id";
+        body.style.flex = "1";
+        row.append(label, body);
+        out.appendChild(row);
+        return body;
+    }
+
+    function renderSupportTools(d) {
+        const out = document.getElementById("toolResult");
+        out.innerHTML = "";
+
+        // Bans
+        {
+            const body = toolRow(out, "🚫 Ban");
+            if (d.ban) {
+                const when = d.ban.bannedAt ? new Date(d.ban.bannedAt).toLocaleDateString() : "?";
+                body.textContent = (d.ban.reason || "(no reason given)") + " — since " + when;
+            } else {
+                body.textContent = "Not banned";
+            }
+        }
+
+        // USRBG banner
+        {
+            const body = toolRow(out, "🖼 USRBG");
+            if (d.usrbg) {
+                const img = document.createElement("img");
+                img.src = d.usrbg.url;
+                img.style.cssText = "max-width:220px;border-radius:6px;display:block;margin:4px 0";
+                img.onerror = () => img.remove();
+                const link = document.createElement("a");
+                link.href = d.usrbg.url;
+                link.target = "_blank";
+                link.rel = "noreferrer";
+                link.textContent = "banner URL";
+                body.append(img, link);
+                if (d.usrbg.addedAt) body.append(" · added " + new Date(d.usrbg.addedAt).toLocaleDateString());
+            } else {
+                body.textContent = "No custom banner set";
+            }
+        }
+
+        // Cloud settings + plugin list
+        {
+            const body = toolRow(out, "🔌 Plugins");
+            const cloud = d.cloud || {};
+            if (cloud.found && cloud.pluginCount) {
+                const wrote = cloud.written ? new Date(cloud.written).toLocaleString() : "?";
+                body.textContent = cloud.pluginCount.enabled + " plugins enabled of " + (cloud.pluginCount.enabled + cloud.pluginCount.disabled) + " synced · last written " + wrote + " · " + cloud.bytes + " bytes";
+            } else if (cloud.found && cloud.parseError) {
+                body.textContent = "Settings blob unreadable: " + cloud.parseError;
+            } else if (cloud.error) {
+                body.textContent = "Not readable: " + cloud.error;
+            } else {
+                body.textContent = "No synced cloud settings for this id yet";
+            }
+
+            if ((cloud.enabledPlugins || []).length) {
+                const listRow = toolRow(out, "🔌 Plugin list");
+                const ul = document.createElement("ul");
+                ul.style.cssText = "columns:2;margin:4px 0;padding-left:18px;font-size:0.8rem";
+                cloud.enabledPlugins.forEach(name => {
+                    const li = document.createElement("li");
+                    li.textContent = name;
+                    ul.appendChild(li);
+                });
+                listRow.appendChild(ul);
+            }
+
+            const h = cloud.highlights;
+            if (h) {
+                const cloudRow = toolRow(out, "☁ Cloud");
+                cloudRow.textContent = "authenticated: " + (h.cloudAuthenticated ? "yes" : "no") + " · settings sync: " + (h.settingsSyncEnabled ? "on" : "off") + " · auto-update: " + (h.autoUpdate ? "on" : "off");
+            }
+
+            if (cloud.raw) {
+                const details = document.createElement("details");
+                details.style.marginTop = "10px";
+                const summary = document.createElement("summary");
+                summary.style.cursor = "pointer";
+                summary.textContent = "Raw synced settings JSON";
+                const pre = document.createElement("pre");
+                pre.style.cssText = "max-height:240px;overflow:auto;font-size:0.72rem;white-space:pre-wrap";
+                pre.textContent = JSON.stringify(cloud.raw, null, 2);
+                details.append(summary, pre);
+                out.appendChild(details);
+            }
+        }
+
+        // Limes
+        {
+            const body = toolRow(out, "🍋 Limes");
+            if (d.limes) {
+                body.textContent = "balance " + (d.limes.balance ?? 0) + " · tier " + (d.limes.tier || "none") + " · streak " + (d.limes.streak ?? 0) + " · next daily " + (d.limes.nextDailyAt ? new Date(d.limes.nextDailyAt).toLocaleTimeString() : "?");
+            } else {
+                body.textContent = "No wallet yet";
+            }
+        }
+    }
+
+    document.getElementById("toolView").onclick = loadSupportTools;
 
     // ---------- Limey Sentinel stats ----------
     async function loadSentinelStats() {

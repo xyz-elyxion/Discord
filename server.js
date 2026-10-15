@@ -8,6 +8,8 @@
 
 const http = require("http");
 const { spawn } = require("child_process");
+const { createHash } = require("crypto");
+const { inflateRawSync, inflateSync } = require("zlib");
 const { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } = require("fs");
 const { join, extname, normalize, resolve } = require("path");
 
@@ -1626,6 +1628,28 @@ async function handleDashboard(req, res, url) {
         return json(res, 200, { unbanned: bansDeleteMatch[1] }), true;
     }
 
+    const toolsMatch = /^\/v1\/admin\/tools\/user\/(\d{5,25})$/.exec(url);
+    if (toolsMatch && req.method === "GET") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        const userId = toolsMatch[1];
+        const ban = bansData[userId] || null;
+        const banner = usrbgData[userId] || null;
+        const cloud = await readUserCloudSettings(userId);
+        // getWalletFor() would create a zero wallet for unknown users — only
+        // report Limes when the user actually has one.
+        const hasWallet = !!limeEconomy?._db?.()?.wallets?.[userId];
+        const wallet = hasWallet ? limeEconomy.getWalletFor(userId) : null;
+        console.log(`[admin] support view: ${adminSession.discordId} opened user ${userId} (${cloud?.found ? "cloud ok" : "no cloud"})`);
+        return json(res, 200, {
+            userId,
+            ban: ban ? { reason: ban.reason || "", bannedAt: ban.bannedAt ?? null, by: ban.by || null } : null,
+            usrbg: banner ? { url: banner.url, addedAt: banner.addedAt || null } : null,
+            cloud: cloud || null,
+            limes: wallet || null
+        }), true;
+    }
+
     // POST /v1/admin/limes/donation-codes — the admin page's code generator,
     // authorized by the admin Discord session instead of a shared token.
     if (url === "/v1/admin/limes/donation-codes" && req.method === "POST") {
@@ -1954,6 +1978,102 @@ function serveAdminPage(res, url) {
     if (!existsSync(page)) return send(res, 404, "Not found"), true;
     serveFile(res, page);
     return true;
+}
+
+// ------------------------------------------------------------------
+// Admin support tools — one read-only look at everything we keep for a
+// Discord user id: the ban list, USRBG banner, their synced cloud settings
+// (which include their plugin list) and the Limes economy wallet. Read only;
+// every use is audit-logged.
+// ------------------------------------------------------------------
+const CLOUD_PEPPER_SETTINGS = process.env.PEPPER_SETTINGS || "limeycloud-settings-pepper";
+
+function cloudSettingsKey(userId) {
+    // Mirrors cloud/util/util.go: sha1(pepper + userId) under the "settings:" prefix
+    return "settings:" + createHash("sha1").update(CLOUD_PEPPER_SETTINGS + String(userId)).digest("hex");
+}
+
+async function readUserCloudSettings(userId) {
+    if (!PGKV.pgEnabled() || !PGKV.getPool()) {
+        return { found: false, error: "postgres kv unavailable — cloud settings live there" };
+    }
+    let row;
+    try {
+        const { rows } = await PGKV.getPool().query(
+            `SELECT value::text, updated_at FROM limey_cloud_kv WHERE key = $1`,
+            [cloudSettingsKey(userId)]
+        );
+        row = rows[0];
+    } catch (err) {
+        return { found: false, error: "cloud kv query failed: " + err.message };
+    }
+    if (!row) return { found: false };
+
+    let hash;
+    try { hash = JSON.parse(row.value); } catch {
+        return { found: true, parseError: "unreadable cloud kv row", updatedAt: row.updated_at };
+    }
+    if (!hash || typeof hash !== "object") {
+        return { found: true, parseError: "unexpected cloud kv shape", updatedAt: row.updated_at };
+    }
+
+    // The value is a raw deflate blob of the client settings. JSONB can't hold
+    // invalid UTF-8, so the Go kv layer base64-wraps it under the "__b64" key.
+    const storedValue = hash.value;
+    let deflateBytes;
+    if (storedValue && typeof storedValue === "object" && typeof storedValue.__b64 === "string") {
+        deflateBytes = Buffer.from(storedValue.__b64, "base64");
+    } else if (typeof storedValue === "string") {
+        deflateBytes = Buffer.from(storedValue, "utf8");
+    } else {
+        return { found: true, parseError: "no settings blob stored", updatedAt: row.updated_at };
+    }
+
+    let settingsStr;
+    try {
+        // The client compresses with fflate's deflateSync — raw deflate.
+        settingsStr = inflateRawSync(deflateBytes).toString("utf8");
+    } catch {
+        try {
+            settingsStr = inflateSync(deflateBytes).toString("utf8");
+        } catch {
+            return {
+                found: true, parseError: "could not decompress settings blob",
+                bytes: deflateBytes.length, written: Number(hash.written || 0), updatedAt: row.updated_at
+            };
+        }
+    }
+
+    let settings;
+    try { settings = JSON.parse(settingsStr); } catch {
+        return { found: true, parseError: "settings blob is not valid JSON", written: Number(hash.written || 0), updatedAt: row.updated_at };
+    }
+
+    const pluginsObj = (settings && settings.plugins) || {};
+    const enabledPlugins = [];
+    let disabledCount = 0;
+    for (const [name, p] of Object.entries(pluginsObj)) {
+        if ((p && p.enabled) === true) enabledPlugins.push(name);
+        else if (p && typeof p === "object") disabledCount++;
+    }
+
+    return {
+        found: true,
+        written: Number(hash.written || 0),
+        updatedAt: row.updated_at,
+        bytes: deflateBytes.length,
+        highlights: {
+            autoUpdate: settings.autoUpdate ?? null,
+            notifications: settings.notifications ?? null,
+            nativeTitleBar: settings.nativeTitleBar ?? null,
+            cloudAuthenticated: !!(settings.cloud && settings.cloud.authenticated),
+            settingsSyncEnabled: !!(settings.cloud && settings.cloud.settingsSync)
+        },
+        enabledPlugins,
+        pluginCount: { enabled: enabledPlugins.length, disabled: disabledCount },
+        // Full settings for the collapsible raw view in the admin panel
+        raw: settings
+    };
 }
 
 const server = http.createServer(async (req, res) => {
