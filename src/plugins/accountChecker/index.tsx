@@ -11,7 +11,7 @@ import type { User } from "@limeyV1/discord-types";
 import { copyToClipboard } from "@utils/clipboard";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import { Forms, Menu, Modal, openModal, RelationshipStore, showToast, UserStore } from "@webpack/common";
+import { Forms, GuildStore, Menu, Modal, openModal, RelationshipStore, showToast, UserStore } from "@webpack/common";
 
 import { analyzeUser, getBand, isAnalyzing } from "./analysis";
 import CheckerModal, { cl, parseUserId } from "./components/CheckerModal";
@@ -64,8 +64,8 @@ export default definePlugin({
         {
             id: "registerCommands",
             title: "Register commands",
-            description: "Adds the /accountcheck command to run a check and receive a result message.",
-            risk: "The command reads the user ID you type into it."
+            description: "Adds the /accountcheck, /friendgraph and /servergraph commands.",
+            risk: "The command reads the user ID you type into it, and the graph exports copy your own friend list or server names to the clipboard."
         },
         {
             id: "contextMenus",
@@ -111,6 +111,35 @@ export default definePlugin({
                     } catch (e) {
                         console.error("[AccountChecker] friendgraph copy failed", e);
                         showToast("Couldn't copy your friend graph to the clipboard", "failure");
+                    }
+                })();
+            }
+        },
+        {
+            name: "servergraph",
+            description: "Copy your servers as JSON graph data for the Tools-page Server Graph Visualiser",
+            inputType: ApplicationCommandInputType.BUILT_IN,
+            options: [],
+            execute(_opts, { channel }) {
+                const me = UserStore.getCurrentUser();
+                const meName = me?.globalName ?? me?.username ?? "You";
+                const guilds: { name?: string; }[] = GuildStore?.getGuildsArray?.() ?? [];
+                const servers = guilds
+                    .map(g => g?.name)
+                    .filter(n => typeof n === "string" && n.length > 0);
+
+                // copyToClipboard resolves a promise on web but returns void on
+                // Discord desktop (DiscordNative.clipboard.copy), so await it in
+                // a try/catch instead of chaining .then directly.
+                (async () => {
+                    try {
+                        await copyToClipboard(JSON.stringify({ me: meName, servers }));
+                        sendBotMessage(channel.id, {
+                            content: `🏰 **${servers.length}** servers copied as graph JSON. Paste it into the **Server Graph Visualiser** on the Limey V1 Tools page — paste several people's exports to see shared servers between people.`
+                        });
+                    } catch (e) {
+                        console.error("[AccountChecker] servergraph copy failed", e);
+                        showToast("Couldn't copy your server graph to the clipboard", "failure");
                     }
                 })();
             }

@@ -490,6 +490,33 @@
         </section>
 
         <section class="tool-card">
+            <h2>🏰 Server graph visualiser</h2>
+            <p class="tool-desc">
+                The same living graph, but for servers. Run <code>/servergraph</code> in Discord with the
+                AccountChecker plugin to copy your server names as JSON, paste it here, and drag nodes around.
+                Paste several people's exports to surface the servers you all share — overlap pops green. Only
+                server names are exported, never IDs, members or channels.
+            </p>
+            <div class="fg-toolbar">
+                <button id="sg-import-btn" class="ac-btn ac-btn-ghost" type="button">Import JSON</button>
+                <button id="sg-demo-btn" class="ac-btn ac-btn-ghost" type="button">Load demo</button>
+                <button id="sg-clear-btn" class="ac-btn ac-btn-ghost" type="button">Clear</button>
+            </div>
+            <textarea id="sg-import" class="ac-input" rows="3" style="display:none; margin-bottom:8px;" placeholder='Paste graph JSON here — e.g. {"me":"You","servers":["Server one","Server two"]}, or an array of those'></textarea>
+            <div id="sg-error" class="ac-error"></div>
+            <div id="sg-empty" class="lk-note">Nothing imported yet — try <strong>Load demo</strong>, or copy your server list from Discord with <code>/servergraph</code>.</div>
+            <div id="sg-wrap" class="fg-canvas-wrap" style="display:none;">
+                <canvas id="sg-canvas"></canvas>
+            </div>
+            <div id="sg-legend" class="fg-legend" style="display:none;">
+                <span class="lg-me">Exported by someone</span>
+                <span class="lg-friend"> Server</span>
+                <span class="lg-shared"> Shared between exports</span>
+            </div>
+            <p class="ac-footnote">Everything below runs locally in your browser — imported server lists never leave your device.</p>
+        </section>
+
+        <section class="tool-card">
             <h2>🧪 More tools</h2>
             <p class="tool-desc">The tools shelf is growing — have an idea? Suggest it in our Discord community.</p>
             <p class="tool-soon"><span class="pill">Coming soon</span><span>Theme validator · Snowflake decoder · ID inspector</span></p>
@@ -740,229 +767,258 @@
         });
 
         // ------------------------------------------------------------------
-        // Friend graph visualiser
+        // Graph visualiser — one factory powering two tools: the friend graph
+        // ("/friendgraph" exports) and the server graph ("/servergraph").
         // ------------------------------------------------------------------
-        const G = { nodes: [], edges: [], byName: new Map() };
-        const canvas = $("fg-canvas");
-        const ctx = canvas.getContext("2d");
-        let hoverName = null;
-        let dragNode = null;
-        let raf = 0;
+        function makeGraphTool(cfg) {
+            const G = { nodes: [], edges: [], byName: new Map() };
+            const canvas = $(cfg.canvas);
+            const ctx = canvas.getContext("2d");
+            let hoverName = null;
+            let dragNode = null;
+            let raf = 0;
 
-        function ensureNode(rawName, isExporter) {
-            const name = String(rawName).trim();
-            if (!name) return null;
-            const key = name.toLowerCase();
-            let node = G.byName.get(key);
-            if (!node) {
-                node = {
-                    name,
-                    x: canvas.clientWidth / 2 + (Math.random() - 0.5) * 260,
-                    y: canvas.clientHeight / 2 + (Math.random() - 0.5) * 200,
-                    vx: 0, vy: 0,
-                    exporter: false,
-                    pinned: false,
-                };
-                G.nodes.push(node);
-                G.byName.set(key, node);
+            function ensureNode(rawName, isExporter) {
+                const name = String(rawName).trim();
+                if (!name) return null;
+                const key = name.toLowerCase();
+                let node = G.byName.get(key);
+                if (!node) {
+                    node = {
+                        name,
+                        x: canvas.clientWidth / 2 + (Math.random() - 0.5) * 260,
+                        y: canvas.clientHeight / 2 + (Math.random() - 0.5) * 200,
+                        vx: 0, vy: 0,
+                        exporter: false,
+                        pinned: false,
+                    };
+                    G.nodes.push(node);
+                    G.byName.set(key, node);
+                }
+                if (isExporter) node.exporter = true;
+                return node;
             }
-            if (isExporter) node.exporter = true;
-            return node;
-        }
 
-        function addExport(entry) {
-            if (!entry || typeof entry !== "object") return false;
-            const me = entry.me || entry.name;
-            const friendsArr = Array.isArray(entry.friends) ? entry.friends : null;
-            if (typeof me !== "string" || !friendsArr) return false;
-            const meNode = ensureNode(me, true);
-            if (!meNode) return false;
-            for (const fr of friendsArr) {
-                const label = typeof fr === "object" ? (fr.label || fr.name || fr.id) : fr;
-                const node = ensureNode(label, false);
-                if (node && node !== meNode) {
-                    const a = meNode, b = node;
-                    G.edges.push([a, b]);
+            function addExport(entry) {
+                if (!entry || typeof entry !== "object") return false;
+                const me = entry.me || entry.name;
+                const itemsArr = Array.isArray(entry[cfg.key]) ? entry[cfg.key] : null;
+                if (typeof me !== "string" || !itemsArr) return false;
+                const meNode = ensureNode(me, true);
+                if (!meNode) return false;
+                for (const it of itemsArr) {
+                    const label = typeof it === "object" ? (it.label || it.name || it.id) : it;
+                    const node = ensureNode(label, false);
+                    if (node && node !== meNode) {
+                        G.edges.push([meNode, node]);
+                    }
+                }
+                return true;
+            }
+
+            function deg(n) {
+                let d = 0;
+                for (const [a, b] of G.edges) if (a === n || b === n) d++;
+                return d;
+            }
+
+            function importText(text) {
+                show(cfg.prefix + "-error", false);
+                let data;
+                try { data = JSON.parse(text); } catch { return; }
+                const list = Array.isArray(data) ? data : (Array.isArray(data.exports) ? data.exports : [data]);
+                let ok = 0;
+                for (const entry of list) if (addExport(entry)) ok++;
+                if (ok > 0) {
+                    show(cfg.prefix + "-empty", false);
+                    show(cfg.prefix + "-wrap", true);
+                    show(cfg.prefix + "-legend", true);
+                    layoutFresh();
+                } else {
+                    fail(cfg.prefix + "-error", cfg.errorText);
                 }
             }
-            return true;
-        }
 
-        function deg(n) {
-            let d = 0;
-            for (const [a, b] of G.edges) if (a === n || b === n) d++;
-            return d;
-        }
-
-        function importText(text) {
-            show("fg-error", false);
-            let data;
-            try { data = JSON.parse(text); } catch { return; }
-            const list = Array.isArray(data) ? data : (Array.isArray(data.exports) ? data.exports : [data]);
-            let ok = 0;
-            for (const entry of list) if (addExport(entry)) ok++;
-            if (ok > 0) {
-                show("fg-empty", false);
-                show("fg-wrap", true);
-                show("fg-legend", true);
-                layoutFresh();
-            } else {
-                fail("fg-error", "JSON parsed, but no usable entries found. Expected {\"me\":\"You\",\"friends\":[\"Alice\"]} — check the /friendgraph output shape.");
-            }
-        }
-
-        const ta = $("fg-import");
-        $("fg-import-btn").addEventListener("click", () => {
-            const visible = ta.style.display !== "none";
-            ta.style.display = visible ? "none" : "block";
-            if (!visible) ta.focus();
-        });
-        ta.addEventListener("input", () => importText(ta.value));
-
-        const DEMO = [
-            { me: "Alice", friends: ["Bob", "Cara", "Dave", "Erin"] },
-            { me: "Bob", friends: ["Cara", "Finn", "Gwen", "Hari"] },
-            { me: "Cara", friends: ["Dave", "Gwen", "Imani", "Jo"], },
-            { me: "Finn", friends: ["Hari", "Imani", "Kat", "Liam"] },
-            { me: "Kate", friends: ["Gwen", "Hari", "Liam"] },
-        ];
-        $("fg-demo-btn").addEventListener("click", () => { DEMO.forEach(addExport); show("fg-empty", false); show("fg-wrap", true); show("fg-legend", true); layoutFresh(); });
-        $("fg-clear-btn").addEventListener("click", () => {
-            G.nodes.length = 0; G.edges.length = 0; G.byName.clear();
-            show("fg-wrap", false); show("fg-legend", false); show("fg-empty", true);
-        });
-
-        function layoutFresh() {
-            const w = canvas.clientWidth, h = canvas.clientHeight;
-            G.nodes.forEach((n, i) => {
-                const angle = (i / Math.max(1, G.nodes.length)) * Math.PI * 2;
-                n.x = w / 2 + Math.cos(angle) * Math.min(w, h) * 0.32;
-                n.y = h / 2 + Math.sin(angle) * Math.min(w, h) * 0.32;
-                n.vx = n.vy = 0;
+            const ta = $(cfg.prefix + "-import");
+            $(cfg.prefix + "-import-btn").addEventListener("click", () => {
+                const visible = ta.style.display !== "none";
+                ta.style.display = visible ? "none" : "block";
+                if (!visible) ta.focus();
             });
-            if (!raf) raf = requestAnimationFrame(step);
-        }
+            ta.addEventListener("input", () => importText(ta.value));
 
-        function tick() {
-            const nodes = G.nodes, edges = G.edges;
-            const w = canvas.clientWidth, h = canvas.clientHeight;
-            // Repulsion
-            for (let i = 0; i < nodes.length; i++) {
-                const a = nodes[i];
-                for (let j = i + 1; j < nodes.length; j++) {
-                    const b = nodes[j];
-                    let dx = b.x - a.x, dy = b.y - a.y;
-                    let d2 = dx * dx + dy * dy || 1;
-                    const f = Math.min(2200 / d2, 2.5);
-                    const d = Math.sqrt(d2);
-                    dx /= d; dy /= d;
-                    a.vx -= dx * f; a.vy -= dy * f;
-                    b.vx += dx * f; b.vy += dy * f;
+            $(cfg.prefix + "-demo-btn").addEventListener("click", () => {
+                cfg.demo.forEach(addExport);
+                show(cfg.prefix + "-empty", false);
+                show(cfg.prefix + "-wrap", true);
+                show(cfg.prefix + "-legend", true);
+                layoutFresh();
+            });
+            $(cfg.prefix + "-clear-btn").addEventListener("click", () => {
+                G.nodes.length = 0; G.edges.length = 0; G.byName.clear();
+                show(cfg.prefix + "-wrap", false); show(cfg.prefix + "-legend", false); show(cfg.prefix + "-empty", true);
+            });
+
+            function layoutFresh() {
+                const w = canvas.clientWidth, h = canvas.clientHeight;
+                G.nodes.forEach((n, i) => {
+                    const angle = (i / Math.max(1, G.nodes.length)) * Math.PI * 2;
+                    n.x = w / 2 + Math.cos(angle) * Math.min(w, h) * 0.32;
+                    n.y = h / 2 + Math.sin(angle) * Math.min(w, h) * 0.32;
+                    n.vx = n.vy = 0;
+                });
+                if (!raf) raf = requestAnimationFrame(step);
+            }
+
+            function tick() {
+                const nodes = G.nodes, edges = G.edges;
+                const w = canvas.clientWidth, h = canvas.clientHeight;
+                // Repulsion
+                for (let i = 0; i < nodes.length; i++) {
+                    const a = nodes[i];
+                    for (let j = i + 1; j < nodes.length; j++) {
+                        const b = nodes[j];
+                        let dx = b.x - a.x, dy = b.y - a.y;
+                        let d2 = dx * dx + dy * dy || 1;
+                        const f = Math.min(2200 / d2, 2.5);
+                        const d = Math.sqrt(d2);
+                        dx /= d; dy /= d;
+                        a.vx -= dx * f; a.vy -= dy * f;
+                        b.vx += dx * f; b.vy += dy * f;
+                    }
+                }
+                // Springs
+                for (const [a, b] of edges) {
+                    const dx = b.x - a.x, dy = b.y - a.y;
+                    const d = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const f = (d - 70) * 0.01;
+                    const ux = dx / d, uy = dy / d;
+                    a.vx += ux * f; a.vy += uy * f;
+                    b.vx -= ux * f; b.vy -= uy * f;
+                }
+                for (const n of nodes) {
+                    n.vx += (w / 2 - n.x) * 0.0012;
+                    n.vy += (h / 2 - n.y) * 0.0012;
+                    if (n !== dragNode) {
+                        n.vx *= 0.86; n.vy *= 0.86;
+                        n.x += n.vx; n.y += n.vy;
+                        n.x = Math.max(30, Math.min(w - 30, n.x));
+                        n.y = Math.max(26, Math.min(h - 26, n.y));
+                    }
                 }
             }
-            // Springs
-            for (const [a, b] of edges) {
-                const dx = b.x - a.x, dy = b.y - a.y;
-                const d = Math.sqrt(dx * dx + dy * dy) || 1;
-                const f = (d - 70) * 0.01;
-                const ux = dx / d, uy = dy / d;
-                a.vx += ux * f; a.vy += uy * f;
-                b.vx -= ux * f; b.vy -= uy * f;
-            }
-            for (const n of nodes) {
-                n.vx += (w / 2 - n.x) * 0.0012;
-                n.vy += (h / 2 - n.y) * 0.0012;
-                if (n !== dragNode) {
-                    n.vx *= 0.86; n.vy *= 0.86;
-                    n.x += n.vx; n.y += n.vy;
-                    n.x = Math.max(30, Math.min(w - 30, n.x));
-                    n.y = Math.max(26, Math.min(h - 26, n.y));
+
+            function draw() {
+                const w = canvas.clientWidth, h = canvas.clientHeight;
+                const dpr = window.devicePixelRatio || 1;
+                if (canvas.width !== w * dpr) {
+                    canvas.width = w * dpr;
+                    canvas.height = h * dpr;
+                }
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, w, h);
+
+                for (const [a, b] of G.edges) {
+                    const hot = hoverName && (a.name === hoverName || b.name === hoverName);
+                    ctx.strokeStyle = hot ? "rgba(156,204,60,0.45)" : "rgba(255,255,255,0.08)";
+                    ctx.lineWidth = hot ? 1.6 : 1;
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+                    ctx.stroke();
+                }
+                for (const n of G.nodes) {
+                    const d = deg(n);
+                    const r = 4 + Math.min(d, 12) * 1.1;
+                    const shared = d > 1 && !n.exporter;
+                    ctx.fillStyle = n.exporter ? "#9ccc3c" : shared ? "rgba(156,204,60,0.5)" : "#6a86e8";
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+                    ctx.fill();
+                    const showLabel = d === 0 || n.exporter || G.nodes.length <= 48 || n.name === hoverName;
+                    if (showLabel) {
+                        ctx.fillStyle = n.name === hoverName ? "#fff" : "rgba(255,255,255,0.55)";
+                        ctx.font = (n.name === hoverName ? "600 " : "") + "10px system-ui, sans-serif";
+                        ctx.textAlign = "center";
+                        ctx.fillText(n.name, n.x, n.y + r + 12);
+                    }
                 }
             }
-        }
 
-        function draw() {
-            const w = canvas.clientWidth, h = canvas.clientHeight;
-            const dpr = window.devicePixelRatio || 1;
-            if (canvas.width !== w * dpr) {
-                canvas.width = w * dpr;
-                canvas.height = h * dpr;
+            function step() {
+                tick();
+                draw();
+                raf = requestAnimationFrame(step);
             }
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            ctx.clearRect(0, 0, w, h);
 
-            for (const [a, b] of G.edges) {
-                const hot = hoverName && (a.name === hoverName || b.name === hoverName);
-                ctx.strokeStyle = hot ? "rgba(156,204,60,0.45)" : "rgba(255,255,255,0.08)";
-                ctx.lineWidth = hot ? 1.6 : 1;
-                ctx.beginPath();
-                ctx.moveTo(a.x, a.y);
-                ctx.lineTo(b.x, b.y);
-                ctx.stroke();
-            }
-            for (const n of G.nodes) {
-                const d = deg(n);
-                const r = 4 + Math.min(d, 12) * 1.1;
-                const shared = d > 1 && !n.exporter;
-                ctx.fillStyle = n.exporter ? "#9ccc3c" : shared ? "rgba(156,204,60,0.5)" : "#6a86e8";
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-                ctx.fill();
-                const showLabel = d === 0 || n.exporter || G.nodes.length <= 48 || n.name === hoverName;
-                if (showLabel) {
-                    ctx.fillStyle = n.name === hoverName ? "#fff" : "rgba(255,255,255,0.55)";
-                    ctx.font = (n.name === hoverName ? "600 " : "") + "10px system-ui, sans-serif";
-                    ctx.textAlign = "center";
-                    ctx.fillText(n.name, n.x, n.y + r + 12);
+            function pick(mx, my) {
+                let best = null, bestD = 16 * 16;
+                for (const n of G.nodes) {
+                    const dx = n.x - mx, dy = n.y - my, d2 = dx * dx + dy * dy;
+                    if (d2 < bestD) { bestD = d2; best = n; }
                 }
+                return best;
             }
-        }
 
-        function step() {
-            tick();
-            draw();
-            raf = requestAnimationFrame(step);
-        }
-
-        function pick(mx, my) {
-            let best = null, bestD = 16 * 16;
-            for (const n of G.nodes) {
-                const dx = n.x - mx, dy = n.y - my, d2 = dx * dx + dy * dy;
-                if (d2 < bestD) { bestD = d2; best = n; }
+            function relPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
             }
-            return best;
+
+            canvas.addEventListener("pointermove", e => {
+                const p = relPos(e);
+                if (dragNode) { dragNode.x = p.x; dragNode.y = p.y; dragNode.vx = dragNode.vy = 0; e.preventDefault(); return; }
+                const n = pick(p.x, p.y);
+                hoverName = n ? n.name : null;
+                canvas.style.cursor = n ? "grab" : "default";
+            });
+            canvas.addEventListener("pointerdown", e => {
+                const p = relPos(e);
+                const n = pick(p.x, p.y);
+                if (n) {
+                    dragNode = n;
+                    canvas.setPointerCapture(e.pointerId);
+                    canvas.style.cursor = "grabbing";
+                    e.preventDefault();
+                }
+            });
+            canvas.addEventListener("pointerup", e => {
+                if (dragNode) {
+                    try { canvas.releasePointerCapture(e.pointerId); } catch {}
+                }
+                dragNode = null;
+                canvas.style.cursor = "default";
+            });
+            window.addEventListener("resize", () => { if (G.nodes.length) layoutFresh(); });
         }
 
-        function relPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        }
-
-        canvas.addEventListener("pointermove", e => {
-            const p = relPos(e);
-            if (dragNode) { dragNode.x = p.x; dragNode.y = p.y; dragNode.vx = dragNode.vy = 0; e.preventDefault(); return; }
-            const n = pick(p.x, p.y);
-            hoverName = n ? n.name : null;
-            canvas.style.cursor = n ? "grab" : "default";
+        makeGraphTool({
+            prefix: "fg",
+            canvas: "fg-canvas",
+            key: "friends",
+            errorText: "JSON parsed, but no usable entries found. Expected {\"me\":\"You\",\"friends\":[\"Alice\"]} — check the /friendgraph output shape.",
+            demo: [
+                { me: "Alice", friends: ["Bob", "Cara", "Dave", "Erin"] },
+                { me: "Bob", friends: ["Cara", "Finn", "Gwen", "Hari"] },
+                { me: "Cara", friends: ["Dave", "Gwen", "Imani", "Jo"] },
+                { me: "Finn", friends: ["Hari", "Imani", "Kat", "Liam"] },
+                { me: "Kate", friends: ["Gwen", "Hari", "Liam"] },
+            ]
         });
-        canvas.addEventListener("pointerdown", e => {
-            const p = relPos(e);
-            const n = pick(p.x, p.y);
-            if (n) {
-                dragNode = n;
-                canvas.setPointerCapture(e.pointerId);
-                canvas.style.cursor = "grabbing";
-                e.preventDefault();
-            }
+
+        makeGraphTool({
+            prefix: "sg",
+            canvas: "sg-canvas",
+            key: "servers",
+            errorText: "JSON parsed, but no usable entries found. Expected {\"me\":\"You\",\"servers\":[\"Server one\",\"Server two\"]} — check the /servergraph output shape.",
+            demo: [
+                { me: "Alice", servers: ["Synthwave Lounge", "Code Café", "Vintage Racing"] },
+                { me: "Bob", servers: ["Code Café", "Model Railway Club", "Synthwave Lounge", "Retro Games"] },
+                { me: "Cara", servers: ["Vintage Racing", "Model Railway Club", "Charcuterie Anonymous"] },
+                { me: "Finn", servers: ["Retro Games", "Charcuterie Anonymous", "Synthwave Lounge", "Debug Corner"] },
+                { me: "Kate", servers: ["Debug Corner", "Code Café", "Vintage Racing"] },
+            ]
         });
-        canvas.addEventListener("pointerup", e => {
-            if (dragNode) {
-                try { canvas.releasePointerCapture(e.pointerId); } catch {}
-            }
-            dragNode = null;
-            canvas.style.cursor = "default";
-        });
-        window.addEventListener("resize", () => { if (G.nodes.length) layoutFresh(); });
     })();
     </script>
 
