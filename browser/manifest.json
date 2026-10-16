@@ -1,7 +1,6 @@
 {
     "manifest_version": 3,
     "minimum_chrome_version": "111",
-
     "name": "Limey V1 Web",
     "description": "The cutest Discord mod now in your browser",
     "author": "Limey",
@@ -9,43 +8,60 @@
     "icons": {
         "128": "icon.png"
     },
-
     "host_permissions": [
         "*://*.discord.com/*",
-        "https://raw.githubusercontent.com/*"
+        "https://raw.githubusercontent.com/*",
+        "https://limey-discord.onrender.com/*",
+        "http://localhost/*"
     ],
-
-    "permissions": ["declarativeNetRequestWithHostAccess"],
-
+    "permissions": [
+        "declarativeNetRequestWithHostAccess"
+    ],
     "content_scripts": [
         {
             "run_at": "document_start",
-            "matches": ["*://*.discord.com/*"],
-            "js": ["content.js"],
+            "matches": [
+                "*://*.discord.com/*"
+            ],
+            "js": [
+                "content.js"
+            ],
             "all_frames": true,
             "world": "ISOLATED"
         },
         {
             "run_at": "document_start",
-            "matches": ["*://*.discord.com/*"],
-            "js": ["dist/browser.js"],
+            "matches": [
+                "*://*.discord.com/*"
+            ],
+            "js": [
+                "dist/browser.js"
+            ],
             "all_frames": true,
             "world": "MAIN"
         },
         {
             "run_at": "document_end",
-            "matches": ["https://limey-discord.onrender.com/*", "http://localhost/*"],
-            "js": ["content.js"]
+            "matches": [
+                "https://limey-discord.onrender.com/*",
+                "http://localhost/*"
+            ],
+            "js": [
+                "content.js"
+            ]
         }
     ],
-
     "web_accessible_resources": [
         {
-            "resources": ["dist/*", "vendor/*"],
-            "matches": ["*://*.discord.com/*"]
+            "resources": [
+                "dist/*",
+                "vendor/*"
+            ],
+            "matches": [
+                "*://*.discord.com/*"
+            ]
         }
     ],
-
     "declarative_net_request": {
         "rule_resources": [
             {
@@ -55,35 +71,33 @@
             }
         ]
     },
-
     "background": {
         "service_worker": "service-worker.js"
     },
-
     "commands": {
         "TOGGLE_MUTE": {
-            "description": "Toggle Mute — Toggle your microphone's transmission on and off."
+            "description": "Toggle Mute \u2014 Toggle your microphone's transmission on and off."
         },
         "TOGGLE_DEAFEN": {
-            "description": "Toggle Deafen — Toggle your speaker's playback on and off. Also disables your microphone while deafened."
+            "description": "Toggle Deafen \u2014 Toggle your speaker's playback on and off. Also disables your microphone while deafened."
         },
         "TOGGLE_VOICE_MODE": {
-            "description": "Toggle VAD — Toggle to switch between Push-to-talk and Voice Activity mode."
+            "description": "Toggle VAD \u2014 Toggle to switch between Push-to-talk and Voice Activity mode."
         },
         "TOGGLE_STREAMER_MODE": {
-            "description": "Toggle Streamer Mode — Toggle to enable/disable Streamer Mode."
+            "description": "Toggle Streamer Mode \u2014 Toggle to enable/disable Streamer Mode."
         },
         "TOGGLE_GO_LIVE_STREAMING": {
-            "description": "Toggle Screen Share — Toggle to start/stop streaming in your current voice channel. Streams can only be started with this keybind if Discord recognises the game you are currently playing."
+            "description": "Toggle Screen Share \u2014 Toggle to start/stop streaming in your current voice channel. Streams can only be started with this keybind if Discord recognises the game you are currently playing."
         },
         "NAVIGATE_BACK": {
-            "description": "Navigate Back — Might conflict with your browsers native keybinds"
+            "description": "Navigate Back \u2014 Might conflict with your browsers native keybinds"
         },
         "NAVIGATE_FORWARD": {
-            "description": "Navigate Forward — Might conflict with your browsers native keybinds"
+            "description": "Navigate Forward \u2014 Might conflict with your browsers native keybinds"
         },
         "SAVE_CLIP": {
-            "description": "Save Clip — Clips the last 30 seconds to 2 minutes of your stream, depending on your settings."
+            "description": "Save Clip \u2014 Clips the last 30 seconds to 2 minutes of your stream, depending on your settings."
         }
     }
 }

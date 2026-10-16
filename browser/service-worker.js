@@ -1,3 +1,5 @@
+importScripts("browserRelay.js");
+
 // Commands the Limey site remote may trigger in the app — same ids as the
 // manifest's `commands`, i.e. Discord's global keybind actions the renderer
 // can already perform. Anything else a page sends is dropped.
@@ -61,4 +63,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })();
     return true; // keep the message channel open for the async sendResponse
   }
+
+  // Dragify cross-platform drag relay (site <-> app via this background).
+  if (handleRuntimeMessage(message, sendResponse)) return true;
 });

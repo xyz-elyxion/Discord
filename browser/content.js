@@ -19,10 +19,40 @@ document.addEventListener(
         });
 
         browser.runtime.onMessage.addListener(request => {
-            window.postMessage({
-                type: "limeyV1:keybinds",
-                meta: request.command
-            });
+            // Finished dragify leaves (already in page vocabulary) go straight
+            // through: pins to the site, open/insert acks to both sides.
+            if (request && (request.type === "limeyV1:dragify:incoming" || request.type === "limeyV1:dragify:ack")) {
+                window.postMessage(request);
+                return;
+            }
+
+            // Dragify cross-platform relay broadcasts from the extension
+            // background: action "open" (and site->app payloads) surface in the
+            // app, "opened"/"delivered"/"send" acks surface on the site.
+            if (request && request.type === "limeyV1:dragify") {
+                if (request.action === "open") {
+                    window.postMessage({
+                        type: "limeyV1:dragify:incoming",
+                        action: "open",
+                        entity: request.entity
+                    });
+                } else {
+                    window.postMessage({
+                        type: "limeyV1:dragify:ack",
+                        action: request.action,
+                        contacted: request.contacted ?? 0,
+                        seq: request.seq
+                    });
+                }
+                return;
+            }
+
+            if (request?.command) {
+                window.postMessage({
+                    type: "limeyV1:keybinds",
+                    meta: request.command
+                });
+            }
         });
 
         window.addEventListener('message', function(event) {
@@ -58,6 +88,45 @@ document.addEventListener(
                             });
                         }
                     );
+                }
+            }
+
+            // Dragify inter-platform bridge (works in BOTH directions' hosts:
+            // on the site page it forwards page-initiated actions into the
+            // extension; on discord.com tabs it forwards the app's outgoing
+            // pins and acks. `viaExtension` marks background-relayed leaves so
+            // they don't loop back into the runtime channel).
+            if (data && data.type === "limeyV1:dragify" && !data.viaExtension) {
+                if ((data.action === "open") && isLimeySite) {
+                    browser.runtime.sendMessage({
+                        type: "limeyV1:dragify",
+                        action: "open",
+                        entity: data.entity
+                    });
+                    return;
+                }
+
+                if (data.action === "send") {
+                    browser.runtime.sendMessage(
+                        { type: "limeyV1:dragify", action: "send", entity: data.entity, seq: data.seq },
+                        response => {
+                            window.postMessage({
+                                type: "limeyV1:dragify:ack",
+                                action: "send",
+                                seq: data.seq,
+                                contacted: response ? response.contacted : 0
+                            });
+                        }
+                    );
+                    return;
+                }
+
+                if (data.action === "opened" || data.action === "delivered") {
+                    browser.runtime.sendMessage({
+                        type: "limeyV1:dragify",
+                        action: data.action,
+                        entity: data.entity
+                    });
                 }
             }
         }, false);

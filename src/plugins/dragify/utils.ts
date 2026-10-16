@@ -13,14 +13,28 @@ const guildUserAvatarRegex = /cdn\.discordapp\.com\/guilds\/\d{17,20}\/users\/(\
 const channelMentionRegex = /<#(\d{17,20})>/;
 const channelUrlRegex = /discord(?:(?:app)?\.com|:\/\/-?)\/channels\/(?:(@me)|(\d{17,20}))\/(\d{17,20})/;
 const channelPathRegex = /\/channels\/(@me|\d{17,20})\/(\d{17,20})/;
+const messageUrlRegex = /discord(?:(?:app)?\.com|:\/\/-?)\/channels\/(?:(@me)|(\d{17,20}))\/(\d{17,20})\/(\d{17,20})/;
 const guildIconRegex = /cdn\.discordapp\.com\/icons\/(\d{17,20})\//;
+const limeyPluginUrlRegex = /(?:limey-discord\.onrender\.com|localhost(?::\d+)?)\/plugins?(?:\/|#)([A-Za-z][\w-]*)/;
 
 export type DropEntity =
     | { kind: "user"; id: string; }
     | { kind: "channel"; id: string; guildId?: string; }
-    | { kind: "guild"; id: string; };
+    | { kind: "message"; id: string; channelId: string; guildId?: string; }
+    | { kind: "guild"; id: string; }
+    | { kind: "plugin"; id: string; url: string; };
+
+/** Rich metadata the app attaches so the Limey site can show a readable
+ *  pinned chip without asking Discord for anything. */
+export interface DragEntityDisplay {
+    name: string;
+    subtitle?: string;
+    iconUrl?: string;
+    iconText?: string;
+}
 
 export interface DragifyPayload {
+    v?: number;
     id?: string;
     userId?: string;
     channelId?: string;
@@ -28,6 +42,50 @@ export interface DragifyPayload {
     type?: string;
     kind?: string;
     itemType?: string;
+    name?: string;
+    subtitle?: string;
+    iconUrl?: string;
+    iconText?: string;
+    url?: string;
+    origin?: string;
+}
+
+export const DRAGIFY_SITE_ORIGIN = "limey-site";
+
+/** Extra fields padded onto the serialized payload for cross-platform handoff. */
+export type SerializedDragPayload = DragifyEntityCore & {
+    v: 1 | 2;
+    name?: string;
+    subtitle?: string;
+    iconUrl?: string;
+    iconText?: string;
+    origin?: string;
+};
+
+type DragifyEntityCore =
+    | { kind: "user"; id: string; }
+    | { kind: "channel"; id: string; guildId?: string; }
+    | { kind: "message"; id: string; channelId: string; guildId?: string; }
+    | { kind: "guild"; id: string; }
+    | { kind: "plugin"; id: string; url: string; };
+
+/** Canonical public URL for external consumers (the site, other apps). */
+export function buildEntityUrl(entity: DropEntity): string | null {
+    switch (entity.kind) {
+        case "channel": {
+            const guild = entity.guildId ?? "@me";
+            return `https://discord.com/channels/${guild}/${entity.id}`;
+        }
+        case "message":
+            return `https://discord.com/channels/${entity.guildId ?? "@me"}/${entity.channelId}/${entity.id}`;
+        case "user":
+            return `https://discord.com/users/${entity.id}`;
+        case "plugin":
+            return entity.url;
+        case "guild":
+            // guilds have no canonical public URL; keep the payload JSON-only
+            return null;
+    }
 }
 
 type StoreSet = {
@@ -92,8 +150,21 @@ export async function collectPayloadStrings(dataTransfer: DataTransfer): Promise
     return Array.from(new Set([...sync, ...asyncValues]));
 }
 
-export function serializeDragEntity(entity: DropEntity) {
-    return JSON.stringify(entity);
+export function serializeDragEntity(entity: DropEntity, display?: DragEntityDisplay, origin?: string) {
+    if (!display && !origin) return JSON.stringify(entity);
+    return JSON.stringify({
+        v: 2,
+        kind: entity.kind,
+        id: entity.id,
+        guildId: (entity as { guildId?: string; }).guildId,
+        channelId: (entity as { channelId?: string; }).channelId,
+        url: (entity as { url?: string; }).url,
+        name: display?.name,
+        subtitle: display?.subtitle,
+        iconUrl: display?.iconUrl,
+        iconText: display?.iconText,
+        origin,
+    });
 }
 
 export function parseDragifyPayload(value: string): DropEntity | null {
@@ -105,11 +176,34 @@ export function parseDragifyPayload(value: string): DropEntity | null {
             return { kind: "user", id: parsed.id };
         case "channel":
             return { kind: "channel", id: parsed.id, guildId: parsed.guildId };
+        case "message":
+            return parsed.channelId
+                ? { kind: "message", id: parsed.id, channelId: parsed.channelId, guildId: parsed.guildId }
+                : null;
         case "guild":
             return { kind: "guild", id: parsed.id };
+        case "plugin":
+            return { kind: "plugin", id: parsed.id, url: parsed.url ?? parsed.id };
         default:
             return null;
     }
+}
+
+/** Display metadata attached to a v2 payload, if present. */
+export function parseDragifyDisplay(value: string): DragEntityDisplay | null {
+    const parsed = tryParseJson<DragifyPayload>(value);
+    if (!parsed?.name) return null;
+    return {
+        name: parsed.name,
+        subtitle: parsed.subtitle,
+        iconUrl: parsed.iconUrl,
+        iconText: parsed.iconText,
+    };
+}
+
+export function parseDragifyOrigin(value: string): string | null {
+    const parsed = tryParseJson<DragifyPayload>(value);
+    return parsed?.origin ?? null;
 }
 
 function parseJsonPayload(payload: DragifyPayload): DropEntity | null {
@@ -118,7 +212,9 @@ function parseJsonPayload(payload: DragifyPayload): DropEntity | null {
 
     const type = (payload.type ?? payload.kind ?? payload.itemType ?? "").toLowerCase();
     if (type.includes("user")) return { kind: "user", id };
+    if (type.includes("message")) return payload.channelId ? { kind: "message", id, channelId: payload.channelId, guildId: payload.guildId } : null;
     if (type.includes("channel")) return { kind: "channel", id, guildId: payload.guildId };
+    if (type.includes("plugin")) return { kind: "plugin", id, url: payload.url ?? id };
     if (type.includes("guild") || type.includes("server")) return { kind: "guild", id };
     return null;
 }
@@ -135,6 +231,23 @@ function parseUserString(value: string): DropEntity | null {
 
     const userFromAvatar = userAvatarRegex.exec(value);
     return userFromAvatar ? { kind: "user", id: userFromAvatar[1] } : null;
+}
+
+function parseMessageString(value: string): DropEntity | null {
+    const messageFromUrl = messageUrlRegex.exec(value);
+    if (!messageFromUrl) return null;
+
+    const guildId = messageFromUrl[1] === "@me" ? "@me" : messageFromUrl[2];
+    return { kind: "message", id: messageFromUrl[5], channelId: messageFromUrl[4], guildId: guildId ?? undefined };
+}
+
+function parsePluginString(value: string): DropEntity | null {
+    const pluginFromUrl = limeyPluginUrlRegex.exec(value);
+    if (!pluginFromUrl) return null;
+
+    const pluginName = pluginFromUrl[1];
+    const base = /localhost/.test(value) ? "http://localhost/plugins" : "https://limey-discord.onrender.com/plugins";
+    return { kind: "plugin", id: pluginName, url: `${base}#${pluginName}` };
 }
 
 function parseChannelString(value: string): DropEntity | null {
@@ -169,6 +282,11 @@ export function parseFromStrings(payloads: string[], stores: StoreSet): DropEnti
     }
 
     for (const value of values) {
+        const messageEntity = parseMessageString(value);
+        if (messageEntity) return messageEntity;
+    }
+
+    for (const value of values) {
         const userEntity = parseUserString(value);
         if (userEntity) return userEntity;
     }
@@ -176,6 +294,11 @@ export function parseFromStrings(payloads: string[], stores: StoreSet): DropEnti
     for (const value of values) {
         const channelEntity = parseChannelString(value);
         if (channelEntity) return channelEntity;
+    }
+
+    for (const value of values) {
+        const pluginEntity = parsePluginString(value);
+        if (pluginEntity) return pluginEntity;
     }
 
     for (const value of values) {

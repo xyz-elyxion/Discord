@@ -1,4 +1,8 @@
 // Same relay as service-worker.js, for the Firefox MV2 background page.
+// Dragify cross-platform drag relay is shared in browserRelay.js (loaded
+// first via manifestv2 background scripts — a MV2 background page isn't a
+// worker, so importScripts doesn't exist here).
+
 const SITE_COMMAND_WHITELIST = new Set([
     "TOGGLE_MUTE",
     "TOGGLE_DEAFEN",
@@ -22,7 +26,7 @@ async function sendCommandToApp(command) {
     return results.filter(r => r.status === "fulfilled").length;
 }
 
-browser.runtime.onMessage.addListener(message => {
+browser.runtime.onMessage.addListener((message) => {
     if (message.type === "limeyV1:site:command") {
         // Returning the promise lets Firefox deliver the response once it
         // resolves — needed so the site gets a real ack.
@@ -32,6 +36,12 @@ browser.runtime.onMessage.addListener(message => {
             }
             return { contacted: await sendCommandToApp(message.command) };
         })();
+    }
+
+    // Dragify cross-platform drag relay: Firefox's promise-based API adapts
+    // nicely (resolve to { contacted }) — no sendResponse juggling needed.
+    if (message.type === "limeyV1:dragify") {
+        return handleDragifyFromPage(message).catch(() => ({ contacted: 0 }));
     }
 
     if (message.action === "openShortcuts") {

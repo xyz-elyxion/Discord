@@ -6,20 +6,32 @@
 
 import "./style.css";
 
+import { type NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { definePluginSettings } from "@api/Settings";
+import type { Channel } from "@limeyV1/discord-types";
+import { ChannelType } from "@limeyV1/discord-types/enums";
 import { Devs } from "@utils/constants";
 import { getGuildAcronym, insertTextIntoChatInputBox } from "@utils/discord";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
-import type { Channel } from "@limeyV1/discord-types";
-import { ChannelType } from "@limeyV1/discord-types/enums";
-import { ChannelStore, GuildStore, IconUtils, RelationshipStore, SelectedChannelStore, showToast, UserStore } from "@webpack/common";
+import { ChannelStore, GuildStore, IconUtils, Menu, NavigationRouter, RelationshipStore, SelectedChannelStore, showToast, UserStore } from "@webpack/common";
 
 import { beginDrag as beginSessionDrag, clearDragState, getLastDropAt, hasActiveDrag, isGuildDragActive, isInputDragSource, isUserDragActive, markDrop, markInputDragSource, scheduleGuildCleanup, shouldIgnoreDrop, startDragWatchdog, stopDragState, touchDrag } from "./dragState";
 import { type GhostState, hideGhost as hideDragGhost, isGhostVisible, mountGhost as mountDragGhost, scheduleGhostPosition as scheduleDragGhostPosition, showGhost as showDragGhost, unmountGhost as unmountDragGhost } from "./ghost";
 import { clearInviteCache, createInvite, isGroupMessageChannel } from "./invite";
+import { ackToSite, isSiteAvailable, listen as listenSiteRelay, sendToSite, setOpenHandler, unlisten as unlistenSiteRelay } from "./siteRelay";
 import { type ChannelTarget, inspectDragEvent, type ResolvedDragTarget } from "./targets";
-import { collectPayloadStrings, type DropEntity, extractStrings, parseDragifyPayload, parseFromStrings, serializeDragEntity } from "./utils";
+import {
+    buildEntityUrl,
+    collectPayloadStrings,
+    DRAGIFY_SITE_ORIGIN,
+    type DropEntity,
+    extractStrings,
+    parseDragifyOrigin,
+    parseDragifyPayload,
+    parseFromStrings,
+    serializeDragEntity,
+} from "./utils";
 
 const logger = new Logger("Dragify");
 
@@ -33,6 +45,7 @@ type DragifyRuntime = {
     beginDrag(event: DragEvent, entity: DropEntity, options?: { effectAllowed?: DataTransfer["effectAllowed"]; }): void;
     showGhost(entity: DropEntity, event?: DragEvent): void;
     getDmRecipientId(channel?: Channel | null): string | null;
+    handleDropEntity(entity: DropEntity, channel: Channel, origin?: string | null): Promise<void>;
 };
 
 let pluginInstance: DragifyRuntime | null = null;
@@ -66,7 +79,12 @@ function setDragifyDataTransfer(dataTransfer: DataTransfer | null, entity: DropE
     const payload = serializeDragEntity(entity);
     dataTransfer.setData("application/json", payload);
     dataTransfer.setData("application/dragify", payload);
-    dataTransfer.setData("text/plain", "");
+    // A canonical link as the text fallback: cross-window drags into other
+    // apps/tabs that can't read custom MIME types still carry something
+    // meaningful, and the site parses these identical formats.
+    const fallbackUrl = buildEntityUrl(entity) ?? entity.id;
+    dataTransfer.setData("text/plain", fallbackUrl);
+    dataTransfer.setData("text/uri-list", fallbackUrl);
 }
 
 function hasDragifyTransfer(dataTransfer?: DataTransfer | null) {
@@ -144,7 +162,62 @@ const settings = definePluginSettings({
         restartNeeded: true,
         description: "Allow dropping into the main chat body to insert text.",
     },
+    siteRelay: {
+        type: OptionType.BOOLEAN,
+        default: true,
+        description: "Cross-platform handoff with the Limey V1 website: drag servers, channels, messages or users out of the app onto a Limey page, open the site's pinned chips back in the app, and get 'Send to Limey site' in context menus.",
+    },
 });
+
+function shouldShowSiteMenu() {
+    return settings.store.siteRelay && isSiteAvailable();
+}
+
+function pushSiteMenuItem(children: Array<any>, id: string, entity: DropEntity) {
+    if (!shouldShowSiteMenu()) return;
+    children.push(
+        <Menu.MenuItem
+            id={id}
+            label="Send to the Limey site"
+            action={() => sendToSite(entity)}
+        />
+    );
+}
+
+const channelSiteMenu: NavContextMenuPatchCallback = (children, { channel }) => {
+    if (!channel?.id) return;
+    pushSiteMenuItem(children, "limey-dragify-send", {
+        kind: "channel",
+        id: channel.id,
+        guildId: channel.guild_id ?? undefined,
+    });
+};
+
+const gdmSiteMenu: NavContextMenuPatchCallback = (children, { channel }) => {
+    if (!channel?.id) return;
+    pushSiteMenuItem(children, "limey-dragify-send", { kind: "channel", id: channel.id });
+};
+
+const userSiteMenu: NavContextMenuPatchCallback = (children, props) => {
+    const userId = props?.user?.id ?? props?.userId;
+    if (!userId) return;
+    pushSiteMenuItem(children, "limey-dragify-send", { kind: "user", id: userId });
+};
+
+const guildSiteMenu: NavContextMenuPatchCallback = (children, { guild }) => {
+    if (!guild?.id) return;
+    pushSiteMenuItem(children, "limey-dragify-send", { kind: "guild", id: guild.id });
+};
+
+const messageSiteMenu: NavContextMenuPatchCallback = (children, { message }) => {
+    if (!message?.id) return;
+    pushSiteMenuItem(children, "limey-dragify-send", {
+        kind: "message",
+        id: message.id,
+        channelId: message.channel_id,
+        guildId: message.guild_id ?? undefined,
+    });
+};
 
 export default definePlugin({
     name: "Dragify",
@@ -156,10 +229,20 @@ export default definePlugin({
             risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
         }
     ],
-    description: "Drop users, channels, or servers into chat to insert mentions or invites.",
+    description: "Drop users, channels, messages or servers into chat to insert mentions or invites — and hand them across platforms to the Limey V1 site.",
     tags: ["Chat", "Servers", "Utility", "Voice"],
     authors: [Devs.justjxke],
     settings,
+
+    contextMenus: {
+        "channel-context": channelSiteMenu,
+        "gdm-context": gdmSiteMenu,
+        "user-context": userSiteMenu,
+        "guild-context": guildSiteMenu,
+        "guild-header-popout": guildSiteMenu,
+        "message": messageSiteMenu,
+        "message-context": messageSiteMenu,
+    },
 
     patches: [
         // Voice user rows (voice channel sidebar list)
@@ -264,13 +347,14 @@ export default definePlugin({
         if (!resolvedChannel) return;
 
         if (hasDragifyTransfer(dataTransfer)) {
-            const entity = parseDragifyPayload(dataTransfer.getData("application/dragify"));
+            const payload = dataTransfer.getData("application/dragify");
+            const entity = parseDragifyPayload(payload);
             if (!entity) {
                 clearDragState();
                 return;
             }
             if (shouldIgnoreDrop(buildDropKey(entity, resolvedChannel.id))) return;
-            await this.handleDropEntity(entity, resolvedChannel);
+            await this.handleDropEntity(entity, resolvedChannel, parseDragifyOrigin(payload));
             return;
         }
 
@@ -281,10 +365,10 @@ export default definePlugin({
             return;
         }
         if (shouldIgnoreDrop(buildDropKey(entity, resolvedChannel.id))) return;
-        await this.handleDropEntity(entity, resolvedChannel);
+        await this.handleDropEntity(entity, resolvedChannel, null);
     },
 
-    async handleDropEntity(entity: DropEntity, channel: Channel) {
+    async handleDropEntity(entity: DropEntity, channel: Channel, origin?: string | null) {
         try {
             const text = await this.buildText(entity, channel);
             if (!text) {
@@ -297,6 +381,11 @@ export default definePlugin({
                 : this.insertText(channel.id, text);
 
             if (!inserted) throw new Error("Unable to insert drag content");
+
+            // Chip originally pinned on the Limey site: let it flash there.
+            if (origin === DRAGIFY_SITE_ORIGIN && settings.store.siteRelay) {
+                ackToSite("delivered", entity);
+            }
             clearDragState();
         } catch (error) {
             clearDragState();
@@ -311,6 +400,10 @@ export default definePlugin({
                 return settings.store.userOutput === "id" ? entity.id : `<@${entity.id}>`;
             case "channel":
                 return this.formatChannel(entity.id, entity.guildId);
+            case "message":
+                return buildEntityUrl(entity);
+            case "plugin":
+                return entity.url;
             case "guild":
                 return await createInvite(entity.id, currentChannel, settings.store);
             default:
@@ -434,6 +527,11 @@ export default definePlugin({
         window.addEventListener("dragover", this.globalDragMove, true);
         window.addEventListener("dragend", this.globalDragEnd, true);
         startDragWatchdog(hideDragGhost);
+
+        if (settings.store.siteRelay) {
+            setOpenHandler(this.handleSiteOpen);
+            listenSiteRelay();
+        }
     },
 
     stop() {
@@ -446,7 +544,70 @@ export default definePlugin({
         stopDragState();
         clearInviteCache();
         this.unmountGhost();
+        if (settings.store.siteRelay) {
+            unlistenSiteRelay();
+            setOpenHandler(null);
+        }
         pluginInstance = null;
+    },
+
+    /** "Open in app" for a chip pinned on the Limey site. */
+    handleSiteOpen(entity: DropEntity) {
+        try {
+            let ok = false;
+            switch (entity.kind) {
+                case "channel": {
+                    const channel = ChannelStore.getChannel(entity.id);
+                    if (!channel) {
+                        showToast("That channel isn't cached in this app yet.", "failure");
+                        return;
+                    }
+                    const guildId = entity.guildId ?? channel.guild_id ?? "@me";
+                    NavigationRouter.transitionTo(`/channels/${guildId}/${entity.id}`);
+                    ok = true;
+                    break;
+                }
+                case "message": {
+                    const guildId = entity.guildId ?? "@me";
+                    NavigationRouter.transitionTo(`/channels/${guildId}/${entity.channelId}/${entity.id}`);
+                    ok = true;
+                    break;
+                }
+                case "guild": {
+                    NavigationRouter.transitionToGuild(entity.id);
+                    ok = true;
+                    break;
+                }
+                case "user": {
+                    const dmId = ChannelStore.getDMFromUserId?.(entity.id);
+                    if (dmId) {
+                        NavigationRouter.transitionTo(`/channels/@me/${dmId}`);
+                        ok = true;
+                    } else {
+                        showToast("No open DM with that user in this app.", "failure");
+                    }
+                    break;
+                }
+                case "plugin": {
+                    const channelId = SelectedChannelStore.getChannelId();
+                    if (channelId && this.insertText(channelId, entity.url)) {
+                        showToast(`Inserted the ${entity.id} plugin link.`, "success");
+                    } else {
+                        showToast("No chat open — link kept on the chip.", "failure");
+                    }
+                    ok = true;
+                    break;
+                }
+            }
+
+            if (ok && settings.store.siteRelay) {
+                ackToSite("opened", entity);
+                showToast("Opened in your Discord tab.", "success");
+            }
+        } catch (err) {
+            logger.error("Failed opening a site-pinned entity", err);
+            showToast("Failed to open that in the app.", "failure");
+        }
     },
 
     globalDragOver: (event: DragEvent) => {
