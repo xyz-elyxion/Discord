@@ -55,7 +55,10 @@ export async function putCloudSettings(manual?: boolean) {
                 Authorization: await getCloudAuth(),
                 "Content-Type": "application/octet-stream"
             },
-            body: deflateSync(new TextEncoder().encode(settings)) as Uint8Array<ArrayBuffer>
+            // Blob: accepted as-is by native fetch (extension/web) and by
+            // GM_xmlhttpRequest (userscript build, all major managers), where
+            // raw ArrayBuffer/Uint8Array bodies are finicky.
+            body: new Blob([deflateSync(new TextEncoder().encode(settings))], { type: "application/octet-stream" })
         });
 
         if (!res.ok) {
