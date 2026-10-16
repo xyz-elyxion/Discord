@@ -340,6 +340,30 @@
             </div>
         </div>
 
+        <!-- Site remote: this page talks to the Limey extension and can make
+             your open Discord tab do things (mute, deafen, go live, …). -->
+        <div class="method remote-card" id="limey-remote">
+            <span class="method-badge">Live</span>
+            <h2>Make the app do things — right from this page</h2>
+            <p>With the Limey extension installed, this page <em>searches</em> for it, and when it finds it, hands your open Discord tab commands like a remote control.</p>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:14px 0">
+                <span class="remote-status remote-status-off">🍋 Searching for Limey V1…</span>
+            </div>
+            <div class="remote-grid">
+                <button class="btn btn-ghost" data-command="TOGGLE_MUTE" type="button">🎙️ Mute</button>
+                <button class="btn btn-ghost" data-command="TOGGLE_DEAFEN" type="button">🔇 Deafen</button>
+                <button class="btn btn-ghost" data-command="TOGGLE_VOICE_MODE" type="button">🔊 Push&nbsp;to&nbsp;talk</button>
+                <button class="btn btn-ghost" data-command="TOGGLE_STREAMER_MODE" type="button">🎬 Streamer mode</button>
+                <button class="btn btn-ghost" data-command="TOGGLE_GO_LIVE_STREAMING" type="button">📺 Go live</button>
+                <button class="btn btn-ghost" data-command="SAVE_CLIP" type="button">✂️ Save clip</button>
+            </div>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px">
+                <button class="btn btn-primary" data-open-app type="button"><span>Pop up Discord</span></button>
+                <a class="btn btn-ghost" href="https://discord.com/app" target="_blank" rel="noopener">Open discord.com/app</a>
+            </div>
+            <p class="remote-hint" style="margin-top:12px;font-size:0.85rem;color:var(--muted-foreground)"></p>
+        </div>
+
         <div class="section-note">
             <p class="note">
                 Client modifications technically violate Discord's Terms of Service.
@@ -386,6 +410,18 @@
         </div>
     </footer>
 
+<script src="/limey-remote.js" defer></script>
+<style>
+    .remote-card { border: 1px solid var(--ring); }
+    .remote-status { font-size: 0.85rem; font-weight: 500; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); }
+    .remote-status-on { color: var(--primary); border-color: var(--ring); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+    .remote-status-off { color: var(--muted-foreground); background: var(--muted); }
+    .remote-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .remote-grid .btn { min-width: 130px; }
+    .remote-flash-ok { border-color: var(--ring) !important; }
+    .remote-flash-fail { opacity: 0.7; }
+    .remote-card .btn:disabled { opacity: 0.45; pointer-events: none; }
+</style>
 <script>
 (function () {
     var drops = document.querySelectorAll('.nav-drop');

@@ -1,32 +1,40 @@
-/**
- * @template T
- * @param {T[]} arr
- * @param {(v: T) => boolean} predicate
- */
-function removeFirst(arr, predicate) {
-    const idx = arr.findIndex(predicate);
-    if (idx !== -1) arr.splice(idx, 1);
+// Same relay as service-worker.js, for the Firefox MV2 background page.
+const SITE_COMMAND_WHITELIST = new Set([
+    "TOGGLE_MUTE",
+    "TOGGLE_DEAFEN",
+    "TOGGLE_VOICE_MODE",
+    "TOGGLE_STREAMER_MODE",
+    "TOGGLE_GO_LIVE_STREAMING",
+    "NAVIGATE_BACK",
+    "NAVIGATE_FORWARD",
+    "SAVE_CLIP",
+]);
+
+async function findDiscordTabs() {
+    return browser.tabs.query({ url: ["*://*.discord.com/*"] });
 }
 
-chrome.webRequest.onHeadersReceived.addListener(
-    ({ responseHeaders, type, url }) => {
-        if (!responseHeaders) return;
+async function sendCommandToApp(command) {
+    const tabs = await findDiscordTabs();
+    const results = await Promise.allSettled(
+        tabs.map(tab => browser.tabs.sendMessage(tab.id, { command }))
+    );
+    return results.filter(r => r.status === "fulfilled").length;
+}
 
-        if (type === "main_frame" && url.includes("discord.com")) {
-            // In main frame requests, the CSP needs to be removed to enable fetching of custom css
-            // as desired by the user
-            removeFirst(responseHeaders, h => h.name.toLowerCase() === "content-security-policy");
-        } else if (type === "stylesheet" && url.startsWith("https://raw.githubusercontent.com/")) {
-            // Most users will load css from GitHub, but GitHub doesn't set the correct content type,
-            // so we fix it here
-            removeFirst(responseHeaders, h => h.name.toLowerCase() === "content-type");
-            responseHeaders.push({
-                name: "Content-Type",
-                value: "text/css"
-            });
-        }
-        return { responseHeaders };
-    },
-    { urls: ["https://raw.githubusercontent.com/*", "*://*.discord.com/*"], types: ["main_frame", "stylesheet"] },
-    ["blocking", "responseHeaders"]
-);
+browser.runtime.onMessage.addListener(message => {
+    if (message.type === "limeyV1:site:command") {
+        // Returning the promise lets Firefox deliver the response once it
+        // resolves — needed so the site gets a real ack.
+        return (async () => {
+            if (typeof message.command !== "string" || !SITE_COMMAND_WHITELIST.has(message.command)) {
+                return { contacted: 0 };
+            }
+            return { contacted: await sendCommandToApp(message.command) };
+        })();
+    }
+
+    if (message.action === "openShortcuts") {
+        browser.tabs.create({ url: "about://extensions/shortcuts" });
+    }
+});
