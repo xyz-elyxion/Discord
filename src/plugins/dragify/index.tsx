@@ -14,12 +14,12 @@ import { Devs } from "@utils/constants";
 import { getGuildAcronym, insertTextIntoChatInputBox } from "@utils/discord";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
-import { ChannelStore, GuildStore, IconUtils, Menu, NavigationRouter, RelationshipStore, SelectedChannelStore, showToast, UserStore } from "@webpack/common";
+import { ChannelStore, GuildStore, IconUtils, Menu, NavigationRouter, RelationshipStore, SelectedChannelStore, SelectedGuildStore, showToast, UserStore } from "@webpack/common";
 
 import { beginDrag as beginSessionDrag, clearDragState, getLastDropAt, hasActiveDrag, isGuildDragActive, isInputDragSource, isUserDragActive, markDrop, markInputDragSource, scheduleGuildCleanup, shouldIgnoreDrop, startDragWatchdog, stopDragState, touchDrag } from "./dragState";
 import { type GhostState, hideGhost as hideDragGhost, isGhostVisible, mountGhost as mountDragGhost, scheduleGhostPosition as scheduleDragGhostPosition, showGhost as showDragGhost, unmountGhost as unmountDragGhost } from "./ghost";
 import { clearInviteCache, createInvite, isGroupMessageChannel } from "./invite";
-import { ackToSite, isSiteAvailable, listen as listenSiteRelay, sendToSite, setOpenHandler, unlisten as unlistenSiteRelay } from "./siteRelay";
+import { ackToSite, isSiteAvailable, sendToSite, setOpenHandler } from "./siteRelay";
 import { type ChannelTarget, inspectDragEvent, type ResolvedDragTarget } from "./targets";
 import {
     buildEntityUrl,
@@ -233,6 +233,26 @@ export default definePlugin({
     tags: ["Chat", "Servers", "Utility", "Voice"],
     authors: [Devs.justjxke],
     settings,
+
+    toolboxActions: {
+        "Send channel to the Limey site"() {
+            const channelId = SelectedChannelStore.getChannelId();
+            const channel = channelId ? ChannelStore.getChannel(channelId) : null;
+            if (!channel) {
+                showToast("No channel open.", "failure");
+                return;
+            }
+            sendToSite({ kind: "channel", id: channel.id, guildId: channel.guild_id ?? undefined });
+        },
+        "Send server to the Limey site"() {
+            const guildId = SelectedGuildStore.getGuildId();
+            if (!guildId || guildId === "@me") {
+                showToast("No server selected.", "failure");
+                return;
+            }
+            sendToSite({ kind: "guild", id: guildId });
+        },
+    },
 
     contextMenus: {
         "channel-context": channelSiteMenu,
@@ -527,11 +547,7 @@ export default definePlugin({
         window.addEventListener("dragover", this.globalDragMove, true);
         window.addEventListener("dragend", this.globalDragEnd, true);
         startDragWatchdog(hideDragGhost);
-
-        if (settings.store.siteRelay) {
-            setOpenHandler(this.handleSiteOpen);
-            listenSiteRelay();
-        }
+        this.registerSiteHandler();
     },
 
     stop() {
@@ -544,70 +560,64 @@ export default definePlugin({
         stopDragState();
         clearInviteCache();
         this.unmountGhost();
-        if (settings.store.siteRelay) {
-            unlistenSiteRelay();
-            setOpenHandler(null);
-        }
+        this.teardownSiteHandler?.();
         pluginInstance = null;
     },
 
-    /** "Open in app" for a chip pinned on the Limey site. */
-    handleSiteOpen(entity: DropEntity) {
-        try {
-            let ok = false;
-            switch (entity.kind) {
-                case "channel": {
-                    const channel = ChannelStore.getChannel(entity.id);
-                    if (!channel) {
-                        showToast("That channel isn't cached in this app yet.", "failure");
-                        return;
-                    }
-                    const guildId = entity.guildId ?? channel.guild_id ?? "@me";
-                    NavigationRouter.transitionTo(`/channels/${guildId}/${entity.id}`);
-                    ok = true;
-                    break;
-                }
-                case "message": {
-                    const guildId = entity.guildId ?? "@me";
-                    NavigationRouter.transitionTo(`/channels/${guildId}/${entity.channelId}/${entity.id}`);
-                    ok = true;
-                    break;
-                }
-                case "guild": {
-                    NavigationRouter.transitionToGuild(entity.id);
-                    ok = true;
-                    break;
-                }
-                case "user": {
-                    const dmId = ChannelStore.getDMFromUserId?.(entity.id);
-                    if (dmId) {
-                        NavigationRouter.transitionTo(`/channels/@me/${dmId}`);
-                        ok = true;
-                    } else {
-                        showToast("No open DM with that user in this app.", "failure");
-                    }
-                    break;
-                }
-                case "plugin": {
-                    const channelId = SelectedChannelStore.getChannelId();
-                    if (channelId && this.insertText(channelId, entity.url)) {
-                        showToast(`Inserted the ${entity.id} plugin link.`, "success");
-                    } else {
-                        showToast("No chat open — link kept on the chip.", "failure");
-                    }
-                    ok = true;
-                    break;
-                }
-            }
+    /** Unsubscriber for the DragifySite API open-handler registration. */
+    teardownSiteHandler: null as null | (() => void),
 
-            if (ok && settings.store.siteRelay) {
-                ackToSite("opened", entity);
-                showToast("Opened in your Discord tab.", "success");
+    registerSiteHandler() {
+        this.teardownSiteHandler = () => setOpenHandler(null);
+        setOpenHandler(entity => {
+            try {
+                switch (entity.kind) {
+                    case "channel": {
+                        const channel = ChannelStore.getChannel(entity.id);
+                        if (!channel) {
+                            showToast("That channel isn't cached in this app yet.", "failure");
+                            return;
+                        }
+                        const guildId = entity.guildId ?? channel.guild_id ?? "@me";
+                        NavigationRouter.transitionTo(`/channels/${guildId}/${entity.id}`);
+                        break;
+                    }
+                    case "message": {
+                        NavigationRouter.transitionTo(`/channels/${entity.guildId ?? "@me"}/${entity.channelId}/${entity.id}`);
+                        break;
+                    }
+                    case "guild": {
+                        NavigationRouter.transitionToGuild(entity.id);
+                        break;
+                    }
+                    case "user": {
+                        const dmId = ChannelStore.getDMFromUserId?.(entity.id);
+                        if (dmId) {
+                            NavigationRouter.transitionTo(`/channels/@me/${dmId}`);
+                        } else {
+                            showToast("No open DM with that user in this app.", "failure");
+                        }
+                        break;
+                    }
+                    case "plugin": {
+                        const channelId = SelectedChannelStore.getChannelId();
+                        if (channelId && this.insertText(channelId, entity.url)) {
+                            showToast(`Inserted the ${entity.id} plugin link.`, "success");
+                        } else {
+                            showToast("No chat open — link kept on the chip.", "failure");
+                        }
+                        break;
+                    }
+                }
+                if (settings.store.siteRelay) {
+                    ackToSite("opened", entity);
+                    showToast("Opened in your Discord tab.", "success");
+                }
+            } catch (err) {
+                logger.error("Failed opening a site-pinned entity", err);
+                showToast("Failed to open that in the app.", "failure");
             }
-        } catch (err) {
-            logger.error("Failed opening a site-pinned entity", err);
-            showToast("Failed to open that in the app.", "failure");
-        }
+        });
     },
 
     globalDragOver: (event: DragEvent) => {

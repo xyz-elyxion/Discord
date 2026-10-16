@@ -259,25 +259,28 @@
 
     function parseDrop(dataTransfer, done) {
         const entity = parseDragifyJson(dataTransfer.getData("application/dragify"));
-        if (entity) return done(entity);
+        if (entity) return done([entity]);
 
         // Drags whose richer payload we can't read (different browser
-        // session) still carry a canonical link as the text fallback.
+        // session) still carry canonical links as the text fallback. Every
+        // recognisable link in the transfer becomes its own chip.
         const text = `${dataTransfer.getData("text/uri-list")}\n${dataTransfer.getData("text/plain")}`;
+        const entities = [];
         for (const line of text.split(/\s+/)) {
             const chan = CHANNEL_URL_RE.exec(line);
             if (chan) {
-                return done({
+                entities.push({
                     kind: chan[3] ? "message" : "channel",
                     id: chan[3] || chan[2],
                     channelId: chan[2],
                     guildId: chan[1] === "@me" ? "@me" : chan[1],
                 });
+                continue;
             }
             const usr = USER_URL_RE.exec(line);
-            if (usr) return done({ kind: "user", id: usr[1] });
+            if (usr) entities.push({ kind: "user", id: usr[1] });
         }
-        done(null);
+        done(entities);
     }
 
     let dragDepth = 0;
@@ -305,8 +308,8 @@
         if (!looksDragify(event)) return;
         event.preventDefault();
         event.stopPropagation();
-        parseDrop(event.dataTransfer, entity => {
-            if (entity) makeChip(entity);
+        parseDrop(event.dataTransfer, list => {
+            for (const entity of list) makeChip(entity);
         });
     });
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import * as DragifySite from "@api/DragifySite";
 import { pluginRequiresRestart, startPlugin, stopPlugin } from "@api/PluginManager";
 import { Settings, useSettings } from "@api/Settings";
 import { BaseText } from "@components/BaseText";
@@ -18,17 +19,33 @@ import {
     SettingsTab as STab,
     wrapTab,
 } from "@components/settings/tabs/BaseTab";
+import {
+    cl,
+    CLONE_LINK_REGEX,
+    showInstallFinishedAlert,
+} from "@plugins/userpluginInstaller/misc/constants";
 import { classes, isObjectEmpty } from "@utils/misc";
 import { closeAllModals } from "@utils/modal";
 import { relaunch } from "@utils/native";
 import { Alerts, NavigationRouter, Toasts, useEffect, useState } from "@webpack/common";
 
 import userpluginInstaller, { Native, settings } from "..";
-import {
-    cl,
-    CLONE_LINK_REGEX,
-    showInstallFinishedAlert,
-} from "../misc/constants";
+
+/** Dragify site dock: share an installed user-plugin back to Limey V1 web
+ *  pages, falling back to a plain copy when no Limey site tab is reachable. */
+function sharePluginToSite(name: string, remote: string) {
+    if (DragifySite.isSiteAvailable()) {
+        DragifySite.sendToSite({ kind: "plugin", id: name, url: remote });
+        return;
+    }
+    navigator.clipboard?.writeText(remote).then(
+        () => Alerts.show({
+            title: "No Limey site tab found",
+            body: `${remote} has been copied instead — open the site, then try again.`,
+        }),
+        () => { }
+    );
+}
 
 function UserPluginsTab() {
     const rs = useSettings(["plugins.*"]);
@@ -318,6 +335,15 @@ function UserPluginsTab() {
                                                 }
                                             >
                                                 Source
+                                            </Button>
+                                            <Button
+                                                variant="secondary"
+                                                size="small"
+                                                disabled={plugin.remote === ""}
+                                                title="Send to the Limey site (Dragify)"
+                                                onClick={() => sharePluginToSite(plugin.name, plugin.remote)}
+                                            >
+                                                Share
                                             </Button>
                                             {plugin.supportChannelID && <Button variant="secondary" size="small" onClick={() => {
                                                 closeAllModals();
