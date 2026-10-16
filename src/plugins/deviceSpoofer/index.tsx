@@ -5,7 +5,6 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import { ErrorCard } from "@components/ErrorCard";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { UserStore } from "@webpack/common";
@@ -68,11 +67,6 @@ export default definePlugin({
     description: "Spoof what platform or device you're on",
     tags: ["Utility"],
     authors: [Devs.Drag, Devs.neoarz],
-    settingsAboutComponent: () => (
-        <ErrorCard>
-            We can't guarantee this plugin won't get you warned or banned.
-        </ErrorCard>
-    ),
     settings: settings,
     patches: [
         {

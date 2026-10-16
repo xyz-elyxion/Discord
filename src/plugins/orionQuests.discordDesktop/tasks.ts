@@ -25,7 +25,7 @@ import { debug, rnd, sanitize, sleep, trafficMetadataSealed } from "./util";
 
 const logger = new Logger("OrionQuests");
 
-const Native = LimeyV1Native.pluginHelpers.OrionQuests as PluginNative<typeof import("./native")>;
+const Native = LimeyV1Native.pluginHelpers["Quest Completer"] as PluginNative<typeof import("./native")>;
 
 const HEARTBEAT_EVT = "QUESTS_SEND_HEARTBEAT_SUCCESS";
 /*

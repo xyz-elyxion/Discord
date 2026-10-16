@@ -255,21 +255,14 @@ export function QuestFeaturesSetting(): JSX.Element {
                 }}
             />
             <SettingsSubheader> Modify Features </SettingsSubheader>
-            <SettingsNotice className={["notice-card-red", questFeatures.disableQuestsEverything ? "dimmed-settings-item" : undefined, questFeatures.allowChangingDangerousSettings ? undefined : "notice-card-solo", "no-bottom-margin"].filter(c => c !== undefined)}>
+            <SettingsNotice className={["notice-card-red",
+questFeatures.disableQuestsEverything ? "dimmed-settings-item" : undefined, questFeatures.allowChangingDangerousSettings ? undefined : "notice-card-solo", "no-bottom-margin"].filter(c => c !== undefined)}>
                 <SettingsParagraph>
-                    Discord is known to punish users of scripts or plugins that modify the completion of Quests. Modifying the completion of Quests is against Discord's <a href="https://discord.com/safety/platform-manipulation-policy-explainer" target="_blank" rel="noreferrer">Terms of Service</a>.
+                    The following features automate or change how Quests are completed.
                 </SettingsParagraph>
                 <br />
                 <SettingsParagraph>
-                    The punishment consists of a temporary or permanent loss of access to Quests and their rewards. <strong>The punishment also consists of an account standing violation which lasts 2 years per violation.</strong>
-                </SettingsParagraph>
-                <br />
-                <SettingsParagraph>
-                    Due to the various methods Discord uses to track users, there's no way to realistically evade detection. If you proceed, understand that Discord likely will detect your use at some point.
-                </SettingsParagraph>
-                <br />
-                <SettingsParagraph>
-                    Use the following toggle to access potentially dangerous settings at your own risk.
+                    Use the toggle below to access Potentially Dangerous settings.
                 </SettingsParagraph>
                 <SettingsAllowDangerousButton
                     allowed={questFeatures.allowChangingDangerousSettings}

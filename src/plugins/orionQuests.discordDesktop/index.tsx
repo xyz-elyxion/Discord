@@ -458,7 +458,7 @@ async function controlQuestById(questId: string, action: "pause" | "resume"): Pr
 }
 
 export default definePlugin({
-    name: "OrionQuests",
+    name: "Quest Completer",
     permissions: [
         {
             id: "localDataStore",

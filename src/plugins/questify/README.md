@@ -25,9 +25,6 @@ Modify how Quests behave, hide Quest-related UI, or disable Quest functionality 
   - Account Panel Promo
   - Account Panel Quest Progress
   - Quest & Orbs Badges
-- Dangerous settings are gated behind a warning and confirmation.
-  - Discord has warned users for modifying how Quests are completed.
-  - Questify cannot realistically hide this behavior from Discord.
 - Optional dangerous behavior:
   - Accelerate Video Quest auto-completion by using Discord's progress leeway and elapsed enrollment time.
   - Make some mobile-only Video Quests completable on desktop.
