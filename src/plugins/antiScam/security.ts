@@ -346,6 +346,34 @@ async function fetchWebauthnCredentials(): Promise<any[]> {
 }
 
 /**
+ * Full picture of the account's security-key situation:
+ * - `anyKey`: a security key Discord can challenge for MFA exists at all;
+ * - `v1Enrolled`: whether at least one of those was enrolled by V1 itself
+ *   (matched by the name V1 sets). `null` when Discord's credential list
+ *   could not be read in a shape we recognise.
+ */
+export interface SecurityKeyState {
+    anyKey: boolean;
+    v1Enrolled: boolean | null;
+}
+
+export async function getSecurityKeyState(name = "Limey V1"): Promise<SecurityKeyState> {
+    if (!(await isSecurityKeySetUp())) return { anyKey: false, v1Enrolled: false };
+    try {
+        const credentials = await fetchWebauthnCredentials();
+        return {
+            anyKey: true,
+            v1Enrolled: credentials.some(
+                c => typeof c?.name === "string" && c.name.toLowerCase().includes(name.toLowerCase()),
+            ),
+        };
+    } catch {
+        // Key exists but the list is unreadable — removal can't be proven.
+        return { anyKey: true, v1Enrolled: null };
+    }
+}
+
+/**
  * Remove the security key(s) V1 enrolled (via the real deletion endpoint
  * `DELETE /users/@me/mfa/webauthn/credentials/{id}`), plus any leftover local
  * record. Keys you enrolled yourself through Discord's settings are left

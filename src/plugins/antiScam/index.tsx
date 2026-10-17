@@ -16,12 +16,13 @@ import { Constants, FluxDispatcher, React, RelationshipStore, RestAPI, showToast
 import { scamMatch } from "./patterns";
 import {
     completeWebauthnMfa,
+    getSecurityKeyState,
     isSecurityKeySetUp,
     isWebAuthnSupported,
     MFA_REQUIRED,
     removeSecurityKey,
-    setUpSecurityKey
-} from "./security";
+    type SecurityKeyState,
+    setUpSecurityKey } from "./security";
 
 const logger = new Logger("AntiScam");
 
@@ -394,19 +395,36 @@ function PurgeButton() {
     );
 }
 
+type KeyAction = "add" | "remove" | "foreign";
+
+const KEY_ACTION_LABELS: Record<KeyAction, string> = {
+    add: "Set up security key with Discord",
+    remove: "Remove V1-enrolled security key",
+    foreign: "Existing security key was enrolled outside V1",
+};
+
+function actionForState(state: SecurityKeyState | null): KeyAction {
+    if (!state) return "add";
+    if (!state.anyKey) return "add";
+    // A key exists but V1 can't prove it created one: removal would dead-end.
+    return state.v1Enrolled === true ? "remove" : "foreign";
+}
+
 function SecurityKeyButton() {
     const [busy, setBusy] = React.useState(false);
-    const [hasKey, setHasKey] = React.useState<boolean>(false);
-    React.useEffect(() => { void isSecurityKeySetUp().then(v => setHasKey(v)); }, []);
+    const [state, setState] = React.useState<SecurityKeyState | null>(null);
+    React.useEffect(() => { void getSecurityKeyState().then(setState); }, []);
+
+    const action = actionForState(state);
 
     return (
         <button
-            disabled={!isWebAuthnSupported() || busy}
+            disabled={!isWebAuthnSupported() || busy || action === "foreign"}
             onClick={async () => {
                 if (busy) return;
                 setBusy(true);
                 try {
-                    if (await isSecurityKeySetUp()) {
+                    if (action === "remove") {
                         await removeSecurityKey();
                         showToast("Anti-Scam: the V1-enrolled security key was removed from your Discord account.", "success");
                     } else {
@@ -419,7 +437,7 @@ function SecurityKeyButton() {
                     logger.warn("V1 passkey setup failed", e);
                     showToast(`Anti-Scam security key: ${e instanceof Error ? e.message : String(e)}`, "failure");
                 } finally {
-                    setHasKey(await isSecurityKeySetUp());
+                    setState(await getSecurityKeyState());
                     setBusy(false);
                 }
             }}
@@ -429,10 +447,10 @@ function SecurityKeyButton() {
                 background: "#5865f2",
                 color: "#fff",
                 fontWeight: 600,
-                cursor: isWebAuthnSupported() ? (busy ? "wait" : "pointer") : "not-allowed",
+                cursor: isWebAuthnSupported() && action !== "foreign" ? (busy ? "wait" : "pointer") : "not-allowed",
             }}
         >
-            {busy ? "Waiting for your authenticator…" : (hasKey ? "Remove V1-enrolled security key" : "Set up security key with Discord")}
+            {busy ? "Waiting for your authenticator…" : KEY_ACTION_LABELS[action]}
         </button>
     );
 }
@@ -502,7 +520,7 @@ const settings = definePluginSettings({
     },
     securityKeyAction: {
         type: OptionType.COMPONENT,
-        description: "Link a V1 security key (passkey) to this Discord account. Required before V1 performs 2FA-class actions like logging out all devices.",
+        description: "Link a V1 security key (passkey) to this Discord account, or remove the one V1 enrolled. Required before V1 performs 2FA-class actions like logging out all devices.",
         component: () => <SecurityKeyButton />,
     },
     logoutAction: {
