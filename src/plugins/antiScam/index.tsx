@@ -408,7 +408,7 @@ function SecurityKeyButton() {
                 try {
                     if (await isSecurityKeySetUp()) {
                         await removeSecurityKey();
-                        showToast("Anti-Scam: V1 passkey removed.", "success");
+                        showToast("Anti-Scam: the V1-enrolled security key was removed from your Discord account.", "success");
                     } else {
                         const me = UserStore.getCurrentUser();
                         if (!me) throw new Error("log in first so V1 can add the security key to this account.");
@@ -432,7 +432,7 @@ function SecurityKeyButton() {
                 cursor: isWebAuthnSupported() ? (busy ? "wait" : "pointer") : "not-allowed",
             }}
         >
-            {busy ? "Waiting for your authenticator…" : (hasKey ? "Remove V1 passkey" : "Set up security key with Discord")}
+            {busy ? "Waiting for your authenticator…" : (hasKey ? "Remove V1-enrolled security key" : "Set up security key with Discord")}
         </button>
     );
 }

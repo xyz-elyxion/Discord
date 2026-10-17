@@ -94,8 +94,11 @@ export async function getDiscordWebauthnStatus(): Promise<WebauthnStatus> {
         if (Array.isArray(webauthn?.credentials)) return { count: webauthn.credentials.length };
         if (Array.isArray(webauthn)) return { count: webauthn.length };
         if (typeof webauthn?.enabled === "boolean") return { count: webauthn.enabled ? 1 : 0 };
+        // Flat client settings shape: { totp: bool, security_keys: bool, ... }
+        if (typeof body.security_keys === "boolean") return { count: body.security_keys ? 1 : 0 };
         if (Array.isArray(body.authenticator_types)) {
-            // authenticator_types: 1 = webauthn per Discord's user objects
+            // authenticator_types enum: 1 = WEBAUTHN, 2 = TOTP, 3 = SMS (per
+            // Discord's user objects) — never treat TOTP/SMS as a key.
             return { count: body.authenticator_types.includes(1) ? 1 : 0 };
         }
         return { count: null };
@@ -116,19 +119,19 @@ export async function getDiscordWebauthnStatus(): Promise<WebauthnStatus> {
 
 /**
  * Whether this Discord account already carries at least one security key
- * Discord can challenge for MFA.
+ * Discord can challenge for MFA. This is answered by Discord itself; a
+ * locally stored record never counts — the plugin no longer mints keys, so
+ * any leftover local entry is just stale data and is cleared on sight.
  */
 export async function isSecurityKeySetUp(): Promise<boolean> {
     const { count } = await getDiscordWebauthnStatus();
-    if (count != null) return count > 0;
-
-    // Endpoint shapes unknown on this client build: fall back to the legacy
-    // locally-stored record so the gate still behaves.
-    try {
-        return (await DataStore.get(LEGACY_KEY_STORE)) != null;
-    } catch {
+    if (count == null) {
+        // Purge any leftover pre-Discord-flow local record so it can never
+        // make the UI claim a passkey the account doesn't have.
+        void DataStore.del(LEGACY_KEY_STORE).catch(() => null);
         return false;
     }
+    return count > 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -329,7 +332,58 @@ export async function setUpSecurityKey(name = "Limey V1"): Promise<void> {
     void DataStore.del(LEGACY_KEY_STORE).catch(() => null);
 }
 
-/** Remove only the legacy local record; Discord-side keys live on in your account. */
-export async function removeSecurityKey(): Promise<void> {
-    await DataStore.del(LEGACY_KEY_STORE);
+/** List the WebAuthn credentials registered with this Discord account. */
+async function fetchWebauthnCredentials(): Promise<any[]> {
+    try {
+        const res = await RestAPI.get({ url: WEBAUTHN_CREDENTIALS_ROUTE }) as any;
+        const body = res?.body;
+        if (Array.isArray(body)) return body;
+        if (Array.isArray(body?.credentials)) return body.credentials;
+    } catch (e) {
+        logger.warn("could not list Discord webauthn credentials", e);
+    }
+    throw new Error("Discord's security-key list came back in an unexpected shape.");
+}
+
+/**
+ * Remove the security key(s) V1 enrolled (via the real deletion endpoint
+ * `DELETE /users/@me/mfa/webauthn/credentials/{id}`), plus any leftover local
+ * record. Keys you enrolled yourself through Discord's settings are left
+ * alone — V1 cannot tell those apart from anything else it didn't create.
+ */
+export async function removeSecurityKey(name = "Limey V1"): Promise<void> {
+    await DataStore.del(LEGACY_KEY_STORE).catch(() => null);
+
+    const credentials = await fetchWebauthnCredentials();
+    const mine = credentials.filter(
+        c => typeof c?.name === "string" && c.name.toLowerCase().includes(name.toLowerCase()),
+    );
+    if (mine.length === 0) {
+        throw new Error(
+            "No Limey V1-enrolled key was found on this Discord account, so there is nothing for V1 to remove. "
+            + "Keys registered outside V1 are managed in User Settings → My Account.",
+        );
+    }
+
+    const attempt = (credId: string, headers?: Record<string, string>) => RestAPI.del({
+        url: `${WEBAUTHN_CREDENTIALS_ROUTE}/${encodeURIComponent(credId)}`,
+        headers,
+    } as any) as any;
+
+    for (const cred of mine) {
+        try {
+            await attempt(cred.id);
+        } catch (firstError: any) {
+            if (firstError?.body?.code !== MFA_REQUIRED) {
+                throw friendlyApiError(firstError, "Discord refused to remove the security key");
+            }
+            // Removing a key is itself a protected action: verify first.
+            const token = await completeWebauthnMfa(firstError);
+            try {
+                await attempt(cred.id, { "X-Discord-MFA-Authorization": token } as any);
+            } catch (secondError) {
+                throw friendlyApiError(secondError, "Discord refused to remove the security key even after verification");
+            }
+        }
+    }
 }
