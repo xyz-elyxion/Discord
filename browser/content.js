@@ -6,9 +6,7 @@ if (typeof browser === "undefined") {
 // (meta handshake + keybind forwarding) is the existing discord.com plumbing.
 const isLimeySite = /(^|\.)limey-discord\.onrender\.com$/.test(location.hostname) || location.hostname === "localhost";
 
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
+const setupRelay = () => {
         window.postMessage({
             type: "limeyV1:meta",
             meta: {
@@ -130,6 +128,15 @@ document.addEventListener(
                 }
             }
         }, false);
-    },
-    { once: true }
-);
+};
+
+// document_end scripts usually run before DOMContentLoaded, but can be
+// injected after it has already fired (slow/cached loads, SPA navigations).
+// Previously that silently dropped the entire relay — the site remote then
+// pinged a page with no listener and stayed "Searching for Limey V1…"
+// forever even with the extension installed. Run immediately when ready.
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupRelay, { once: true });
+} else {
+    setupRelay();
+}

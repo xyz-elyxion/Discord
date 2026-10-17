@@ -75,25 +75,38 @@
         window.postMessage({ type: "limeyV1:site", action: "command", command }, "*");
     }
 
-    //..."tries": keep pinging for a while — content scripts settle after install/reload.
+    // .."tries": keep pinging for a while — content scripts settle after install/reload.
+    // After the first burst fails we don't give up permanently: the Discord tab
+    // (and its Limey runtime) can still be booting, so retry on a slow cadence
+    // until a pong lands. Only re-announce the hint after the first burst.
+    let announced = false;
+    function onPong(event) {
+        if (event.source !== window) return;
+        const data = event.data;
+        if (!data || data.type !== "limeyV1:site:pong") return;
+        window.removeEventListener("message", onPong);
+        connected = true;
+        setStatus("connected", data.version);
+        buttons.forEach(b => { b.disabled = false; });
+    }
+
     function tryPing(attemptsLeft) {
-        const listener = (event) => {
-            if (event.source !== window) return;
-            const data = event.data;
-            if (!data || data.type !== "limeyV1:site:pong") return;
-            window.removeEventListener("message", listener);
-            clearTimeout(timer);
-            connected = true;
-            setStatus("connected", data.version);
-            buttons.forEach(b => { b.disabled = false; });
-        };
-        window.addEventListener("message", listener);
+        window.removeEventListener("message", onPong);
+        window.addEventListener("message", onPong);
         window.postMessage({ type: "limeyV1:site", action: "ping" }, "*");
 
-        const timer = setTimeout(() => {
-            window.removeEventListener("message", listener);
-            if (attemptsLeft > 0 && !connected) tryPing(attemptsLeft - 1);
-            else if (!connected) setStatus("searching");
+        setTimeout(() => {
+            if (connected) return;
+            if (attemptsLeft > 0) tryPing(attemptsLeft - 1);
+            else {
+                if (!announced) {
+                    announced = true;
+                    setStatus("searching");
+                }
+                // Slow background retries: 1 ping / 4s. Cheap (no network), and
+                // picks up the extension once the app tab finishes loading.
+                setTimeout(() => { if (!connected) tryPing(6); }, 4000);
+            }
         }, 900);
     }
 
