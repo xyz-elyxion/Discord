@@ -113,9 +113,20 @@ export async function setUpSecurityKey(user: { id: string; username: string; dis
                 // has to go through a real fingerprint / PIN / unlock step.
                 userVerification: "required"
             },
-            timeout: 60_000,
+            timeout: 120_000,
             attestation: "none",
         },
+    }).catch((e: unknown) => {
+        // Give NotAllowedError / timeout the human-readable explanation the
+        // browser error alone lacks.
+        if (e instanceof DOMException && e.name === "NotAllowedError") {
+            throw new Error(
+                "The passkey prompt was cancelled, timed out or blocked by the browser. "
+                + "Click the button again and complete the authenticator prompt "
+                + "(fingerprint / PIN / security key / Windows Hello).",
+            );
+        }
+        throw e;
     }) as PublicKeyCredential | null;
 
     if (!credential) throw new Error("The authenticator did not return a security key.");

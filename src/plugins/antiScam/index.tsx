@@ -230,9 +230,11 @@ async function logOutAllOtherDevices(): Promise<void> {
     let failed = 0;
     for (const session of others) {
         try {
+            // id_hash contains `/` and `=`; it must be percent-encoded, or the
+            // router only ever sees the segment up to the first `/` and 404s.
             await RestAPI.post({
-                url: `/users/@me/sessions/${session.id_hash}/logout`,
-                body: { },
+                url: `/users/@me/sessions/${encodeURIComponent(session.id_hash)}/logout`,
+                body: {},
             });
             done++;
         } catch (e: any) {
@@ -244,7 +246,7 @@ async function logOutAllOtherDevices(): Promise<void> {
 
     showToast(
         failed
-            ? `Anti-Scam: logged out ${done} device(s); ${failed} needed a Discord-side 2FA step.`
+            ? `Anti-Scam: logged out ${done} device(s); ${failed} failed (see console for details).`
             : `Anti-Scam: logged out all ${done} other device(s). This device is untouched.`,
         failed ? "failure" : "success",
     );
