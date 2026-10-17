@@ -16,11 +16,12 @@ const setupRelay = () => {
             }
         });
 
-        browser.runtime.onMessage.addListener(request => {
+        browser.runtime.onMessage.addListener((request, _sender, sendResponse) => {
             // Finished dragify leaves (already in page vocabulary) go straight
             // through: pins to the site, open/insert acks to both sides.
             if (request && (request.type === "limeyV1:dragify:incoming" || request.type === "limeyV1:dragify:ack")) {
                 window.postMessage(request);
+                sendResponse({ ok: true });
                 return;
             }
 
@@ -42,6 +43,7 @@ const setupRelay = () => {
                         seq: request.seq
                     });
                 }
+                sendResponse({ ok: true });
                 return;
             }
 
@@ -50,7 +52,15 @@ const setupRelay = () => {
                     type: "limeyV1:keybinds",
                     meta: request.command
                 });
+                sendResponse({ ok: true });
+                return;
             }
+
+            // Always answer: in Chrome, a listener that never responds makes
+            // the background's tabs.sendMessage promise REJECT ("message port
+            // closed"), which the site remote then reports as "no app" even
+            // though the command was delivered.
+            sendResponse({ ok: false });
         });
 
         window.addEventListener('message', function(event) {
