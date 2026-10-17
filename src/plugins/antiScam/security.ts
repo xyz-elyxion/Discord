@@ -6,38 +6,40 @@
 
 import * as DataStore from "@api/DataStore";
 import { Logger } from "@utils/Logger";
+import { RestAPI } from "@webpack/common";
 
 const logger = new Logger("AntiScam/SecurityKey");
 
 /**
- * Security key registry for Anti-Scam's destructive-account actions
- * ("log out all devices" in particular).
+ * Discord two-factor layer for Anti-Scam's destructive-account actions.
  *
- * Because logging out every device is a 2FA-class action, the user has to set
- * up a **V1 passkey** first: a real WebAuthn credential whose Relying Party id
- * is the origin the client runs on. When V1 is running in the Discord web app
- * that origin is discord.com, so the passkey genuinely lives on the
- * "discord.com" WebAuthn identity — "V1's own passkey connected to Discord".
- * The private key never leaves the authenticator; the plugin only stores the
- * credential id, and every destructive call is gated behind a user-verified
- * assertion, exactly like a 2FA prompt.
+ * "Log out all other devices" is an MFA-required action: Discord first rejects
+ * it with error code 60003 and hands out `body.mfa.ticket` plus a list of the
+ * available verification methods. One of those methods is `webauthn` — a
+ * *security key registered with Discord itself* (relying-party id
+ * `discord.com`), not a locally-minted certificate. The flow used here:
+ *
+ *   1. Run the protected request -> reject 60003 { mfa: { ticket, methods } }
+ *   2. navigator.credentials.get() with the challenge from the webauthn
+ *      method -> the user touches their Discord security key
+ *   3. POST /mfa/finish { ticket, mfa_type: "webauthn", data: <CredentialJSON> }
+ *      -> { token }
+ *   4. Retry the original request with
+ *      X-Discord-MFA-Authorization: <token>
+ *
+ * V1 therefore never fakes 2FA: the key that answers is the one Discord
+ * itself enrolled, and Discord verifies the assertion server-side.
  */
 
-const SECURITY_KEY_STORE = "AntiScamV1:securityKey";
+const LEGACY_KEY_STORE = "AntiScamV1:securityKey";
+/** Credential-creation/verification endpoint (MFA WebAuthn registry). */
+const WEBAUTHN_CREDENTIALS_ROUTE = "/users/@me/mfa/webauthn/credentials";
+/** Code Discord returns for "two factor required for this operation". */
+export const MFA_REQUIRED = 60003;
 
-export interface StoredSecurityKey {
-    /** Discord user id the key was minted for */
-    userId: string;
-    username: string;
-    /** base64url encoding of the credential's raw id */
-    credentialId: string;
-    /** WebAuthn Relying Party id the key was minted under (location.hostname) */
-    rpId: string;
-    createdAt: number;
-}
-
-const COSE_ALG_ES256 = -7;
-const COSE_ALG_ED25519 = -257;
+/* ------------------------------------------------------------------------- */
+/* base64url helpers                                                         */
+/* ------------------------------------------------------------------------- */
 
 function bytesToBase64url(bytes: Uint8Array): string {
     let binary = "";
@@ -53,146 +55,281 @@ function base64urlToBytes(value: string): Uint8Array<ArrayBuffer> {
     return bytes;
 }
 
+function bufferToBase64url(value: ArrayBuffer | null): string | null {
+    return value ? bytesToBase64url(new Uint8Array(value)) : null;
+}
+
 export function isWebAuthnSupported(): boolean {
     return typeof PublicKeyCredential !== "undefined"
         && typeof navigator?.credentials?.create === "function"
         && typeof navigator?.credentials?.get === "function";
 }
 
-/** Read the locally stored passkey record, if one exists. */
-export async function getStoredSecurityKey(): Promise<StoredSecurityKey | null> {
+function friendlyApiError(e: any, fallback: string): Error {
+    const message = e?.body?.message ?? e?.message ?? String(e);
+    const code = e?.body?.code;
+    return new Error(code != null ? `${fallback} (${message}, code ${code})` : `${fallback} (${message})`);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Where Discord keeps its registered security keys                          */
+/* ------------------------------------------------------------------------- */
+
+interface WebauthnStatus {
+    /** Number of webauthn credentials enrolled with the Discord account. */
+    count: number | null;
+}
+
+/**
+ * Ask the account how many WebAuthn security keys are enrolled. Tolerates the
+ * two response shapes in the wild (`webauthn: { credentials: [...] }` vs a
+ * flat credential list) and returns `null` when the endpoints answer in a
+ * shape we do not recognise, so callers can fall back instead of fake-failing.
+ */
+export async function getDiscordWebauthnStatus(): Promise<WebauthnStatus> {
     try {
-        const stored = await DataStore.get<StoredSecurityKey>(SECURITY_KEY_STORE);
-        return stored ?? null;
-    } catch (e) {
-        logger.warn("failed to read security key record", e);
-        return null;
-    }
-}
-
-export async function isSecurityKeySetUp(): Promise<boolean> {
-    return (await getStoredSecurityKey()) !== null;
-}
-
-/**
- * Mint a new V1 passkey through the platform authenticator and record its
- * credential id locally. Must be called from a real user interaction
- * (the settings button click supplies that).
- */
-export async function setUpSecurityKey(user: { id: string; username: string; displayName?: string; }): Promise<StoredSecurityKey> {
-    if (!isWebAuthnSupported()) {
-        throw new Error("WebAuthn is not available here — security keys need a browser or desktop client that supports passkeys.");
-    }
-
-    // Hash the user id so the authenticator never sees the raw Discord id and
-    // its length is a fixed 32 bytes (raw user ids can exceed the 64-byte cap).
-    const userIdDigest = new Uint8Array(
-        await crypto.subtle.digest("SHA-256", new TextEncoder().encode(user.id)),
-    );
-
-    const challenge = crypto.getRandomValues(new Uint8Array(32));
-
-    const credential = await navigator.credentials.create({
-        publicKey: {
-            challenge,
-            rp: {
-                id: globalThis.location.hostname,
-                name: "Limey V1"
-            },
-            user: {
-                id: userIdDigest,
-                name: `${user.username}.v1.annotate`,
-                displayName: user.displayName ?? "Limey V1 — Anti-Scam security key"
-            },
-            pubKeyCredParams: [
-                { type: "public-key", alg: COSE_ALG_ES256 },
-                { type: "public-key", alg: COSE_ALG_ED25519 }
-            ],
-            authenticatorSelection: {
-                // "required" is the core of the 2FA-like gate: every assertion
-                // has to go through a real fingerprint / PIN / unlock step.
-                userVerification: "required"
-            },
-            timeout: 120_000,
-            attestation: "none",
-        },
-    }).catch((e: unknown) => {
-        // Give NotAllowedError / timeout the human-readable explanation the
-        // browser error alone lacks.
-        if (e instanceof DOMException && e.name === "NotAllowedError") {
-            throw new Error(
-                "The passkey prompt was cancelled, timed out or blocked by the browser. "
-                + "Click the button again and complete the authenticator prompt "
-                + "(fingerprint / PIN / security key / Windows Hello).",
-            );
+        const res = await RestAPI.get({ url: "/users/@me/mfa/methods" }) as any;
+        const body = res?.body ?? {};
+        const { webauthn } = body;
+        if (Array.isArray(webauthn?.credentials)) return { count: webauthn.credentials.length };
+        if (Array.isArray(webauthn)) return { count: webauthn.length };
+        if (typeof webauthn?.enabled === "boolean") return { count: webauthn.enabled ? 1 : 0 };
+        if (Array.isArray(body.authenticator_types)) {
+            // authenticator_types: 1 = webauthn per Discord's user objects
+            return { count: body.authenticator_types.includes(1) ? 1 : 0 };
         }
-        throw e;
-    }) as PublicKeyCredential | null;
-
-    if (!credential) throw new Error("The authenticator did not return a security key.");
-
-    const stored: StoredSecurityKey = {
-        userId: user.id,
-        username: user.username,
-        credentialId: bytesToBase64url(new Uint8Array(credential.rawId as ArrayBuffer)),
-        rpId: globalThis.location.hostname,
-        createdAt: Date.now(),
-    };
-    await DataStore.set(SECURITY_KEY_STORE, stored);
-    return stored;
-}
-
-/** Remove the stored V1 passkey record (the authenticator state is untouched). */
-export async function removeSecurityKey(): Promise<void> {
-    await DataStore.del(SECURITY_KEY_STORE);
-}
-
-async function requestSecurityKeyAssertion(): Promise<PublicKeyCredential | null> {
-    if (!isWebAuthnSupported()) {
-        throw new Error("WebAuthn is not available in this environment.");
+        return { count: null };
+    } catch (primaryErr: any) {
+        // Some builds only expose the credential collection directly.
+        try {
+            const res = await RestAPI.get({ url: WEBAUTHN_CREDENTIALS_ROUTE }) as any;
+            const body = res?.body;
+            if (Array.isArray(body)) return { count: body.length };
+            if (Array.isArray(body?.credentials)) return { count: body.credentials.length };
+            return { count: null };
+        } catch (secondaryErr) {
+            logger.warn("could not read Discord webauthn status", primaryErr, secondaryErr);
+            return { count: null };
+        }
     }
-    const stored = await getStoredSecurityKey();
-    if (!stored) {
-        throw new Error("No V1 security key is set up for this account yet — set one up in the Anti-Scam settings first.");
-    }
-    if (stored.rpId !== globalThis.location.hostname) {
-        throw new Error(`This V1 security key was made on ${stored.rpId}, so it cannot be used from ${globalThis.location.hostname}.`);
-    }
-
-    const challenge = crypto.getRandomValues(new Uint8Array(32));
-    return navigator.credentials.get({
-        publicKey: {
-            challenge,
-            rpId: stored.rpId,
-            allowCredentials: [{
-                type: "public-key",
-                id: base64urlToBytes(stored.credentialId),
-            }],
-            userVerification: "required",
-            timeout: 60_000,
-        },
-    }) as Promise<PublicKeyCredential | null>;
 }
 
 /**
- * Require the registered V1 passkey before a destructive action runs.
- * Resolves when a user-verified WebAuthn assertion came back, throws
- * otherwise. This is the "2FA prompt" equivalent for plugin-driven account
- * actions.
+ * Whether this Discord account already carries at least one security key
+ * Discord can challenge for MFA.
  */
-export async function requireSecurityKey(): Promise<void> {
-    const assertion = await requestSecurityKeyAssertion();
+export async function isSecurityKeySetUp(): Promise<boolean> {
+    const { count } = await getDiscordWebauthnStatus();
+    if (count != null) return count > 0;
 
-    if (!assertion || !assertion.response) {
-        throw new Error("V1 security key challenge failed: no authenticator assertion was returned.");
+    // Endpoint shapes unknown on this client build: fall back to the legacy
+    // locally-stored record so the gate still behaves.
+    try {
+        return (await DataStore.get(LEGACY_KEY_STORE)) != null;
+    } catch {
+        return false;
     }
-    const clientData = JSON.parse(
-        new TextDecoder().decode(assertion.response.clientDataJSON),
-    ) as { type?: string; origin?: string; userVerification?: string; };
-    if (clientData.type !== "webauthn.get") {
-        throw new Error("V1 security key challenge failed: wrong WebAuthn ceremony type.");
+}
+
+/* ------------------------------------------------------------------------- */
+/* Completing a Discord MFA challenge with the registered security key        */
+/* ------------------------------------------------------------------------- */
+
+interface WebauthnMethod {
+    type?: string;
+    /** Stringified JSON request options, per Discord's mfa methods payload. */
+    challenge?: string;
+}
+
+function parseChallenge(raw: string): PublicKeyCredentialRequestOptions {
+    const parsed = JSON.parse(raw) as any;
+    const options = parsed?.publicKey && typeof parsed.publicKey === "object" ? parsed.publicKey : parsed;
+    if (typeof options?.challenge !== "string") {
+        throw new Error("Discord's security-key challenge could not be parsed.");
     }
-    if (clientData.origin !== globalThis.location.origin) {
-        throw new Error("V1 security key challenge failed: assertion came from an unexpected origin.");
+    return {
+        challenge: base64urlToBytes(options.challenge),
+        rpId: typeof options.rpId === "string" ? options.rpId : "discord.com",
+        timeout: typeof options.timeout === "number" ? options.timeout : 120_000,
+        userVerification: options.userVerification ?? "required",
+        allowCredentials: Array.isArray(options.allowCredentials)
+            ? options.allowCredentials.map((cred: any) => ({
+                type: typeof cred?.type === "string" ? cred.type : "public-key",
+                id: base64urlToBytes(cred.id),
+            }))
+            : [],
+    };
+}
+
+/**
+ * Given the 60003 rejection of a protected request, complete the webauthn
+ * challenge with the user's Discord-registered security key and return the
+ * `X-Discord-MFA-Authorization` token from `/mfa/finish`.
+ */
+export async function completeWebauthnMfa(error: any): Promise<string> {
+    if (!isWebAuthnSupported()) {
+        throw new Error("This client has no WebAuthn support, so V1 cannot answer Discord's security-key challenge.");
     }
+
+    const body = error?.body ?? error;
+    if (body?.code !== MFA_REQUIRED) {
+        throw friendlyApiError(error, "Discord rejected the session logout");
+    }
+    const ticket = body?.mfa?.ticket;
+    if (typeof ticket !== "string" || !ticket) {
+        throw new Error("Discord requires two-factor for this action, but the response carried no MFA ticket.");
+    }
+    const webauthn = (body?.mfa?.methods as WebauthnMethod[] | undefined)
+        ?.find(m => m?.type === "webauthn" && typeof m.challenge === "string");
+    if (!webauthn) {
+        const available = (body?.mfa?.methods as any[] | undefined)?.map(m => m?.type).filter(Boolean).join(", ");
+        throw new Error(
+            "Two-factor is required, but this account has no security key (webauthn) enrolled with Discord"
+            + (available ? ` — Discord only offers: ${available}` : "")
+            + ". Enrol one in Discord's settings or press 'Setup security key with Discord' in Anti-Scam settings first.",
+        );
+    }
+
+    let assertion: PublicKeyCredential | null;
+    try {
+        assertion = await navigator.credentials.get({
+            publicKey: parseChallenge(webauthn.challenge!),
+        }) as PublicKeyCredential | null;
+    } catch (e) {
+        throw new Error(
+            "The security-key prompt was cancelled, timed out or blocked. Click the button again and complete the prompt with your Discord security key.",
+        );
+    }
+    if (!assertion?.response) throw new Error("No authenticator assertion came back; the security-key prompt was not completed.");
+
+    const { response } = assertion;
+    const credentialJson = JSON.stringify({
+        id: assertion.id,
+        rawId: bufferToBase64url(assertion.rawId as ArrayBuffer),
+        type: assertion.type,
+        response: {
+            authenticatorData: bufferToBase64url((response as any).authenticatorData ?? null),
+            clientDataJSON: bufferToBase64url(response.clientDataJSON),
+            signature: bufferToBase64url((response as any).signature ?? null),
+            userHandle: bufferToBase64url((response as any).userHandle ?? null),
+        },
+    });
+
+    let finish: any;
+    try {
+        finish = await RestAPI.post({
+            url: "/mfa/finish",
+            body: { ticket, mfa_type: "webauthn", data: credentialJson },
+        }) as any;
+    } catch (e) {
+        throw friendlyApiError(e, "Discord refused the security-key assertion");
+    }
+    const token = finish?.body?.token ?? (finish as any)?.token;
+    if (typeof token !== "string" || !token) {
+        throw new Error("Discord did not return an MFA token after the security-key verification.");
+    }
+    return token;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Enrolling a security key WITH Discord                                     */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Register a new WebAuthn security key on the Discord account (rpId
+ * `discord.com`), so it — not a locally minted key — is what later MFA
+ * prompts run against. Enrolling credentials is itself an MFA-protected
+ * action, so the flow reuses completeWebauthnMfa when Discord demands 2FA.
+ */
+export async function setUpSecurityKey(name = "Limey V1"): Promise<void> {
+    if (!isWebAuthnSupported()) {
+        throw new Error("WebAuthn is not available in this environment — use a browser or desktop client that supports security keys.");
+    }
+
+    const attempt = (headers?: Record<string, string>) => RestAPI.post({
+        url: WEBAUTHN_CREDENTIALS_ROUTE,
+        body: { name },
+        headers,
+    } as any) as any;
+
+    let res: any;
+    try {
+        res = await attempt();
+    } catch (firstError: any) {
+        if (firstError?.body?.code !== MFA_REQUIRED) {
+            throw friendlyApiError(firstError, "Discord refused to start security-key enrolment");
+        }
+        // Protected action: verify with an already-enrolled method first.
+        const token = await completeWebauthnMfa(firstError);
+        try {
+            res = await attempt({ "X-Discord-MFA-Authorization": token } as any);
+        } catch (secondError) {
+            throw friendlyApiError(secondError, "Discord refused security-key enrolment even after verification");
+        }
+    }
+
+    // Some enrolment responses hand the registration challenge instead of
+    // instant-creating; run the WebAuthn ceremony and finish it up.
+    const challengeStr = res?.body?.challenge;
+    if (typeof challengeStr === "string" && challengeStr) {
+        const parsed = JSON.parse(challengeStr) as any;
+        const options = parsed?.publicKey && typeof parsed.publicKey === "object" ? parsed.publicKey : parsed;
+        let credential: PublicKeyCredential | null;
+        try {
+            credential = await navigator.credentials.create({
+                publicKey: {
+                    challenge: base64urlToBytes(options.challenge),
+                    rp: { id: options.rpId ?? "discord.com", name: "Discord" },
+                    user: {
+                        id: base64urlToBytes(options.user?.id ?? ""),
+                        name: options.user?.name ?? "discord",
+                        displayName: options.user?.displayName ?? "Discord security key",
+                    },
+                    pubKeyCredParams: Array.isArray(options.pubKeyCredParams) && options.pubKeyCredParams.length
+                        ? options.pubKeyCredParams
+                        : [{ type: "public-key", alg: -7 }],
+                    authenticatorSelection: options.authenticatorSelection ?? { userVerification: "required" },
+                    timeout: typeof options.timeout === "number" ? options.timeout : 120_000,
+                    attestation: options.attestation ?? "none",
+                    excludeCredentials: Array.isArray(options.excludeCredentials)
+                        ? options.excludeCredentials.map((c: any) => ({
+                            type: c.type ?? "public-key",
+                            id: base64urlToBytes(c.id),
+                        }))
+                        : [],
+                },
+            }) as PublicKeyCredential | null;
+        } catch {
+            throw new Error("The security-key prompt was cancelled or timed out — try again and complete the prompt.");
+        }
+        if (!credential) throw new Error("No authenticator credential came back; the prompt was not completed.");
+
+        try {
+            await RestAPI.post({
+                url: WEBAUTHN_CREDENTIALS_ROUTE,
+                body: {
+                    name,
+                    credential: JSON.stringify({
+                        id: credential.id,
+                        rawId: bufferToBase64url(credential.rawId as ArrayBuffer),
+                        type: credential.type,
+                        response: {
+                            attestationObject: bufferToBase64url((credential.response as any).attestationObject ?? null),
+                            clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+                        },
+                    }),
+                },
+            }) as any;
+        } catch (finalError) {
+            throw friendlyApiError(finalError, "Discord refused the new security key credential");
+        }
+    }
+    // Clean up the pre-Discord-flow local record so the legacy fallback never
+    // claims a passkey that doesn't exist on the account anymore.
+    void DataStore.del(LEGACY_KEY_STORE).catch(() => null);
+}
+
+/** Remove only the legacy local record; Discord-side keys live on in your account. */
+export async function removeSecurityKey(): Promise<void> {
+    await DataStore.del(LEGACY_KEY_STORE);
 }

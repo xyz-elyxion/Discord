@@ -15,10 +15,11 @@ import { Constants, FluxDispatcher, React, RelationshipStore, RestAPI, showToast
 
 import { scamMatch } from "./patterns";
 import {
+    completeWebauthnMfa,
     isSecurityKeySetUp,
     isWebAuthnSupported,
+    MFA_REQUIRED,
     removeSecurityKey,
-    requireSecurityKey,
     setUpSecurityKey
 } from "./security";
 
@@ -211,11 +212,19 @@ async function purgeScamMessages(): Promise<void> {
 }
 
 /**
- * Log out every other session. Requires the V1 passkey first; the session on
- * the machine V1 is running from is always kept.
+ * Log out every other session. Runs Discord's real MFA flow: when Discord
+ * rejects the protected request with code 60003 the user verifies with their
+ * *Discord-registrered* security key, and the requests are retried with the
+ * resulting X-Discord-MFA-Authorization token. The session on the machine V1
+ * runs from is always kept.
  */
 async function logOutAllOtherDevices(): Promise<void> {
-    await requireSecurityKey(); // throws if unset / un-authenticated
+    if (!(await isSecurityKeySetUp())) {
+        throw new Error(
+            "Your Discord account has no security key enrolled — set one up with 'Setup security key with Discord' in Anti-Scam settings first "
+            + "(logging out all devices requires two-factor).",
+        );
+    }
 
     const data = await RestAPI.get({ url: Constants.Endpoints.AUTH_SESSIONS }) as any;
     const sessions: any[] = data?.body?.user_sessions ?? [];
@@ -228,18 +237,38 @@ async function logOutAllOtherDevices(): Promise<void> {
     showToast(`Anti-Scam: logging out ${others.length} other device(s)…`, "message");
     let done = 0;
     let failed = 0;
+    let mfaToken: string | null = null;
     for (const session of others) {
         try {
             // id_hash contains `/` and `=`; it must be percent-encoded, or the
             // router only ever sees the segment up to the first `/` and 404s.
+            const headers = mfaToken ? { "X-Discord-MFA-Authorization": mfaToken } : undefined;
             await RestAPI.post({
                 url: `/users/@me/sessions/${encodeURIComponent(session.id_hash)}/logout`,
                 body: {},
-            });
+                headers,
+            } as any);
             done++;
         } catch (e: any) {
-            failed++;
-            logger.warn("failed to log out session", session.id_hash, e);
+            if (e?.body?.code === MFA_REQUIRED && !mfaToken) {
+                // Discord demands 2FA: complete the webauthn challenge with
+                // the user's own Discord security key, then retry everything.
+                mfaToken = await completeWebauthnMfa(e);
+                try {
+                    await RestAPI.post({
+                        url: `/users/@me/sessions/${encodeURIComponent(session.id_hash)}/logout`,
+                        body: {},
+                        headers: { "X-Discord-MFA-Authorization": mfaToken },
+                    } as any);
+                    done++;
+                } catch (retryError) {
+                    failed++;
+                    logger.warn("failed to log out session even with MFA token", session.id_hash, retryError);
+                }
+            } else {
+                failed++;
+                logger.warn("failed to log out session", session.id_hash, e);
+            }
         }
         await sleep(150);
     }
@@ -382,9 +411,9 @@ function SecurityKeyButton() {
                         showToast("Anti-Scam: V1 passkey removed.", "success");
                     } else {
                         const me = UserStore.getCurrentUser();
-                        if (!me) throw new Error("log in first so V1 knows which account to bind the key to.");
-                        await setUpSecurityKey({ id: me.id, username: me.username ?? "" });
-                        showToast("Anti-Scam: V1 passkey linked to your Discord account — 2FA-class actions are now available.", "success");
+                        if (!me) throw new Error("log in first so V1 can add the security key to this account.");
+                        await setUpSecurityKey();
+                        showToast("Anti-Scam: security key enrolled with Discord — 2FA-class actions are now available.", "success");
                     }
                 } catch (e: unknown) {
                     logger.warn("V1 passkey setup failed", e);
@@ -403,7 +432,7 @@ function SecurityKeyButton() {
                 cursor: isWebAuthnSupported() ? (busy ? "wait" : "pointer") : "not-allowed",
             }}
         >
-            {busy ? "Waiting for your authenticator…" : (hasKey ? "Remove V1 passkey" : "Set up V1 passkey")}
+            {busy ? "Waiting for your authenticator…" : (hasKey ? "Remove V1 passkey" : "Set up security key with Discord")}
         </button>
     );
 }
@@ -430,7 +459,7 @@ function LogoutDevicesButton() {
                 cursor: busy ? "wait" : "pointer",
             }}
         >
-            {busy ? "Logging out…" : "Log out all other devices (passkey required)"}
+            {busy ? "Logging out…" : "Log out all other devices (2FA required)"}
         </button>
     );
 }
