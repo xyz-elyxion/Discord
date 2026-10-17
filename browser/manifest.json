@@ -1,5 +1,7 @@
 {
     "manifest_version": 3,
+    "version": "1.0.0",
+    "version_name": "1.0.0",
     "minimum_chrome_version": "111",
     "name": "Limey V1 Web",
     "description": "The cutest Discord mod now in your browser",
