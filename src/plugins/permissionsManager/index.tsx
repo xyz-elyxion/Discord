@@ -7,7 +7,6 @@
 import { DataStore } from "@api/index";
 import { definePluginSettings, PlainSettings } from "@api/Settings";
 import { BaseText } from "@components/BaseText";
-import { Button } from "@components/Button";
 import { Card } from "@components/Card";
 import { HeadingTertiary } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
@@ -84,7 +83,14 @@ export function confirmEnable(plugin: { name: string; description: string; permi
         Alerts.show({
             title: `Hold up — ${plugin.name} wants permissions`,
             body: (
-                <div>
+                // Long permission lists (e.g. AntiScam declares four) used to
+                // overflow past the screen edge with no way to reach the
+                // buttons; clip to the alert and scroll inside instead.
+                <div style={{
+                    maxHeight: "min(60vh, 480px)",
+                    overflowY: "auto",
+                    paddingRight: "4px",
+                }}>
                     <Paragraph>
                         {plugin.description}
                     </Paragraph>
