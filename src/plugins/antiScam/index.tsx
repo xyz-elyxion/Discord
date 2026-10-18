@@ -408,6 +408,19 @@ async function repairSelfScam(message: any, rules: string[]): Promise<void> {
     // through, its entry must not make the purge delete a non-message.
     if (entryWasRemoved) markSelfScamRemoved(message.id);
 
+    // Logout On Detect runs strictly after Delete On Detect so the scam is
+    // fully deleted before the session that sent it gets signed out (and so a
+    // failed delete still triggers the logout — the device must go regardless).
+    if (settings.store.logoutOnDetect) {
+        try {
+            await logOutAllOtherDevices();
+            logger.info("logout-on-detect completed after self-scam handling");
+        } catch (e) {
+            logger.warn("logout-on-detect failed", e);
+            showToast(`AntiScam logout-on-detect failed: ${e instanceof Error ? e.message : String(e)}`, "failure");
+        }
+    }
+
     showToast(
         `AntiScam: a message was sent FROM YOUR ACCOUNT matching scam rules (${rules.join(", ")}) — your account may be compromised. `
         + `Unignored ${unignored} recipient(s) of ${type === ChannelType.GROUP_DM ? "that group DM" : "that DM"}.${deletedNote} `
@@ -605,6 +618,12 @@ const settings = definePluginSettings({
         default: false,
         restartNeeded: false,
     },
+    logoutOnDetect: {
+        type: OptionType.BOOLEAN,
+        description: "After Delete On Detect handles an own-account scam, automatically run the bulk logout of all other devices (needs your V1/Discord security key — one touch confirms).",
+        default: false,
+        restartNeeded: false,
+    },
     purgeAction: {
         type: OptionType.COMPONENT,
         description: "Unignores every user V1 recorded a scam for, then deletes every recorded scam message that was sent from YOUR account and clears the log. Never deletes other people's messages — those are flagged only.",
@@ -624,7 +643,7 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "AntiScam",
-    description: "Flags the known scam-bot patterns from AutoMod (cam bait, sexual invite links, fake steam gift markdown, mimic domains, attachment-image walls) in messages you can see — 🚫 Scam decoration plus an optional toast. Other people's scam messages are flagged only, never deleted; a matching message sent FROM YOUR OWN account unignores the DM/group-DM recipients (and with Delete On Detect deletes just that message of yours). Optionally records the scams in a log so one click can unignore their senders, and can log out all other devices once you've linked a V1 passkey (2FA-class action).",
+    description: "Flags the known scam-bot patterns from AutoMod (cam bait, sexual invite links, fake steam gift markdown, mimic domains, attachment-image walls) in messages you can see — 📍 Scam decoration plus an optional toast. Other people's scam messages are flagged only, never deleted; a matching message sent FROM YOUR OWN account unignores the DM/group-DM recipients (and with Delete On Detect deletes just that message of yours, optionally followed by a bulk logout of all other devices). Optionally records the scams in a log so one click can unignore their senders and delete your own recorded ones, and can log out all other devices once you've linked a V1 passkey (2FA-class action).",
     tags: ["Utility", "Media"],
     searchTerms: ["anti scam", "scam", "detect", "automod", "steam gift", "phishing", "nsfw invite", "passkey", "sessions"],
     authors: [Devs.Limey],
@@ -645,7 +664,7 @@ export default definePlugin({
         {
             id: "logOutOtherDevices",
             title: "Log out every other Discord device",
-            description: "Runs the Discord endpoint that signs out every session except the one V1 runs on, after the passkey check.",
+            description: "Runs the Discord endpoint that signs out every session except the one V1 runs on, after the passkey check — manually, or automatically after Delete On Detect (Logout On Detect).",
             risk: "Signs out all other devices of your Discord account in one go; make sure you understand that first."
         },
         {
