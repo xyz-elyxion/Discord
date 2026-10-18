@@ -7,11 +7,13 @@
 import * as DataStore from "@api/DataStore";
 import { addMessageDecoration, removeMessageDecoration } from "@api/MessageDecorations";
 import { definePluginSettings } from "@api/Settings";
+import type { Channel } from "@limeyV1/discord-types";
+import { ChannelType } from "@limeyV1/discord-types/enums";
 import { Devs } from "@utils/constants";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByProps } from "@webpack";
-import { Constants, FluxDispatcher, React, RelationshipStore, RestAPI, showToast, UserStore } from "@webpack/common";
+import { ChannelStore, Constants, FluxDispatcher, React, RelationshipStore, RestAPI, showToast, UserStore } from "@webpack/common";
 
 import { scamMatch } from "./patterns";
 import {
@@ -352,8 +354,44 @@ const onMessageCreate = (e: any) => {
                 err => logger.warn("failed to auto-delete scam message", err),
             );
         }
+        return;
     }
+
+    // A matching message from THIS account: the classic hijacked-bot case —
+    // someone/something sent the MrBeast-style scam AS you, e.g. to a friend
+    // you've previously ignored. Damage control: unignore the recipients and
+    // wave a loud flag about the compromise.
+    if (me) void repairSelfScam(message, rules);
 };
+
+/**
+ * Compensation for a hijacked session sending scam AS this account: unignore
+ * every recipient of the DM/group-DM it landed in, so the friends the scam
+ * was fired at can see your real messages again.
+ */
+async function repairSelfScam(message: any, rules: string[]): Promise<void> {
+    const channel: Channel | undefined = ChannelStore.getChannel?.(message.channel_id ?? message.channelId) as Channel | undefined;
+    if (!channel) return;
+
+    const type = channel.type as number;
+    // Guild channels are deliberately excluded: a scam-pattern match on a
+    // guild message must not silently unignore members over a false positive.
+    if (type !== ChannelType.DM && type !== ChannelType.GROUP_DM) return;
+
+    const recipients = (channel.recipients ?? []).filter(id => id && id !== message.author.id);
+    if (recipients.length === 0) return;
+
+    let unignored = 0;
+    for (const id of recipients) {
+        if (await unignoreUser(id)) unignored++;
+    }
+
+    showToast(
+        `AntiScam: a message was sent FROM YOUR ACCOUNT matching scam rules (${rules.join(", ")}) — your account may be compromised. `
+        + `Unignored ${unignored} recipient(s) of ${type === ChannelType.GROUP_DM ? "that group DM" : "that DM"}. Log out all other devices and change your password.`,
+        "failure",
+    );
+}
 
 /* ------------------------------------------------------------------------- */
 /* Inline decoration + settings UI                                           */
