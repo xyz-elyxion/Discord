@@ -34,11 +34,14 @@ const PURGE_LOG_CAP = 200;
 export interface PurgeLogEntry {
     channelId: string;
     messageId: string;
-    /** Sender whose message got flagged */
+    /** Sender whose message got flagged — the recording client's own user
+     *  id marks an entry as a self-scam (from the hijacked-account case). */
     userId: string;
     username?: string;
     rules: string[];
     at: number;
+    /** Set for entries whose message V1 deleted (own messages only). */
+    removed?: boolean;
 }
 
 let purgeLog: PurgeLogEntry[] = [];
@@ -62,7 +65,7 @@ async function loadPurgeLog(): Promise<void> {
     }
 }
 
-async function rememberScam(message: any, rules: string[]): Promise<void> {
+async function rememberScam(message: any, rules: string[], isSelf = false): Promise<void> {
     const entry: PurgeLogEntry = {
         channelId: message.channel_id ?? message.channelId,
         messageId: message.id,
@@ -70,7 +73,8 @@ async function rememberScam(message: any, rules: string[]): Promise<void> {
         username: message.author.username,
         rules,
         at: Date.now(),
-    };
+        ...(isSelf ? { removed: false } : {}),
+    } as PurgeLogEntry;
     purgeLog = [entry, ...purgeLog.filter(e => e.messageId !== entry.messageId)].slice(0, PURGE_LOG_CAP);
     persistPurgeLog();
 }
@@ -154,11 +158,13 @@ async function modRestDeleteRelationship(userId: string): Promise<void> {
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 /**
- * Unignores every user whose scam V1 recorded and clears the log. Other
- * people's messages are NEVER deleted — incoming scams are only flagged; the
- * only message V1 ever deletes is your own (see repairSelfScam).
+ * Unignores every user whose scam V1 recorded, deletes every recorded scam
+ * message that was sent from THIS account (self-scam entries only), and
+ * clears the log. Other people's messages are NEVER deleted — incoming scams
+ * are flagged only.
  */
 async function purgeScamMessages(): Promise<void> {
+    const me = UserStore.getCurrentUser()?.id;
     const entries = purgeLog;
     if (entries.length === 0) {
         showToast("Anti-Scam: no recorded scam messages in the log.", "message");
@@ -173,12 +179,40 @@ async function purgeScamMessages(): Promise<void> {
         if (await unignoreUser(userId)) unignored++;
     }
 
-    purgeLog = [];
+    // Only entries whose sender is this account are deletable — the
+    // hijacked-session messages V1 recorded. Author-of-record check keeps the
+    // guarantee: no other user's message is ever touched.
+    const mine = me ? entries.filter(e => e.userId === me && !e.removed) : [];
+    let deleted = 0;
+    let failed = 0;
+    for (const entry of mine) {
+        try {
+            await RestAPI.del({ url: `/channels/${entry.channelId}/messages/${entry.messageId}` });
+            entry.removed = true;
+            deleted++;
+        } catch (e: any) {
+            const code = e?.body?.code ?? e?.code;
+            // 10008/20018/50003: already gone or channel not found — harmless.
+            if (code === 10008 || code === 20018 || code === 50003) {
+                entry.removed = true;
+            } else {
+                failed++;
+                logger.warn("failed to delete own scam message", entry.messageId, e);
+            }
+        }
+        await sleep(300); // Discord's message-delete rate limit is ~5/5s per channel
+    }
+
+    // Cleared entries whose own-message counterpart was deleted (or that were
+    // never own messages); failed own deletes stay so the next purge retries.
+    purgeLog = purgeLog.filter(e => e.removed === false);
     void DataStore.set(PURGE_LOG_STORE, purgeLog).catch(() => null);
 
     showToast(
-        `Anti-Scam purge: ${unignored} user(s) unignored, log of ${entries.length} scam(s) cleared. Other people's messages are left untouched (flagged only).`,
-        "success",
+        failed
+            ? `Anti-Scam purge: ${unignored} user(s) unignored, ${deleted} of your message(s) deleted, ${failed} of yours could not be deleted (log keeps retrying). Other people's messages are never touched.`
+            : `Anti-Scam purge: ${unignored} user(s) unignored, ${deleted} of your scam message(s) deleted, log of ${entries.length} scam(s) cleared. Other people's messages are left untouched (flagged only).`,
+        failed ? "failure" : "success",
     );
 }
 
@@ -324,7 +358,13 @@ const onMessageCreate = (e: any) => {
     // someone/something sent the MrBeast-style scam AS you, e.g. to a friend
     // you've previously ignored. Damage control: unignore the recipients and
     // wave a loud flag about the compromise.
-    if (me) void repairSelfScam(message, rules);
+    if (me) {
+        // Record it so the purge action can delete this own message later.
+        if (settings.store.recordScamLog) {
+            void rememberScam(message, rules, true);
+        }
+        void repairSelfScam(message, rules);
+    }
 };
 
 /**
@@ -353,15 +393,20 @@ async function repairSelfScam(message: any, rules: string[]): Promise<void> {
     }
 
     let deletedNote = "";
+    let entryWasRemoved = false;
     if (settings.store.deleteOnDetect) {
         try {
             await RestAPI.del({ url: `/channels/${channelId}/messages/${message.id}` });
             deletedNote = " The scam message itself was deleted (your own message).";
+            entryWasRemoved = true;
         } catch (e) {
             logger.warn("failed to auto-delete own scam message", e);
             deletedNote = " The scam message could not be deleted — remove it manually.";
         }
     }
+    // Keep the purge log in sync: when the instant delete already went
+    // through, its entry must not make the purge delete a non-message.
+    if (entryWasRemoved) markSelfScamRemoved(message.id);
 
     showToast(
         `AntiScam: a message was sent FROM YOUR ACCOUNT matching scam rules (${rules.join(", ")}) — your account may be compromised. `
@@ -369,6 +414,16 @@ async function repairSelfScam(message: any, rules: string[]): Promise<void> {
         + "Log out all other devices and change your password.",
         "failure",
     );
+}
+
+/** Flag the purge-log entry for a successfully deleted (or otherwise gone)
+ *  own message so the purge action won't retry a dead delete. */
+function markSelfScamRemoved(messageId: string): void {
+    const entry = purgeLog.find(e => e.messageId === messageId);
+    if (entry) {
+        entry.removed = true;
+        persistPurgeLog();
+    }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -423,7 +478,7 @@ function PurgeButton() {
                 cursor: busy ? "wait" : "pointer",
             }}
         >
-            {busy ? "Clearing…" : "Unignore senders + clear scam log"}
+            {busy ? "Cleaning up…" : "Unignore senders + delete my scam messages"}
         </button>
     );
 }
@@ -534,7 +589,7 @@ const settings = definePluginSettings({
     },
     recordScamLog: {
         type: OptionType.BOOLEAN,
-        description: "Record detected scam messages so the purge action can delete them (keeps the latest 200).",
+        description: "Record detected scam messages so the purge action can delete yours and unignore their senders (keeps the latest 200). Your own matching messages are recorded too.",
         default: true,
         restartNeeded: false,
     },
@@ -552,7 +607,7 @@ const settings = definePluginSettings({
     },
     purgeAction: {
         type: OptionType.COMPONENT,
-        description: "Unignores every user V1 recorded a scam for and clears the scam log. Never deletes other people's messages — those are flagged only.",
+        description: "Unignores every user V1 recorded a scam for, then deletes every recorded scam message that was sent from YOUR account and clears the log. Never deletes other people's messages — those are flagged only.",
         component: () => <PurgeButton />,
     },
     securityKeyAction: {
