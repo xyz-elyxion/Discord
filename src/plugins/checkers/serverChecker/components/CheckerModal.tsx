@@ -7,7 +7,7 @@
 import "./../styles.css";
 
 import ErrorBoundary from "@components/ErrorBoundary";
-import { analyzeGuild, analyzeInvite, GuildAnalysis, isAnalyzing } from "@plugins/serverChecker/analysis";
+import { analyzeGuild, analyzeInvite, GuildAnalysis, isAnalyzing } from "@plugins/checkers/serverChecker/analysis";
 import { classNameFactory } from "@utils/css";
 import { React, useEffect, useState } from "@webpack/common";
 
@@ -126,7 +126,7 @@ function AnalysisView({ analysis }: { analysis: GuildAnalysis; }) {
 }
 
 // Local copy to avoid a circular import of the constants/bands at module top when the modal is opened
-import { SCORE_BANDS } from "@plugins/serverChecker/constants";
+import { SCORE_BANDS } from "@plugins/checkers/serverChecker/constants";
 
 function getBand(score: number): (typeof SCORE_BANDS)[number] {
     return SCORE_BANDS.reduce((acc, band) => (score >= band.min ? band : acc), SCORE_BANDS[0]);

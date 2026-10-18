@@ -190,16 +190,43 @@ export const globPlugins = kind => ({
             let metaCode = "\n";
             let excludedCode = "\n";
             let i = 0;
-            for (const dir of pluginDirs) {
-                const userPlugin = dir === "userplugins";
 
+            // Walks a plugin directory recursively, so plugins can be grouped into
+            // category folders at any depth (e.g. src/plugins/checkers/accountChecker).
+            // Rules that keep one folder === one plugin:
+            //   - A directory containing index.ts/index.tsx IS a plugin (its aux
+            //     files — styles, README, settings, analysis … — belong to it and
+            //     are never imported here).
+            //   - A directory without an index is a group folder; recurse into it,
+            //     but only .ts/.tsx files directly inside count as standalone
+            //     plugins (target-suffixed files like foo.web.ts still work).
+            const walker = async (dir, userPlugin) => {
                 const fullDir = `./src/${dir}`;
-                if (!await exists(fullDir)) continue;
-                const files = await readdir(fullDir, { withFileTypes: true });
-                for (const file of files) {
+                if (!await exists(fullDir)) return;
+                const entries = await readdir(fullDir, { withFileTypes: true });
+
+                if (entries.some(e => !e.isDirectory() && /^index\.tsx?$/.test(e.name))) {
+                    // Plugin folder — the index import pulls in everything else
+                    const mod = `p${i}`;
+                    code += `import ${mod} from "./${dir}";\n`;
+                    pluginsCode += `[${mod}.name]:${mod},\n`;
+                    const folderName = dir.replace(/^plugins\//, "");
+                    metaCode += `[${mod}.name]:${JSON.stringify({ folderName, userPlugin })},\n`;
+                    i++;
+                    return;
+                }
+
+                for (const file of entries) {
                     const fileName = file.name;
                     if (fileName.startsWith("_") || fileName.startsWith(".")) continue;
-                    if (fileName === "index.ts") continue;
+
+                    if (file.isDirectory()) {
+                        await walker(`${dir}/${fileName}`, userPlugin);
+                        continue;
+                    }
+
+                    // standalone single-file plugins, e.g. audioPlayer.ts / arRPC.web.ts
+                    if (!/\.tsx?$/.test(fileName)) continue;
 
                     const target = getPluginTarget(fileName);
 
@@ -227,7 +254,12 @@ export const globPlugins = kind => ({
                     metaCode += `[${mod}.name]:${JSON.stringify({ folderName, userPlugin })},\n`;
                     i++;
                 }
+            };
+
+            for (const dir of pluginDirs) {
+                await walker(dir, dir === "userplugins");
             }
+
             code += `export default {${pluginsCode}};export const PluginMeta={${metaCode}};export const ExcludedPlugins={${excludedCode}};`;
             return {
                 contents: code,

@@ -222,9 +222,38 @@ async function getEntryPoint(dir: string, dirent: Dirent) {
     throw new Error(`${dirent.name}: Couldn't find entry point`);
 }
 
-function isPluginFile({ name }: { name: string; }) {
-    if (name === "index.ts") return false;
+/** Visible entries: skip files starting with _ or . (hidden / internal helpers) */
+function isVisibleEntry({ name }: { name: string; }) {
     return !name.startsWith("_") && !name.startsWith(".");
+}
+
+/**
+ * Collects plugin entry points, recursing into group folders so plugins can be
+ * organised in category directories (e.g. src/plugins/checkers/accountChecker).
+ * Same rule as the bundler: a directory WITH an index is one plugin; a directory
+ * WITHOUT one is a group folder whose .ts/.tsx files are standalone plugins.
+ */
+function collectEntryPoints(dir: string): { dir: string; dirent: Dirent; }[] {
+    const entries = readdirSync(dir, { withFileTypes: true })
+        .filter(isVisibleEntry);
+
+    const hasIndex = entries.some(e => !e.isDirectory() && /^index\.tsx?$/.test(e.name));
+
+    if (hasIndex) {
+        // one plugin: everything under this folder is its implementation detail
+        const entry = { dir, dirent: entries.find(e => /^index\.tsx?$/.test(e.name))! };
+        return [entry];
+    }
+
+    return entries.flatMap(dirent =>
+        dirent.isDirectory()
+            ? collectEntryPoints(join(dir, dirent.name))
+            // group-level standalone single-file plugins only (.ts/.tsx);
+            // other files (README.md, LICENSE, …) are never plugins
+            : /\.tsx?$/.test(dirent.name)
+                ? [{ dir, dirent }]
+                : []
+    );
 }
 
 (async () => {
@@ -234,13 +263,11 @@ function isPluginFile({ name }: { name: string; }) {
     const readmes = {} as Record<string, string>;
 
     await Promise.all(["src/plugins", "src/plugins/_core"].flatMap(dir =>
-        readdirSync(dir, { withFileTypes: true })
-            .filter(isPluginFile)
-            .map(async dirent => {
-                const [data, readme] = await parseFile(await getEntryPoint(dir, dirent));
-                plugins.push(data);
-                if (readme) readmes[data.name] = readme;
-            })
+        collectEntryPoints(dir).map(async ({ dir: realDir, dirent }) => {
+            const [data, readme] = await parseFile(await getEntryPoint(realDir, dirent));
+            plugins.push(data);
+            if (readme) readmes[data.name] = readme;
+        })
     ));
 
     const data = JSON.stringify(plugins);

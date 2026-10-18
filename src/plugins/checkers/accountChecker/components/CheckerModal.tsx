@@ -7,8 +7,8 @@
 import "./../styles.css";
 
 import ErrorBoundary from "@components/ErrorBoundary";
-import { AccountAnalysis, analyzeUser, CheckResult, getBand,getCachedAnalysis, isAnalyzing } from "@plugins/accountChecker/analysis";
-import { settings } from "@plugins/accountChecker/settings";
+import { AccountAnalysis, analyzeUser, CheckResult, getBand, getCachedAnalysis, isAnalyzing } from "@plugins/checkers/accountChecker/analysis";
+import { settings } from "@plugins/checkers/accountChecker/settings";
 import { classNameFactory } from "@utils/css";
 import { React,useEffect, useState } from "@webpack/common";
 
