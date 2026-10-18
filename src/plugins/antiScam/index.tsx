@@ -236,39 +236,56 @@ async function logOutAllOtherDevices(): Promise<void> {
     }
 
     showToast(`Anti-Scam: logging out ${others.length} other device(s)…`, "message");
+    const hashes = others.map(s => s.id_hash as string);
     let done = 0;
     let failed = 0;
     let mfaToken: string | null = null;
-    for (const session of others) {
+
+    // Discord's own settings flow uses the bulk endpoint — one call per batch
+    // (up to 64 hashes) instead of one request per session. The old
+    // per-session /users/@me/sessions/{id}/logout route is kept as a fallback
+    // for batches Discord rejects.
+    const logoutBulk = (sessionIds: string[], headers?: Record<string, string>) => RestAPI.post({
+        url: Constants.Endpoints.AUTH_SESSIONS_LOGOUT ?? "/auth/sessions/logout",
+        body: { session_id_hashes: sessionIds },
+        headers,
+    } as any) as any;
+    const logoutSingle = (idHash: string, headers?: Record<string, string>) => RestAPI.post({
+        url: `/users/@me/sessions/${encodeURIComponent(idHash)}/logout`,
+        body: {},
+        headers,
+    } as any) as any;
+
+    for (let start = 0; start < hashes.length; start += 64) {
+        const batch = hashes.slice(start, start + 64);
         try {
-            // id_hash contains `/` and `=`; it must be percent-encoded, or the
-            // router only ever sees the segment up to the first `/` and 404s.
-            const headers = mfaToken ? { "X-Discord-MFA-Authorization": mfaToken } : undefined;
-            await RestAPI.post({
-                url: `/users/@me/sessions/${encodeURIComponent(session.id_hash)}/logout`,
-                body: {},
-                headers,
-            } as any);
-            done++;
-        } catch (e: any) {
-            if (e?.body?.code === MFA_REQUIRED && !mfaToken) {
+            await logoutBulk(batch, mfaToken ? { "X-Discord-MFA-Authorization": mfaToken } : undefined);
+            done += batch.length;
+        } catch (bulkError: any) {
+            if (bulkError?.body?.code === MFA_REQUIRED && !mfaToken) {
                 // Discord demands 2FA: complete the webauthn challenge with
                 // the user's own Discord security key, then retry everything.
-                mfaToken = await completeWebauthnMfa(e);
                 try {
-                    await RestAPI.post({
-                        url: `/users/@me/sessions/${encodeURIComponent(session.id_hash)}/logout`,
-                        body: {},
-                        headers: { "X-Discord-MFA-Authorization": mfaToken },
-                    } as any);
-                    done++;
+                    mfaToken = await completeWebauthnMfa(bulkError);
+                    await logoutBulk(batch, { "X-Discord-MFA-Authorization": mfaToken });
+                    done += batch.length;
                 } catch (retryError) {
-                    failed++;
-                    logger.warn("failed to log out session even with MFA token", session.id_hash, retryError);
+                    failed += batch.length;
+                    logger.warn("bulk logout failed even with MFA token", retryError);
                 }
-            } else {
-                failed++;
-                logger.warn("failed to log out session", session.id_hash, e);
+                continue;
+            }
+            // Bulk refused for another reason? Fall back to one request per
+            // session so a single bad hash can't sink the whole batch.
+            for (const hash of batch) {
+                try {
+                    await logoutSingle(hash, mfaToken ? { "X-Discord-MFA-Authorization": mfaToken } : undefined);
+                    done++;
+                } catch (e: any) {
+                    failed++;
+                    logger.warn("failed to log out session", hash, e);
+                }
+                await sleep(150);
             }
         }
         await sleep(150);
@@ -395,19 +412,23 @@ function PurgeButton() {
     );
 }
 
-type KeyAction = "add" | "remove" | "foreign";
+type KeyAction = "add" | "remove" | "add-another";
 
 const KEY_ACTION_LABELS: Record<KeyAction, string> = {
     add: "Set up security key with Discord",
     remove: "Remove V1-enrolled security key",
-    foreign: "Existing security key was enrolled outside V1",
+    // Discord permits multiple security keys, so a key enrolled outside V1
+    // never blocks enrolling one that V1 can identify and later remove.
+    "add-another": "Enrol another key (existing one wasn't made by V1)",
 };
 
 function actionForState(state: SecurityKeyState | null): KeyAction {
     if (!state) return "add";
     if (!state.anyKey) return "add";
-    // A key exists but V1 can't prove it created one: removal would dead-end.
-    return state.v1Enrolled === true ? "remove" : "foreign";
+    if (state.v1Enrolled === true) return "remove";
+    // Key(s) exist but V1 can't prove it created one: removal would dead-end,
+    // so offer adding another key instead (which V1 then owns).
+    return "add-another";
 }
 
 function SecurityKeyButton() {
@@ -419,7 +440,7 @@ function SecurityKeyButton() {
 
     return (
         <button
-            disabled={!isWebAuthnSupported() || busy || action === "foreign"}
+            disabled={!isWebAuthnSupported() || busy}
             onClick={async () => {
                 if (busy) return;
                 setBusy(true);
@@ -447,7 +468,7 @@ function SecurityKeyButton() {
                 background: "#5865f2",
                 color: "#fff",
                 fontWeight: 600,
-                cursor: isWebAuthnSupported() && action !== "foreign" ? (busy ? "wait" : "pointer") : "not-allowed",
+                cursor: isWebAuthnSupported() ? (busy ? "wait" : "pointer") : "not-allowed",
             }}
         >
             {busy ? "Waiting for your authenticator…" : KEY_ACTION_LABELS[action]}
