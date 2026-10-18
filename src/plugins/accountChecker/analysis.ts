@@ -5,7 +5,7 @@
  */
 
 import { findByPropsLazy } from "@webpack";
-import { RelationshipStore, UserProfileStore,UserStore } from "@webpack/common";
+import { ChannelStore, MessageStore, RelationshipStore, UserProfileStore, UserStore } from "@webpack/common";
 
 import { BADGE_LABELS,CACHE_TTL_MS, DISCORD_EPOCH, EXPIRED_BADGE_IDS, FLAG_WEIGHTS, SCORE_BANDS, SCORE_WEIGHTS } from "./constants";
 
@@ -57,6 +57,16 @@ export interface AccountAnalysis {
     connectedAccountCount: number;
     /** Friendship / block / stranger state from RelationshipStore, null when unknown */
     relationship: "friend" | "blocked" | "pending-in" | "pending-out" | "stranger" | "none" | null;
+    /** Nickname you've given this user, or null */
+    friendNickname: string | null;
+    /** Note you've written on this user (built-in note feature), or null */
+    friendNote: string | null;
+    /** When the relationship (friend request acceptance) happened, or null */
+    friendsSince: string | null;
+    /** How many cached messages in your shared DM with this user were authored by them */
+    dmMessageCount: number;
+    /** true when the DM channel was loaded and actually counted; false when the DM is unknown/unloaded */
+    dmActivityKnown: boolean;
     isSpamRelationship: boolean;
     /** Mutual server count with the current user, null when the guild module or data isn't available */
     mutualServers: number | null;
@@ -382,6 +392,89 @@ export async function analyzeUser(userId: string): Promise<AccountAnalysis | nul
             points: termList.length ? -8 : 0,
         });
 
+        // -- History with this user -------------------------------------------------
+        const friendNickname = ((): string | null => {
+            try {
+                return RelationshipStore.getNickname?.(userId) ?? null;
+            } catch {
+                return null;
+            }
+        })();
+        const friendNote = ((): string | null => {
+            try {
+                return RelationshipStore.getNote?.(userId) ?? null;
+            } catch {
+                return null;
+            }
+        })();
+        const friendsSince = ((): string | null => {
+            try {
+                const since = RelationshipStore.getSince?.(userId);
+                return since && since !== "" ? since : null;
+            } catch {
+                return null;
+            }
+        })();
+
+        const known = friendNickname !== null || friendNote !== null || friendsSince !== null;
+        checks.push({
+            id: "history-with-user",
+            label: "History with this user",
+            note: known
+                ? `You know this account personally — you've given them a nickname, note or they have been your friend since ${friendsSince}.`
+                : "No nickname, note or friend history stored on this account — not conclusive, but you clearly don't know this user.",
+            level: known ? "pass" : "neutral",
+            points: known ? 6 : 0,
+        });
+
+        // -- DM message history -----------------------------------------------------
+        let dmMessageCount = 0;
+        let dmActivityKnown = false;
+        try {
+            const dmChannelId = ChannelStore.getDMFromUserId?.(userId) as string | undefined;
+            if (dmChannelId) {
+                const messages = MessageStore.getMessages?.(dmChannelId) as any;
+                if (messages?.ready && Array.isArray(messages._array)) {
+                    dmMessageCount = messages._array.filter((m: any) => m?.author?.id === userId && !m?.bot).length; // no bot msgs
+                    dmActivityKnown = true;
+                }
+            }
+        } catch {
+            // DM store not available; leave zeros
+        }
+        const dmActivity = dmActivityKnown && dmMessageCount >= 25;
+        checks.push({
+            id: "dm-activity",
+            label: "DM history",
+            note: dmActivityKnown
+                ? dmActivity
+                    ? `${dmMessageCount} messages from them in your loaded DM history — an actively used account, a big trust signal.`
+                    : "Few or no messages in your loaded DM history — thin, but loaded history is only partial data."
+                : "DM channel unknown or unloaded — open their DM once, then re-check for a message-based signal.",
+            level: dmActivity ? "pass" : dmActivityKnown ? "neutral" : "neutral",
+            points: dmActivity ? 10 : 0,
+        });
+
+        // -- Friend since -------------------------------------------------------------
+        if (friendsSince) {
+            const sinceDate = new Date(friendsSince);
+            const friendsDays = Number.isNaN(sinceDate.getTime())
+                ? 0
+                : Math.max(0, Math.floor((Date.now() - sinceDate.getTime()) / 86_400_000));
+            const longFriend = friendsDays >= 90;
+            checks.push({
+                id: "friend-tenure",
+                label: "Friend tenure",
+                note: longFriend
+                    ? `Friends for ${friendsDays} days — a long-established bond.`
+                    : !dmActivityKnown
+                        ? "Friend, but the history is new or unknown."
+                        : "Friended recently — a brand-new friend is the accounts alt-attackers commonly add.",
+                level: longFriend && relationship === "friend" ? "pass" : "neutral",
+                points: longFriend && relationship === "friend" ? 8 : 0,
+            });
+        }
+
         // Total up score with all bonuses/penalties applied, clamped to 0-100
         const totalFromChecks = checks.reduce((acc, c) => acc + c.points, 0);
         const score = Math.max(0, Math.min(100, Math.round(totalFromChecks)));
@@ -397,6 +490,11 @@ export async function analyzeUser(userId: string): Promise<AccountAnalysis | nul
             badgeDetails,
             connectedAccountCount: connectionCount,
             relationship,
+            friendNickname,
+            friendNote,
+            friendsSince,
+            dmMessageCount,
+            dmActivityKnown,
             isSpamRelationship,
             mutualServers: null,
             flaggedSpam: isSpamRelationship,

@@ -96,6 +96,18 @@ function AnalysisView({ analysis }: { analysis: AccountAnalysis; }) {
                     }
                     warn={analysis.relationship === "blocked" || analysis.isSpamRelationship}
                 />
+                <Row
+                    label="DM history"
+                    value={
+                        analysis.dmActivityKnown
+                            ? `${analysis.dmMessageCount} msgs`
+                            : "Unknown"
+                    }
+                />
+                <Row
+                    label="Friends since"
+                    value={analysis.friendsSince ? new Date(analysis.friendsSince).toLocaleDateString() : "—"}
+                />
                 <Row label="Badges" value={analysis.badgeDetails.length ? `${analysis.badgeDetails.length} earned` : "None yet"} />
                 <Row label="Nitro" value={analysis.hasNitro ? "Active" : "Not active"} />
                 <Row label="Connections" value={analysis.connectedAccountCount > 0 ? `${analysis.connectedAccountCount} linked` : "None"} />
