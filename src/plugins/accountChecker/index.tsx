@@ -49,9 +49,9 @@ const UserContextMenuPatch: (children, props: { user?: User; }) => void = (child
 
 export default definePlugin({
     name: "AccountChecker",
-    description: "Check any Discord user for account quality signals — account age from their ID, badges (including unobtainable ones), Nitro, and profile investment. Adds a /accountcheck command and a 'Check Account' option in user context menus.",
+    description: "Advanced Discord account checks — snowflake age, badges (incl. unobtainable), Nitro, profile investment, spam/block flags, bot detection, username↔display-name swap, bait keywords and a full pass/warn checklist. Adds a /accountcheck command and a 'Check Account' option in user context menus.",
     tags: ["Utility", "Friends"],
-    searchTerms: ["account", "checker", "safety", "alt", "quality", "age", "badges", "progressive checks"],
+    searchTerms: ["account", "checker", "safety", "alt", "quality", "age", "badges", "progressive checks", "scam", "spam flags"],
     authors: [Devs.Limey],
 
     permissions: [
@@ -171,6 +171,7 @@ export default definePlugin({
                             return sendBotMessage(channel.id, { content: `❌ User <@${userId}> isn't in your cache. Open their profile once, or check the exact id.` });
 
                         const band = getBand(analysis.score);
+                        const warns = analysis.checks.filter(c => c.level === "warn");
                         const parts = [
                             `🔍 **Account Checker** — **${analysis.displayName}** (${analysis.userId})`,
                             `${band.emoji} **${band.label}** — \`${analysis.score}/100\` · ${band.note}`,
@@ -178,11 +179,11 @@ export default definePlugin({
                             `- Badges: ${analysis.badgeDetails.length ? analysis.badgeDetails.map(b => b.id + (b.expired ? " ⚠️" : "")).join(", ") : "none"}`,
                             `- Nitro: ${analysis.hasNitro ? "yes" : "no"} · Banner: ${analysis.hasBanner ? "yes" : "no"} · Bio: ${analysis.hasBio ? "yes" : "no"}`,
                             `- Connected accounts: ${analysis.connectedAccountCount}`,
-                            "",
-                            "_Heuristic, not proof — treat it like a vibe check._",
                         ];
-                        const text = parts.join("\n");
-                        void text;
+                        if (warns.length) {
+                            parts.push(`⚠️ **Flagged:** ${warns.map(c => c.label).join(", ")}`);
+                        }
+                        parts.push("", "_Heuristic, not proof — treat it like a vibe check._");
                         openModal(props => (
                             <Modal {...props}
                                 size="md"

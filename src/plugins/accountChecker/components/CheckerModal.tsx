@@ -7,11 +7,10 @@
 import "./../styles.css";
 
 import ErrorBoundary from "@components/ErrorBoundary";
+import { AccountAnalysis, analyzeUser, CheckResult, getBand,getCachedAnalysis, isAnalyzing } from "@plugins/accountChecker/analysis";
+import { settings } from "@plugins/accountChecker/settings";
 import { classNameFactory } from "@utils/css";
-import { useEffect, useState, React } from "@webpack/common";
-
-import { analyzeUser, getCachedAnalysis, isAnalyzing, AccountAnalysis, getBand } from "../analysis";
-import { settings } from "../settings";
+import { React,useEffect, useState } from "@webpack/common";
 
 export const cl = classNameFactory("vc-account-checker-");
 
@@ -38,8 +37,28 @@ function ScoreBar({ score, color }: { score: number; color: string; }) {
     );
 }
 
+const LEVEL_ICON: Record<CheckResult["level"], string> = {
+    pass: "✅",
+    warn: "⚠️",
+    neutral: "➖",
+};
+
+function CheckItem({ check }: { check: CheckResult; }) {
+    return (
+        <div className={`${cl("check")} ${cl(`check-${check.level}`)}`}>
+            <span className={cl("check-icon")}>{LEVEL_ICON[check.level]}</span>
+            <div className={cl("check-body")}>
+                <span className={cl("check-label")}>{check.label}</span>
+                <span className={cl("check-note")}>{check.note}</span>
+            </div>
+        </div>
+    );
+}
+
 function AnalysisView({ analysis }: { analysis: AccountAnalysis; }) {
     const band = getBand(analysis.score);
+    const warnCount = analysis.checks.filter(c => c.level === "warn").length;
+    const passCount = analysis.checks.filter(c => c.level === "pass").length;
 
     return (
         <div className={cl("analysis")}>
@@ -54,16 +73,31 @@ function AnalysisView({ analysis }: { analysis: AccountAnalysis; }) {
                     </div>
                 </div>
                 <ScoreBar score={analysis.score} color={band.color} />
+                <span className={cl("band-subnote")}>
+                    {passCount} passed · {warnCount} flagged · {analysis.checks.length} checks run
+                </span>
+            </div>
+
+            <div className={cl("checks")}>
+                {analysis.checks.map(c => (
+                    <CheckItem key={c.id} check={c} />
+                ))}
             </div>
 
             <div className={cl("grid")}>
-                <Row label="Created" value={analysis.createdAtLabel} />
-                <Row label="Account age" value={`${analysis.ageDays.toLocaleString()} days`} />
+                <Row
+                    label="Relationship"
+                    value={
+                        analysis.relationship === null
+                            ? "Unknown"
+                            : analysis.relationship === "none" || analysis.relationship === "stranger"
+                                ? "Stranger"
+                                : analysis.relationship
+                    }
+                    warn={analysis.relationship === "blocked" || analysis.isSpamRelationship}
+                />
                 <Row label="Badges" value={analysis.badgeDetails.length ? `${analysis.badgeDetails.length} earned` : "None yet"} />
                 <Row label="Nitro" value={analysis.hasNitro ? "Active" : "Not active"} />
-                <Row label="Banner" value={analysis.hasBanner ? "Custom" : "Default"} />
-                <Row label="Bio" value={analysis.hasBio ? "Written" : "Empty"} />
-                <Row label="Decoration" value={analysis.hasAvatarDecoration ? "Wearing one" : "None"} />
                 <Row label="Connections" value={analysis.connectedAccountCount > 0 ? `${analysis.connectedAccountCount} linked` : "None"} />
             </div>
 
@@ -71,7 +105,7 @@ function AnalysisView({ analysis }: { analysis: AccountAnalysis; }) {
                 <div className={cl("badges")}>
                     {analysis.badgeDetails.map(b => (
                         <span key={b.id} className={`${cl("badge")} ${settings.store.showUnobtainableHints && b.expired ? cl("badge-expired") : ""}`}>
-                            {b.id}{settings.store.showUnobtainableHints && b.expired ? " (unobtainable)" : ""}
+                            {b.description}{settings.store.showUnobtainableHints && b.expired ? " (unobtainable)" : ""}
                         </span>
                     ))}
                 </div>

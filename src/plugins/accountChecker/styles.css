@@ -98,6 +98,62 @@
     transition: width 0.4s ease;
 }
 
+.vc-account-checker-band-subnote {
+    display: block;
+    color: var(--text-muted);
+    font-size: 11.5px;
+}
+
+.vc-account-checker-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.vc-account-checker-check {
+    display: flex;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: var(--background-secondary);
+    align-items: flex-start;
+}
+
+.vc-account-checker-check-warn {
+    background: color-mix(in srgb, var(--status-danger, #ed4245) 10%, transparent);
+}
+
+.vc-account-checker-check-pass .vc-account-checker-check-label {
+    color: var(--status-positive, #43b581);
+}
+
+.vc-account-checker-check-warn .vc-account-checker-check-label {
+    color: var(--status-danger, #ed4245);
+}
+
+.vc-account-checker-check-icon {
+    font-size: 14px;
+    line-height: 1.3;
+    flex-shrink: 0;
+}
+
+.vc-account-checker-check-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vc-account-checker-check-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.vc-account-checker-check-note {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
 .vc-account-checker-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
