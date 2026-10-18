@@ -93,9 +93,13 @@
 .qrlogin-device-confirm {
     margin-top: 18px;
     width: 20rem;
+    /* Fallback values keep the red danger button visible on client builds
+       that dropped the legacy --button-danger-* tokens (otherwise the
+       gradient's color stops are invalid and the button renders invisible). */
     background: linear-gradient(to right,
-            var(--button-danger-background) calc(var(--progress) - 1%),
-            var(--button-danger-background-active) var(--progress)) !important;
+            var(--button-danger-background, #da373c) calc(var(--progress) - 1%),
+            var(--button-danger-background-active, #a12d2f) var(--progress)) !important;
+    color: #fff !important;
     border-radius: 420rem;
 
     --progress: 0%;
