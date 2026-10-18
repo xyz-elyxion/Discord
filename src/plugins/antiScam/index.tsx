@@ -30,8 +30,6 @@ const logger = new Logger("AntiScam");
 
 const PURGE_LOG_STORE = "AntiScamV1:purgeLog";
 const PURGE_LOG_CAP = 200;
-/** Discord's message-delete rate limit is roughly 5 deletes / 5s per channel. */
-const DELETE_DELAY_MS = 300;
 
 export interface PurgeLogEntry {
     channelId: string;
@@ -41,7 +39,6 @@ export interface PurgeLogEntry {
     username?: string;
     rules: string[];
     at: number;
-    deleted?: boolean;
 }
 
 let purgeLog: PurgeLogEntry[] = [];
@@ -157,60 +154,31 @@ async function modRestDeleteRelationship(userId: string): Promise<void> {
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 /**
- * Unignores every user whose scam V1 recorded, then deletes each recorded
- * message. Returns a summary toast.
+ * Unignores every user whose scam V1 recorded and clears the log. Other
+ * people's messages are NEVER deleted — incoming scams are only flagged; the
+ * only message V1 ever deletes is your own (see repairSelfScam).
  */
 async function purgeScamMessages(): Promise<void> {
-    const entries = purgeLog.filter(e => !e.deleted);
+    const entries = purgeLog;
     if (entries.length === 0) {
-        showToast("Anti-Scam: no recorded scam messages to delete.", "message");
+        showToast("Anti-Scam: no recorded scam messages in the log.", "message");
         return;
     }
 
     const userIds = [...new Set(entries.map(e => e.userId).filter(Boolean))];
-    showToast(`Anti-Scam: unignoring ${userIds.length} user(s) before deleting ${entries.length} message(s)…`, "message");
+    showToast(`Anti-Scam: unignoring ${userIds.length} user(s) from ${entries.length} recorded scam(s)…`, "message");
 
     let unignored = 0;
     for (const userId of userIds) {
         if (await unignoreUser(userId)) unignored++;
     }
 
-    let deleted = 0;
-    let failed = 0;
-    for (const entry of entries) {
-        try {
-            await RestAPI.del({ url: `/channels/${entry.channelId}/messages/${entry.messageId}` });
-            entry.deleted = true;
-            deleted++;
-        } catch (e: any) {
-            const code = e?.body?.code ?? e?.code;
-            // 20018/50003: message already gone or channel not found — treat as
-            // harmless; drops the entry from the log to keep it clean.
-            if (code === 20018 || code === 50003 || code === 10008) {
-                entry.deleted = true;
-            } else {
-                failed++;
-                logger.warn("failed to delete scam message", entry.messageId, e);
-                if (code === 429) {
-                    await sleep(1000); // wait off the tiny rate-limit window
-                    try {
-                        await RestAPI.del({ url: `/channels/${entry.channelId}/messages/${entry.messageId}` });
-                        entry.deleted = true;
-                        deleted++;
-                        failed--;
-                    } catch { /* leave failed */ }
-                }
-            }
-        }
-        await sleep(DELETE_DELAY_MS);
-    }
-
-    purgeLog = purgeLog.filter(e => !e.deleted);
+    purgeLog = [];
     void DataStore.set(PURGE_LOG_STORE, purgeLog).catch(() => null);
 
     showToast(
-        `Anti-Scam purge: ${deleted} message(s) deleted, ${unignored} user(s) unignored${failed ? `, ${failed} could not be deleted` : ""}.`,
-        failed ? "failure" : "success",
+        `Anti-Scam purge: ${unignored} user(s) unignored, log of ${entries.length} scam(s) cleared. Other people's messages are left untouched (flagged only).`,
+        "success",
     );
 }
 
@@ -344,15 +312,10 @@ const onMessageCreate = (e: any) => {
         if (settings.store.recordScamLog) {
             void rememberScam(message, rules);
         }
-        // Ignore (block) the scam sender right away when requested. Deletion
-        // un-ignores them first.
+        // Ignore (block) the scam sender right away when requested. V1 never
+        // deletes other people's messages — incoming scams are flagged only.
         if (settings.store.autoIgnore) {
             void ignoreUser(message.author.id);
-        }
-        if (settings.store.deleteOnDetect) {
-            void RestAPI.del({ url: `/channels/${message.channel_id}/messages/${message.id}` }).catch(
-                err => logger.warn("failed to auto-delete scam message", err),
-            );
         }
         return;
     }
@@ -367,10 +330,13 @@ const onMessageCreate = (e: any) => {
 /**
  * Compensation for a hijacked session sending scam AS this account: unignore
  * every recipient of the DM/group-DM it landed in, so the friends the scam
- * was fired at can see your real messages again.
+ * was fired at can see your real messages again. With Delete On Detect on,
+ * the message is also deleted — deleting your OWN message via DELETE
+ * /channels/{id}/messages/{message.id} always works, no permissions needed.
  */
 async function repairSelfScam(message: any, rules: string[]): Promise<void> {
-    const channel: Channel | undefined = ChannelStore.getChannel?.(message.channel_id ?? message.channelId) as Channel | undefined;
+    const channelId = message.channel_id ?? message.channelId;
+    const channel: Channel | undefined = ChannelStore.getChannel?.(channelId) as Channel | undefined;
     if (!channel) return;
 
     const type = channel.type as number;
@@ -386,9 +352,21 @@ async function repairSelfScam(message: any, rules: string[]): Promise<void> {
         if (await unignoreUser(id)) unignored++;
     }
 
+    let deletedNote = "";
+    if (settings.store.deleteOnDetect) {
+        try {
+            await RestAPI.del({ url: `/channels/${channelId}/messages/${message.id}` });
+            deletedNote = " The scam message itself was deleted (your own message).";
+        } catch (e) {
+            logger.warn("failed to auto-delete own scam message", e);
+            deletedNote = " The scam message could not be deleted — remove it manually.";
+        }
+    }
+
     showToast(
         `AntiScam: a message was sent FROM YOUR ACCOUNT matching scam rules (${rules.join(", ")}) — your account may be compromised. `
-        + `Unignored ${unignored} recipient(s) of ${type === ChannelType.GROUP_DM ? "that group DM" : "that DM"}. Log out all other devices and change your password.`,
+        + `Unignored ${unignored} recipient(s) of ${type === ChannelType.GROUP_DM ? "that group DM" : "that DM"}.${deletedNote} `
+        + "Log out all other devices and change your password.",
         "failure",
     );
 }
@@ -445,7 +423,7 @@ function PurgeButton() {
                 cursor: busy ? "wait" : "pointer",
             }}
         >
-            {busy ? "Deleting…" : "Delete all recorded scam messages"}
+            {busy ? "Clearing…" : "Unignore senders + clear scam log"}
         </button>
     );
 }
@@ -562,19 +540,19 @@ const settings = definePluginSettings({
     },
     autoIgnore: {
         type: OptionType.BOOLEAN,
-        description: "Automatically ignore users whose messages match scam patterns. The purge action unignores them first.",
+        description: "Automatically ignore users whose messages match scam patterns. The purge action unignores them again.",
         default: true,
         restartNeeded: false,
     },
     deleteOnDetect: {
         type: OptionType.BOOLEAN,
-        description: "Auto-delete scams the moment they arrive (restores safety, messages land in the purge log).",
+        description: "Auto-delete YOUR OWN messages that match scam patterns (DM/group DM only) the moment V1 spots them — the hijacked-account case. Other people's scams are flagged, never deleted.",
         default: false,
         restartNeeded: false,
     },
     purgeAction: {
         type: OptionType.COMPONENT,
-        description: "Unignores every user that V1 caught receiving scam, then deletes every recorded scam message.",
+        description: "Unignores every user V1 recorded a scam for and clears the scam log. Never deletes other people's messages — those are flagged only.",
         component: () => <PurgeButton />,
     },
     securityKeyAction: {
@@ -591,7 +569,7 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "AntiScam",
-    description: "Flags the known scam-bot patterns from AutoMod (cam bait, sexual invite links, fake steam gift markdown, mimic domains, attachment-image walls) in messages you can see — 🚫 Scam decoration plus an optional toast. Plain steamcommunity.com links are allowed. Optionally records the scams in a log so one click can unignore their senders and delete every recorded scam message, and can log out all other devices once you've linked a V1 passkey (2FA-class action).",
+    description: "Flags the known scam-bot patterns from AutoMod (cam bait, sexual invite links, fake steam gift markdown, mimic domains, attachment-image walls) in messages you can see — 🚫 Scam decoration plus an optional toast. Other people's scam messages are flagged only, never deleted; a matching message sent FROM YOUR OWN account unignores the DM/group-DM recipients (and with Delete On Detect deletes just that message of yours). Optionally records the scams in a log so one click can unignore their senders, and can log out all other devices once you've linked a V1 passkey (2FA-class action).",
     tags: ["Utility", "Media"],
     searchTerms: ["anti scam", "scam", "detect", "automod", "steam gift", "phishing", "nsfw invite", "passkey", "sessions"],
     authors: [Devs.Limey],
@@ -605,9 +583,9 @@ export default definePlugin({
         },
         {
             id: "deleteScamMessages",
-            title: "Delete recorded scam messages and ignore/unignore senders",
-            description: "Lets the purge action remove scam messages you can delete and change the ignore state of their senders.",
-            risk: "Deleting messages and toggling ignores are irreversible; older messages you didn't catch may be permanently lost."
+            title: "Delete your own flagged scam messages and ignore/unignore senders",
+            description: "Lets Delete On Detect remove YOUR OWN messages that match scam patterns in DMs/group DMs, and lets the purge toggle the ignore state of senders V1 flagged.",
+            risk: "Deleting your own message is irreversible; ignore-state changes alter who you've ignored or blocked."
         },
         {
             id: "logOutOtherDevices",
