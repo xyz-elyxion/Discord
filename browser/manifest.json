@@ -76,6 +76,11 @@
     "background": {
         "service_worker": "service-worker.js"
     },
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "Limey V1 Web",
+        "default_icon": "icon.png"
+    },
     "commands": {
         "TOGGLE_MUTE": {
             "description": "Toggle Mute \u2014 Toggle your microphone's transmission on and off."

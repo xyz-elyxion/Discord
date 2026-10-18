@@ -27,10 +27,23 @@ async function sendCommandToApp(command) {
 }
 
 browser.runtime.onMessage.addListener((message) => {
+    if (message.action === "openShortcuts") {
+        browser.tabs.create({ url: "about://extensions/shortcuts" });
+        return;
+    }
+
     if (message.type === "limeyV1:site:command") {
         // Returning the promise lets Firefox deliver the response once it
         // resolves — needed so the site gets a real ack.
         return (async () => {
+            // Bring the app to the front — the one site request that isn't a
+            // keybind, just "show me Discord" (mirrors service-worker.js).
+            if (message.command === "APP_FOCUS") {
+                const tabs = await findDiscordTabs();
+                if (tabs[0]) await browser.tabs.update(tabs[0].id, { active: true });
+                return { contacted: tabs.length };
+            }
+
             if (typeof message.command !== "string" || !SITE_COMMAND_WHITELIST.has(message.command)) {
                 return { contacted: 0 };
             }
@@ -42,9 +55,5 @@ browser.runtime.onMessage.addListener((message) => {
     // nicely (resolve to { contacted }) — no sendResponse juggling needed.
     if (message.type === "limeyV1:dragify") {
         return handleDragifyFromPage(message).catch(() => ({ contacted: 0 }));
-    }
-
-    if (message.action === "openShortcuts") {
-        browser.tabs.create({ url: "about://extensions/shortcuts" });
     }
 });

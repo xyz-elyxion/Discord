@@ -22,6 +22,9 @@ const files = [
     ["content.js", "browser/content.js"],
     ["service-worker.js", "browser/service-worker.js"],
     ["GMPolyfill.js", "browser/GMPolyfill.js"],
+    // Toolbar popup GUI (browser action)
+    ["popup.html", "browser/popup.html"],
+    ["popup.js", "browser/popup.js"],
     ["patch-worker.js", "browser/patch-worker.js"],
     ["modifyResponseHeaders.json", "browser/modifyResponseHeaders.json"],
     ["icon.png", "browser/icon.png"],
