@@ -29,41 +29,35 @@
     margin-bottom: 4px;
 }
 
-.vc-plugins-folder {
-    margin-top: 4px;
+/* Folder cards mirror the AddonCard look: bold title, muted count,
+   and a Switch toggle on the right that expands/collapses the folder */
+.vc-plugins-folder-card {
+    margin-top: 8px;
+    background-color: var(--card-background-default);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    display: block;
+    padding: 12px;
+    width: 100%;
 }
 
 .vc-plugins-folder-header {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
-    border-radius: 8px;
     cursor: pointer;
     user-select: none;
-    color: var(--interactive-icon-default);
-    transition: background-color 0.15s ease;
-
-    &:hover {
-        background: var(--background-modifier-hover);
-    }
-}
-
-.vc-plugins-folder-icon {
-    min-width: 16px;
-    width: 16px;
-    height: 16px;
-    color: var(--icon-muted);
 }
 
 .vc-plugins-folder-name {
-    font-weight: 600;
-    font-size: 15px;
+    font-weight: 700;
+    font-size: 16px;
     color: var(--interactive-icon-hover);
 }
 
 .vc-plugins-folder-count {
     margin-left: auto;
+    margin-right: 12px;
     font-size: 13px;
     color: var(--text-muted);
 }

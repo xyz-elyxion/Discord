@@ -25,9 +25,9 @@ import { Card } from "@components/Card";
 import { Divider } from "@components/Divider";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { HeadingTertiary } from "@components/Heading";
-import { DownArrow, RightArrow } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
+import { Switch } from "@components/Switch";
 import { ChangeList } from "@utils/ChangeList";
 import { classNameFactory } from "@utils/css";
 import { isTruthy } from "@utils/guards";
@@ -388,35 +388,41 @@ function PluginSettings() {
                         )}
 
                         {folders.length
-                            ? folders.map((folder, i) => (
-                                <div
-                                    key={folder.category}
-                                    className={cl("folder")}
-                                    data-expanded={isFiltering || openFolders.has(folder.category)}
-                                >
-                                    <Clickable
-                                        className={cl("folder-header")}
-                                        role="button"
-                                        onClick={() => {
-                                            if (!isFiltering) toggleFolder(folder.category);
-                                        }}
+                            ? folders.map(folder => {
+                                const expanded = isFiltering || openFolders.has(folder.category);
+                                return (
+                                    <Card
+                                        key={folder.category}
+                                        className={cl("folder-card")}
+                                        data-expanded={expanded}
                                     >
-                                        {(isFiltering || openFolders.has(folder.category))
-                                            ? <DownArrow className={cl("folder-icon")} />
-                                            : <RightArrow className={cl("folder-icon")} />}
-                                        <span className={cl("folder-name")}>{folder.category}</span>
-                                        <span className={cl("folder-count")}>
-                                            {folder.plugins.length} {folder.plugins.length === 1 ? "plugin" : "plugins"}
-                                        </span>
-                                    </Clickable>
+                                        <Clickable
+                                            className={cl("folder-header")}
+                                            role="button"
+                                            onClick={() => {
+                                                if (!isFiltering) toggleFolder(folder.category);
+                                            }}
+                                        >
+                                            <span className={cl("folder-name")}>{folder.category}</span>
+                                            <span className={cl("folder-count")}>
+                                                {folder.plugins.length} {folder.plugins.length === 1 ? "plugin" : "plugins"}
+                                            </span>
+                                            <Switch
+                                                checked={expanded}
+                                                onChange={() => {
+                                                    if (!isFiltering) toggleFolder(folder.category);
+                                                }}
+                                            />
+                                        </Clickable>
 
-                                    {(isFiltering || openFolders.has(folder.category)) && (
-                                        <div className={cl("grid")}>
-                                            {folder.plugins.map(renderPluginCard)}
-                                        </div>
-                                    )}
-                                </div>
-                            ))
+                                        {expanded && (
+                                            <div className={cl("grid")}>
+                                                {folder.plugins.map(renderPluginCard)}
+                                            </div>
+                                        )}
+                                    </Card>
+                                );
+                            })
                             : <Paragraph>No plugins meet the search criteria.</Paragraph>
                         }
                     </div>
