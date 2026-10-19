@@ -8,7 +8,7 @@
 
 const http = require("http");
 const { spawn } = require("child_process");
-const { createHmac } = require("crypto");
+const { createHmac, randomBytes } = require("crypto");
 const { inflateRawSync, inflateSync } = require("zlib");
 const { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } = require("fs");
 const { join, extname, normalize, resolve } = require("path");
@@ -33,7 +33,61 @@ const net = require("net");
 // zip itself (in-process, using fflate) so the install is always fresh
 // and never depends on a possibly stale/missing build artifact.
 // ------------------------------------------------------------------
-const SENTINEL_SECRET = process.env.SENTINEL_SECRET || process.env.KEY;const EXTENSION_ZIP_PATH = join(DIST, "LimeyV1-Extension.zip");
+const SENTINEL_SECRET = process.env.SENTINEL_SECRET || process.env.KEY;
+const EXTENSION_ZIP_PATH = join(DIST, "LimeyV1-Extension.zip");
+
+// ---------------------------------------------------------------------------
+// Build-file signing key lifecycle
+//
+// The signing key must be stable across reboots (files signed yesterday must
+// still verify tomorrow, and clients embed the *public* value at build time).
+// Resolution order:
+//   1. First boot: BUILD_SIGNING_KEY set in env → use it and persist a
+//      fingerprint to the database (pgkv, key "limey:build-signing-key").
+//   2. Later boots: if the DB has no stored key, use env again.
+//   3. If env is unset but the DB has a stored key, keep signing with the
+//      fingerprint from the DB (env rotation without downtime stays possible
+//      by setting a new BUILD_SIGNING_KEY and clearing the DB key).
+// The stored value is a SHA-256 fingerprint, never the raw key, so leaking
+// the kv row doesn't leak the signing material itself.
+// ---------------------------------------------------------------------------
+const SIGNING_KV_KEY_FINGERPRINT = "limey:build-signing-key";
+let SIGNING_KEY = process.env.BUILD_SIGNING_KEY || SENTINEL_SECRET || null;
+
+async function initSigningKey() {
+    const fingerprint = SIGNING_KEY
+        ? createHash("sha256").update(SIGNING_KEY).digest("hex")
+        : null;
+
+    const stored = await kvGet(SIGNING_KV_KEY_FINGERPRINT);
+
+    if (stored) {
+        // A key is already recorded; verify continuity rather than overwriting.
+        // pgGet returns the parsed JSONB value (a plain fingerprint string).
+        const storedFingerprint = typeof stored === "string" ? stored.replace(/"/g, "") : stored;
+        if (fingerprint && storedFingerprint !== fingerprint) {
+            console.warn(
+                `[signing] BUILD_SIGNING_KEY changed since the database recorded the previous one.\n` +
+                `[signing] Old fingerprint: ${storedFingerprint}\n` +
+                `[signing] New fingerprint: ${fingerprint}\n` +
+                `[signing] Continuing with the new env key and updating the DB record.\n` +
+                `[signing] REMINDER: clients built with the OLD key will reject new files — republish BUILD_SIGNING_KEY_PUB for client builds.`
+            );
+        }
+        await kvSet(SIGNING_KV_KEY_FINGERPRINT, fingerprint);
+        return;
+    }
+
+    // Nothing stored yet: this is the first boot with signing active — record
+    // the fingerprint so future boots can detect key rotation.
+    if (fingerprint) {
+        await kvSet(SIGNING_KV_KEY_FINGERPRINT, fingerprint);
+        console.log("[signing] persisted signing-key fingerprint to the database");
+    } else {
+        console.log("[signing] no BUILD_SIGNING_KEY configured; files are served unsigned");
+    }
+}
+
 
 
 // [zip entry, source path] — manifest.json and the shell live at the zip root
@@ -2351,6 +2405,10 @@ function startLimebot() {
 // exposed by process supervisors (e.g. the preview) is the real web server,
 // not the internal cloud sidecar.
 hydrateKv().then(() => {
+    // Signing key may come from or be persisted to the database — resolve it
+    // before the first request can be served.
+    return initSigningKey();
+}).then(() => {
     return kvGet("limey:status");
 }).then(stored => {
     if (stored) {
