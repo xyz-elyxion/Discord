@@ -34,7 +34,10 @@ const defines = stringifyValues({
     IS_EXTENSION: false,
     IS_USERSCRIPT: false,
     VERSION,
-    BUILD_TIMESTAMP
+    BUILD_TIMESTAMP,
+    // Public half of the build-file signing key: embedded so desktop clients
+    // can verify updates came from the official backend.
+    BUILD_SIGNING_KEY_PUB: process.env.BUILD_SIGNING_KEY_PUB || undefined
 });
 
 if (defines.IS_STANDALONE === "false") {

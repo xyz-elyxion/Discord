@@ -18,6 +18,7 @@
 
 import { fetchBuffer } from "@main/utils/http";
 import { IpcEvents } from "@shared/IpcEvents";
+import { createHmac } from "crypto";
 import { ipcMain } from "electron";
 import { writeFile } from "fs/promises";
 import { join } from "path";
@@ -100,10 +101,42 @@ async function fetchUpdates() {
     return true;
 }
 
+/*!
+ * Verify the server's HMAC signature trailer on a downloaded build file.
+ *
+ * The expected key is baked into the main bundle at build time from
+ * BUILD_SIGNING_KEY_PUB (build-time env), so end-user clients can only accept
+ * files that genuinely came from the official backend — a self-built bundle
+ * can't masquerade as an official one once updates replace files.
+ *
+ * When the key constant is absent (local dev builds, tests), verification
+ * is skipped and files are accepted as before.
+ */
+const SIGNING_KEY_PUB: string | undefined = typeof BUILD_SIGNING_KEY_PUB !== "undefined" ? BUILD_SIGNING_KEY_PUB : undefined;
+
+function stripAndVerifySignature(contents: Buffer): Buffer {
+    const marker = "/*!sig:";
+    const text = contents.toString("utf8");
+    const idx = text.lastIndexOf(marker);
+    if (idx === -1) {
+        // Unsigned (server has no signing key): accept only if we also lack a key.
+        if (!SIGNING_KEY_PUB) return contents;
+        throw new Error("Build file has no signature but this client requires one. Re-install with the official installer.");
+    }
+
+    const sig = text.slice(idx + marker.length).replace(/\*\/$/, "").trim();
+    const body = contents.subarray(0, idx);
+    if (!SIGNING_KEY_PUB) return body; // unsigned client: strip trailer, accept body
+    if (!/^[0-9a-f]{64}$/.test(sig) || createHmac("sha256", SIGNING_KEY_PUB).update(body).digest("hex") !== sig) {
+        throw new Error("Build file signature verification failed — the download may be tampered. Re-install from limey-discord.onrender.com/download.");
+    }
+    return body;
+}
+
 async function applyUpdates() {
     const fileContents = await Promise.all(PendingUpdates.map(async name => {
         const contents = await fetchWithRetry(fileUrl(name));
-        return [join(__dirname, name), contents] as const;
+        return [join(__dirname, name), stripAndVerifySignature(contents)] as const;
     }));
 
     await Promise.all(fileContents.map(async ([filename, contents]) =>

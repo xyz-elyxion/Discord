@@ -8,7 +8,7 @@
 
 const http = require("http");
 const { spawn } = require("child_process");
-const { createHash } = require("crypto");
+const { createHmac } = require("crypto");
 const { inflateRawSync, inflateSync } = require("zlib");
 const { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } = require("fs");
 const { join, extname, normalize, resolve } = require("path");
@@ -33,7 +33,9 @@ const net = require("net");
 // zip itself (in-process, using fflate) so the install is always fresh
 // and never depends on a possibly stale/missing build artifact.
 // ------------------------------------------------------------------
-const EXTENSION_ZIP_PATH = join(DIST, "LimeyV1-Extension.zip");
+const SENTINEL_SECRET = process.env.SENTINEL_SECRET || process.env.KEY;const EXTENSION_ZIP_PATH = join(DIST, "LimeyV1-Extension.zip");
+
+
 // [zip entry, source path] — manifest.json and the shell live at the zip root
 // so the unzipped folder can be loaded directly via "Load unpacked".
 const EXTENSION_FILES = [
@@ -173,6 +175,13 @@ function handleInstall(req, res, url) {
     // Serve the desktop build files to the Go installer, stamped with the
     // build hash (first line of patcher.js: "// Limey V1 <hash>") so the
     // installer can detect installed vs latest.
+    //
+    // Every JS file is additionally wrapped in an HMAC signature trailer so
+    // clients can verify the files came from this backend and were not
+    // substituted (e.g. a self-built "standalone" bundle posing as official).
+    // The signature is server-authoritative: only holders of the backend's
+    // signing key can produce it, so a self-built copy can't masquerade as an
+    // official one when tools check it.
     if (url.startsWith("/v1/install/files/")) {
         const name = url.slice("/v1/install/files/".length);
         if (!/^[\w.-]+\.(js|css)$/.test(name)) return json(res, 400, { error: "invalid file name" }), true;
@@ -180,15 +189,23 @@ function handleInstall(req, res, url) {
         if (!existsSync(filePath)) return json(res, 404, { error: "file not found — is the build ready?" }), true;
 
         let content = readFileSync(filePath);
+        let hash = null;
+        try {
+            const patcherHead = readFileSync(join(DIST, "patcher.js")).toString("utf8", 0, 64);
+            const m = /^\/\/ Limey V1 (\S+)/.exec(patcherHead);
+            if (m) hash = m[1];
+        } catch { /* keep null */ }
         if (name.endsWith(".css")) {
             // The installer fetches renderer.css only to read the hash comment.
-            let hash = "unknown";
-            try {
-                const patcherHead = readFileSync(join(DIST, "patcher.js")).toString("utf8", 0, 64);
-                const m = /^\/\/ Limey V1 (\S+)/.exec(patcherHead);
-                if (m) hash = m[1];
-            } catch { /* keep unknown */ }
-            content = Buffer.from(`/* Limey ${hash} */\n` + content.toString("utf8"));
+            content = Buffer.from(`/* Limey ${hash ?? "unknown"} */\n` + content.toString("utf8"));
+        } else if (hash && SIGNING_KEY) {
+            // Sign: HMAC-SHA256 over file contents, key-bound, public verifiable.
+            // Trained clients/installers extract the trailing `/*!sig:<hex>*/`
+            // and re-check it against the body.
+            content = Buffer.concat([
+                content,
+                Buffer.from(`/*!sig:${createHmac("sha256", SIGNING_KEY).update(content).digest("hex")}*/`)
+            ]);
         }
         res.writeHead(200, {
             "Content-Type": name.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8",

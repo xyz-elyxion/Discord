@@ -46,6 +46,8 @@ declare global {
     export var IS_VESKTOP: boolean;
     export var VERSION: string;
     export var BUILD_TIMESTAMP: number;
+    /** Build-time injected public key material for verifying update signatures; undefined in dev. */
+    export var BUILD_SIGNING_KEY_PUB: string | undefined;
 
     export var LimeyV1Native: typeof import("./LimeyV1Native").default;
     export var LimeyV1: typeof import("./LimeyV1");
