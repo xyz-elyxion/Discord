@@ -25,6 +25,7 @@ import { Card } from "@components/Card";
 import { Divider } from "@components/Divider";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { HeadingTertiary } from "@components/Heading";
+import { DownArrow, RightArrow } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { ChangeList } from "@utils/ChangeList";
@@ -36,7 +37,7 @@ import { classes } from "@utils/misc";
 import { PluginTarget } from "@utils/pluginTargets";
 import { useAwaiter, useCleanupEffect } from "@utils/react";
 import { PluginTag, PluginTags } from "@utils/types";
-import { Button, ConfirmModal, lodash, openModal, Parser, React, SearchableSelect, Select, TextInput, Tooltip, useMemo, useRef, useState } from "@webpack/common";
+import { Button, Clickable, ConfirmModal, lodash, openModal, Parser, React, SearchableSelect, Select, TextInput, Tooltip, useMemo, useRef, useState } from "@webpack/common";
 import { JSX } from "react";
 
 import Plugins, { ExcludedPlugins, PluginMeta } from "~plugins";
@@ -46,6 +47,10 @@ import { UIElementsButton } from "./UIElements";
 
 export const cl = classNameFactory("vc-plugins-");
 export const logger = new Logger("PluginSettings", "#a6d189");
+
+/** Fallback folder for plugins without a tag */
+const MISC_CATEGORY = "Other";
+const CATEGORY_ORDER = [...PluginTags, MISC_CATEGORY] as const;
 
 function ReloadRequiredCard({ required }: { required: boolean; }) {
     return (
@@ -170,6 +175,16 @@ function PluginSettings() {
 
     const [searchValue, setSearchValue] = useState({ value: "", tags: [] as PluginTag[], status: SearchStatus.ALL });
 
+    // Which folders the user manually opened; folders start collapsed
+    const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set());
+    const toggleFolder = (category: string) =>
+        setOpenFolders(prev => {
+            const next = new Set(prev);
+            if (next.has(category)) next.delete(category);
+            else next.add(category);
+            return next;
+        });
+
     const search = searchValue.value.toLowerCase();
     const onSearch = (query: string) => setSearchValue(prev => ({ ...prev, value: query }));
 
@@ -226,8 +241,8 @@ function PluginSettings() {
         return lodash.isEqual(newPlugins, sortedPluginNames) ? [] : newPlugins;
     }));
 
-    const plugins = [] as JSX.Element[];
     const requiredPlugins = [] as JSX.Element[];
+    const groupedPlugins = new Map<string, typeof Plugins[keyof typeof Plugins][]>();
 
     const showApi = searchValue.status === SearchStatus.API_PLUGINS;
     for (const p of sortedPlugins) {
@@ -258,17 +273,31 @@ function PluginSettings() {
                 </Tooltip>
             );
         } else {
-            plugins.push(
-                <PluginCard
-                    onRestartNeeded={(name, key) => changes.handleChange(`${name}.${key}`)}
-                    disabled={false}
-                    plugin={p}
-                    isNew={newPlugins?.includes(p.name)}
-                    key={p.name}
-                />
-            );
+            const category = p.tags?.[0] ?? MISC_CATEGORY;
+            const list = groupedPlugins.get(category) ?? [];
+            list.push(p);
+            groupedPlugins.set(category, list);
         }
     }
+
+    // Folders in the fixed category order ("Other" last), only non-empty ones
+    const folders = CATEGORY_ORDER
+        .map(category => ({ category, plugins: groupedPlugins.get(category) ?? [] }))
+        .filter(({ plugins }) => plugins.length > 0);
+
+    // While searching/filtering, every folder with matches is expanded so
+    // results are directly visible without hunting for folders.
+    const isFiltering = searchValue.value.length > 0 || searchValue.tags.length > 0 || searchValue.status !== SearchStatus.ALL;
+
+    const renderPluginCard = (p: typeof Plugins[keyof typeof Plugins]) => (
+        <PluginCard
+            onRestartNeeded={(name, key) => changes.handleChange(`${name}.${key}`)}
+            disabled={false}
+            plugin={p}
+            isNew={newPlugins?.includes(p.name)}
+            key={p.name}
+        />
+    );
 
     return (
         <SettingsTab>
@@ -321,11 +350,58 @@ function PluginSettings() {
 
             <HeadingTertiary className={Margins.top20}>Plugins</HeadingTertiary>
 
-            {plugins.length || requiredPlugins.length
+            {folders.length || requiredPlugins.length
                 ? (
-                    <div className={cl("grid")}>
-                        {plugins.length
-                            ? plugins
+                    <div>
+                        {folders.length > 0 && !isFiltering && (
+                            <div className={cl("folder-actions")}>
+                                <Button
+                                    look={Button.Looks.LINK}
+                                    size={Button.Sizes.SMALL}
+                                    onClick={() => setOpenFolders(new Set(folders.map(({ category }) => category)))}
+                                >
+                                    Expand All
+                                </Button>
+                                <Button
+                                    look={Button.Looks.LINK}
+                                    size={Button.Sizes.SMALL}
+                                    onClick={() => setOpenFolders(new Set())}
+                                >
+                                    Collapse All
+                                </Button>
+                            </div>
+                        )}
+
+                        {folders.length
+                            ? folders.map((folder, i) => (
+                                <div
+                                    key={folder.category}
+                                    className={cl("folder")}
+                                    data-expanded={isFiltering || openFolders.has(folder.category)}
+                                >
+                                    <Clickable
+                                        className={cl("folder-header")}
+                                        role="button"
+                                        onClick={() => {
+                                            if (!isFiltering) toggleFolder(folder.category);
+                                        }}
+                                    >
+                                        {(isFiltering || openFolders.has(folder.category))
+                                            ? <DownArrow className={cl("folder-icon")} />
+                                            : <RightArrow className={cl("folder-icon")} />}
+                                        <span className={cl("folder-name")}>{folder.category}</span>
+                                        <span className={cl("folder-count")}>
+                                            {folder.plugins.length} {folder.plugins.length === 1 ? "plugin" : "plugins"}
+                                        </span>
+                                    </Clickable>
+
+                                    {(isFiltering || openFolders.has(folder.category)) && (
+                                        <div className={cl("grid")}>
+                                            {folder.plugins.map(renderPluginCard)}
+                                        </div>
+                                    )}
+                                </div>
+                            ))
                             : <Paragraph>No plugins meet the search criteria.</Paragraph>
                         }
                     </div>

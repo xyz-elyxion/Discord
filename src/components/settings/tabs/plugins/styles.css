@@ -23,6 +23,51 @@
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 
+.vc-plugins-folder-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.vc-plugins-folder {
+    margin-top: 4px;
+}
+
+.vc-plugins-folder-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    color: var(--interactive-icon-default);
+    transition: background-color 0.15s ease;
+
+    &:hover {
+        background: var(--background-modifier-hover);
+    }
+}
+
+.vc-plugins-folder-icon {
+    min-width: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--icon-muted);
+}
+
+.vc-plugins-folder-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--interactive-icon-hover);
+}
+
+.vc-plugins-folder-count {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
 .vc-plugins-info-button {
     height: 24px;
     width: 24px;
