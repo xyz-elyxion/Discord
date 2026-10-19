@@ -22,7 +22,7 @@ import { Paragraph } from "@components/Paragraph";
 import { SettingsTab } from "@components/settings/tabs/BaseTab";
 import { Margins } from "@utils/margins";
 import { useAwaiter } from "@utils/react";
-import { getRepo, UpdateLogger, changes } from "@utils/updater";
+import { changes,getRepo, UpdateLogger } from "@utils/updater";
 import { React } from "@webpack/common";
 
 import gitHash from "~git-hash";
@@ -56,9 +56,13 @@ function UpdateLog() {
                             marginBottom: "0.5em"
                         }}
                     >
-                        <code>
-                            <HashLink repo={repo} hash={hash} />
-                        </code>
+                        {/* Builds without git metadata have no hash to link —
+                            show nothing instead of a dead "unknown" link. */}
+                        {hash && hash !== "unknown" && (
+                            <code>
+                                <HashLink repo={repo} hash={hash} />
+                            </code>
+                        )}
 
                         <span style={{
                             marginLeft: "0.5em",
