@@ -24,7 +24,7 @@ var BuildFiles = []string{
 	"renderer.css",
 }
 
-var UserAgent = "LimeyV1Installer/" + buildinfo.InstallerGitHash
+var UserAgent = "LimeyV1Installer/" + buildinfo.InstallerVersion
 
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
