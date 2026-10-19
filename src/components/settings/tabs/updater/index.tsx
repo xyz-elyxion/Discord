@@ -132,8 +132,10 @@ function Updater() {
                             </Link>
                         )
                 }
-                {" "}
-                (<HashLink hash={gitHash} repo={repo} disabled={repoPending} />)
+                {/* Builds without git metadata have no hash to show. */}
+                {gitHash && gitHash !== "unknown" && (
+                    <> {" "} (<HashLink hash={gitHash} repo={repo} disabled={repoPending} />) </>
+                )}
             </Forms.FormText>
 
             <Divider className={classes(Margins.top16, Margins.bottom16)} />

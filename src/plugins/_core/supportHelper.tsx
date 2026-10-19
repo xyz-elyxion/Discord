@@ -35,7 +35,7 @@ import { onlyOnce } from "@utils/onlyOnce";
 import { makeCodeblock } from "@utils/text";
 import definePlugin from "@utils/types";
 import { checkForUpdates, isOutdated, update } from "@utils/updater";
-import { Button, ChannelStore, ConfirmModal, Forms, GuildMemberStore, openModal, Parser, PermissionsBits, PermissionStore, RelationshipStore, showToast, Text, Toasts, UserStore } from "@webpack/common";
+import { Button, ChannelStore, ConfirmModal, Forms, GuildMemberStore, openModal, Parser, PermissionsBits, PermissionStore, RelationshipStore, showToast, Text, UserStore } from "@webpack/common";
 import { JSX } from "react";
 
 import gitHash from "~git-hash";
@@ -80,8 +80,11 @@ async function generateDebugInfoMessage() {
     })();
 
     const info = {
+        // Builds without git metadata have no hash — omit the broken
+        // [unknown](…) commit link instead of linking to nothing.
         "Limey V1":
-            `v${VERSION} • [${gitHash}](<https://limey-discord.onrender.com/commit/${gitHash}>)` +
+            `v${VERSION} • ` +
+            (gitHash && gitHash !== "unknown" ? `[${gitHash}](<https://limey-discord.onrender.com/commit/${gitHash}>) ` : "") +
             `${SettingsPlugin.additionalInfo} - ${Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(BUILD_TIMESTAMP)}`,
         Client: `${RELEASE_CHANNEL} ~ ${client}`,
         Platform: navigator.platform
