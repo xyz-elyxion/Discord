@@ -60,10 +60,13 @@ RUN pnpm install --frozen-lockfile
 # Copy the rest of the source and build the web bundle (userscript + browser.js).
 # No git needed: the build falls back to the production remote when git is absent.
 COPY . .
-RUN pnpm buildWeb
+RUN pnpm buildWeb --standalone
 # Build the Discord Desktop App artifacts (patcher/renderer/preload) so the
 # runtime server can serve /v1/install/desktop as built without compiling.
-RUN pnpm build
+# --standalone marks these as official release builds: without it the client
+# self-identifies as a "DevBuild" (support warnings, git updater active),
+# which is wrong for builds served to end users.
+RUN pnpm build --standalone
 # Package the browser extension built above (dist/browser.js + dist/browser.css)
 # with the browser/ extension shell into dist/LimeyV1-Extension.zip so the image
 # ships a ready-to-install extension at /dist/LimeyV1-Extension.zip. Idempotent:
