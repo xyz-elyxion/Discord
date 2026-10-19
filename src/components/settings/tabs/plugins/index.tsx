@@ -50,7 +50,7 @@ export const logger = new Logger("PluginSettings", "#a6d189");
 
 /** Fallback folder for plugins without a tag */
 const MISC_CATEGORY = "Other";
-const CATEGORY_ORDER = [...PluginTags, MISC_CATEGORY] as const;
+const CATEGORY_ORDER: readonly string[] = [...PluginTags, MISC_CATEGORY];
 
 function ReloadRequiredCard({ required }: { required: boolean; }) {
     return (
@@ -243,6 +243,7 @@ function PluginSettings() {
 
     const requiredPlugins = [] as JSX.Element[];
     const groupedPlugins = new Map<string, typeof Plugins[keyof typeof Plugins][]>();
+    const sourceFolders = new Set<string>();
 
     const showApi = searchValue.status === SearchStatus.API_PLUGINS;
     for (const p of sortedPlugins) {
@@ -273,17 +274,31 @@ function PluginSettings() {
                 </Tooltip>
             );
         } else {
-            const category = p.tags?.[0] ?? MISC_CATEGORY;
+            // Mirror the source tree: plugins nested inside a group directory
+            // (like src/plugins/checkers/accountChecker) share one folder named
+            // after it, so sibling plugins land together. Everything else groups
+            // by its primary tag.
+            const parts = PluginMeta[p.name]?.folderName?.split("/") ?? [];
+            const category = parts.length > 1
+                ? parts.slice(0, -1).join("/").replace(/(^\w)/, c => c.toUpperCase())
+                : p.tags?.[0] ?? MISC_CATEGORY;
+            if (parts.length > 1) sourceFolders.add(category);
+
             const list = groupedPlugins.get(category) ?? [];
             list.push(p);
             groupedPlugins.set(category, list);
         }
     }
 
-    // Folders in the fixed category order ("Other" last), only non-empty ones
-    const folders = CATEGORY_ORDER
-        .map(category => ({ category, plugins: groupedPlugins.get(category) ?? [] }))
-        .filter(({ plugins }) => plugins.length > 0);
+    // Source-tree folders first, then tag folders in the fixed order ("Other" last); only non-empty ones
+    const folders = [...groupedPlugins.entries()]
+        .map(([category, plugins]) => ({ category, plugins, isSource: sourceFolders.has(category) }))
+        .filter(({ plugins }) => plugins.length > 0)
+        .sort((a, b) => {
+            if (a.isSource !== b.isSource) return a.isSource ? -1 : 1;
+            if (a.isSource) return a.category.localeCompare(b.category);
+            return CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) || a.category.localeCompare(b.category);
+        });
 
     // While searching/filtering, every folder with matches is expanded so
     // results are directly visible without hunting for folders.
