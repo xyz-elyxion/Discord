@@ -1,0 +1,138 @@
+---
+title: Bot SDK
+description: Connect your Discord bot to Limey V1 — Limes economy, ban registry, plugin store and more
+sidebar:
+    order: 4
+---
+
+The official **Limey V1 Bot SDK** lets third-party Discord bots integrate with the
+Limey V1 platform. One import, no dependencies required, works with any bot stack
+(discord.js, oceanic.js, Eris, raw REST…).
+
+```js
+import { LimeyV1 } from "https://limey-discord.onrender.com/sdk/index.js";
+
+const limey = new LimeyV1();
+```
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+<CardGrid stagger>
+    <Card title="🍋 One import">
+        Served straight from this site as a pure ES module. Node 18+, serverless, or
+        any bundler that supports remote ESM. No npm package required.
+    </Card>
+    <Card title="🪙 Limes economy">
+        Wallets, daily claims, message/voice/stream/game activity, perk tiers,
+        trials and subscriptions — all computed server-side.
+    </Card>
+    <Card title="🚫 Ban registry">
+        Check any Discord user against the official Limey V1 ban registry so you
+        can keep trust-sensitive actions consistent with the platform.
+    </Card>
+    <Card title="🧩 Plugin store">
+        List community plugins or look one up by name. Great for /plugins commands
+        and inline embeds.
+    </Card>
+    <Card title="🔎 Invite lookups">
+        Resolve invites and guild widgets without your own Discord REST token.
+    </Card>
+    <Card title="🛡️ Sentinel">
+        Complete the Limey Sentinel proof-of-work check in-process for gated flows.
+    </Card>
+</CardGrid>
+
+## Quick start
+
+```js
+// 1. Show the platform banner when your bot boots.
+const banner = await limey.status.get();
+if (banner.active) console.log("[limey]", banner.message);
+
+// 2. Ban registry — check any user before trust-sensitive actions.
+const banned = await limey.bans.isBanned("123456789012345678");
+
+// 3. Community plugin listing on a /plugins command.
+const plugins = await limey.plugins.list();
+```
+
+Self-hosting Limey? Point `baseUrl` at your own instance instead:
+
+```js
+const limey = new LimeyV1({ baseUrl: "http://localhost:3000" });
+```
+
+## Limes economy
+
+All rates, streaks, caps and cooldowns are enforced server-side — you just
+forward activity. Batch message activity instead of hitting it per-message:
+the server awards 1 Lime per 25 messages, capped per day.
+
+```js
+// Wallet overview (balance, streak, tier, multiplier, nextDailyAt):
+const wallet = await limey.limes.wallet(userId);
+
+// Daily claim (server 429s when too early — err.code === "rate_limited"):
+const claim = await limey.limes.claimDaily(userId);
+// claim = { amount, balance, streak, streakBonus, multiplier }
+
+// Batch message activity from your gateway:
+await limey.limes.countMessages(userId, 25);
+
+// Voice / streaming / game minutes, awarded per 15-minute block:
+await limey.limes.countVoice(userId, 15);
+await limey.limes.countStreaming(userId, 15);
+await limey.limes.countGame(userId, 15);
+
+// Perk tiers: Seedling / Grove / Orchard
+const { tiers } = await limey.limes.tiers();
+await limey.limes.startTrial(userId, "seedling"); // once per tier, ever
+await limey.limes.subscribe(userId, "orchard");   // costs Limes
+```
+
+## Error handling
+
+Every failure throws a `LimeyV1Error` with a stable `code`. Retries on 429/5xx
+are automatic; every request has a 15s timeout. Both are tunable on the client.
+
+```js
+import { LimeyV1, LimeyV1Error } from "https://limey-discord.onrender.com/sdk/index.js";
+
+try {
+    await limey.limes.claimDaily(userId);
+} catch (err) {
+    if (err instanceof LimeyV1Error && err.code === "rate_limited") {
+        // cooldown — err.data.nextDailyAt tells you when
+    }
+}
+```
+
+| code | meaning |
+| --- | --- |
+| `network_error` | fetch failed / timed out (status = 0) |
+| `rate_limited` | HTTP 429 after retries |
+| `server_error` | HTTP 5xx after retries |
+| `api_error` | other non-2xx (`err.data` holds the body) |
+| `not_found` | unknown plugin / bot-state key / lookup |
+| `sentinel_required` | 403 asking for a proof-of-work payload |
+| `invalid_id` | malformed Discord snowflake passed by your code |
+
+## Admin token + `bot-state`
+
+The **limebot** mirrors its SQLite feature tables into the server's Postgres
+kv store so deploys don't wipe counting progress. Bots that plug into the same
+ecosystem can do the same with `USRBG_ADMIN_TOKEN`:
+
+```js
+const limey = new LimeyV1({ adminToken: process.env.USRBG_ADMIN_TOKEN });
+await limey.state.set("my-feature", { enabled: true, since: Date.now() });
+const cfg = await limey.state.get("my-feature");
+```
+
+Keys are restricted to `[A-Za-z0-9_-]{1,64}` (server-validated).
+
+## Links
+
+- [Download the module directly](https://limey-discord.onrender.com/sdk/index.js)
+- [TypeScript definitions](https://limey-discord.onrender.com/sdk/index.d.ts)
+- Walkthrough on the main site: [/sdk](https://limey-discord.onrender.com/sdk)

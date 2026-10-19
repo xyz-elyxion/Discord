@@ -1981,6 +1981,11 @@ function serveFile(res, filePath, status = 200) {
     if (ext === ".json") {
         headers["Access-Control-Allow-Origin"] = "*";
     }
+    // The Bot SDK is imported by URL from other bots/dev environments, including
+    // browser-side ESM imports, which are CORS-checked — allow any origin.
+    if (filePath.includes(`${PUBLIC}\\sdk\\`) || filePath.includes(`${PUBLIC}/sdk/`)) {
+        headers["Access-Control-Allow-Origin"] = "*";
+    }
     if (DOWNLOAD_TYPES.has(ext)) {
         headers["Content-Disposition"] = `attachment; filename="${filePath.split(/[\\/]/).pop()}"`;
     }
@@ -2015,6 +2020,7 @@ const NAMED_PAGES = {
     "/submit-plugin": "submit-plugin.html",
     "/code": "code.html",
     "/404": "404.html",
+    "/sdk": "sdk.html",
     "/terms": "terms.html",
     "/terms-of-service": "terms.html",
     "/privacy": "privacy.html",

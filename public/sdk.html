@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot SDK — Limey V1</title>
+    <meta name="description" content="Official SDK for connecting your Discord bot to the Limey V1 platform — Limes economy, ban registry, plugin store, invites and status.">
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .sdk-hero {
+            padding: 64px 0 40px;
+            text-align: center;
+            background: radial-gradient(ellipse 60% 50% at 50% -10%, rgba(156, 204, 60, 0.10), transparent), var(--bg);
+        }
+        .sdk-hero h1 { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 12px; }
+        .sdk-hero .lede { margin-bottom: 24px; }
+        .sdk-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            background: rgba(156, 204, 60, 0.14);
+            color: var(--lime);
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            margin-bottom: 16px;
+        }
+
+        .sdk-main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sdk-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px;
+            transition: border-color 0.15s;
+        }
+        .sdk-card:hover { border-color: rgba(156, 204, 60, 0.12); }
+        .sdk-card h2 { color: var(--lime); font-size: 1.15rem; margin: 0 0 12px; }
+        .sdk-card p, .sdk-card li { color: var(--text-dim); font-size: 0.95rem; line-height: 1.65; }
+        .sdk-card strong { color: var(--text); }
+        .sdk-card code.inline {
+            background: rgba(255, 255, 255, 0.06);
+            padding: 2px 6px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            color: var(--text);
+        }
+        .sdk-card ul { margin: 8px 0 0; padding-left: 20px; }
+        .sdk-card li { margin-bottom: 6px; }
+
+        .sdk-snippet {
+            margin-top: 14px;
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px 18px;
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #c9d1d9;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        .sdk-snippet .k { color: #ff7b72; }
+        .sdk-snippet .s { color: #a5d6ff; }
+        .sdk-snippet .c { color: #8b949e; font-style: italic; }
+        .sdk-snippet .f { color: #d2a8ff; }
+        .sdk-snippet .n { color: #79c0ff; }
+
+        .sdk-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }
+        .sdk-mini {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .sdk-mini h3 {
+            font-size: 0.95rem;
+            color: var(--lime);
+            margin: 0 0 8px;
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        }
+        .sdk-mini p { font-size: 0.88rem; color: var(--text-dim); margin: 0; line-height: 1.55; }
+        .sdk-mini code {
+            display: block;
+            margin-top: 10px;
+            font-size: 0.78rem;
+            color: var(--text);
+            opacity: 0.85;
+        }
+
+        .sdk-cta {
+            text-align: center;
+            padding: 28px;
+            border-color: rgba(156, 204, 60, 0.18);
+            background: rgba(156, 204, 60, 0.05);
+        }
+        .btn-primary {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 12px 28px;
+            background: var(--lime);
+            color: #101408;
+            border-radius: 10px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: transform 0.12s, box-shadow 0.12s;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(156, 204, 60, 0.25); }
+        .btn-secondary {
+            display: inline-block;
+            margin: 14px 0 0 12px;
+            padding: 12px 28px;
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 10px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .btn-secondary:hover { border-color: var(--lime); color: var(--lime); }
+
+        table.sdk-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 14px;
+            font-size: 0.88rem;
+        }
+        table.sdk-table th, table.sdk-table td {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        table.sdk-table th { color: var(--lime); font-weight: 600; }
+        table.sdk-table td { color: var(--text-dim); }
+        table.sdk-table td code { color: var(--text); font-size: 0.85em; }
+    </style>
+</head>
+<body>
+    <div id="status-banner" class="status-banner hidden"></div>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-dot"></span>
+                Limey V1
+            </a>
+            <nav class="nav-links">
+                <a href="/">Home</a>
+                <a href="/download">Download</a>
+                <a href="/plugins/">Plugins</a>
+                <a href="/sdk" aria-current="page">Bot SDK</a>
+                <a href="/docs">Docs</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="sdk-hero">
+        <div class="container">        <span class="sdk-badge">Official SDK · v1.0.0</span>
+        <h1>Connect your bot to Limey V1</h1>
+        <p class="lede">Give your Discord bot Limes economy support, the community ban registry,
+        plugin data, invite lookups and platform status — with one import and zero dependencies.</p>
+        </div>
+    </section>
+
+    <main class="sdk-main">
+
+        <div class="sdk-card">
+            <h2>🍋 One import, no install</h2>
+            <p>The SDK is served straight from this site as a pure ES module. Import it by URL from Node 18+,
+            a serverless function, or any bundler that resolves remote ESM. No npm account, no build step, no API key.</p>
+            <div class="sdk-snippet"><span class="c">// Node 18+, ESM (add "type": "module" to your package.json)</span>
+<span class="k">import</span> { <span class="n">LimeyV1</span> } <span class="k">from</span> <span class="s">"https://limey-discord.onrender.com/sdk/index.js"</span>;
+
+<span class="k">const</span> limey = <span class="k">new</span> <span class="f">LimeyV1</span>();
+
+<span class="c">// your bot's ready handler</span>
+<span class="n">client</span>.<span class="f">on</span>(<span class="s">"ready"</span>, <span class="k">async</span> () => {
+    <span class="k">const</span> banner = <span class="k">await</span> limey.<span class="f">status</span>.<span class="f">get</span>();
+    <span class="k">if</span> (banner.active) console.<span class="f">log</span>(<span class="s">"[limey]"</span>, banner.message);
+});</div>
+            <p style="margin-top:14px">Prefer npm? <code class="inline">pnpm add @limeyv1/sdk</code> once published — the API is identical.
+            Self-hosting Limey? Point <code class="inline">baseUrl</code> at your own instance instead.</p>
+        </div>
+
+        <div class="sdk-card">
+            <h2>What your bot can do</h2>
+            <div class="sdk-grid">
+                <div class="sdk-mini">
+                    <h3>limey.limes</h3>
+                    <p>Full Limes economy: wallets, daily claims, message/voice/stream/game activity, perk tiers (Seedling / Grove / Orchard), trials and subscriptions.</p>
+                    <code>await limey.limes.claimDaily(userId)</code>
+                </div>
+                <div class="sdk-mini">
+                    <h3>limey.bans</h3>
+                    <p>Check any Discord user against the official Limey V1 ban registry — keep trust-sensitive actions aligned.</p>
+                    <code>await limey.bans.isBanned(userId)</code>
+                </div>
+                <div class="sdk-mini">
+                    <h3>limey.plugins</h3>
+                    <p>List or look up community plugins for /plugins commands and inline embeds.</p>
+                    <code>await limey.plugins.list()</code>
+                </div>
+                <div class="sdk-mini">
+                    <h3>limey.tools</h3>
+                    <p>Resolve Discord invites and guild widgets without your own Discord REST token.</p>
+                    <code>await limey.tools.lookupInvite(code)</code>
+                </div>
+                <div class="sdk-mini">
+                    <h3>limey.status</h3>
+                    <p>Surface platform outages and rate-limit banners inside your bot's logs or status page.</p>
+                    <code>await limey.status.isActive()</code>
+                </div>
+                <div class="sdk-mini">
+                    <h3>limey.sentinel</h3>
+                    <p>Complete the Limey Sentinel proof-of-work captcha in-process for gated flows.</p>
+                    <code>await limey.sentinel.solveToken()</code>
+                </div>
+            </div>
+        </div>
+
+        <div class="sdk-card">
+            <h2>Limes economy walkthrough</h2>
+            <p>All rates, streaks, caps and cooldowns are enforced server-side. You forward activity, the platform
+            does the math. Batch messages instead of firing per-message hits — the server counts per 25 messages.</p>
+            <div class="sdk-snippet"><span class="c">// wallet overview</span>
+<span class="k">const</span> wallet = <span class="k">await</span> limey.<span class="f">limes</span>.<span class="f">wallet</span>(userId);
+<span class="c">// → { balance: 1_250, streak: 4, tier: "grove", multiplier: 1.0, nextDailyAt ... }</span>
+
+<span class="c">// daily claim (server 429s if too early — err.code === "rate_limited")</span>
+<span class="k">const</span> claim = <span class="k">await</span> limey.<span class="f">limes</span>.<span class="f">claimDaily</span>(userId);
+
+<span class="c">// batch message activity from your gateway</span>
+<span class="k">await</span> limey.<span class="f">limes</span>.<span class="f">countMessages</span>(userId, <span class="n">25</span>);
+
+<span class="c">// voice / stream / game minutes, awarded per 15-minute block</span>
+<span class="k">await</span> limey.<span class="f">limes</span>.<span class="f">countVoice</span>(userId, <span class="n">15</span>);
+
+<span class="c">// perk tiers</span>
+<span class="k">const</span> { tiers } = <span class="k">await</span> limey.<span class="f">limes</span>.<span class="f">tiers</span>();
+<span class="k">await</span> limey.<span class="f">limes</span>.<span class="f">startTrial</span>(userId, <span class="s">"seedling"</span>);
+<span class="k">await</span> limey.<span class="f">limes</span>.<span class="f">subscribe</span>(userId, <span class="s">"orchard"</span>);</div>
+        </div>
+
+        <div class="sdk-card">
+            <h2>Error handling that doesn't crash your bot</h2>
+            <p>Every failure throws a <code class="inline">LimeyV1Error</code> with a stable machine-readable
+            <code class="inline">code</code>. Retries on 429/5xx are automatic; every request has a 15s timeout.</p>
+            <div class="sdk-snippet"><span class="k">import</span> { <span class="n">LimeyV1</span>, <span class="n">LimeyV1Error</span> } <span class="k">from</span> <span class="s">"https://limey-discord.onrender.com/sdk/index.js"</span>;
+
+<span class="k">try</span> {
+    <span class="k">await</span> limey.<span class="f">limes</span>.<span class="f">claimDaily</span>(userId);
+} <span class="k">catch</span> (err) {
+    <span class="k">if</span> (err instanceof <span class="n">LimeyV1Error</span> &amp;&amp; err.code === <span class="s">"rate_limited"</span>) {
+        <span class="c">// cooldown — err.data.nextDailyAt tells you when</span>
+    }
+}</div>
+            <table class="sdk-table">
+                <thead><tr><th>code</th><th>meaning</th></tr></thead>
+                <tbody>
+                    <tr><td><code>network_error</code></td><td>fetch failed / timed out (status = 0)</td></tr>
+                    <tr><td><code>rate_limited</code></td><td>HTTP 429 after retries</td></tr>
+                    <tr><td><code>server_error</code></td><td>HTTP 5xx after retries</td></tr>
+                    <tr><td><code>api_error</code></td><td>other non-2xx (<code>err.data</code> holds the body)</td></tr>
+                    <tr><td><code>not_found</code></td><td>unknown plugin / bot-state key / lookup</td></tr>
+                    <tr><td><code>sentinel_required</code></td><td>403 asking for a proof-of-work payload</td></tr>
+                    <tr><td><code>invalid_id</code></td><td>malformed Discord snowflake passed by your code</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="sdk-card sdk-cta">
+            <h2>Ready to ship it?</h2>
+            <p>Grab the module, read the API reference, or browse the raw source — everything is public and
+            versioned alongside the platform.</p>
+            <a class="btn-primary" href="/sdk/index.js" download>Download index.js</a>
+            <a class="btn-secondary" href="https://limey-discord.onrender.com/sdk/index.d.ts" target="_blank" rel="noopener">View TypeScript defs</a>
+            <a class="btn-secondary" href="/docs/sdk">Full docs reference</a>
+            <a class="btn-secondary" href="/discord/">Join our Discord</a>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container footer-bottom">
+            <div class="footer-copy">
+                <div>&copy; <span class="footer-year">2026</span> Limey V1</div>
+                <div>Built for the community, by the community.</div>
+            </div>
+            <ul class="footer-main-links">
+                <li><a href="/terms">Terms</a></li>
+                <li><a href="/privacy">Privacy</a></li>
+                <li><a href="/rules">Rules</a></li>
+                <li><a href="/docs">Docs</a></li>
+            </ul>
+        </div>
+    </footer>
+</body>
+</html>

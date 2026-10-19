@@ -39,6 +39,10 @@ export default defineConfig({
                 {
                     label: "Navigating Discord's Code",
                     items: [{ autogenerate: { directory: "discord-code" } }]
+                },
+                {
+                    label: "Bot SDK",
+                    link: "/sdk"
                 }
             ]
         })

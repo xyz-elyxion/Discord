@@ -1,0 +1,41 @@
+{
+    "name": "@limeyV1/sdk",
+    "author": "Limey V1 Contributors",
+    "private": false,
+    "description": "Official SDK for connecting Discord bots to Limey V1 — economy, ban checks, plugin store, community data and status APIs",
+    "version": "1.0.0",
+    "license": "LGPL-3.0-or-later",
+    "type": "module",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "node ../../scripts/build-sdk.mjs",
+        "prepublishOnly": "pnpm build"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://limey-discord.onrender.com",
+        "directory": "packages/limey-v1-sdk"
+    },
+    "keywords": [
+        "limey",
+        "limey-v1",
+        "discord",
+        "bot",
+        "api",
+        "sdk"
+    ],
+    "engines": {
+        "node": ">=18"
+    }
+}
