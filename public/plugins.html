@@ -67,6 +67,78 @@
         .plugin-card:hover {
             border-color: #404040;
         }
+        .plugin-shot {
+            position: relative;
+            margin: -20px -20px 8px;
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
+            aspect-ratio: 16 / 10;
+            background: #0d0d0d;
+            cursor: zoom-in;
+        }
+        .plugin-shot img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+        .plugin-shot img.loaded,
+        .plugin-shot img.current {
+            opacity: 1;
+        }
+        .plugin-shot .shots-nav {
+            position: absolute;
+            inset: 0;
+            display: none;
+            pointer-events: none;
+        }
+        .plugin-shot[data-count="2"] .shots-nav,
+        .plugin-shot[data-count="3"] .shots-nav,
+        .plugin-shot[data-count="4"] .shots-nav,
+        .plugin-shot[data-count="5"] .shots-nav {
+            display: block;
+        }
+        .plugin-shot .dot {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.35);
+            transition: background 0.2s;
+            pointer-events: auto;
+        }
+        .plugin-shot .dot.active {
+            background: var(--lime);
+        }
+        .plugin-shot .dot:hover {
+            background: #fafafa;
+        }
+        .plugin-shot,
+        .plugin-shot * {
+            user-select: none;
+        }
+        /* Lightbox */
+        .lightbox {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+        }
+        .lightbox img {
+            max-width: 92vw;
+            max-height: 92vh;
+            border-radius: 8px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+        }
         .plugin-card h3 {
             color: #fafafa;
             font-size: 1.05rem;
@@ -273,6 +345,108 @@
         const count = document.getElementById("count");
         const status = document.getElementById("status");
 
+        // Optional per-plugin example screenshots.
+        // Convention: public/plugins/<SlugName>.<n>.png (or .jpg/.webp/.gif),
+        // e.g. plugins/AccountChecker.1.png — index starting at 1, gaps allowed.
+        // A card with 1 image shows a static shot; 2-5 form a click-through
+        // slideshow with dots; clicking any image opens the lightbox.
+        const SHOT_EXTS = ["webp", "png", "jpg", "gif"];
+        const shotCache = {};
+
+        function probeImage(url) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => resolve(url);
+                img.onerror = () => resolve(null);
+                img.src = url;
+            });
+        }
+
+        // Promise cache: repeated renders (typing in search filters) reuse
+        // in-flight/finished probes instead of hammering 404s again.
+        async function findShots(name) {
+            if (!shotCache[name]) {
+                shotCache[name] = (async () => {
+                    const shots = [];
+                    for (let n = 1; n <= 5; n++) {
+                        let found = null;
+                        for (const ext of SHOT_EXTS) {
+                            // We test with an Image rather than HEAD so it works on any static host.
+                            found = await probeImage(`plugins/${encodeURIComponent(name)}.${n}.${ext}`);
+                            if (found) break;
+                        }
+                        if (!found) break;
+                        shots.push(found);
+                    }
+                    return shots;
+                })();
+            }
+            return shotCache[name];
+        }
+
+        function buildShot(shots) {
+            const wrap = document.createElement("div");
+            wrap.className = "plugin-shot";
+            wrap.dataset.count = String(shots.length);
+
+            const imgs = shots.map((src, i) => {
+                const img = document.createElement("img");
+                img.src = src;
+                img.alt = "";
+                img.loading = "lazy";
+                img.decoding = "async";
+                img.className = i === 0 ? "current" : "";
+                img.addEventListener("load", () => img.classList.add("loaded"));
+                if (i === 0) img.classList.add("loaded");
+                wrap.appendChild(img);
+                return img;
+            });
+
+            let cur = 0;
+            const setCur = i => {
+                cur = i;
+                imgs.forEach((im, j) => im.classList.toggle("current", j === i));
+                dots.forEach((d, j) => d.classList.toggle("active", j === i));
+            };
+
+            const nav = document.createElement("div");
+            nav.className = "shots-nav";
+            const dots = shots.map((_, i) => {
+                const d = document.createElement("span");
+                d.className = "dot" + (i === 0 ? " active" : "");
+                d.style.right = (8 + i * 14) + "px";
+                d.addEventListener("click", e => { e.stopPropagation(); setCur(i); });
+                nav.appendChild(d);
+                return d;
+            });
+            wrap.appendChild(nav);
+
+            wrap.addEventListener("click", () => openLightbox(shots, cur));
+            return wrap;
+        }
+
+        function openLightbox(shots, startAt) {
+            const ov = document.createElement("div");
+            ov.className = "lightbox";
+            const img = document.createElement("img");
+            img.src = shots[startAt];
+            img.alt = "";
+            ov.appendChild(img);
+            let cur = startAt;
+            ov.addEventListener("click", () => ov.remove());
+            document.addEventListener("keydown", function esc(e) {
+                if (e.key === "Escape") { ov.remove(); document.removeEventListener("keydown", esc); }
+            });
+            if (shots.length > 1) {
+                ov.addEventListener("wheel", e => {
+                    e.preventDefault();
+                    cur = (cur + (e.deltaY > 0 ? 1 : shots.length - 1)) % shots.length;
+                    img.src = shots[cur];
+                }, { passive: false });
+            }
+            document.body.appendChild(ov);
+        }
+
         function render() {
             const q = search.value.trim().toLowerCase();
             const terms = q.split(/\s+/).filter(Boolean);
@@ -293,6 +467,12 @@
                 const desc = document.createElement("p");
                 desc.textContent = p.description;
                 card.appendChild(desc);
+
+                // Example screenshots (if any were uploaded): attaching in the
+                // render loop keeps cards correct across search re-renders.
+                findShots(p.name).then(shots => {
+                    if (shots.length && card.isConnected) card.insertBefore(buildShot(shots), card.firstChild);
+                });
 
                 const meta = document.createElement("div");
                 meta.className = "plugin-meta";
