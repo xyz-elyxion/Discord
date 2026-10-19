@@ -8,7 +8,7 @@
 
 const http = require("http");
 const { spawn } = require("child_process");
-const { createHmac, randomBytes } = require("crypto");
+const { createHmac, createHash } = require("crypto");
 const { inflateRawSync, inflateSync } = require("zlib");
 const { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } = require("fs");
 const { join, extname, normalize, resolve } = require("path");
