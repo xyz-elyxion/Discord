@@ -34,11 +34,16 @@ const defines = stringifyValues({
     IS_EXTENSION: false,
     IS_USERSCRIPT: false,
     VERSION,
-    BUILD_TIMESTAMP,
-    // Public half of the build-file signing key: embedded so desktop clients
-    // can verify updates came from the official backend.
-    BUILD_SIGNING_KEY_PUB: process.env.BUILD_SIGNING_KEY_PUB || undefined
+    BUILD_TIMESTAMP
 });
+
+// Public half of the build-file signing key: embedded so desktop clients can
+// verify updates came from the official backend. Only added when configured —
+// esbuild rejects define entries without a string value, and builds without a
+// signing key must stay identical to before (client skips verification).
+if (process.env.BUILD_SIGNING_KEY_PUB) {
+    defines.BUILD_SIGNING_KEY_PUB = JSON.stringify(process.env.BUILD_SIGNING_KEY_PUB);
+}
 
 if (defines.IS_STANDALONE === "false") {
     // If this is a local build (not standalone), optimize
