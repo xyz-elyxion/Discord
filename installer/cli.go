@@ -61,7 +61,7 @@ func main() {
 	}
 
 	if *versionFlag {
-		fmt.Println("Limey V1 Installer Cli", buildinfo.InstallerVersion, "("+buildinfo.InstallerGitHash+")")
+		fmt.Println("Limey V1 Installer Cli", buildinfo.InstallerVersion)
 		fmt.Println("Copyright (C) 2026 Limey V1 contributors")
 		fmt.Println("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.")
 		return
