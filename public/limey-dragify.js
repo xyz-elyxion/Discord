@@ -278,7 +278,24 @@
                 continue;
             }
             const usr = USER_URL_RE.exec(line);
-            if (usr) entities.push({ kind: "user", id: usr[1] });
+            if (usr) {
+                entities.push({ kind: "user", id: usr[1] });
+                continue;
+            }
+            // Plugin links from a rendered plugin-card drag (text fallback
+            // path): limey-discord.onrender.com/plugins#PluginName
+            const pluginMatch = /^(?:https?:\/\/)[^#]*\/plugins\/?#(.+)$/.exec(line);
+            if (pluginMatch) {
+                const name = decodeURIComponent(pluginMatch[1].split("&")[0]);
+                if (name) {
+                    entities.push({
+                        kind: "plugin",
+                        id: name,
+                        name,
+                        url: `https://limey-discord.onrender.com/plugins#${encodeURIComponent(name)}`,
+                    });
+                }
+            }
         }
         done(entities);
     }
@@ -329,7 +346,7 @@
                 return;
             }
         const wireCards = () => {
-            source.querySelectorAll(".plugin-card:not([data-limey-dragify])").forEach(card => {
+            grid.querySelectorAll(".plugin-card:not([data-limey-dragify])").forEach(card => {
                 card.dataset.limeyDragify = "plugin";
                 card.draggable = true;
                 const name = card.querySelector("h3")?.textContent?.trim();
@@ -346,7 +363,7 @@
         };
         wireCards();
         new MutationObserver(wireCards).observe(grid, { childList: true });
-    };
+    }
         tryStart();
     }
     markPluginCards();

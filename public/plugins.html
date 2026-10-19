@@ -346,11 +346,13 @@
         const status = document.getElementById("status");
 
         // Optional per-plugin example screenshots.
-        // Convention: public/plugins/<SlugName>.<n>.png (or .jpg/.webp/.gif),
-        // e.g. plugins/AccountChecker.1.png — index starting at 1, gaps allowed.
+        // Convention: public/plugins/<SlugName>.<n>.<ext> — e.g.
+        // plugins/AccountChecker.1.png — index starting at 1, gaps allowed.
+        // Any web-image format works; the list below is probed in order, so a
+        // plugin with both shot.1.webp and shot.1.png shows the webp first.
         // A card with 1 image shows a static shot; 2-5 form a click-through
         // slideshow with dots; clicking any image opens the lightbox.
-        const SHOT_EXTS = ["webp", "png", "jpg", "gif"];
+        const SHOT_EXTS = ["webp", "png", "jpg", "jpeg", "gif", "avif", "jfif", "svg", "bmp"];
         const shotCache = {};
 
         function probeImage(url) {
