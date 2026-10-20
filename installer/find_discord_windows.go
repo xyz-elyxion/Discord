@@ -18,10 +18,10 @@ import (
 )
 
 var windowsNames = map[string]string{
-	"stable": "Discord",
-	"ptb":    "DiscordPTB",
-	"canary": "DiscordCanary",
-	"dev":    "DiscordDevelopment",
+	"stable":      "Discord",
+	"ptb":         "DiscordPTB",
+	"canary":      "DiscordCanary",
+	"development": "DiscordDevelopment",
 }
 
 var killLock sync.Mutex
@@ -62,7 +62,6 @@ func ParseDiscord(p, branch string) *DiscordInstall {
 	if branch == "" {
 		branch = GetBranch(p)
 	}
-
 	return &DiscordInstall{
 		path:             p,
 		branch:           branch,

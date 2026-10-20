@@ -88,6 +88,50 @@
             color: var(--text-dim);
             font-weight: 500;
         }
+
+        /* Release channels host picker */
+        .branch-picker {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin: 14px 0;
+        }
+        .branch-btn.selected {
+            border-color: color-mix(in srgb, var(--lime) 55%, var(--input));
+            box-shadow: 0 0 0 1px color-mix(in srgb, var(--lime) 35%, transparent);
+        }
+        .branch-btn[data-branch="auto"] .dl-arch::after {
+            content: " (recommended)";
+        }
+        .branch-cmd-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .branch-cmd {
+            flex: 1 1 auto;
+            background: #0f0f0f;
+            border: 1px solid var(--input);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 0.88rem;
+            color: var(--lime);
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .branch-copy[disabled] {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .branch-meta {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        .branch-meta a { color: var(--lime); }
+        .branch-meta .live-ok { color: var(--lime); }
+        .branch-meta .live-fail { opacity: 0.6; }
         .inst-note {
             max-width: 720px;
             margin: 16px auto 0;
@@ -308,6 +352,61 @@
             </p>
         </div>
 
+        <!-- Release channels: the downloadable spec from /docs/release-channels.
+             Static content so the page works without JS; the script below
+             enhances it with the live /v1/channels manifest. -->
+        <h2 class="extra-title" id="channels">Release channels</h2>
+        <div class="methods">
+            <div class="method recommended">
+                <span class="method-badge">Track</span>
+                <h2>Stable</h2>
+                <p>
+                    The track you download above. Hash-stamped builds served by the Limey V1 backend,
+                    verified with a signature, with a changelog entry per release. Everyone gets the
+                    newest build as soon as the hash flips.
+                </p>
+                <span class="platforms" data-channel="stable">ships today · rollout: full</span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Track</span>
+                <h2>Development (DevBuild)</h2>
+                <p>
+                    Build Limey V1 from source with the git updater active instead of the release
+                    backend. DevBuilds self-identify as such and may be declined in support —
+                    build with <code>pnpm build</code> and inject with <code>pnpm inject</code>.
+                </p>
+                <span class="platforms" data-channel="dev">ships today · builds per commit</span>
+            </div>
+        </div>
+
+        <!-- Host picker: which Discord branch the installer patches. The
+             commands use --branch values that match the installer cli flag —
+             host channel ids minus the "discord-" prefix. -->
+        <div class="inst-note">
+            <p>
+                <strong>Host channel:</strong> Limey V1 supports every Discord desktop branch —
+                Stable, PTB, Canary <em>and</em> Development. The installer detects everything
+                automatically; if you have multiple clients installed, download the CLI installer
+                above and point it at one branch:
+            </p>
+            <div class="branch-picker" id="branchPicker">
+                <button class="btn dl-btn branch-btn" type="button" data-branch="auto">Discord Stable <span class="dl-arch">auto</span></button>
+                <button class="btn dl-btn branch-btn" type="button" data-branch="ptb">Discord PTB</button>
+                <button class="btn dl-btn branch-btn" type="button" data-branch="canary">Discord Canary</button>
+                <button class="btn dl-btn branch-btn" type="button" data-branch="development">Discord Development</button>
+            </div>
+            <div class="branch-cmd-wrap">
+                <code class="branch-cmd" id="branchCmd" spellcheck="false">LimeyV1Installer-cli --install</code>
+                <button class="btn btn-ghost branch-copy" type="button" id="branchCopy" disabled>Copy</button>
+            </div>
+            <p class="branch-meta">
+                Channels spec: <a href="/docs/release-channels">docs</a> · machine-readable:
+                <a href="/v1/channels">/v1/channels</a>
+                <span id="channelsLive"></span>
+            </p>
+        </div>
+
         <h2 class="extra-title">Other ways to run Limey V1</h2>
         <div class="methods">
             <!-- Browser extension -->
@@ -448,6 +547,62 @@
     document.addEventListener('click', function () { closeAll(null); });
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closeAll(null);
+    });
+})();
+</script>
+<script>
+// Release channels — the host picker and the live manifest readout.
+// Static fallback content is already rendered; this only enhances it.
+(function () {
+    var cmd = document.getElementById("branchCmd");
+    var copy = document.getElementById("branchCopy");
+    var buttons = Array.prototype.slice.call(document.querySelectorAll(".branch-btn"));
+    // Best-effort platform hint for the command shown in the picker.
+    var platform = navigator.platform || "";
+    var executableName =
+        /win/i.test(platform) ? "LimeyV1Installer-cli-win.exe"
+        : /mac|darwin/i.test(platform) ? (/arm/i.test(platform) ? "LimeyV1Installer-cli-macos-arm64" : "LimeyV1Installer-cli-macos-amd64")
+        : "LimeyV1Installer-cli-linux";
+
+    var SCHEMA = "limey.v1/channels/1";
+
+    function pick(branch) {
+        buttons.forEach(function (b) { b.classList.toggle("selected", b.dataset.branch === branch); });
+        cmd.textContent = executableName + (branch === "auto" ? " --install" : " --branch " + branch + " --install");
+        copy.disabled = !cmd.textContent;
+    }
+    buttons.forEach(function (b) {
+        b.addEventListener("click", function () { pick(b.dataset.branch); });
+    });
+    pick("auto");
+
+    copy.addEventListener("click", function () {
+        var text = cmd.textContent;
+        (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () {
+            copy.textContent = "Copied";
+        }, function () {
+            copy.textContent = "Copy failed";
+        }).finally(function () {
+            setTimeout(function () { copy.textContent = "Copy"; }, 1500);
+        });
+    });
+
+    // Live enhancement: read the current manifest served at /v1/channels and
+    // confirm the page's implemented channels still match what the backend
+    // serves. Purely additive — the static content stands on its own.
+    var live = document.getElementById("channelsLive");
+    fetch("/v1/channels").then(function (r) {
+        return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
+    }).then(function (manifest) {
+        if (!manifest || manifest.schema !== SCHEMA || !Array.isArray(manifest.channels)) {
+            throw new Error("unexpected manifest");
+        }
+        var implemented = manifest.channels.filter(function (c) { return c.implemented; });
+        var tracks = implemented.filter(function (c) { return c.category === "track"; }).length;
+        var hosts = implemented.filter(function (c) { return c.category === "host"; }).length;
+        live.innerHTML = " · <span class=\"live-ok\">backend live: " + implemented.length + " implemented channels (" + tracks + " tracks, " + hosts + " install targets)</span>";
+    }).catch(function () {
+        live.innerHTML = " · <span class=\"live-fail\">manifest unavailable (backend waking up)</span>";
     });
 })();
 </script>

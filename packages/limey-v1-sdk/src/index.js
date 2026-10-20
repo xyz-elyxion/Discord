@@ -443,6 +443,12 @@ export const Base64Url = {
 };
 
 /**
+ * Channel categories in the /v1/channels registry (same order the server
+ * serves them in). Used to validate byCategory() input.
+ */
+const CHANNEL_CATEGORIES = ["track", "host", "rollout", "maintenance"];
+
+/**
  * Channels: the release-channel manifest from GET /v1/channels — the
  * machine-readable version of the "Release Channels" docs page. Only the
  * entries with `implemented: true` (stable, dev and the install targets)
@@ -475,6 +481,35 @@ class ChannelsResource extends BaseResource {
         const found = channels.find(ch => ch.id === id);
         if (found) return found;
         throw new LimeyV1Error(`channel "${id}" not found`, { code: "not_found", status: 404 });
+    }
+
+    /** Only channels that actually ship artifacts today (implemented: true). */
+    async implemented() {
+        return (await this.list()).filter(ch => ch.implemented);
+    }
+
+    /** All channel definitions of a category: "track" | "host" | "rollout" | "maintenance". */
+    async byCategory(category) {
+        if (!CHANNEL_CATEGORIES.includes(category)) {
+            throw new LimeyV1Error(`invalid channel category "${category}"`, { code: "invalid_category" });
+        }
+        return (await this.list()).filter(ch => ch.category === category);
+    }
+
+    /**
+     * Implemented desktop install targets (host channels) with the matching
+     * installer --branch value derived from the channel id, mirroring
+     * GET /v1/install/desktop's `channels` object. The web host channel is
+     * excluded — it installs via the browser extension, not the installer.
+     */
+    async installTargets() {
+        const hosts = (await this.byCategory("host")).filter(ch => ch.implemented && /^discord-/.test(ch.id));
+        return hosts.map(ch => ({
+            channel: ch.id,
+            name: ch.name,
+            branch: ch.id.replace(/^discord-/, ""),
+            description: ch.description
+        }));
     }
 }
 

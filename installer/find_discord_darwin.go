@@ -13,10 +13,10 @@ import (
 )
 
 var macosNames = map[string]string{
-	"stable": "Discord.app",
-	"ptb":    "Discord PTB.app",
-	"canary": "Discord Canary.app",
-	"dev":    "Discord Development.app",
+	"stable":      "Discord.app",
+	"ptb":         "Discord PTB.app",
+	"canary":      "Discord Canary.app",
+	"development": "Discord Development.app",
 }
 
 func ParseDiscordNew(p, branch string, isFlatpak bool) *DiscordInstall {

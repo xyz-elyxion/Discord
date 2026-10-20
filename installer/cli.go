@@ -26,7 +26,11 @@ var interactive = false
 
 func isValidBranch(branch string) bool {
 	switch branch {
-	case "", "stable", "ptb", "canary", "auto":
+	// "development" is Discord's Development branch — the same id the
+	// Limey V1 channel registry uses for the host (minus the
+	// "discord-" prefix), so --branch values stay in sync with
+	// GET /v1/channels.
+	case "", "stable", "ptb", "canary", "auto", "development":
 		return true
 	default:
 		return false
@@ -52,7 +56,7 @@ func main() {
 	var updateFlag = flag.Bool("repair", false, "Repair Limey V1")
 	var uninstallFlag = flag.Bool("uninstall", false, "Uninstall Limey V1")
 	var locationFlag = flag.String("location", "", "The location of the Discord install to modify")
-	var branchFlag = flag.String("branch", "", "The branch of Discord to modify [auto|stable|ptb|canary]")
+	var branchFlag = flag.String("branch", "", "The branch of Discord to modify [auto|stable|ptb|canary|development]")
 	flag.Parse()
 
 	if *helpFlag {
@@ -83,7 +87,7 @@ func main() {
 	}
 
 	if !isValidBranch(*branchFlag) {
-		die("The 'branch' flag must be one of the following: [auto|stable|ptb|canary]")
+		die("The 'branch' flag must be one of the following: [auto|stable|ptb|canary|development]")
 	}
 
 	if *installFlag || *updateFlag {
@@ -191,7 +195,7 @@ func handlePromptError(err error) {
 
 func PromptDiscord(action, dir, branch string) *DiscordInstall {
 	if branch == "auto" {
-		for _, b := range []string{"stable", "canary", "ptb"} {
+		for _, b := range []string{"stable", "canary", "ptb", "development"} {
 			for _, discord := range discords {
 				install := discord.(*DiscordInstall)
 				if install.branch == b {

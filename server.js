@@ -299,11 +299,36 @@ function handleInstall(req, res, url) {
     }
     if (url === "/v1/install/desktop") {
         const built = existsSync(join(DIST, "patcher.js")) && existsSync(join(DIST, "renderer.js")) && existsSync(join(DIST, "preload.js"));
+
+        // Channel-aware install surface: the /v1/channels registry distilled
+        // to what a downloader/installer needs. `branch` mirrors the
+        // installer's --branch value (installer/cli.go): the host channel
+        // "discord-development" maps to branch "development".
+        let channels;
+        if (releaseChannels) {
+            channels = {
+                schema: releaseChannels.CURRENT_SCHEMA,
+                currentTrack: "stable", // installer/updater-served builds are standalone -> stable
+                docs: "https://limey-discord.onrender.com/docs/release-channels",
+                installTargets: releaseChannels.CHANNELS
+                    // Desktop hosts only — the web channel installs via the
+                    // browser extension, not the installer.
+                    .filter(ch => ch.category === "host" && ch.implemented && /^discord-/.test(ch.id))
+                    .map(ch => ({
+                        channel: ch.id,
+                        name: ch.name,
+                        // "discord-development" -> "development": installer --branch value
+                        branch: ch.id.replace(/^discord-/, ""),
+                        description: ch.description
+                    }))
+            };
+        }
         return json(res, 200, {
             app: "Limey V1 Discord Desktop App",
             built,
             installCommand: "pnpm build && pnpm inject",
-            artifacts: built ? ["/dist/patcher.js", "/dist/renderer.js", "/dist/preload.js"] : []
+            artifacts: built ? ["/dist/patcher.js", "/dist/renderer.js", "/dist/preload.js"] : [],
+            ...(channels ? { channels } : {})
         }), true;
     }
     if (url !== "/v1/install/extension") return false;
