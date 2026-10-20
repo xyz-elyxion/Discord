@@ -10,7 +10,7 @@ const http = require("http");
 const { spawn } = require("child_process");
 const { createHmac, createHash } = require("crypto");
 const { inflateRawSync, inflateSync } = require("zlib");
-const { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } = require("fs");
+const { copyFileSync, createReadStream, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } = require("fs");
 const { join, extname, normalize, resolve } = require("path");
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -537,17 +537,22 @@ async function hydrateKv() {
         }
         const storedDashSessions = await kvGet("limey:dashboard-sessions");
         if (storedDashSessions) {
-            try {
-                const parsed = JSON.parse(storedDashSessions);
-                if (typeof parsed === "object" && !Array.isArray(parsed)) dashSessions = parsed;
-            } catch { }
+            // The JSONB column round-trips objects directly; stored string
+            // values (legacy rows, other writers) are parsed as a fallback.
+            const parsed = typeof storedDashSessions === "string"
+                ? (() => { try { return JSON.parse(storedDashSessions); } catch { return null; } })()
+                : storedDashSessions;
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) dashSessions = parsed;
         }
         const storedDashUsers = await kvGet("limey:dashboard-users");
         if (storedDashUsers) {
-            try {
-                const parsed = JSON.parse(storedDashUsers);
-                if (typeof parsed === "object" && !Array.isArray(parsed)) dashUsers = parsed;
-            } catch { }
+            // The JSONB column round-trips objects directly; stored string
+            // values (legacy rows, other writers) are parsed as a fallback.
+            // (Same dual-shape handling the sessions block above uses.)
+            const parsed = typeof storedDashUsers === "string"
+                ? (() => { try { return JSON.parse(storedDashUsers); } catch { return null; } })()
+                : storedDashUsers;
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) dashUsers = parsed;
         }
         console.log(`[kv] hydrated stores from PostgreSQL`);
     } catch (err) {
@@ -1375,6 +1380,13 @@ try {
 // ------------------------------------------------------------------
 const DASH_SESSIONS_KEY = "limey:dashboard-sessions";
 
+// Release channels the admin panel can freeze into / the live-rollout
+// strategy values the updater accepts ("stable" until an admin flips it —
+// matches release-channels.js implemented track ids).
+const SNAPSHOT_CHANNELS = ["lts", "rc", "beta", "canary", "alpha"];
+const LIVE_CHANNELS = ["stable", "lts"];
+const LIVE_CHANNEL_KEY = "limey:live-release-channel";
+
 // Hardcoded admin panel gate: only members of this guild holding this role
 // may sign in to /admin (via Discord OAuth with state=admin).
 const ADMIN_GUILD_ID = "1550709562267672607";
@@ -1910,6 +1922,100 @@ async function handleDashboard(req, res, url) {
     }
 
     if (url.startsWith("/v1/dashboard")) return json(res, 404, { error: "not found" }), true;
+
+    // ------------------------------------------------------------------
+    // Admin release-channel manager — freeze the built dist artifacts into
+    // a snapshot channel, unpublish, and choose the live rollout channel.
+    // ------------------------------------------------------------------
+    if (url === "/v1/admin/channels" && req.method === "GET") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        if (!releaseChannels) return json(res, 503, { error: "channel registry unavailable" }), true;
+        const snapshotChannels = ["lts", "rc", "beta", "canary", "alpha"];
+        const strategy = await kvGet(LIVE_CHANNEL_KEY);
+        const hashes = {};
+        for (const ch of snapshotChannels) {
+            try {
+                const head = readFileSync(join(DIST, ch, "patcher.js"), "utf8").slice(0, 64);
+                hashes[ch] = /^\/\/ Limey V1 (\S+)/.exec(head)?.[1] ?? null;
+            } catch { hashes[ch] = null; }
+        }
+        const head = readFileSync(join(DIST, "patcher.js"), "utf8").slice(0, 64);
+        const stableHash = /^\/\/ Limey V1 (\S+)/.exec(head)?.[1] ?? null;
+        return json(res, 200, {
+            schema: releaseChannels.CURRENT_SCHEMA,
+            stableHash,
+            liveChannel: typeof strategy === "string" && LIVE_CHANNELS.includes(strategy) ? strategy : "stable",
+            strategy: releaseChannels.manifest().strategy,
+            published: Object.fromEntries(snapshotChannels.map(ch => [ch, existsSync(join(DIST, ch, "patcher.js"))])),
+            snapshots: Object.fromEntries(snapshotChannels.map(ch => [ch, { hash: hashes[ch], publishedAt: null }]))
+        }), true;
+    }
+
+    const chPublish = /^\/v1\/admin\/channels\/(lts|rc|beta|canary|alpha)\/publish$/.exec(url);
+    if (chPublish && req.method === "POST") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        const channel = chPublish[1];
+        let body = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch { /* optional force flag */ }
+        const force = body?.force === true;
+        const snapshotDir = join(DIST, channel);
+        const files = ["patcher.js", "preload.js", "renderer.js", "renderer.css"];
+        for (const file of files) {
+            if (existsSync(join(DIST, file))) continue;
+            return json(res, 503, { error: "dist artifacts missing — is the container build ready?" }), true;
+        }
+        const hashOf = dir => {
+            try {
+                const head = readFileSync(join(dir, "patcher.js"), "utf8").slice(0, 64);
+                return (/^\/\/ Limey V1 (\S+)/.exec(head) || [])[1] ?? null;
+            } catch { return null; }
+        };
+        const targetHash = hashOf(DIST);
+        const existingHash = hashOf(snapshotDir);
+        // Refuse accidental re-pointing of a live snapshot without --force.
+        if (existingHash && !force) {
+            return json(res, 409, {
+                error: `snapshot already frozen (hash ${existingHash ?? "unknown"}) — send {"force":true} to re-point`,
+                currentHash: existingHash
+            }), true;
+        }
+        mkdirSync(snapshotDir, { recursive: true });
+        for (const file of files) copyFileSync(join(DIST, file), join(snapshotDir, file));
+        console.log(`[admin] ${adminSession.discordId} froze release channel ${channel} at hash ${targetHash ?? "unknown"}${force ? " (forced)" : ""}`);
+        return json(res, 200, { ok: true, channel, hash: targetHash, forced: Boolean(force) }), true;
+    }
+
+    const chUnpublish = /^\/v1\/admin\/channels\/(lts|rc|beta|canary|alpha)$/.exec(url);
+    if (chUnpublish && req.method === "DELETE") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        const channel = chUnpublish[1];
+        if (!existsSync(join(DIST, channel, "patcher.js"))) return json(res, 404, { error: `channel ${channel} has no snapshot` }), true;
+        for (const file of ["patcher.js", "preload.js", "renderer.js", "renderer.css"]) {
+            try { rmSync(join(DIST, channel, file), { force: true }); } catch { /* best-effort */ }
+        }
+        console.log(`[admin] ${adminSession.discordId} unpublished release channel ${channel}`);
+        return json(res, 200, { ok: true, channel }), true;
+    }
+
+    if (url === "/v1/admin/channels/strategy" && req.method === "POST") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401), true;
+        let body = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const liveChannel = String(body.liveChannel || "stable");
+        if (!LIVE_CHANNELS.includes(liveChannel)) {
+            return json(res, 400, { error: "liveChannel must be one of " + LIVE_CHANNELS.join("|") }), true;
+        }
+        await kvSet(LIVE_CHANNEL_KEY, liveChannel);
+        console.log(`[admin] ${adminSession.discordId} set live rollout channel to ${liveChannel}`);
+        return json(res, 200, { ok: true, liveChannel }), true;
+    }
+
     return false;
 }
 

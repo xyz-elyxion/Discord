@@ -209,6 +209,7 @@
                                 <button class="nav-item" data-sec="bans" data-title="Limey V1 bans"><span class="ni-icon">🚫</span><span class="label">Bans</span></button>
                                 <button class="nav-item" data-sec="tools" data-title="Support tools"><span class="ni-icon">🛠️</span><span class="label">Support tools</span></button>
                                 <button class="nav-item" data-sec="usrbg" data-title="USRBG banners"><span class="ni-icon">🖼️</span><span class="label">USRBG banners</span></button>
+                                <button class="nav-item" data-sec="channels" data-title="Release channels"><span class="ni-icon">📡</span><span class="label">Release channels</span></button>
                             </div>
                         </nav>
 
@@ -325,6 +326,37 @@
                     <div id="usrbgList" style="margin-top:8px"></div>
                         </div><!-- /usrbg card -->
                         </div><!-- /usrbg section -->
+
+                        <div class="shell-section" data-sec="channels">
+                    <div class="card admin-card">
+                    <h2>📡 Release channels</h2>
+                    <p class="admin-sub">
+                        Freeze the container's <b>current build</b> (dist/) into a snapshot channel.
+                        Installers fetch <code>/v1/install/files/&lt;channel&gt;/…</code> once a snapshot exists;
+                        unpublishing removes it. Updating in-channel is automatic (<code>channel.txt</code> marker).
+                    </p>
+                    <div id="chanStable" class="msg" style="min-height:0"></div>
+                    <table id="chanTable" style="width:100%;border-collapse:collapse;margin-top:8px">
+                        <thead>
+                            <tr style="text-align:left;color:var(--muted-foreground)">
+                                <th style="padding:6px 4px">Channel</th>
+                                <th style="padding:6px 4px">Snapshot</th>
+                                <th style="padding:6px 4px">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="admin-actions" style="margin-top:14px">
+                        <label for="liveChannelSel" style="margin-right:8px">Live rollout channel (updater strategy)</label>
+                        <select id="liveChannelSel" style="background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:8px;padding:6px 10px">
+                            <option value="stable">stable</option>
+                            <option value="lts">lts</option>
+                        </select>
+                        <button class="btn btn-secondary" id="chanStrategy">Set live channel</button>
+                    </div>
+                    <div class="msg" id="chanMsg"></div>
+                    </div><!-- /channels card -->
+                        </div><!-- /channels section -->
                     </div><!-- /dash-main -->
                 </div><!-- /dash-shell -->
             </div><!-- /#content -->
@@ -457,6 +489,77 @@
             list.appendChild(row);
         }
     }
+
+    // ---- Release channels manager ----
+    const SNAPSHOT_CHANNELS = ["lts", "rc", "beta", "canary", "alpha"];
+    const chanMsg = document.getElementById("chanMsg");
+    const chanShow = (text, ok) => {
+        chanMsg.textContent = text;
+        chanMsg.style.color = ok === undefined ? "" : ok ? "#9cc43c" : "#ff6b6b";
+    };
+    async function chanCall(method, path, body) {
+        const res = await fetch(path, { method, headers: authHeaders(), body: body ? JSON.stringify(body) : undefined });
+        let data = null;
+        try { data = await res.json(); } catch { /* empty body */ }
+        return { ok: res.ok, status: res.status, data };
+    }
+    async function channelsLoad() {
+        const { ok, status, data } = await chanCall("GET", "/v1/admin/channels");
+        if (!ok) { chanShow("❌ Error " + status + ": " + (data.error || "unknown"), false); return; }
+        document.getElementById("chanStable").innerHTML =
+            "Current stable build hash: <b>" + (data.stableHash || "unknown") + "</b>" +
+            " · live rollout channel: <b>" + data.liveChannel + "</b>";
+        const tbody = document.querySelector("#chanTable tbody");
+        tbody.innerHTML = "";
+        for (const ch of SNAPSHOT_CHANNELS) {
+            const published = data.published[ch];
+            const tr = document.createElement("tr");
+            tr.style.borderTop = "1px solid var(--border)";
+            const name = document.createElement("td");
+            name.style.padding = "8px 4px";
+            name.innerHTML = "<b>" + ch + "</b>";
+            const snap = document.createElement("td");
+            snap.style.padding = "8px 4px";
+            snap.textContent = published ? ("published @ " + (data.snapshots[ch].hash || "?")) : "not published";
+            snap.style.color = published ? "var(--foreground)" : "var(--muted-foreground)";
+            const actions = document.createElement("td");
+            actions.style.padding = "8px 4px";
+            const pub = document.createElement("button");
+            pub.textContent = published ? "Re-freeze" : "Publish current build";
+            pub.className = published ? "btn btn-secondary" : "btn btn-primary";
+            pub.style.cssText = "padding:4px 10px;font-size:0.75rem;margin-right:6px";
+            pub.onclick = async () => {
+                if (published && !confirm("Re-point live channel '" + ch + "' at the current build?")) return;
+                chanShow("Freezing " + ch + "…", true);
+                const r = await chanCall("POST", "/v1/admin/channels/" + ch + "/publish", { force: published });
+                r.ok ? chanShow("✅ " + ch + " frozen @ " + r.data.hash, true) : chanShow("❌ " + r.status + ": " + (r.data.error || "unknown"), false);
+                channelsLoad();
+            };
+            actions.append(pub);
+            if (published) {
+                const del = document.createElement("button");
+                del.textContent = "Unpublish";
+                del.className = "btn btn-ghost";
+                del.style.cssText = "color:#ff6b6b;padding:4px 10px;font-size:0.75rem";
+                del.onclick = async () => {
+                    if (!confirm("Unpublish '" + ch + "'? Channel users will get 'not published' errors.")) return;
+                    const r = await chanCall("DELETE", "/v1/admin/channels/" + ch);
+                    r.ok ? chanShow("✅ " + ch + " unpublished", true) : chanShow("❌ " + r.status + ": " + (r.data.error || "unknown"), false);
+                    channelsLoad();
+                };
+                actions.append(del);
+            }
+            tr.append(name, snap, actions);
+            tbody.append(tr);
+        }
+        document.getElementById("liveChannelSel").value = data.liveChannel;
+    }
+    document.getElementById("chanStrategy").onclick = async () => {
+        const liveChannel = document.getElementById("liveChannelSel").value;
+        const { ok, status, data } = await chanCall("POST", "/v1/admin/channels/strategy", { liveChannel });
+        ok ? chanShow("✅ Live rollout channel set to " + data.liveChannel, true) : chanShow("❌ " + status + ": " + (data.error || "unknown"), false);
+        channelsLoad();
+    };
 
     async function usrbgSet() {
         const userId = document.getElementById("usrbgUserId").value.trim();
@@ -764,6 +867,7 @@
             usrbgLoad();
             banLoad();
             loadSentinelStats();
+            channelsLoad();
         } catch {
             lock();
         }
@@ -782,6 +886,7 @@
             if (target === "sentinel" && signedIn) loadSentinelStats();
             if (target === "bans" && signedIn) banLoad();
             if (target === "usrbg" && signedIn) usrbgLoad();
+            if (target === "channels" && signedIn) channelsLoad();
         });
     });
 

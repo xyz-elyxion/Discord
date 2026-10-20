@@ -100,6 +100,16 @@ ENV HOST=0.0.0.0
 # store when REDIS_URI is set) and the limebot SQLite database.
 RUN mkdir -p /app/data /app/limebot/data && chown -R node:node /app/data /app/limebot/data
 
+# Release-channel snapshot dirs (lts/rc/beta/canary/alpha) inside /app/dist so
+# the admin panel can freeze the container's built artifacts into a channel
+# (POST /v1/admin/channels/<id>/publish) and subsequent renders of
+# /v1/install/files/<channel>/* keep serving those snapshots.
+# The Docker build stage builds ALL dist artifacts first (extension zip,
+# desktop artfacts from build.mjs as in image build steps above, plugin
+# catalog). Admin channel operations persist here for the container lifetime.
+RUN mkdir -p /app/dist/lts /app/dist/rc /app/dist/beta /app/dist/canary /app/dist/alpha \
+    && chown -R node:node /app/dist/lts /app/dist/rc /app/dist/beta /app/dist/canary /app/dist/alpha
+
 # Run as a non-root user
 USER node
 
