@@ -426,6 +426,43 @@
                 <code class="lts-cmd" id="betaCmd" spellcheck="false">LimeyV1Installer-cli --install --channel beta</code>
                 <span class="platforms" data-channel="beta">per feature batch · <span id="betaLive">publish status unknown</span></span>
             </div>
+
+            <div class="method">
+                <span class="method-badge">Pre-release</span>
+                <h2>Canary</h2>
+                <p>
+                    The freshest shipped pre-release, refrozen per batch ahead of beta — built
+                    for adventurous testers who want the newest next-version build that still
+                    receives an in-channel update stream. Not to be confused with Discord
+                    Canary, the client branch selectable in the host picker above.
+                </p>
+                <code class="lts-cmd" id="canaryCmd" spellcheck="false">LimeyV1Installer-cli --install --channel canary</code>
+                <span class="platforms" data-channel="canary">volatile · per batch · <span id="canaryLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Pre-release</span>
+                <h2>Alpha</h2>
+                <p>
+                    The earliest shipped pre-release: code that will change shape, frozen per
+                    fresh feature batch before it reaches canary/beta. Aimed at plugin authors
+                    porting against upstream internal-API changes — expect breakage, no freeze
+                    promise.
+                </p>
+                <code class="lts-cmd" id="alphaCmd" spellcheck="false">LimeyV1Installer-cli --install --channel alpha</code>
+                <span class="platforms" data-channel="alpha">unstable · per batch · <span id="alphaLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Alias</span>
+                <h2>Preview</h2>
+                <p>
+                    A friendly umbrella label for the pre-release family — if an option just says
+                    "Preview" elsewhere, it means Release Candidate or Beta. It resolves to those
+                    channels, it is not its own build stream, so it has no downloads of its own.
+                </p>
+                <span class="platforms" data-channel="preview">label for rc / beta · no artifacts</span>
+            </div>
         </div>
 
         <!-- Host picker: which Discord branch the installer patches. The
@@ -625,7 +662,7 @@
     pick("auto");
 
     // The snapshot-channel cards show the same platform hint as the branch picker.
-    ["lts", "rc", "beta"].forEach(function (ch) {
+    ["lts", "rc", "beta", "canary", "alpha"].forEach(function (ch) {
         var el = document.getElementById(ch + "Cmd");
         if (el) el.textContent = executableName + " --install --channel " + ch;
     });
@@ -670,7 +707,9 @@
         var labels = {
             lts: ["<strong>pin published</strong>", "not pinned yet — tracks the current stable build"],
             rc: ["<strong>snapshot published</strong>", "not published yet (next release cycle)"],
-            beta: ["<strong>snapshot published</strong>", "not published yet (next feature batch)"]
+            beta: ["<strong>snapshot published</strong>", "not published yet (next feature batch)"],
+            canary: ["<strong>snapshot published</strong>", "not published yet (freshest batch)"],
+            alpha: ["<strong>snapshot published</strong>", "not published yet (earliest batch)"]
         };
         Object.keys(labels).forEach(function (ch) {
             var el = document.getElementById(ch + "Live");

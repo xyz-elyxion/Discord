@@ -78,9 +78,21 @@ const CHANNELS = [
     {
         id: "preview", name: "Preview", category: "track", origin: "proposed",
         stability: "testing", cadence: "with each dev batch", audience: "non-technical early adopters",
-        description: "Friendly pre-stable umbrella name; can alias beta or rc.",
+        description: "Friendly umbrella label for the pre-release family (rc/beta); UI alias, not an installable channel.",
         implemented: false,
         aliases: ["beta", "rc"]
+    },
+    {
+        id: "alpha", name: "Alpha", category: "track", origin: "proposed",
+        stability: "unstable", cadence: "per feature batch, before beta", audience: "plugin developers porting early",
+        description: "Earliest shipped pre-release: code that will change shape, frozen per fresh feature batch. Installed from dist/alpha/ with the installer's --channel alpha; unpublished batches answer not-published.",
+        implemented: true, artifacts: ["patcher.js", "preload.js", "renderer.js", "renderer.css"]
+    },
+    {
+        id: "canary", name: "Canary (Limey)", category: "track", origin: "limey",
+        stability: "unstable", cadence: "per batch, freshest shipped pre-release", audience: "adventurous testers",
+        description: "Freshest shipped pre-release of the next version, refrozen per batch ahead of beta. Not to be confused with the discord-canary host channel, which is Discord's client branch. Install with --channel canary; unpublished batches answer not-published.",
+        implemented: true, artifacts: ["patcher.js", "preload.js", "renderer.js", "renderer.css"]
     },
     {
         id: "nightly", name: "Nightly", category: "track", origin: "proposed",
@@ -115,7 +127,7 @@ const CHANNELS = [
     // Rollout strategies — how the next build reaches users
     // -----------------------------------------------------------------
     { id: "full", name: "Immediate (Full rollout)", category: "rollout", origin: "limey", stability: "production", cadence: "per release", audience: "everyone", description: "Newest served to everyone as soon as the hash flips. Current behavior.", implemented: true },
-    { id: "canary-rollout", name: "Canary Rollout", category: "rollout", origin: "proposed", stability: "production (early cohort)", cadence: "per release, percentage-driven", audience: "volunteers", description: "Ship first to a tiny percentage of volunteers before the broader audience.", implemented: false },
+    { id: "canary-rollout", name: "Canary Rollout", category: "rollout", origin: "proposed", stability: "production (early cohort)", cadence: "per release, percentage-driven", audience: "volunteers", description: "Ship first to a tiny percentage of volunteers before the broader audience. Note: distinct from the canary track, which is a shipped pre-release build, and from the Discord canary host branch.", implemented: false },
     { id: "progressive", name: "Progressive Rollout", category: "rollout", origin: "proposed", stability: "production", cadence: "cohort gates", audience: "everyone, spread over time", description: "1% → 10% → 50% → 100% cohorts, each gated on error telemetry.", implemented: false },
     { id: "featureflagged", name: "Feature-Flagged Release", category: "rollout", origin: "proposed", stability: "production", cadence: "continuous, no reinstall", audience: "everyone", description: "Ship disabled features to stable, enable them remotely per user/cohort.", implemented: false },
     { id: "rollback", name: "Rollback", category: "rollout", origin: "proposed", stability: "production", cadence: "emergency only", audience: "users being protected", description: "Re-point users to the last known good hash after a bad release.", implemented: false },

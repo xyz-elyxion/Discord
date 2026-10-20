@@ -239,14 +239,15 @@ function handleInstall(req, res, url) {
     // Release channel support: "stable" serves the current dist files.
     // Channel snapshots live in dist/<channel>/, frozen by
     // scripts/publishChannel.mjs:
-    //   lts        — frozen stable snapshot; falls back to the current
-    //                stable files with their hash until the first pin is
-    //                published, so the channel works from day one.
-    //   rc / beta  — pre-release snapshots of the NEXT version; unlike LTS
-    //                they must never be silently replaced by stable files
-    //                (stable is older than a pre-release), so an unpublished
-    //                channel answers 503 with a clear error instead.
-    const CH_FILES = "(lts|rc|beta)";
+    //   lts — frozen stable snapshot; falls back to the current stable
+    //         files with their hash until the first pin is published, so
+    //         the channel works from day one.
+    //   rc / beta / canary / alpha — pre-release snapshots of the NEXT
+    //         version (freshest first: alpha → canary → beta → rc); unlike
+    //         LTS they must never be silently replaced by stable files
+    //         (stable is older than a pre-release), so an unpublished
+    //         channel answers 503 with a clear error instead.
+    const CH_FILES = "(lts|rc|beta|canary|alpha)";
     const chMatch = new RegExp("^/v1/install/files/" + CH_FILES + "/([\\w.-]+\\.(?:js|css))$").exec(url);
     if (chMatch) {
         const channel = chMatch[1];
@@ -367,7 +368,9 @@ function handleInstall(req, res, url) {
                 published: {
                     lts: existsSync(join(DIST, "lts", "patcher.js")),
                     rc: existsSync(join(DIST, "rc", "patcher.js")),
-                    beta: existsSync(join(DIST, "beta", "patcher.js"))
+                    beta: existsSync(join(DIST, "beta", "patcher.js")),
+                    canary: existsSync(join(DIST, "canary", "patcher.js")),
+                    alpha: existsSync(join(DIST, "alpha", "patcher.js"))
                 },
                 docs: "https://limey-discord.onrender.com/docs/release-channels",
                 installTargets: releaseChannels.CHANNELS

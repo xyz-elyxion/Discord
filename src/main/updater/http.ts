@@ -60,15 +60,16 @@ async function fetchWithRetry(url: string): Promise<Buffer> {
     );
 }
 // Release channel persistence: the installer writes "channel.txt"
-// ("stable", "lts", "rc" or "beta") next to the build files. Stay in the
-// installed channel across updates — snapshot-channel installs keep
-// updating within their own stream (whose files the backend serves from
-// dist/<channel>/) instead of silently migrating back to stable. RC and
-// beta update no-ops (four of errors) while their snapshot is unpublished.
+// ("stable", "lts", "rc", "beta", "canary" or "alpha") next to the build
+// files. Stay in the installed channel across updates — snapshot-channel
+// installs keep updating within their own stream (whose files the backend
+// serves from dist/<channel>/) instead of silently migrating back to
+// stable. Unpublished pre-release snapshots answer 503, surfacing as a
+// failed update check rather than a fabricated diff.
 let UPDATE_CHANNEL = "stable";
 try {
     const marker = readFileSync(join(__dirname, "channel.txt"), "utf8").trim();
-    if (marker === "lts" || marker === "rc" || marker === "beta") UPDATE_CHANNEL = marker;
+    if (marker === "lts" || marker === "rc" || marker === "beta" || marker === "canary" || marker === "alpha") UPDATE_CHANNEL = marker;
 } catch { /* default to stable (e.g. dev install without the marker) */ }
 
 const VERSION_FILE = "renderer.css";

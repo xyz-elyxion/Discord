@@ -134,7 +134,7 @@ on). Adopt them freely; just don’t advertise them as built-in.</li>
 </tr>
 <tr>
 <td style="text-align: left">Installer <code dir="auto">--branch</code> / <code dir="auto">--channel</code></td>
-<td style="text-align: left">The CLI installer accepts <code dir="auto">[auto|stable|ptb|canary|development]</code> for <code dir="auto">--branch</code> — the same ids as the host channels minus the <code dir="auto">discord-</code> prefix — and <code dir="auto">[stable|lts|rc|beta]</code> for <code dir="auto">--channel</code> (the implemented installable channel subset). After patching it writes a <code dir="auto">channel.txt</code> marker into the files dir.</td>
+<td style="text-align: left">The CLI installer accepts <code dir="auto">[auto|stable|ptb|canary|development]</code> for <code dir="auto">--branch</code> — the same ids as the host channels minus the <code dir="auto">discord-</code> prefix — and <code dir="auto">[stable|lts|rc|beta|canary|alpha]</code> for <code dir="auto">--channel</code> (the implemented installable channel subset; <code dir="auto">preview</code> is a UI label, not an artifact stream). After patching it writes a <code dir="auto">channel.txt</code> marker into the files dir.</td>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">pnpm publishChannel</code></td>
@@ -293,8 +293,8 @@ URLs or branches exist for them, here or in the API.</p>
 <tr>
 <td style="text-align: left"><code dir="auto">preview</code></td>
 <td style="text-align: left">Preview</td>
-<td style="text-align: left"><strong>Proposed</strong></td>
-<td style="text-align: left">Neutral umbrella “pre-stable” name for people who want newer-than-stable but not bleeding-edge. Can simply alias <code dir="auto">beta</code> or <code dir="auto">rc</code>.</td>
+<td style="text-align: left"><strong>Proposed</strong> (label concept)</td>
+<td style="text-align: left">Neutral umbrella “pre-stable” name for people who want newer-than-stable but not bleeding-edge. Implemented as a UI alias for the pre-release family (<code dir="auto">rc</code>/<code dir="auto">beta</code>) — it resolves to those channels and has no build stream of its own.</td>
 <td style="text-align: left">Non-technical early adopters</td>
 <td style="text-align: left">Testing</td>
 <td style="text-align: left">With each dev batch</td>
@@ -302,22 +302,22 @@ URLs or branches exist for them, here or in the API.</p>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">canary</code></td>
-<td style="text-align: left">Canary</td>
-<td style="text-align: left"><strong>Discord</strong> (Discord client) / <strong>Proposed</strong> for Limey V1 itself (client mods usually ship stable-only; upstream Vencord does not cut client canaries)</td>
-<td style="text-align: left">Note the crucial ambiguity: <strong>Canary branch</strong> = latest, usually-next-day Discord client provided by Discord; <strong>Canary rollout</strong> = gradual delivery. This spec reserves the name for the Discord client <em>branch</em> by default.</td>
-<td style="text-align: left">Discord-adjacent testers</td>
-<td style="text-align: left">Unstable (Discord side)</td>
-<td style="text-align: left">Daily, from Discord</td>
-<td style="text-align: left">Catching changes in Discord’s code that affect Limey V1 patches</td>
+<td style="text-align: left">Canary (Limey)</td>
+<td style="text-align: left"><strong>Limey</strong></td>
+<td style="text-align: left">The freshest shipped pre-release of the next version, refrozen per batch ahead of Beta (<code dir="auto">pnpm publishChannel canary</code>, unpublished batches answer “not published”). The docs deliberately keep the <em>Discord Canary branch</em> under the <code dir="auto">discord-canary</code> host channel and the <em>gradual delivery</em> under <code dir="auto">canary-rollout</code> — Limey’s <code dir="auto">canary</code> is a build stream, not either of those.</td>
+<td style="text-align: left">Adventurous testers</td>
+<td style="text-align: left">Unstable</td>
+<td style="text-align: left">Per batch</td>
+<td style="text-align: left">Newest next-version content without leaving the updater’s channel stream</td>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">alpha</code></td>
 <td style="text-align: left">Alpha</td>
-<td style="text-align: left"><strong>Proposed</strong></td>
-<td style="text-align: left">Code that will change shape; no freeze promise.</td>
-<td style="text-align: left">Plugin developers porting against the future API</td>
+<td style="text-align: left"><strong>Limey</strong> (concept: pre-release alpha flows)</td>
+<td style="text-align: left">The earliest shipped pre-release: code that will change shape, frozen per fresh feature batch before it reaches canary/beta, accepting breakage by design (<code dir="auto">pnpm publishChannel alpha</code>).</td>
+<td style="text-align: left">Plugin developers porting against the upcoming internal API</td>
 <td style="text-align: left">Unstable</td>
-<td style="text-align: left">per commit or per batch</td>
+<td style="text-align: left">Per batch, before beta</td>
 <td style="text-align: left">Porting plugins to upcoming internal API changes</td>
 </tr>
 </tbody>
@@ -878,4 +878,4 @@ flag) — collapse the naming family onto one canonical artifact.</li>
 <li><strong>Mark proposed names visually.</strong> In the settings UI, render unimplemented
 channels as grayed-out with a “coming later” tooltip so users never
 believe a non-existent feed exists.</li>
-</ol></div><footer class="sl-flex astro-icf2prqc"><div class="meta sl-flex astro-icf2prqc"><a href="https://github.com/xyz-elyxion/Discord/tree/main/src/content/docs/release-channels.mdx" class="sl-flex print:hidden astro-gwbof5h6"><svg aria-hidden="true" class="astro-gwbof5h6 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M22 7.24a1 1 0 0 0-.29-.71l-4.24-4.24a1 1 0 0 0-1.1-.22 1 1 0 0 0-.32.22l-2.83 2.83L2.29 16.05a1 1 0 0 0-.29.71V21a1 1 0 0 0 1 1h4.24a1 1 0 0 0 .76-.29l10.87-10.93L21.71 8c.1-.1.17-.2.22-.33a1 1 0 0 0 0-.24v-.14l.07-.05ZM6.83 20H4v-2.83l9.93-9.93 2.83 2.83L6.83 20ZM18.17 8.66l-2.83-2.83 1.42-1.41 2.82 2.82-1.41 1.42Z"/></svg>Edit page</a><p>Last updated: <time datetime="2026-10-20T06:56:23.000Z">Oct 20, 2026</time></p></div><div class="pagination-links print:hidden astro-xxzxuk2t" dir="ltr"><a href="/docs/sdk" rel="prev" class="astro-xxzxuk2t"><svg aria-hidden="true" class="astro-xxzxuk2t astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.5rem;"><path d="M17 11H9.41l3.3-3.29a1.004 1.004 0 1 0-1.42-1.42l-5 5a1 1 0 0 0-.21.33 1 1 0 0 0 0 .76 1 1 0 0 0 .21.33l5 5a1.002 1.002 0 0 0 1.639-.325 1 1 0 0 0-.219-1.095L9.41 13H17a1 1 0 0 0 0-2Z"/></svg><span class="astro-xxzxuk2t">Previous<br class="astro-xxzxuk2t"><span class="link-title astro-xxzxuk2t">Bot SDK</span></span></a></div></footer></div></div></main></div></div></div></div></body></html>
+</ol></div><footer class="sl-flex astro-icf2prqc"><div class="meta sl-flex astro-icf2prqc"><a href="https://github.com/xyz-elyxion/Discord/tree/main/src/content/docs/release-channels.mdx" class="sl-flex print:hidden astro-gwbof5h6"><svg aria-hidden="true" class="astro-gwbof5h6 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M22 7.24a1 1 0 0 0-.29-.71l-4.24-4.24a1 1 0 0 0-1.1-.22 1 1 0 0 0-.32.22l-2.83 2.83L2.29 16.05a1 1 0 0 0-.29.71V21a1 1 0 0 0 1 1h4.24a1 1 0 0 0 .76-.29l10.87-10.93L21.71 8c.1-.1.17-.2.22-.33a1 1 0 0 0 0-.24v-.14l.07-.05ZM6.83 20H4v-2.83l9.93-9.93 2.83 2.83L6.83 20ZM18.17 8.66l-2.83-2.83 1.42-1.41 2.82 2.82-1.41 1.42Z"/></svg>Edit page</a><p>Last updated: <time datetime="2026-10-20T07:15:38.000Z">Oct 20, 2026</time></p></div><div class="pagination-links print:hidden astro-xxzxuk2t" dir="ltr"><a href="/docs/sdk" rel="prev" class="astro-xxzxuk2t"><svg aria-hidden="true" class="astro-xxzxuk2t astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.5rem;"><path d="M17 11H9.41l3.3-3.29a1.004 1.004 0 1 0-1.42-1.42l-5 5a1 1 0 0 0-.21.33 1 1 0 0 0 0 .76 1 1 0 0 0 .21.33l5 5a1.002 1.002 0 0 0 1.639-.325 1 1 0 0 0-.219-1.095L9.41 13H17a1 1 0 0 0 0-2Z"/></svg><span class="astro-xxzxuk2t">Previous<br class="astro-xxzxuk2t"><span class="link-title astro-xxzxuk2t">Bot SDK</span></span></a></div></footer></div></div></main></div></div></div></div></body></html>

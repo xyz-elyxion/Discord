@@ -75,8 +75,20 @@ export const RELEASE_CHANNELS: ReleaseChannel[] = [
     {
         id: "preview", name: "Preview", category: "track", origin: "proposed",
         stability: "testing", cadence: "with each dev batch", audience: "non-technical early adopters",
-        description: "Friendly pre-stable umbrella name; can alias beta or rc.",
+        description: "Friendly umbrella label for the pre-release family (rc/beta); UI alias, not an installable channel.",
         implemented: false, aliases: ["beta", "rc"]
+    },
+    {
+        id: "alpha", name: "Alpha", category: "track", origin: "proposed",
+        stability: "unstable", cadence: "per feature batch, before beta", audience: "plugin developers porting early",
+        description: "Earliest shipped pre-release: code that will change shape, frozen per fresh feature batch; unpublished batches answer not-published.",
+        implemented: true
+    },
+    {
+        id: "canary", name: "Canary (Limey)", category: "track", origin: "limey",
+        stability: "unstable", cadence: "per batch, freshest shipped pre-release", audience: "adventurous testers",
+        description: "Freshest shipped pre-release of the next version, refrozen per batch ahead of beta. Not to be confused with the discord-canary host (Discord's client branch). Install with --channel canary.",
+        implemented: true
     },
     {
         id: "nightly", name: "Nightly", category: "track", origin: "proposed",
@@ -145,7 +157,7 @@ export const RELEASE_CHANNELS: ReleaseChannel[] = [
     {
         id: "canary-rollout", name: "Canary Rollout", category: "rollout", origin: "proposed",
         stability: "production", cadence: "per release, percentage-driven", audience: "volunteers",
-        description: "Ship first to a tiny percentage of volunteers before the broader audience.",
+        description: "Ship first to a tiny percentage of volunteers before the broader audience. Distinct from the canary track (a shipped pre-release build) and from the Discord canary host branch.",
         implemented: false
     },
     {

@@ -15,7 +15,7 @@
  *                stable files (stable is older than a pre-release).
  *
  * Usage:
- *   node scripts/publishChannel.mjs <lts|rc|beta> [--force]
+ *   node scripts/publishChannel.mjs <lts|rc|beta|canary|alpha> [--force]
  *
  * --force is required to replace an existing snapshot, so accidental runs
  * don't silently re-point a live LTS/LTS-like channel at a new build.
@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const DIST = join(here, "..", "dist");
 
-const CHANNELS = ["lts", "rc", "beta"];
+const CHANNELS = ["lts", "rc", "beta", "canary", "alpha"];
 // Same files the Go installer downloads (installer/constants.go BuildFiles).
 const FILES = ["patcher.js", "preload.js", "renderer.js", "renderer.css"];
 
@@ -65,6 +65,8 @@ for (const file of FILES) {
 console.log(`[publish-channel] froze ${channel} snapshot at hash ${targetHash ?? "unknown"} -> dist/${channel}/`);
 if (channel === "rc") console.log("[publish-channel] rc channel is live until the next freeze (usually folded into stable first).");
 if (channel === "beta") console.log("[publish-channel] beta channel is live until the next freeze (per feature batch).");
+if (channel === "canary") console.log("[publish-channel] canary channel is live until the next freeze (freshest shipped pre-release). Do not confuse it with the discord-canary host branch.");
+if (channel === "alpha") console.log("[publish-channel] alpha channel is live until the next freeze (earliest shipped pre-release). Re-freeze fresh batches; expect breakage.");
 if (channel === "lts") console.log("[publish-channel] lts channel pinned; the backend now serves dist/lts/ instead of falling back to stable.");
 
 function readFileSyncSafe(file) {
