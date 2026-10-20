@@ -26,8 +26,45 @@ var IsDevInstall bool
 // ReleaseChannel selects which backend channel files are fetched from:
 // "stable" (current builds) or a snapshot channel "lts"/"rc"/"beta"
 // (frozen dist/<channel>/ snapshots). Set from the installer's --channel
-// flag in cli.go; the GUI build (gui.go, non-cli tag) always stays on stable.
+// flag in cli.go, or picked in the GUI release selector (gui.go).
 var ReleaseChannel = "stable"
+
+// snapshotChannels are the installable Limey V1 release channels — the
+// implemented subset of the /v1/channels registry ("preview" is a UI alias
+// for rc/beta, not an artifact stream, and proposed channels are
+// definition-only). An unpublished snapshot channel answers 503.
+var ReleaseChannelsList = []string{"stable", "lts", "rc", "beta", "canary", "alpha"}
+
+// ChannelLabel maps a channel id to what it means for the user, mirroring
+// the release-channels registry names.
+func ChannelLabel(channel string) string {
+	switch channel {
+	case "stable":
+		return "Stable — recommended for everyone"
+	case "lts":
+		return "Stable LTS — frozen stable, fixes only"
+	case "rc":
+		return "Release Candidate — next version, pre-stable"
+	case "beta":
+		return "Beta — early adopters"
+	case "canary":
+		return "Canary — freshest pre-release"
+	case "alpha":
+		return "Alpha — earliest, for plugin devs"
+	default:
+		return channel
+	}
+}
+
+// IsValidChannel accepts the implemented Limey V1 release channels.
+func IsValidChannel(channel string) bool {
+	for _, c := range ReleaseChannelsList {
+		if c == channel {
+			return true
+		}
+	}
+	return false
+}
 
 var BuildDoneChan chan bool
 
@@ -73,6 +110,22 @@ func writeChannelMarker() {
 	if err := os.WriteFile(markerFile, []byte(ReleaseChannel+"\n"), 0644); err != nil {
 		Log.Warn("Failed to write channel marker", markerFile, err)
 	}
+}
+
+// readInstalledChannel returns the release channel recorded next to the
+// installed build files (channel.txt), or "stable" when absent/unreadable
+// (dev installs, never-installed machines). Used by the GUI so the channel
+// selector opens on the channel the user actually installed.
+func readInstalledChannel() string {
+	data, err := os.ReadFile(path.Join(FilesDir, "channel.txt"))
+	if err != nil {
+		return "stable"
+	}
+	channel := strings.TrimSpace(string(data))
+	if !IsValidChannel(channel) {
+		return "stable"
+	}
+	return channel
 }
 
 // setBuildDone safely records the latest build-check/download result for

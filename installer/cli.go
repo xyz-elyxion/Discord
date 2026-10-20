@@ -24,19 +24,14 @@ import (
 var discords []any
 var interactive = false
 
-// isValidChannel accepts the implemented Limey V1 release channels — the
-// installable subset of the /v1/channels registry: the two live tracks and
-// the frozen snapshot channels. "preview" is deliberately excluded: it is a
-// UI alias for the pre-release family (rc/beta), not an artifact stream.
-// Proposed channels stay definition-only, exactly as the docs page says.
-// An unpublished snapshot channel answers 503 from the backend.
+// isValidChannel accepts the implemented Limey V1 release channels —
+// shared with the GUI through downloader.go (IsValidChannel); "preview" is
+// deliberately excluded: it is a UI alias for the pre-release family
+// (rc/beta), not an artifact stream. Proposed channels stay
+// definition-only, exactly as the docs page says. An unpublished snapshot
+// channel answers 503 from the backend.
 func isValidChannel(channel string) bool {
-	switch channel {
-	case "stable", "lts", "rc", "beta", "canary", "alpha":
-		return true
-	default:
-		return false
-	}
+	return IsValidChannel(channel)
 }
 
 func isValidBranch(branch string) bool {

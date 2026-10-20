@@ -10,11 +10,14 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	_ "embed"
 	"errors"
 	"image"
 	"image/color"
+	"io"
+	"net/http"
 	"os"
 	path "path/filepath"
 	"runtime"
@@ -33,6 +36,13 @@ var (
 	radioIdx        int
 	customChoiceIdx int
 
+	// channelShortNames are the picker labels, in ReleaseChannelsList order.
+	channelShortNames = [...]string{"Stable", "LTS", "RC", "Beta", "Canary", "Alpha"}
+
+	// Release channel picker: same channels as the CLI's --channel flag.
+	channelIdx         int
+	lastAppliedChannel string // guards against redundant re-checks
+
 	customDir              string
 	autoCompleteDir        string
 	autoCompleteFile       string
@@ -41,11 +51,10 @@ var (
 	lastAutoComplete       string
 	didAutoComplete        bool
 
-	modalId      = 0
-	modalTitle   = "Oh No :("
-	modalMessage = "You should never see this"
-	modalExtra   = ""
-
+	modalId            = 0
+	modalTitle         = "Oh No :("
+	modalMessage       = "You should never see this"
+	modalExtra         = ""
 	showedUpdatePrompt bool
 	showCustomLocation bool
 
@@ -62,6 +71,17 @@ func init() {
 func main() {
 	discords = FindDiscords()
 	customChoiceIdx = len(discords)
+
+	// Open the picker on the channel the user actually installed (falls
+	// back to stable for fresh machines/dev installs).
+	ReleaseChannel = readInstalledChannel()
+	lastAppliedChannel = ReleaseChannel
+	for i, ch := range ReleaseChannelsList {
+		if ch == ReleaseChannel {
+			channelIdx = i
+			break
+		}
+	}
 
 	go func() {
 		<-BuildDoneChan
@@ -98,6 +118,62 @@ func (w *CondWidget) Build() {
 	} else if w.elseWidget != nil {
 		w.elseWidget().Build()
 	}
+}
+
+// LatestHash still reports the currently-selected channel's build: the
+// change handler re-runs the hash check, and "Reinstall / Repair" then
+// fetches through fileUrl() which routes to the chosen channel.
+func onSelectChannel(i int) func() {
+	return func() {
+		if channelIdx == i && ReleaseChannel == lastAppliedChannel {
+			return
+		}
+		channelIdx = i
+		channel := ReleaseChannelsList[i]
+		if channel == ReleaseChannel {
+			return
+		}
+		if !IsValidChannel(channel) {
+			return
+		}
+		ReleaseChannel = channel
+		lastAppliedChannel = channel
+
+		// Re-run the build check within the newly selected channel so
+		// LatestHash/the status line switch streams immediately.
+		LatestHash = "Unknown"
+		InstalledHash = "None"
+		go func() {
+			checkLatestHash()
+			g.Update()
+		}()
+	}
+}
+
+// renderChannelPicker builds the "Release channel" radio row. Disabled
+// while the backend build info hasn't loaded (matches the action buttons).
+func renderChannelPicker(disabled bool) g.Widget {
+	row := func() g.Widget {
+		return g.Row(
+			g.Style().SetColor(g.StyleColorText, LimeyMuted).To(g.Label("Release channel:")),
+			g.RangeBuilder("Channels", SliceMap(ReleaseChannelsList, func(ch string) any { return ch }), func(i int, v any) g.Widget {
+				return g.RadioButton(channelShortNames[i], channelIdx == i).OnChange(onSelectChannel(i))
+			}),
+		)
+	}
+	style := g.Style().SetFontSize(20)
+	if disabled {
+		style = style.SetDisabled(true)
+	}
+	return style.To(row())
+}
+
+// channelHint explains the selected channel in one plain-language line,
+// mirroring the entries of the /v1/channels registry.
+func channelHint() g.Widget {
+	return g.Style().SetColor(g.StyleColorText, LimeyMuted).SetFontSize(18).To(
+		g.Label(ChannelLabel(ReleaseChannel)).Wrapped(true),
+	)
 }
 
 func getChosenInstall() *DiscordInstall {
@@ -371,6 +447,10 @@ func renderInstaller() g.Widget {
 		),
 		g.Dummy(0, 10),
 
+		renderChannelPicker(LatestHash == "Unknown"),
+		channelHint(),
+		g.Dummy(0, 6),
+
 		&CondWidget{len(discords) == 0, func() g.Widget {
 			s := "No Discord installs found. You first need to install Discord."
 			if runtime.GOOS == "linux" {
@@ -553,7 +633,37 @@ func renderErrorCard(bgColor color.Color, textColor color.Color, message string,
 		)
 }
 
+func checkLatestHash() {
+	// Re-runs the init-time hash check against the currently-selected
+	// channel: fetch the tiny renderer.css through fileUrl() and parse its
+	// "// Limey <hash>" stamp.
+	res, err := http.Get(fileUrl("renderer.css"))
+	if err != nil {
+		Log.Warn("Failed to check for updates:", err)
+		setBuildDone(false)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode >= 300 {
+		Log.Warn("Failed to check for updates:", res.Status)
+		setBuildDone(false)
+		return
+	}
+
+	scanner := bufio.NewScanner(io.LimitReader(res.Body, 1024))
+	if scanner.Scan() {
+		if h := parseHashLine(scanner.Text()); h != "" {
+			LatestHash = h
+		}
+	}
+	setBuildDone(true)
+}
+
 func loop() {
+	pushLimeyTheme()
+	defer popLimeyTheme()
+
 	g.PushWindowPadding(48, 48)
 
 	g.SingleWindow().
@@ -572,10 +682,18 @@ func loop() {
 		Layout(
 			g.Align(g.AlignCenter).To(
 				g.Style().SetFontSize(40).To(
-					g.Label("Limey V1 Installer"),
+					g.Row(
+						g.Label("🍋 Limey V1 Installer"),
+					),
 				),
 			),
-			g.Dummy(0, 40),
+			g.Dummy(0, 20),
+			g.Align(g.AlignCenter).To(
+				g.Style().SetColor(g.StyleColorText, LimeyMuted).SetFontSize(18).To(
+					g.Label("The cutest Discord mod, now in your desktop app.").Wrapped(true),
+				),
+			),
+			g.Dummy(0, 20),
 
 			&CondWidget{
 				predicate: LatestHash == "Unknown",
