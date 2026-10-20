@@ -312,6 +312,13 @@
         <div id="logged-in" style="display:none">
             <div id="banner" class="dash-banner">⚠️ <span id="banner-text"></span></div>
 
+            <!-- panel hero -->
+            <div class="dash-hero">
+                <span class="dh-eyebrow">🍋 Your space</span>
+                <h1>Welcome back, <span id="hero-name">—</span></h1>
+                <p class="dh-sub">Your verification status, Limes wallet and everything running — all in one place.</p>
+            </div>
+
             <!-- dashboard switcher -->
             <div class="dash-shell" id="dash-shell">
                 <aside class="sidebar" id="sidebar">
@@ -367,7 +374,7 @@
                 </div>
 
                 <!-- limes wallet -->
-                <div class="dash-card sec-card" data-sec="limes overview">
+                <div class="dash-card sec-card card-featured" data-sec="limes overview">
                     <h3>Limes</h3>
                     <p class="desc">Your wallet and daily claim.</p>
                     <div class="limes-balance"><span id="limes-balance">—</span> <span>🍋</span></div>
@@ -419,10 +426,12 @@
                 <div class="dash-card sec-card" data-sec="status overview">
                     <h3>Site status</h3>
                     <p class="desc">Builds and services running.</p>
-                    <div class="kv-row"><span class="k">Web build</span><span class="v" id="st-web">—</span></div>
-                    <div class="kv-row"><span class="k">Desktop build</span><span class="v" id="st-desktop">—</span></div>
-                    <div class="kv-row"><span class="k">Settings sync</span><span class="v" id="st-cloud">—</span></div>
-                    <div class="kv-row"><span class="k">Detector online</span><span class="v" id="st-online">—</span></div>
+                    <div class="chip-row">
+                        <span class="chip" data-label="Web build" id="st-web">Web build</span>
+                        <span class="chip" data-label="Desktop build" id="st-desktop">Desktop build</span>
+                        <span class="chip" data-label="Settings sync" id="st-cloud">Settings sync</span>
+                        <span class="chip" data-label="Detector online" id="st-online">Detector online</span>
+                    </div>
                 </div>
 
                 <!-- detector globe -->
@@ -1207,10 +1216,13 @@
             const res = await fetch(API_BASE + "/v1/detector/users");
             const data = await res.json();
             const n = (data.users || []).length;
-            $("st-online").innerHTML = `<span class="badge ${n > 0 ? "ok" : "warn"}">${n} user${n === 1 ? "" : "s"}</span>`;
+            const chip = $("st-online");
+            chip.innerHTML = `<b>${n}</b> online`;
+            chip.className = "chip " + (n > 0 ? "ok" : "warn");
             window.updateDetectorGlobe?.(n, data.countries);
         } catch {
-            $("st-online").textContent = "—";
+            const chip = $("st-online");
+            chip.innerHTML = "<b>—</b> online";
         }
     }
 
@@ -1221,6 +1233,7 @@
         $("avatar").src = user.avatar || "";
         $("ws-avatar").src = user.avatar || "";
         $("ws-name").textContent = user.globalName || user.username || "Dashboard";
+        $("hero-name").textContent = user.globalName || user.username || "friend";
         $("acc-id").textContent = user.id || "—";
         $("acc-username").textContent = user.username || "—";
         $("acc-since").textContent = data.loggedInAt ? new Date(data.loggedInAt).toLocaleString() : "—";
@@ -1254,11 +1267,15 @@
             $("daily-btn").textContent = "Wallet unavailable";
         }
 
-        // site status
-        const setSt = (id, ok, text) => { $(id).innerHTML = `<span class="badge ${ok ? "ok" : "warn"}">${text}</span>`; };
-        setSt("st-web", data.build?.built, data.build?.built ? "Built" : "Missing");
-        setSt("st-desktop", data.build?.desktop !== "failed", data.build?.desktop === "done" || data.build?.built ? "Ready" : data.build?.desktop);
-        setSt("st-cloud", data.cloudSync, data.cloudSync ? "Online" : "Offline");
+        // site status — rendered as chips (label + status value)
+        const setChip = (id, ok, text) => {
+            const el = $(id);
+            el.innerHTML = `${el.dataset.label} <b>${text}</b>`;
+            el.className = "chip " + (ok ? "ok" : "warn");
+        };
+        setChip("st-web", data.build?.built, data.build?.built ? "Built" : "Missing");
+        setChip("st-desktop", data.build?.desktop !== "failed", data.build?.desktop === "done" || data.build?.built ? "Ready" : data.build?.desktop);
+        setChip("st-cloud", data.cloudSync, data.cloudSync ? "Online" : "Offline");
         loadDetectorCount();
 
         show("logged-in");

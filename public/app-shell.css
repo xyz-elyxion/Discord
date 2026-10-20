@@ -247,3 +247,182 @@
     }
     .dash-shell.collapsed .sidebar { width: 250px; padding: 12px; opacity: 1; }
 }
+
+/* --------------------------------------------------------------- v2
+ * Redesign layer (2026-10) — shared visual polish for both panels.
+ * Layout-only helpers live above; this block adds the hero header,
+ * featured cards, stat tiles, data tables and chips. */
+
+/* Panel hero — the large header both pages open with */
+.dash-hero {
+    padding: 8px 4px 4px;
+    margin-bottom: 22px;
+}
+.dash-hero .dh-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    border-radius: 9999px;
+    padding: 5px 12px;
+    margin-bottom: 14px;
+}
+.dash-hero h1 {
+    font-size: clamp(1.9rem, 4vw, 2.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    margin-bottom: 8px;
+}
+.dash-hero .dh-sub {
+    color: var(--muted-foreground);
+    font-size: 1rem;
+    max-width: 560px;
+    line-height: 1.6;
+}
+
+/* Topbar + card polish */
+.dash-topbar {
+    backdrop-filter: blur(8px) saturate(1.1);
+    box-shadow: var(--shadow-sm);
+}
+.dash-card,
+.card.admin-card {
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.dash-card:hover,
+.card.admin-card:hover {
+    border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+    box-shadow: var(--shadow-md);
+}
+
+/* Featured card — gradient wash + lime ring for the hero metric
+   (Limes wallet on the dashboard, rollout selector in the admin) */
+.card-featured {
+    position: relative;
+    background:
+        radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 55%),
+        var(--card);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+    box-shadow: 0 0 22px color-mix(in srgb, var(--primary) 7%, transparent);
+}
+.card-featured:hover {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+
+/* Stat tiles — metric grids (Sentinel admin, could be reused elsewhere) */
+.stat-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 14px 0;
+}
+@media (max-width: 560px) {
+    .stat-tiles { grid-template-columns: repeat(2, 1fr); }
+}
+.stat-tile {
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 14px 12px;
+    transition: border-color 0.2s, background 0.2s;
+}
+.stat-tile:hover { border-color: color-mix(in srgb, var(--primary) 30%, var(--border)); }
+.stat-tile .st-value {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--primary);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+.stat-tile .st-label {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+}
+
+/* Data tables — channel manager etc. */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+.data-table thead th {
+    text-align: left;
+    padding: 8px 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+}
+.data-table tbody tr {
+    border-top: 1px solid var(--border);
+    transition: background 0.15s;
+}
+.data-table tbody tr:hover { background: rgba(128, 128, 128, 0.06); }
+.data-table td { padding: 10px 6px; font-size: 0.88rem; vertical-align: middle; }
+.data-table td.t-name { font-weight: 700; }
+.data-table td.t-dim { color: var(--muted-foreground); }
+
+/* Chips — compact status pills (build hash, live channel) */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    padding: 5px 12px;
+    line-height: 1.4;
+}
+.chip b {
+    color: var(--foreground);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.chip.ok {
+    border-color: color-mix(in srgb, #3ba55c 45%, transparent);
+    color: color-mix(in srgb, #3ba55c 85%, var(--foreground));
+}
+.chip.ok b { color: #3ba55c; }
+.chip.warn {
+    border-color: color-mix(in srgb, #faa61a 45%, transparent);
+    color: color-mix(in srgb, #faa61a 85%, var(--foreground));
+}
+.chip.warn b { color: #faa61a; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+
+/* Lock/login card — the signed-out state */
+.lock-card {
+    background: radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 60%), var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+}
+.lock-card .lock-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    font-size: 1.7rem;
+    margin-bottom: 16px;
+}

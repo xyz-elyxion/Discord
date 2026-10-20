@@ -8,23 +8,10 @@
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="/app-shell.css">
     <style>
-        /* Page-local layout only — all colors/radii come from the shared tokens */
+        /* Page-local layout only — all colors/radii come from the shared tokens.
+           Stat tiles, chips and the table live in the shared app-shell.css v2 layer. */
         .admin-main {
-            padding: 48px 0 96px;
-        }
-        .admin-title {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            font-size: clamp(1.7rem, 3.5vw, 2.2rem);
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin: 0 0 4px;
-        }
-        .admin-sub {
-            color: var(--muted-foreground);
-            font-size: 0.95rem;
-            margin-bottom: 32px;
+            padding: 40px 0 96px;
         }
         .admin-card {
             margin-bottom: 16px;
@@ -43,7 +30,9 @@
             margin: 0 0 8px;
         }
         .admin-card > .admin-sub {
-            margin: -4px 0 12px;
+            color: var(--muted-foreground);
+            font-size: 0.95rem;
+            margin-bottom: 12px;
         }
         .admin-card label {
             display: block;
@@ -108,40 +97,6 @@
             font-weight: 600;
             margin-right: auto;
         }
-        /* Limey Sentinel stats */
-        .sentinel-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin: 12px 0;
-        }
-        @media (max-width: 560px) {
-            .sentinel-stats { grid-template-columns: repeat(2, 1fr); }
-        }
-        .sentinel-stat {
-            background: var(--background);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-        }
-        .sentinel-stat b {
-            display: block;
-            font-size: 1.4rem;
-            color: var(--primary);
-        }
-        .sentinel-stat span {
-            font-size: 0.75rem;
-            color: var(--muted-foreground);
-        }
-        .sentinel-rejects {
-            font-size: 0.8rem;
-            color: var(--muted-foreground);
-            line-height: 1.7;
-        }
-        .sentinel-rejects em {
-            color: #ff6b6b;
-            font-style: normal;
-        }
         .usrbg-row {
             display: flex;
             align-items: center;
@@ -152,7 +107,9 @@
             border-radius: 8px;
             padding: 8px 12px;
             margin-top: 8px;
+            transition: border-color 0.15s;
         }
+        .usrbg-row:hover { border-color: color-mix(in srgb, var(--primary) 28%, var(--border)); }
         .usrbg-row .usrbg-id {
             font-size: 0.8rem;
             word-break: break-all;
@@ -161,6 +118,15 @@
         .usrbg-row img {
             height: 40px;
             border-radius: 4px;
+        }
+        .sentinel-rejects {
+            font-size: 0.8rem;
+            color: var(--muted-foreground);
+            line-height: 1.7;
+        }
+        .sentinel-rejects em {
+            color: #ff6b6b;
+            font-style: normal;
         }
     </style>
 </head>
@@ -183,9 +149,10 @@
     <main class="admin-main">
         <div class="container">
             <!-- logged out -->
-            <div class="card admin-card" id="login" style="max-width:480px;margin:48px auto;padding:40px;">
-                <h2 style="justify-content:center">🍋 Admin Panel</h2>
-                <p class="admin-sub" style="margin-bottom:8px">Sign in with Discord. Access is restricted to the admin role in the Limey server.</p>
+            <div class="card lock-card" id="login" style="max-width:480px;margin:56px auto;padding:44px 40px;text-align:center">
+                <div class="lock-logo">🍋</div>
+                <h2 style="justify-content:center;letter-spacing:-0.02em">Admin Panel</h2>
+                <p style="color:var(--muted-foreground);font-size:0.95rem;margin-bottom:24px">Restricted access — sign in with Discord. Only the admin role in the Limey server gets through.</p>
                 <button class="btn btn-primary" id="loginbtn" style="width:100%">Login with Discord</button>
                 <div class="msg" id="loginmsg"></div>
             </div>
@@ -219,6 +186,11 @@
                     </aside>
 
                     <div class="dash-main">
+                        <div class="dash-hero">
+                            <span class="dh-eyebrow">🛡️ Restricted</span>
+                            <h1>Limey V1 Command Center</h1>
+                            <p class="dh-sub">Sentinel, bans, banners, donation codes and the release-channel freeze — everything operational, one place.</p>
+                        </div>
                         <div class="dash-topbar">
                             <div class="topbar-left">
                                 <button class="tb-btn" id="admin-collapse-btn" title="Toggle sidebar">☰</button>
@@ -232,16 +204,16 @@
                         </div>
 
                         <div class="shell-section active" data-sec="sentinel">
-                            <div class="card admin-card">
+                            <div class="card admin-card card-featured">
                     <h2>🍋 Limey Sentinel</h2>
                     <p class="admin-sub">Proof-of-work captcha stats. Repeated failed solvers from one IP get harder challenges automatically (3 fails → 4x, 10 → 10x, for 15 min).</p>
-                    <div class="sentinel-stats">
-                        <div class="sentinel-stat"><b id="stIssued">—</b><span>Challenges issued</span></div>
-                        <div class="sentinel-stat"><b id="stSolved">—</b><span>Solved</span></div>
-                        <div class="sentinel-stat"><b id="stConsumed">—</b><span>Consumed (submits)</span></div>
-                        <div class="sentinel-stat"><b id="stRejected">—</b><span>Rejected</span></div>
-                        <div class="sentinel-stat"><b id="stActive">—</b><span>Active (unused) puzzles</span></div>
-                        <div class="sentinel-stat"><b id="stWatch">—</b><span>IPs on watchlist</span></div>
+                    <div class="stat-tiles">
+                        <div class="stat-tile"><b class="st-value" id="stIssued">—</b><span class="st-label">Challenges issued</span></div>
+                        <div class="stat-tile"><b class="st-value" id="stSolved">—</b><span class="st-label">Solved</span></div>
+                        <div class="stat-tile"><b class="st-value" id="stConsumed">—</b><span class="st-label">Consumed (submits)</span></div>
+                        <div class="stat-tile"><b class="st-value" id="stRejected">—</b><span class="st-label">Rejected</span></div>
+                        <div class="stat-tile"><b class="st-value" id="stActive">—</b><span class="st-label">Active (unused) puzzles</span></div>
+                        <div class="stat-tile"><b class="st-value" id="stWatch">—</b><span class="st-label">IPs on watchlist</span></div>
                     </div>
                     <div class="sentinel-rejects" id="stRejects" style="display:none"></div>
                     <div class="admin-actions">
@@ -335,13 +307,16 @@
                         Installers fetch <code>/v1/install/files/&lt;channel&gt;/…</code> once a snapshot exists;
                         unpublishing removes it. Updating in-channel is automatic (<code>channel.txt</code> marker).
                     </p>
-                    <div id="chanStable" class="msg" style="min-height:0"></div>
-                    <table id="chanTable" style="width:100%;border-collapse:collapse;margin-top:8px">
+                    <div class="chip-row" id="chanChips">
+                        <span class="chip" id="chanStable">Stable</span>
+                        <span class="chip" id="chanLive">Live rollout</span>
+                    </div>
+                    <table id="chanTable" class="data-table">
                         <thead>
-                            <tr style="text-align:left;color:var(--muted-foreground)">
-                                <th style="padding:6px 4px">Channel</th>
-                                <th style="padding:6px 4px">Snapshot</th>
-                                <th style="padding:6px 4px">Actions</th>
+                            <tr>
+                                <th>Channel</th>
+                                <th>Snapshot</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -506,22 +481,22 @@
     async function channelsLoad() {
         const { ok, status, data } = await chanCall("GET", "/v1/admin/channels");
         if (!ok) { chanShow("❌ Error " + status + ": " + (data.error || "unknown"), false); return; }
-        document.getElementById("chanStable").innerHTML =
-            "Current stable build hash: <b>" + (data.stableHash || "unknown") + "</b>" +
-            " · live rollout channel: <b>" + data.liveChannel + "</b>";
+        document.getElementById("chanStable").className = "chip";
+        document.getElementById("chanStable").innerHTML = "Stable build <b>" + (data.stableHash || "unknown") + "</b>";
+        const liveChip = document.getElementById("chanLive");
+        liveChip.className = "chip ok";
+        liveChip.innerHTML = "Live rollout channel <b>" + data.liveChannel + "</b>";
         const tbody = document.querySelector("#chanTable tbody");
         tbody.innerHTML = "";
         for (const ch of SNAPSHOT_CHANNELS) {
             const published = data.published[ch];
             const tr = document.createElement("tr");
-            tr.style.borderTop = "1px solid var(--border)";
             const name = document.createElement("td");
-            name.style.padding = "8px 4px";
-            name.innerHTML = "<b>" + ch + "</b>";
+            name.className = "t-name";
+            name.textContent = ch;
             const snap = document.createElement("td");
-            snap.style.padding = "8px 4px";
             snap.textContent = published ? ("published @ " + (data.snapshots[ch].hash || "?")) : "not published";
-            snap.style.color = published ? "var(--foreground)" : "var(--muted-foreground)";
+            snap.className = published ? "t-name" : "t-dim";
             const actions = document.createElement("td");
             actions.style.padding = "8px 4px";
             const pub = document.createElement("button");
