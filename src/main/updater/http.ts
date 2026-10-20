@@ -20,6 +20,7 @@ import { fetchBuffer } from "@main/utils/http";
 import { IpcEvents } from "@shared/IpcEvents";
 import { createHmac } from "crypto";
 import { ipcMain } from "electron";
+import { readFileSync } from "fs";
 import { writeFile } from "fs/promises";
 import { join } from "path";
 
@@ -58,6 +59,16 @@ async function fetchWithRetry(url: string): Promise<Buffer> {
         "The Limey V1 update backend may be waking up or down. Try again in a minute, or re-install with the installer from limey-discord.onrender.com/download."
     );
 }
+// Release channel persistence: the installer writes "channel.txt"
+// ("stable" or "lts") next to the build files. Stay in the installed
+// channel across updates — an LTS install must keep updating within its
+// frozen stream instead of silently migrating back to stable.
+let UPDATE_CHANNEL = "stable";
+try {
+    const marker = readFileSync(join(__dirname, "channel.txt"), "utf8").trim();
+    if (marker === "lts") UPDATE_CHANNEL = "lts";
+} catch { /* default to stable (e.g. dev install without the marker) */ }
+
 const VERSION_FILE = "renderer.css";
 // The stamp on js files is a comment; on css it is wrapped in slashes.
 const HASH_STAMP_CSS = "/* Limey ";
@@ -65,7 +76,9 @@ const HASH_STAMP_CSS = "/* Limey ";
 let PendingUpdates = [] as string[];
 
 function fileUrl(name: string) {
-    return `${LIMEY_BASE}/v1/install/files/${name}`;
+    return UPDATE_CHANNEL === "lts"
+        ? `${LIMEY_BASE}/v1/install/files/lts/${name}`
+        : `${LIMEY_BASE}/v1/install/files/${name}`;
 }
 
 async function fetchLatestHash() {

@@ -24,6 +24,18 @@ import (
 var discords []any
 var interactive = false
 
+// isValidChannel accepts the implemented Limey V1 release channels — the
+// installable subset of the /v1/channels registry. Proposed channels stay
+// definition-only, exactly as the docs page says.
+func isValidChannel(channel string) bool {
+	switch channel {
+	case "stable", "lts":
+		return true
+	default:
+		return false
+	}
+}
+
 func isValidBranch(branch string) bool {
 	switch branch {
 	// "development" is Discord's Development branch — the same id the
@@ -57,6 +69,7 @@ func main() {
 	var uninstallFlag = flag.Bool("uninstall", false, "Uninstall Limey V1")
 	var locationFlag = flag.String("location", "", "The location of the Discord install to modify")
 	var branchFlag = flag.String("branch", "", "The branch of Discord to modify [auto|stable|ptb|canary|development]")
+	var channelFlag = flag.String("channel", "stable", "The Limey V1 release channel to install [stable|lts]")
 	flag.Parse()
 
 	if *helpFlag {
@@ -89,6 +102,11 @@ func main() {
 	if !isValidBranch(*branchFlag) {
 		die("The 'branch' flag must be one of the following: [auto|stable|ptb|canary|development]")
 	}
+
+	if !isValidChannel(*channelFlag) {
+		die("The 'channel' flag must be one of the following: [stable|lts]")
+	}
+	ReleaseChannel = *channelFlag
 
 	install, uninstall, update := *installFlag, *uninstallFlag, *updateFlag
 	switches := []*bool{&install, &update, &uninstall}

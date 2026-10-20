@@ -193,10 +193,10 @@ export const RELEASE_CHANNELS: ReleaseChannel[] = [
         implemented: false
     },
     {
-        id: "lts", name: "Stable LTS", category: "maintenance", origin: "proposed",
+        id: "lts", name: "Stable LTS", category: "maintenance", origin: "limey",
         stability: "production", cadence: "security/crash fixes only", audience: "downtime-sensitive setups",
-        description: "Frozen stable snapshot with a long support window.",
-        implemented: false
+        description: "Frozen stable snapshot with a long support window. Served from the backend's dist/lts/ snapshot; tracks stable until the first pin is published. Install with the installer's --channel lts.",
+        implemented: true
     },
     {
         id: "archived", name: "Archived", category: "maintenance", origin: "proposed",

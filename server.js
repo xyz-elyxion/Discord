@@ -236,6 +236,45 @@ function handleInstall(req, res, url) {
     // The signature is server-authoritative: only holders of the backend's
     // signing key can produce it, so a self-built copy can't masquerade as an
     // official one when tools check it.
+    // Release channel support: "stable" serves the current dist files;
+    // "lts" serves the frozen snapshot in dist/lts/ (falls back to the
+    // current stable files with their hash until the first LTS pin is
+    // published, so the channel works from day one).
+    const ltsMatch = /^\/v1\/install\/files\/lts\/([\w.-]+\.(js|css))$/.exec(url);
+    if (ltsMatch) {
+        const name = ltsMatch[1];
+        const ltsPath = join(DIST, "lts");
+        const ltsBuilt = existsSync(join(ltsPath, "patcher.js"));
+        const dir = ltsBuilt ? ltsPath : DIST;
+        const filePath = join(dir, name);
+        if (!existsSync(filePath)) return json(res, 404, { error: "file not found — is the build ready?" }), true;
+
+        let content = readFileSync(filePath);
+        let hash = null;
+        try {
+            const patcherHead = readFileSync(join(dir, "patcher.js")).toString("utf8", 0, 64);
+            const m = /^\/\/ Limey V1 (\S+)/.exec(patcherHead);
+            if (m) hash = m[1];
+        } catch { /* keep null */ }
+        if (name.endsWith(".css")) {
+            // The installer fetches renderer.css only to read the hash comment.
+            content = Buffer.from(`/* Limey ${hash ?? "unknown"} */\n` + content.toString("utf8"));
+            // Stamp format must stay exactly "/* Limey <hash> */" — installers
+            // and updaters parse the hash from this first line.
+        } else if (hash && SIGNING_KEY) {
+            content = Buffer.concat([
+                content,
+                Buffer.from(`/*!sig:${createHmac("sha256", SIGNING_KEY).update(content).digest("hex")}*/`)
+            ]);
+        }
+        res.writeHead(200, {
+            "Content-Type": name.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8",
+            "Content-Length": content.length,
+            "Cache-Control": "no-cache",
+            "Access-Control-Allow-Origin": "*"
+        });
+        return res.end(content), true;
+    }
     if (url.startsWith("/v1/install/files/")) {
         const name = url.slice("/v1/install/files/".length);
         if (!/^[\w.-]+\.(js|css)$/.test(name)) return json(res, 400, { error: "invalid file name" }), true;
@@ -309,6 +348,9 @@ function handleInstall(req, res, url) {
             channels = {
                 schema: releaseChannels.CURRENT_SCHEMA,
                 currentTrack: "stable", // installer/updater-served builds are standalone -> stable
+                // true once a frozen LTS snapshot exists in dist/lts/; until
+                // then --channel lts installs track the current stable build.
+                ltsAvailable: existsSync(join(DIST, "lts", "patcher.js")),
                 docs: "https://limey-discord.onrender.com/docs/release-channels",
                 installTargets: releaseChannels.CHANNELS
                     // Desktop hosts only — the web channel installs via the

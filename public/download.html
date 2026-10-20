@@ -124,6 +124,17 @@
             opacity: 0.5;
             pointer-events: none;
         }
+        .lts-cmd {
+            display: block;
+            background: #0f0f0f;
+            border: 1px solid var(--input);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            color: var(--lime);
+            overflow-x: auto;
+            white-space: nowrap;
+        }
         .branch-meta {
             margin-top: 10px;
             font-size: 0.8rem;
@@ -378,6 +389,18 @@
                 </p>
                 <span class="platforms" data-channel="dev">ships today · builds per commit</span>
             </div>
+
+            <div class="method">
+                <span class="method-badge">Maintenance</span>
+                <h2>Stable LTS</h2>
+                <p>
+                    A frozen stable snapshot with a long support window — security and crash fixes
+                    only, never a mid-support feature churn. The installer and the in-app updater
+                    both stay inside the channel: get it with the CLI installer command below.
+                </p>
+                <code class="lts-cmd" id="ltsCmd" spellcheck="false">LimeyV1Installer-cli --install --channel lts</code>
+                <span class="platforms" data-channel="lts">ships today · frozen snapshot · <span id="ltsLive">pin status unknown</span></span>
+            </div>
         </div>
 
         <!-- Host picker: which Discord branch the installer patches. The
@@ -576,6 +599,10 @@
     });
     pick("auto");
 
+    // The LTS card shows the same platform hint as the branch picker.
+    var ltsCmd = document.getElementById("ltsCmd");
+    if (ltsCmd) ltsCmd.textContent = executableName + " --install --channel lts";
+
     copy.addEventListener("click", function () {
         var text = cmd.textContent;
         (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () {
@@ -604,6 +631,19 @@
     }).catch(function () {
         live.innerHTML = " · <span class=\"live-fail\">manifest unavailable (backend waking up)</span>";
     });
+
+    // LTS pin status: /v1/install/desktop reports whether the backend has a
+    // frozen dist/lts snapshot; until then --channel lts tracks stable.
+    var ltsLive = document.getElementById("ltsLive");
+    fetch("/v1/install/desktop").then(function (r) {
+        return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
+    }).then(function (info) {
+        if (info && info.channels && ltsLive) {
+            ltsLive.innerHTML = info.channels.ltsAvailable
+                ? "<strong>pin published</strong>"
+                : "not pinned yet — tracks the current stable build";
+        }
+    }).catch(function () { /* keep "pin status unknown" */ });
 })();
 </script>
     <script src="/limey-dragify.js" defer></script>

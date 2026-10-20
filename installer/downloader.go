@@ -23,6 +23,12 @@ var InstalledHash = "None"
 var LatestHash = "Unknown"
 var IsDevInstall bool
 
+// ReleaseChannel selects which backend channel files are fetched from:
+// "stable" (current builds) or "lts" (the frozen dist/lts/ snapshot). Set
+// from the installer's --channel flag in cli.go; the GUI build (gui.go,
+// non-cli tag) always stays on stable.
+var ReleaseChannel = "stable"
+
 var BuildDoneChan chan bool
 
 // Header line written into patcher.js so we can detect the installed version.
@@ -48,7 +54,24 @@ func init() {
 }
 
 func fileUrl(name string) string {
+	// Release channel routing: the stable channel serves the current build
+	// files, the lts channel serves the frozen dist/lts/ snapshot (GET
+	// /v1/install/files/lts/<name>); the backend falls back to stable until
+	// its first LTS pin is published, so --channel lts works from day one.
+	if ReleaseChannel == "lts" {
+		return BaseUrl + "/v1/install/files/lts/" + name
+	}
 	return BaseUrl + "/v1/install/files/" + name
+}
+
+// writeChannelMarker persists the installed release channel as
+// <FilesDir>/channel.txt so the in-app updater keeps updating within the
+// channel (an LTS install must not migrate back to stable on update).
+func writeChannelMarker() {
+	markerFile := path.Join(FilesDir, "channel.txt")
+	if err := os.WriteFile(markerFile, []byte(ReleaseChannel+"\n"), 0644); err != nil {
+		Log.Warn("Failed to write channel marker", markerFile, err)
+	}
 }
 
 // setBuildDone safely records the latest build-check/download result for

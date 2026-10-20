@@ -133,6 +133,7 @@ func (di *DiscordInstall) patch() error {
 
 	Log.Info("Successfully patched", di.path)
 	di.isPatched = true
+	writeChannelMarker()
 
 	if di.isFlatpak {
 		pathElements := strings.Split(di.path, "/")
