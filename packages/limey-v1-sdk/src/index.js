@@ -8,6 +8,7 @@
  *   - `client.limes`       — the Limes virtual economy (wallets, dailies, tiers)
  *   - `client.plugins`     — community plugin store listings
  *   - `client.tools`       — invite/guild lookups
+ *   - `client.channels`    — release-channel manifest (what actually ships vs proposed)
  *   - `client.sentinel`    — human verification challenges for your own forms
  *   - `client.state`       — bot <-> server key-value state (needs token)
  *   - `client.clientData`  — small per-user blobs for your own client mods
@@ -442,6 +443,42 @@ export const Base64Url = {
 };
 
 /**
+ * Channels: the release-channel manifest from GET /v1/channels — the
+ * machine-readable version of the "Release Channels" docs page. Only the
+ * entries with `implemented: true` (stable, dev and the install targets)
+ * ship artifacts today; the rest are proposed definitions from the spec.
+ */
+class ChannelsResource extends BaseResource {
+    /** The full manifest: { schema, strategy, implementedOnly, channels }. */
+    async manifest() {
+        return this.http.request("/v1/channels");
+    }
+    /** Implemented + proposed channel definitions, sorted as served. */
+    async list() {
+        const manifest = await this.manifest();
+        return manifest?.channels ?? [];
+    }
+    /** A single channel by id; throws not_found when unknown. */
+    async get(id) {
+        if (!/^[a-z0-9-]+$/.test(String(id))) {
+            throw new LimeyV1Error("invalid channel id", { code: "invalid_id" });
+        }
+        // Prefer the direct endpoint; fall back to scanning the manifest so
+        // self-hosted backends without /v1/channels/:id still work.
+        try {
+            const res = await this.http.request(`/v1/channels/${id}`);
+            if (res?.channel) return res.channel;
+        } catch (err) {
+            if (!(err instanceof LimeyV1Error) || err.code !== "not_found") throw err;
+        }
+        const channels = await this.list();
+        const found = channels.find(ch => ch.id === id);
+        if (found) return found;
+        throw new LimeyV1Error(`channel "${id}" not found`, { code: "not_found", status: 404 });
+    }
+}
+
+/**
  * BotState: the /v1/bot-state/* key-value store the limebot itself uses to
  * persist feature data across deploys. Requires USRBG_ADMIN_TOKEN.
  */
@@ -500,6 +537,7 @@ export class LimeyV1 {
         this.limes = new LimesResource(http);
         this.plugins = new PluginsResource(http);
         this.tools = new ToolsResource(http);
+        this.channels = new ChannelsResource(http);
         this.sentinel = new SentinelResource(http);
         this.state = new BotStateResource(http);
 

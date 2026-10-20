@@ -51,6 +51,20 @@ import { Card, CardGrid } from "@astrojs/starlight/components";
   borrowed from industry practice (GitHub, Chrome, Firefox, Kubernetes, and so
   on). Adopt them freely; just don't advertise them as built-in.
 
+## Where this spec is implemented
+
+The registry is not just prose — the platform now serves and renders it:
+
+| Integration | What it does |
+| :---------- | :----------- |
+| `GET /v1/channels` | Schema-versioned manifest (`limey.v1/channels/1`) of every channel above, each entry carrying `origin`, `stability`, `cadence` and an `implemented` flag. Single-channel lookup at `/v1/channels/:id`. |
+| Bot SDK `client.channels` | `list()`, `get(id)` and `manifest()` for bots that want to report or validate channels. |
+| Updater settings section | The desktop settings **Updater** tab shows the active track (`stable` or `dev` via the standalone-build rule) and names the planned channels explicitly as not shipping yet. |
+| Updater runtime | Builds are tagged at compile time: `--standalone` → `stable`, source builds → `dev` (DevBuild self-identification, git updater). |
+
+Proposed channels stay definition-only everywhere: no artifact paths, feed
+URLs or branches exist for them, here or in the API.
+
 ## Stability scale
 
 All rows below use this five-level scale:

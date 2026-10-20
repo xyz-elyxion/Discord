@@ -29,6 +29,10 @@ import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
 import { useAwaiter } from "@utils/react";
+import {
+    getReleaseTrack,
+    RELEASE_CHANNELS,
+    RELEASE_CHANNELS_DOC_URL } from "@utils/releaseChannels";
 import { getRepo, isNewer, UpdateLogger } from "@utils/updater";
 import { Forms, React } from "@webpack/common";
 
@@ -49,6 +53,38 @@ function UpstreamSection() {
             </Paragraph>
             <Paragraph className={Margins.top8}>
                 Upstream changes are merged into this fork by its maintainers — this notice is informational.
+            </Paragraph>
+        </Card>
+    );
+}
+
+function ReleaseChannelSection() {
+    const track = getReleaseTrack();
+    // Implemented-track chips a user could "switch to"; proposed ones are
+    // grayed out on purpose — nothing ships for them and wording here must
+    // never promise a feed that does not exist.
+    const implementedTracks = RELEASE_CHANNELS.filter(ch => ch.category === "track" && ch.implemented);
+    const proposedTracks = RELEASE_CHANNELS.filter(ch => ch.category === "track" && !ch.implemented && !ch.aliases);
+
+    return (
+        <Card
+            variant={track.id === "dev" ? "warning" : "info"}
+            className={Margins.bottom20}
+        >
+            <HeadingSecondary>Release channel</HeadingSecondary>
+            <Paragraph>
+                You are on the <b>{track.name}</b> channel. {track.description}
+            </Paragraph>
+            <Paragraph className={Margins.top8}>
+                Available channels: {
+                    implementedTracks.map((ch, i) => (
+                        <span key={ch.id}>{i > 0 && " · "}<b>{ch.name}</b></span>
+                    ))
+                }.
+            </Paragraph>
+            <Paragraph className={Margins.top8}>
+                Planned (not shipping yet): {proposedTracks.map(ch => ch.name).join(", ")} —
+                see the <Link href={RELEASE_CHANNELS_DOC_URL}>release channels reference</Link>.
             </Paragraph>
         </Card>
     );
@@ -98,6 +134,8 @@ function Updater() {
     return (
         <SettingsTab>
             <UpstreamSection />
+
+            <ReleaseChannelSection />
 
             <VesktopSection />
 

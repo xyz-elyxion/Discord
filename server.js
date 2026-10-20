@@ -1242,6 +1242,20 @@ try {
 }
 
 // ------------------------------------------------------------------
+// Limey V1 Release Channels — channel manifest for updaters, SDKs and
+// the settings UI, mounted at /v1/channels (static registry data; the
+// two implemented tracks are stable + dev, everything else is a
+// proposed definition, never an artifact URL).
+// ------------------------------------------------------------------
+let releaseChannels;
+try {
+    releaseChannels = require("./release-channels");
+    console.log("[channels] release-channel manifest loaded (" + releaseChannels.CHANNELS.length + " channels, schema " + releaseChannels.CURRENT_SCHEMA + ")");
+} catch (err) {
+    console.error("[channels] failed to load backend:", err.message);
+}
+
+// ------------------------------------------------------------------
 // Limey Sentinel — self-hosted proof-of-work captcha (ALTCHA Sentinel
 // inspired), mounted at /v1/sentinel/*. Free, no third-party service.
 // ------------------------------------------------------------------
@@ -2290,6 +2304,8 @@ const server = http.createServer(async (req, res) => {
         if (await handleToolsLookup(req, res, url)) return;
         // CORS-friendly media proxy for the GifCaptioner plugin
         if (await handleMediaProxy(req, res, url)) return;
+        // Release-channel manifest (updaters / SDK / settings UI)
+        if (releaseChannels && releaseChannels.handle(req, res, url)) return;
         // User dashboard session API (handled in-process)
         if (await handleDashboard(req, res, url)) return;
         // Backend-provided install: freshly packaged extension zip + desktop install info

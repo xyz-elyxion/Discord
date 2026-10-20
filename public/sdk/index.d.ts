@@ -64,6 +64,27 @@ export interface CommunityPlugin {
     [extra: string]: unknown;
 }
 
+export interface LimeyChannel {
+    id: string;
+    name: string;
+    category: "track" | "host" | "rollout" | "maintenance";
+    origin: "limey" | "vencord" | "discord" | "discord-process" | "proposed";
+    stability: string;
+    cadence: string;
+    audience: string;
+    description: string;
+    implemented: boolean;
+    aliases?: string[];
+    artifacts?: string[];
+}
+
+export interface LimeyChannelsManifest {
+    schema: string;
+    strategy: string;
+    implementedOnly: Record<string, string[]>;
+    channels: LimeyChannel[];
+}
+
 export declare class HttpClient {
     constructor(options?: LimeyV1Options);
     request(path: string, options?: {
@@ -96,6 +117,11 @@ export declare class LimeyV1 {
     };
     readonly plugins: { list(): Promise<CommunityPlugin[]>; get(name: string): Promise<CommunityPlugin> };
     readonly tools: { lookupInvite(code: string): Promise<unknown>; lookupGuild(guildId: string): Promise<unknown> };
+    readonly channels: {
+        manifest(): Promise<LimeyChannelsManifest>;
+        list(): Promise<LimeyChannel[]>;
+        get(id: string): Promise<LimeyChannel>;
+    };
     readonly sentinel: {
         challenge(query?: Record<string, unknown>): Promise<Record<string, unknown>>;
         solveToken(maxIterations?: number): Promise<string>;
