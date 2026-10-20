@@ -60,13 +60,15 @@ async function fetchWithRetry(url: string): Promise<Buffer> {
     );
 }
 // Release channel persistence: the installer writes "channel.txt"
-// ("stable" or "lts") next to the build files. Stay in the installed
-// channel across updates — an LTS install must keep updating within its
-// frozen stream instead of silently migrating back to stable.
+// ("stable", "lts", "rc" or "beta") next to the build files. Stay in the
+// installed channel across updates — snapshot-channel installs keep
+// updating within their own stream (whose files the backend serves from
+// dist/<channel>/) instead of silently migrating back to stable. RC and
+// beta update no-ops (four of errors) while their snapshot is unpublished.
 let UPDATE_CHANNEL = "stable";
 try {
     const marker = readFileSync(join(__dirname, "channel.txt"), "utf8").trim();
-    if (marker === "lts") UPDATE_CHANNEL = "lts";
+    if (marker === "lts" || marker === "rc" || marker === "beta") UPDATE_CHANNEL = marker;
 } catch { /* default to stable (e.g. dev install without the marker) */ }
 
 const VERSION_FILE = "renderer.css";
@@ -76,9 +78,9 @@ const HASH_STAMP_CSS = "/* Limey ";
 let PendingUpdates = [] as string[];
 
 function fileUrl(name: string) {
-    return UPDATE_CHANNEL === "lts"
-        ? `${LIMEY_BASE}/v1/install/files/lts/${name}`
-        : `${LIMEY_BASE}/v1/install/files/${name}`;
+    return UPDATE_CHANNEL === "stable"
+        ? `${LIMEY_BASE}/v1/install/files/${name}`
+        : `${LIMEY_BASE}/v1/install/files/${UPDATE_CHANNEL}/${name}`;
 }
 
 async function fetchLatestHash() {

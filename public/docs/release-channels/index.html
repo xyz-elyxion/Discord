@@ -122,7 +122,7 @@ on). Adopt them freely; just don’t advertise them as built-in.</li>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">GET /v1/install/files</code></td>
-<td style="text-align: left">Channel-aware file serving: <code dir="auto">/v1/install/files/&lt;name&gt;</code> is stable, <code dir="auto">/v1/install/files/lts/&lt;name&gt;</code> is the LTS stream — the frozen snapshot in <code dir="auto">dist/lts/</code> when pinned, the current stable files with the same hash-stamping and HMAC signatures until then (<code dir="auto">ltsAvailable</code> in <code dir="auto">channels</code> tells which).</td>
+<td style="text-align: left">Channel-aware file serving: <code dir="auto">/v1/install/files/&lt;name&gt;</code> is stable; <code dir="auto">/v1/install/files/{lts,rc,beta}/&lt;name&gt;</code> serve the frozen snapshots in <code dir="auto">dist/&lt;channel&gt;/</code>, frozen with <code dir="auto">pnpm publishChannel &lt;channel&gt;</code>. LTS falls back to the current stable files with the same hash-stamping and HMAC signatures until pinned; RC and Beta answer 503 “not published yet” instead — a pre-release must never be silently replaced by a stable build.</td>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">GET /v1/install/desktop</code></td>
@@ -134,11 +134,15 @@ on). Adopt them freely; just don’t advertise them as built-in.</li>
 </tr>
 <tr>
 <td style="text-align: left">Installer <code dir="auto">--branch</code> / <code dir="auto">--channel</code></td>
-<td style="text-align: left">The CLI installer accepts <code dir="auto">[auto|stable|ptb|canary|development]</code> for <code dir="auto">--branch</code> — the same ids as the host channels minus the <code dir="auto">discord-</code> prefix — and <code dir="auto">[stable|lts]</code> for <code dir="auto">--channel</code> (the implemented installable track subset). After patching it writes a <code dir="auto">channel.txt</code> marker into the files dir.</td>
+<td style="text-align: left">The CLI installer accepts <code dir="auto">[auto|stable|ptb|canary|development]</code> for <code dir="auto">--branch</code> — the same ids as the host channels minus the <code dir="auto">discord-</code> prefix — and <code dir="auto">[stable|lts|rc|beta]</code> for <code dir="auto">--channel</code> (the implemented installable channel subset). After patching it writes a <code dir="auto">channel.txt</code> marker into the files dir.</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">pnpm publishChannel</code></td>
+<td style="text-align: left">The freeze step: <code dir="auto">scripts/publishChannel.mjs</code> copies the current desktop build into <code dir="auto">dist/&lt;channel&gt;/</code> (requires <code dir="auto">--force</code> to replace an existing snapshot). LTS is effectively a permanent pin; RC is re-frozen once per release cycle, Beta per feature batch, and both land in <code dir="auto">stable</code> when clean.</td>
 </tr>
 <tr>
 <td style="text-align: left">Updater channel persistence</td>
-<td style="text-align: left">The desktop updater reads that marker and keeps updating within the installed channel: an LTS install fetches <code dir="auto">/v1/install/files/lts/*</code> and its hash, so it never silently migrates back to stable.</td>
+<td style="text-align: left">The desktop updater reads that marker and keeps updating within the installed channel: LTS/RC/Beta installs fetch <code dir="auto">/v1/install/files/&lt;channel&gt;/*</code> and that channel’s hash, so they never silently migrate back to stable.</td>
 </tr>
 <tr>
 <td style="text-align: left">Bot SDK <code dir="auto">client.channels</code></td>
@@ -259,8 +263,8 @@ URLs or branches exist for them, here or in the API.</p>
 <tr>
 <td style="text-align: left"><code dir="auto">rc</code></td>
 <td style="text-align: left">Release Candidate</td>
-<td style="text-align: left"><strong>Proposed</strong></td>
-<td style="text-align: left">The final pre-release of the next stable version; feature-complete, only crash/security fixes allowed. Folded into <code dir="auto">stable</code> once clean.</td>
+<td style="text-align: left"><strong>Limey</strong> (concept: upstream RC flows)</td>
+<td style="text-align: left">The final pre-release of the next stable version; feature-complete, only crash/security fixes allowed. Folded into <code dir="auto">stable</code> once clean. The build is frozen into <code dir="auto">dist/rc/</code> per release cycle (<code dir="auto">pnpm publishChannel rc</code>); while no snapshot is published the channel answers “not published” rather than silently serving stable, which is older.</td>
 <td style="text-align: left">Testers and plugin authors pre-validating</td>
 <td style="text-align: left">Testing</td>
 <td style="text-align: left">One per release cycle</td>
@@ -269,8 +273,8 @@ URLs or branches exist for them, here or in the API.</p>
 <tr>
 <td style="text-align: left"><code dir="auto">beta</code></td>
 <td style="text-align: left">Beta</td>
-<td style="text-align: left"><strong>Proposed</strong> (concept: upstream Vencord <em>plugin-level</em> beta exists via plugin <code dir="auto">beta</code> field, but not as a client channel)</td>
-<td style="text-align: left">Public pre-release track accumulating features for the next version; wider audience than RC, less polish.</td>
+<td style="text-align: left"><strong>Limey</strong> (concept: upstream Vencord <em>plugin-level</em> beta exists via plugin <code dir="auto">beta</code> field, but not as a client channel)</td>
+<td style="text-align: left">Public pre-release track accumulating features for the next version; wider audience than RC, less polish. Published to <code dir="auto">dist/beta/</code> per feature batch like RC, same not-published semantics between batches.</td>
 <td style="text-align: left">Curious users who accept some breakage</td>
 <td style="text-align: left">Testing</td>
 <td style="text-align: left">Per feature batch</td>
@@ -874,4 +878,4 @@ flag) — collapse the naming family onto one canonical artifact.</li>
 <li><strong>Mark proposed names visually.</strong> In the settings UI, render unimplemented
 channels as grayed-out with a “coming later” tooltip so users never
 believe a non-existent feed exists.</li>
-</ol></div><footer class="sl-flex astro-icf2prqc"><div class="meta sl-flex astro-icf2prqc"><a href="https://github.com/xyz-elyxion/Discord/tree/main/src/content/docs/release-channels.mdx" class="sl-flex print:hidden astro-gwbof5h6"><svg aria-hidden="true" class="astro-gwbof5h6 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M22 7.24a1 1 0 0 0-.29-.71l-4.24-4.24a1 1 0 0 0-1.1-.22 1 1 0 0 0-.32.22l-2.83 2.83L2.29 16.05a1 1 0 0 0-.29.71V21a1 1 0 0 0 1 1h4.24a1 1 0 0 0 .76-.29l10.87-10.93L21.71 8c.1-.1.17-.2.22-.33a1 1 0 0 0 0-.24v-.14l.07-.05ZM6.83 20H4v-2.83l9.93-9.93 2.83 2.83L6.83 20ZM18.17 8.66l-2.83-2.83 1.42-1.41 2.82 2.82-1.41 1.42Z"/></svg>Edit page</a><p>Last updated: <time datetime="2026-10-20T06:03:34.000Z">Oct 20, 2026</time></p></div><div class="pagination-links print:hidden astro-xxzxuk2t" dir="ltr"><a href="/docs/sdk" rel="prev" class="astro-xxzxuk2t"><svg aria-hidden="true" class="astro-xxzxuk2t astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.5rem;"><path d="M17 11H9.41l3.3-3.29a1.004 1.004 0 1 0-1.42-1.42l-5 5a1 1 0 0 0-.21.33 1 1 0 0 0 0 .76 1 1 0 0 0 .21.33l5 5a1.002 1.002 0 0 0 1.639-.325 1 1 0 0 0-.219-1.095L9.41 13H17a1 1 0 0 0 0-2Z"/></svg><span class="astro-xxzxuk2t">Previous<br class="astro-xxzxuk2t"><span class="link-title astro-xxzxuk2t">Bot SDK</span></span></a></div></footer></div></div></main></div></div></div></div></body></html>
+</ol></div><footer class="sl-flex astro-icf2prqc"><div class="meta sl-flex astro-icf2prqc"><a href="https://github.com/xyz-elyxion/Discord/tree/main/src/content/docs/release-channels.mdx" class="sl-flex print:hidden astro-gwbof5h6"><svg aria-hidden="true" class="astro-gwbof5h6 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M22 7.24a1 1 0 0 0-.29-.71l-4.24-4.24a1 1 0 0 0-1.1-.22 1 1 0 0 0-.32.22l-2.83 2.83L2.29 16.05a1 1 0 0 0-.29.71V21a1 1 0 0 0 1 1h4.24a1 1 0 0 0 .76-.29l10.87-10.93L21.71 8c.1-.1.17-.2.22-.33a1 1 0 0 0 0-.24v-.14l.07-.05ZM6.83 20H4v-2.83l9.93-9.93 2.83 2.83L6.83 20ZM18.17 8.66l-2.83-2.83 1.42-1.41 2.82 2.82-1.41 1.42Z"/></svg>Edit page</a><p>Last updated: <time datetime="2026-10-20T06:56:23.000Z">Oct 20, 2026</time></p></div><div class="pagination-links print:hidden astro-xxzxuk2t" dir="ltr"><a href="/docs/sdk" rel="prev" class="astro-xxzxuk2t"><svg aria-hidden="true" class="astro-xxzxuk2t astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.5rem;"><path d="M17 11H9.41l3.3-3.29a1.004 1.004 0 1 0-1.42-1.42l-5 5a1 1 0 0 0-.21.33 1 1 0 0 0 0 .76 1 1 0 0 0 .21.33l5 5a1.002 1.002 0 0 0 1.639-.325 1 1 0 0 0-.219-1.095L9.41 13H17a1 1 0 0 0 0-2Z"/></svg><span class="astro-xxzxuk2t">Previous<br class="astro-xxzxuk2t"><span class="link-title astro-xxzxuk2t">Bot SDK</span></span></a></div></footer></div></div></main></div></div></div></div></body></html>

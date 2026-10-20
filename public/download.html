@@ -401,6 +401,31 @@
                 <code class="lts-cmd" id="ltsCmd" spellcheck="false">LimeyV1Installer-cli --install --channel lts</code>
                 <span class="platforms" data-channel="lts">ships today · frozen snapshot · <span id="ltsLive">pin status unknown</span></span>
             </div>
+
+            <div class="method">
+                <span class="method-badge">Pre-release</span>
+                <h2>Release Candidate (RC)</h2>
+                <p>
+                    Feature-complete builds of the next stable version, nearly-identical downstream
+                    quality already reviewed — folded into stable once clean. Published once per
+                    release cycle; the installer and updater stay in-channel, and pre-releases are
+                    never silently swapped for stable builds.
+                </p>
+                <code class="lts-cmd" id="rcCmd" spellcheck="false">LimeyV1Installer-cli --install --channel rc</code>
+                <span class="platforms" data-channel="rc">per release cycle · <span id="rcLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Pre-release</span>
+                <h2>Beta</h2>
+                <p>
+                    Public pre-release accumulating feature batches for the next version — a
+                    middle ground between RC rigor and dev-build bleeding edge, for curious users
+                    who accept some breakage. Frozen per feature batch like RC.
+                </p>
+                <code class="lts-cmd" id="betaCmd" spellcheck="false">LimeyV1Installer-cli --install --channel beta</code>
+                <span class="platforms" data-channel="beta">per feature batch · <span id="betaLive">publish status unknown</span></span>
+            </div>
         </div>
 
         <!-- Host picker: which Discord branch the installer patches. The
@@ -599,9 +624,11 @@
     });
     pick("auto");
 
-    // The LTS card shows the same platform hint as the branch picker.
-    var ltsCmd = document.getElementById("ltsCmd");
-    if (ltsCmd) ltsCmd.textContent = executableName + " --install --channel lts";
+    // The snapshot-channel cards show the same platform hint as the branch picker.
+    ["lts", "rc", "beta"].forEach(function (ch) {
+        var el = document.getElementById(ch + "Cmd");
+        if (el) el.textContent = executableName + " --install --channel " + ch;
+    });
 
     copy.addEventListener("click", function () {
         var text = cmd.textContent;
@@ -632,18 +659,24 @@
         live.innerHTML = " · <span class=\"live-fail\">manifest unavailable (backend waking up)</span>";
     });
 
-    // LTS pin status: /v1/install/desktop reports whether the backend has a
-    // frozen dist/lts snapshot; until then --channel lts tracks stable.
-    var ltsLive = document.getElementById("ltsLive");
+    // Snapshot-channel status: /v1/install/desktop reports whether the
+    // backend has a frozen snapshot per channel (published map). Until then
+    // --channel lts tracks stable; rc/beta answer "not published".
     fetch("/v1/install/desktop").then(function (r) {
         return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
     }).then(function (info) {
-        if (info && info.channels && ltsLive) {
-            ltsLive.innerHTML = info.channels.ltsAvailable
-                ? "<strong>pin published</strong>"
-                : "not pinned yet — tracks the current stable build";
-        }
-    }).catch(function () { /* keep "pin status unknown" */ });
+        if (!info || !info.channels || !info.channels.published) return;
+        var published = info.channels.published;
+        var labels = {
+            lts: ["<strong>pin published</strong>", "not pinned yet — tracks the current stable build"],
+            rc: ["<strong>snapshot published</strong>", "not published yet (next release cycle)"],
+            beta: ["<strong>snapshot published</strong>", "not published yet (next feature batch)"]
+        };
+        Object.keys(labels).forEach(function (ch) {
+            var el = document.getElementById(ch + "Live");
+            if (el) el.innerHTML = published[ch] ? labels[ch][0] : labels[ch][1];
+        });
+    }).catch(function () { /* keep "status unknown" */ });
 })();
 </script>
     <script src="/limey-dragify.js" defer></script>

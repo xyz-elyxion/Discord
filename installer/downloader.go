@@ -24,9 +24,9 @@ var LatestHash = "Unknown"
 var IsDevInstall bool
 
 // ReleaseChannel selects which backend channel files are fetched from:
-// "stable" (current builds) or "lts" (the frozen dist/lts/ snapshot). Set
-// from the installer's --channel flag in cli.go; the GUI build (gui.go,
-// non-cli tag) always stays on stable.
+// "stable" (current builds) or a snapshot channel "lts"/"rc"/"beta"
+// (frozen dist/<channel>/ snapshots). Set from the installer's --channel
+// flag in cli.go; the GUI build (gui.go, non-cli tag) always stays on stable.
 var ReleaseChannel = "stable"
 
 var BuildDoneChan chan bool
@@ -55,11 +55,12 @@ func init() {
 
 func fileUrl(name string) string {
 	// Release channel routing: the stable channel serves the current build
-	// files, the lts channel serves the frozen dist/lts/ snapshot (GET
-	// /v1/install/files/lts/<name>); the backend falls back to stable until
-	// its first LTS pin is published, so --channel lts works from day one.
-	if ReleaseChannel == "lts" {
-		return BaseUrl + "/v1/install/files/lts/" + name
+	// files; snapshot channels (lts/rc/beta) are served from
+	// /v1/install/files/<channel>/<name>. LTS falls back to stable on the
+	// backend until its first pin; rc/beta answer 503 until a pre-release
+	// snapshot is published (server.js maps the behavior).
+	if ReleaseChannel != "stable" {
+		return BaseUrl + "/v1/install/files/" + ReleaseChannel + "/" + name
 	}
 	return BaseUrl + "/v1/install/files/" + name
 }

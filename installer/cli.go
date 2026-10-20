@@ -26,10 +26,11 @@ var interactive = false
 
 // isValidChannel accepts the implemented Limey V1 release channels — the
 // installable subset of the /v1/channels registry. Proposed channels stay
-// definition-only, exactly as the docs page says.
+// definition-only, exactly as the docs page says. rc and beta answer 503
+// from the backend while no pre-release snapshot is published.
 func isValidChannel(channel string) bool {
 	switch channel {
-	case "stable", "lts":
+	case "stable", "lts", "rc", "beta":
 		return true
 	default:
 		return false
@@ -69,7 +70,7 @@ func main() {
 	var uninstallFlag = flag.Bool("uninstall", false, "Uninstall Limey V1")
 	var locationFlag = flag.String("location", "", "The location of the Discord install to modify")
 	var branchFlag = flag.String("branch", "", "The branch of Discord to modify [auto|stable|ptb|canary|development]")
-	var channelFlag = flag.String("channel", "stable", "The Limey V1 release channel to install [stable|lts]")
+	var channelFlag = flag.String("channel", "stable", "The Limey V1 release channel to install [stable|lts|rc|beta]")
 	flag.Parse()
 
 	if *helpFlag {
@@ -104,7 +105,7 @@ func main() {
 	}
 
 	if !isValidChannel(*channelFlag) {
-		die("The 'channel' flag must be one of the following: [stable|lts]")
+		die("The 'channel' flag must be one of the following: [stable|lts|rc|beta]")
 	}
 	ReleaseChannel = *channelFlag
 

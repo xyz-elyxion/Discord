@@ -236,16 +236,27 @@ function handleInstall(req, res, url) {
     // The signature is server-authoritative: only holders of the backend's
     // signing key can produce it, so a self-built copy can't masquerade as an
     // official one when tools check it.
-    // Release channel support: "stable" serves the current dist files;
-    // "lts" serves the frozen snapshot in dist/lts/ (falls back to the
-    // current stable files with their hash until the first LTS pin is
-    // published, so the channel works from day one).
-    const ltsMatch = /^\/v1\/install\/files\/lts\/([\w.-]+\.(js|css))$/.exec(url);
-    if (ltsMatch) {
-        const name = ltsMatch[1];
-        const ltsPath = join(DIST, "lts");
-        const ltsBuilt = existsSync(join(ltsPath, "patcher.js"));
-        const dir = ltsBuilt ? ltsPath : DIST;
+    // Release channel support: "stable" serves the current dist files.
+    // Channel snapshots live in dist/<channel>/, frozen by
+    // scripts/publishChannel.mjs:
+    //   lts        — frozen stable snapshot; falls back to the current
+    //                stable files with their hash until the first pin is
+    //                published, so the channel works from day one.
+    //   rc / beta  — pre-release snapshots of the NEXT version; unlike LTS
+    //                they must never be silently replaced by stable files
+    //                (stable is older than a pre-release), so an unpublished
+    //                channel answers 503 with a clear error instead.
+    const CH_FILES = "(lts|rc|beta)";
+    const chMatch = new RegExp("^/v1/install/files/" + CH_FILES + "/([\\w.-]+\\.(?:js|css))$").exec(url);
+    if (chMatch) {
+        const channel = chMatch[1];
+        const name = chMatch[2];
+        const snapshotDir = join(DIST, channel);
+        const pinned = existsSync(join(snapshotDir, "patcher.js"));
+        if (!pinned && channel !== "lts") {
+            return json(res, 503, { error: channel + " build not published yet — pre-release snapshots are frozen per release cycle/batch" }), true;
+        }
+        const dir = pinned ? snapshotDir : DIST;
         const filePath = join(dir, name);
         if (!existsSync(filePath)) return json(res, 404, { error: "file not found — is the build ready?" }), true;
 
@@ -351,6 +362,13 @@ function handleInstall(req, res, url) {
                 // true once a frozen LTS snapshot exists in dist/lts/; until
                 // then --channel lts installs track the current stable build.
                 ltsAvailable: existsSync(join(DIST, "lts", "patcher.js")),
+                // Publish state per snapshot channel (scripts/publishChannel.mjs):
+                // lts falls back to stable when unpinned; rc/beta answer 503.
+                published: {
+                    lts: existsSync(join(DIST, "lts", "patcher.js")),
+                    rc: existsSync(join(DIST, "rc", "patcher.js")),
+                    beta: existsSync(join(DIST, "beta", "patcher.js"))
+                },
                 docs: "https://limey-discord.onrender.com/docs/release-channels",
                 installTargets: releaseChannels.CHANNELS
                     // Desktop hosts only — the web channel installs via the

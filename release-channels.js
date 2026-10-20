@@ -66,14 +66,14 @@ const CHANNELS = [
     {
         id: "rc", name: "Release Candidate", category: "track", origin: "proposed",
         stability: "testing", cadence: "one per release cycle", audience: "testers pre-validating",
-        description: "Feature-complete pre-release of the next stable version; folded into stable once clean.",
-        implemented: false
+        description: "Feature-complete pre-release of the next stable version; folded into stable once clean. Published to dist/rc/ per release cycle; between cycles the channel has no build and reports not-published.",
+        implemented: true, artifacts: ["patcher.js", "preload.js", "renderer.js", "renderer.css"]
     },
     {
         id: "beta", name: "Beta", category: "track", origin: "proposed",
         stability: "testing", cadence: "per feature batch", audience: "curious early adopters",
-        description: "Public pre-release accumulating features for the next version.",
-        implemented: false
+        description: "Public pre-release accumulating features for the next version. Published to dist/beta/ per feature batch; between batches the channel has no build and reports not-published.",
+        implemented: true, artifacts: ["patcher.js", "preload.js", "renderer.js", "renderer.css"]
     },
     {
         id: "preview", name: "Preview", category: "track", origin: "proposed",
