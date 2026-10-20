@@ -133,6 +133,21 @@
     justify-content: center;
 }
 
+/* Emoji variant of the identity tile: a 34px rounded-square lemon tile
+   matching the dashboard's avatar proportions (the default .ws-badge is a
+   tiny 22px letter circle, which an emoji can't fill cleanly). */
+.ws-badge-emoji {
+    margin-left: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--lime, #9eea6f) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--lime, #9eea6f) 35%, var(--border));
+    color: var(--foreground);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
 /* --------------------------------------------------- sidebar nav
  * Scoped under .side-nav / .side-bottom — the SITE header also uses
  * .nav-item for its menu popover, and it must keep its own look. */
