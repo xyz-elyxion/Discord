@@ -90,12 +90,6 @@ func main() {
 		die("The 'branch' flag must be one of the following: [auto|stable|ptb|canary|development]")
 	}
 
-	if *installFlag || *updateFlag {
-		if false {
-			die("Not " + Ternary(*installFlag, "installing", "updating") + " as fetching build data failed. If this issue persists, see https://limey-discord.onrender.com/404.html")
-		}
-	}
-
 	install, uninstall, update := *installFlag, *uninstallFlag, *updateFlag
 	switches := []*bool{&install, &update, &uninstall}
 	if !SliceContainsFunc(switches, func(b *bool) bool { return *b }) {
@@ -138,6 +132,18 @@ func main() {
 		}
 
 		*switches[SliceIndex(choices, choice)] = true
+	}
+
+	// Build-check gate — runs whether install/update came from flags or the
+	// interactive menu (which resolves the switch above). It consumes the
+	// init goroutine's hash-check result exactly once, then aborts on
+	// failure. Do NOT add another `<-BuildDoneChan` elsewhere: the channel
+	// is 1-buffered and FetchLatestBuilds() sends into it later, so a
+	// second receive deadlocks the whole CLI after the Discord picker.
+	if install || update {
+		if !<-BuildDoneChan {
+			die("Not " + Ternary(install, "installing", "updating") + " as fetching build data failed. If this issue persists, see https://limey-discord.onrender.com/404.html")
+		}
 	}
 
 	var err error

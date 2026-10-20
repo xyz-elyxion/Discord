@@ -51,9 +51,22 @@ func fileUrl(name string) string {
 	return BaseUrl + "/v1/install/files/" + name
 }
 
+// setBuildDone safely records the latest build-check/download result for
+// whoever wants it. The channel is 1-buffered and consumers are optional —
+// the GUI always waits on it (gui.go), the CLI consumes it before patching
+// (cli.go), so without this drain a send would deadlock forever whenever a
+// previous result was never taken (every CLI run after the init hash-check).
+func setBuildDone(ok bool) {
+	select {
+	case <-BuildDoneChan:
+	default:
+	}
+	BuildDoneChan <- ok
+}
+
 func FetchLatestBuilds() (err error) {
 	if IsDevInstall {
-		BuildDoneChan <- true
+		setBuildDone(true)
 		return nil
 	}
 
@@ -71,6 +84,8 @@ func FetchLatestBuilds() (err error) {
 
 	var wg sync.WaitGroup
 	var downloadedFiles atomic.Uint64
+	var firstErr error
+	var errMu sync.Mutex
 
 	for _, name := range BuildFiles {
 		wg.Add(1)
@@ -85,14 +100,22 @@ func FetchLatestBuilds() (err error) {
 			}
 			if err != nil {
 				Log.Error("Failed to download", ass+":", err)
-				err = errors.New("failed to download " + ass + ": " + err.Error())
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = errors.New("failed to download " + ass + ": " + err.Error())
+				}
+				errMu.Unlock()
 				return
 			}
 			outFile := path.Join(FilesDir, ass)
 			out, err := os.OpenFile(outFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
 				Log.Error("Failed to create", outFile+":", err)
-				err = errors.New("failed to create " + outFile + ": " + err.Error())
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = errors.New("failed to create " + outFile + ": " + err.Error())
+				}
+				errMu.Unlock()
 				return
 			}
 			read, err := io.Copy(out, res.Body)
@@ -100,12 +123,20 @@ func FetchLatestBuilds() (err error) {
 			_ = res.Body.Close()
 			if err != nil {
 				Log.Error("Failed to download to", outFile+":", err)
-				err = errors.New("failed to download to " + outFile + ": " + err.Error())
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = errors.New("failed to download to " + outFile + ": " + err.Error())
+				}
+				errMu.Unlock()
 				return
 			}
 			if read == 0 {
-				err = errors.New("downloaded empty file " + ass)
-				Log.Error(err.Error())
+				Log.Error("downloaded empty file", ass)
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = errors.New("downloaded empty file " + ass)
+				}
+				errMu.Unlock()
 				return
 			}
 			downloadedFiles.Add(1)
@@ -114,13 +145,15 @@ func FetchLatestBuilds() (err error) {
 
 	wg.Wait()
 
-	if err != nil {
-		BuildDoneChan <- false
-		return err
+	// The per-file goroutines shadow `err`, so the named return never saw
+	// their failures — pick up the first one explicitly.
+	if firstErr != nil {
+		setBuildDone(false)
+		return firstErr
 	}
 	if int(downloadedFiles.Load()) < len(BuildFiles) {
 		err = errors.New("Couldn't find all required files")
-		BuildDoneChan <- false
+		setBuildDone(false)
 		return err
 	}
 
@@ -128,7 +161,7 @@ func FetchLatestBuilds() (err error) {
 	_ = FixOwnership(FilesDir)
 
 	InstalledHash = LatestHash
-	BuildDoneChan <- true
+	setBuildDone(true)
 	return nil
 }
 
@@ -136,7 +169,7 @@ func init() {
 	go func() {
 		if IsDevInstall {
 			LatestHash = "dev"
-			BuildDoneChan <- true
+			setBuildDone(true)
 			return
 		}
 
@@ -146,14 +179,14 @@ func init() {
 		res, err := http.Get(fileUrl("renderer.css"))
 		if err != nil {
 			Log.Warn("Failed to check for updates:", err)
-			BuildDoneChan <- false
+			setBuildDone(false)
 			return
 		}
 		defer res.Body.Close()
 
 		if res.StatusCode >= 300 {
 			Log.Warn("Failed to check for updates:", res.Status)
-			BuildDoneChan <- false
+			setBuildDone(false)
 			return
 		}
 
@@ -164,7 +197,7 @@ func init() {
 				Log.Debug("Latest hash is", LatestHash, "Local Install is", Ternary(LatestHash == InstalledHash, "up to date!", "outdated!"))
 			}
 		}
-		BuildDoneChan <- true
+		setBuildDone(true)
 	}()
 
 	// Check hash of installed version if exists

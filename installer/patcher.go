@@ -102,7 +102,10 @@ func (di *DiscordInstall) patch() error {
 	Log.Info("Patching " + di.path + "...")
 	if LatestHash != InstalledHash {
 		if err := InstallLatestBuilds(); err != nil {
-			return nil // already shown dialog so don't return same error again
+			// Fetch failures were already logged by the downloader; surface
+			// them to the caller so the CLI prints "FAILED" instead of
+			// success and the GUI shows its error dialog.
+			return err
 		}
 	}
 
