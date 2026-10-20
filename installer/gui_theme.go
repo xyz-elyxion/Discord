@@ -92,5 +92,5 @@ func pushLimeyTheme() {
 func popLimeyTheme() {
 	g.PopStyleV(2)        // FramePadding + ItemSpacing
 	imgui.PopStyleVarV(7) // the float roundings/border above
-	g.PopStyleColorV(22)  // every PushStyleColor above
+	g.PopStyleColorV(21)  // every PushStyleColor above (must match the push count exactly — an extra pop underflows imgui's style stack and trips the VC runtime "assert Size > 0")
 }
