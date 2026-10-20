@@ -43,6 +43,7 @@
 
     --sl-color-bg: #ffffff;
     --sl-color-bg-sidebar: #fafafa;
+    --sl-color-bg-nav: color-mix(in srgb, #ffffff 85%, transparent);
     --sl-color-bg-accent: #f4f4f5;
     --sl-color-text-accent: #09090b;
 }
@@ -62,7 +63,9 @@
     outline-color: var(--sl-color-gray-2);
 }
 
-/* Light-mode base overrides load after ours — re-assert monochrome */
+/* Light-mode base overrides load after ours — re-assert monochrome.
+   bg-nav must be re-stated here too: it is only defined per-theme and the
+   dark translucent value otherwise leaks into the light navbar. */
 :root[data-theme="light"],
 [data-theme="light"] ::backdrop {
     --sl-color-accent-high: #09090b;
@@ -70,6 +73,7 @@
     --sl-color-accent-low: #f4f4f5;
     --sl-color-text-accent: #09090b;
     --sl-color-bg-accent: #f4f4f5;
+    --sl-color-bg-nav: color-mix(in srgb, #ffffff 85%, transparent);
 }
 
 /* Code blocks: monochrome syntax surfaces */
