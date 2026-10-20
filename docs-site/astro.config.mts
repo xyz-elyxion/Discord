@@ -43,6 +43,10 @@ export default defineConfig({
                 {
                     label: "Bot SDK",
                     link: "/sdk"
+                },
+                {
+                    label: "Release Channels",
+                    link: "/release-channels"
                 }
             ]
         })

@@ -1,0 +1,827 @@
+<!DOCTYPE html><html lang="en" dir="ltr" data-theme="dark" data-has-toc data-has-sidebar class="astro-gy2iwj2e"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Release Channels | Limey V1 Docs</title><link rel="canonical" href="https://limey-discord.onrender.com/docs/release-channels/"/><link rel="sitemap" href="/docs/sitemap-index.xml"/><link rel="shortcut icon" href="/docs/favicon.png" type="image/png"/><meta name="generator" content="Astro v7.3.5"/><meta name="generator" content="Starlight v0.42.4"/><meta property="og:title" content="Release Channels"/><meta property="og:type" content="article"/><meta property="og:url" content="https://limey-discord.onrender.com/docs/release-channels/"/><meta property="og:locale" content="en"/><meta property="og:description" content="Complete specification of release channels, build types, rollout strategies and maintenance states for Limey V1 — official vs. proposed"/><meta property="og:site_name" content="Limey V1 Docs"/><meta name="twitter:card" content="summary_large_image"/><meta name="description" content="Complete specification of release channels, build types, rollout strategies and maintenance states for Limey V1 — official vs. proposed"/><script>
+	window.StarlightThemeProvider = (() => {
+		const storedTheme =
+			typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+		const theme =
+			storedTheme ||
+			(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+		document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+		return {
+			updatePickers(theme = storedTheme || 'auto') {
+				document.querySelectorAll('starlight-theme-select').forEach((picker) => {
+					const select = picker.querySelector('select');
+					if (select) select.value = theme;
+					/** @type {HTMLTemplateElement | null} */
+					const tmpl = document.querySelector(`#theme-icons`);
+					const newIcon = tmpl && tmpl.content.querySelector('.' + theme);
+					if (newIcon) {
+						const oldIcon = picker.querySelector('svg.label-icon');
+						if (oldIcon) {
+							oldIcon.replaceChildren(...newIcon.cloneNode(true).childNodes);
+						}
+					}
+				});
+			},
+		};
+	})();
+</script><template id="theme-icons"><svg aria-hidden="true" class="light astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1Zm.64 5-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71A1 1 0 0 0 5.64 17ZM12 5a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1Zm5.66 2.34a1 1 0 0 0 .7-.29l.71-.71a1 1 0 1 0-1.41-1.41l-.66.71a1 1 0 0 0 0 1.41 1 1 0 0 0 .66.29Zm-12-.29a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.71-.71a1.004 1.004 0 1 0-1.43 1.41l.73.71ZM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm-2.64 6A1 1 0 0 0 17 18.36l.71.71a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.76-.66ZM12 6.5a5.5 5.5 0 1 0 5.5 5.5A5.51 5.51 0 0 0 12 6.5Zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm0 3.5a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg><svg aria-hidden="true" class="dark astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.64 13a1 1 0 0 0-1.05-.14 8.049 8.049 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05Zm-9.5 6.69A8.14 8.14 0 0 1 7.08 5.22v.27a10.15 10.15 0 0 0 10.14 10.14 9.784 9.784 0 0 0 2.1-.22 8.11 8.11 0 0 1-7.18 4.32v-.04Z"/></svg><svg aria-hidden="true" class="auto astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg></template><link rel="stylesheet" href="/docs/_astro/print.ehPL0gv-.css" media="print"><link rel="stylesheet" href="/docs/_astro/common.BicRkbrN.css"><style>@layer starlight.components{.card:where(.astro-6akckidk){--sl-card-border:var(--sl-color-purple);--sl-card-bg:var(--sl-color-purple-low);border:1px solid var(--sl-color-gray-5);background-color:var(--sl-color-black);flex-direction:column;gap:clamp(.5rem,.125rem + 1vw,1rem);padding:clamp(1rem,.125rem + 3vw,2.5rem)}.card:where(.astro-6akckidk):nth-child(4n+1){--sl-card-border:var(--sl-color-orange);--sl-card-bg:var(--sl-color-orange-low)}.card:where(.astro-6akckidk):nth-child(4n+3){--sl-card-border:var(--sl-color-green);--sl-card-bg:var(--sl-color-green-low)}.card:where(.astro-6akckidk):nth-child(4n+4){--sl-card-border:var(--sl-color-red);--sl-card-bg:var(--sl-color-red-low)}.card:where(.astro-6akckidk):nth-child(4n+5){--sl-card-border:var(--sl-color-blue);--sl-card-bg:var(--sl-color-blue-low)}.title:where(.astro-6akckidk){font-weight:600;font-size:var(--sl-text-h4);color:var(--sl-color-white);line-height:var(--sl-line-height-headings);align-items:center;gap:1rem}.card:where(.astro-6akckidk) .icon:where(.astro-6akckidk){border:1px solid var(--sl-card-border);background-color:var(--sl-card-bg);border-radius:.25rem;flex-shrink:0;padding:.2em}.card:where(.astro-6akckidk) .body:where(.astro-6akckidk){font-size:clamp(var(--sl-text-sm), calc(.5rem + 1vw), var(--sl-text-body));margin:0}.card-grid:where(.astro-2zkzjz66){grid-template-columns:100%;gap:1rem;display:grid}.card-grid:where(.astro-2zkzjz66)>*{margin-top:0!important}@media (width>=50rem){.card-grid:where(.astro-2zkzjz66){grid-template-columns:1fr 1fr;gap:1.5rem}.stagger:where(.astro-2zkzjz66){--stagger-height:5rem;padding-bottom:var(--stagger-height)}.stagger:where(.astro-2zkzjz66)>:nth-child(2n){transform:translateY(var(--stagger-height))}}}
+@layer starlight.components{svg:where(.astro-6m23bwaj){color:var(--sl-icon-color);font-size:var(--sl-icon-size,1em);width:1em;height:1em}}
+@layer starlight.components{starlight-tabs:where(.astro-o24haf2n){display:block}.tablist-wrapper:where(.astro-o24haf2n){overflow-x:auto}:where(.astro-o24haf2n)[role=tablist]{border-bottom:2px solid var(--sl-color-gray-5);padding:0;list-style:none;display:flex}.tab:where(.astro-o24haf2n){display:flex}.tab:where(.astro-o24haf2n)>:where(.astro-o24haf2n)[role=tab]{--sl-tab-color-border:var(--sl-color-gray-5);line-height:var(--sl-line-height-headings);box-shadow:0 2px 0 var(--sl-tab-color-border);color:var(--sl-color-gray-3);outline-offset:var(--sl-outline-offset-inside);overflow-wrap:initial;align-items:center;gap:.5rem;padding:.275rem 1.25rem;text-decoration:none;display:flex}.tab:where(.astro-o24haf2n) :where(.astro-o24haf2n)[role=tab][aria-selected=true]{--sl-tab-color-border:var(--sl-color-text-accent);color:var(--sl-color-white);font-weight:600}.tablist-wrapper:where(.astro-o24haf2n)~[role=tabpanel]{margin-top:1rem}}
+</style><script type="module" src="/docs/_astro/page.Dwipeu-R.js"></script></head><body class="astro-gy2iwj2e"><a class="sl-skip-link astro-gnqkxgwk" href="#_top">Skip to content</a><div class="page sl-flex astro-c2fakgzk"><header class="header astro-c2fakgzk"><div class="header astro-s3h6zynx"><div class="title-wrapper sl-flex astro-s3h6zynx"><a href="/docs/" class="site-title sl-flex astro-qbfd3asq"><img class="astro-qbfd3asq" alt src="/docs/_astro/limey-logo.BaIf9ESV.png" width="96" height="96"><span class="astro-qbfd3asq" translate="no">Limey V1 Docs</span></a></div><div class="sl-flex print:hidden astro-s3h6zynx"><site-search class="astro-s3h6zynx astro-a6rnzbed" data-translations="{&quot;placeholder&quot;:&quot;Search&quot;}"><button data-open-modal disabled aria-label="Search" aria-keyshortcuts="Control+K" class="astro-a6rnzbed"><svg aria-hidden="true" class="astro-a6rnzbed astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg><span class="sl-hidden md:sl-block astro-a6rnzbed" aria-hidden="true">Search</span><kbd class="sl-hidden md:sl-flex astro-a6rnzbed" style="display: none;"><kbd class="astro-a6rnzbed">Ctrl</kbd><kbd class="astro-a6rnzbed">K</kbd></kbd></button><dialog style="padding:0" aria-label="Search" class="astro-a6rnzbed"><div class="dialog-frame sl-flex astro-a6rnzbed"><button data-close-modal class="sl-flex md:sl-hidden astro-a6rnzbed">Cancel</button><div class="search-container astro-a6rnzbed"><div id="starlight__search" class="astro-a6rnzbed"></div></div></div></dialog></site-search><script>
+	(() => {
+		const openBtn = document.querySelector('button[data-open-modal]');
+		const shortcut = openBtn?.querySelector('kbd');
+		if (!openBtn || !(shortcut instanceof HTMLElement)) return;
+		const platformKey = shortcut.querySelector('kbd');
+		if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+			platformKey.textContent = '⌘';
+			openBtn.setAttribute('aria-keyshortcuts', 'Meta+K');
+		}
+		shortcut.style.display = '';
+	})();
+</script><script type="module" src="/docs/_astro/Search.astro_astro_type_script_index_0_lang.BhvQlLS9.js"></script></div><div class="sl-hidden md:sl-flex print:hidden right-group astro-s3h6zynx"><div class="sl-flex social-icons astro-s3h6zynx"><a href="https://github.com/xyz-elyxion/Discord" rel="me" class="sl-flex astro-jrs6hcag"><span class="sr-only astro-jrs6hcag">GitHub</span><svg aria-hidden="true" class="astro-jrs6hcag astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a><a href="https://discord.gg/your-invite" rel="me" class="sl-flex astro-jrs6hcag"><span class="sr-only astro-jrs6hcag">Discord</span><svg aria-hidden="true" class="astro-jrs6hcag astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M20.32 4.37a19.8 19.8 0 0 0-4.93-1.51 13.78 13.78 0 0 0-.64 1.28 18.27 18.27 0 0 0-5.5 0 12.64 12.64 0 0 0-.64-1.28h-.05A19.74 19.74 0 0 0 3.64 4.4 20.26 20.26 0 0 0 .11 18.09l.02.02a19.9 19.9 0 0 0 6.04 3.03l.04-.02a14.24 14.24 0 0 0 1.23-2.03.08.08 0 0 0-.05-.07 13.1 13.1 0 0 1-1.9-.92.08.08 0 0 1 .02-.1 10.2 10.2 0 0 0 .41-.31h.04a14.2 14.2 0 0 0 12.1 0l.04.01a9.63 9.63 0 0 0 .4.32.08.08 0 0 1-.03.1 12.29 12.29 0 0 1-1.9.91.08.08 0 0 0-.02.1 15.97 15.97 0 0 0 1.27 2.01h.04a19.84 19.84 0 0 0 6.03-3.05v-.03a20.12 20.12 0 0 0-3.57-13.69ZM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.96-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42Zm7.97 0c-1.18 0-2.15-1.08-2.15-2.42 0-1.33.95-2.42 2.15-2.42 1.22 0 2.18 1.1 2.16 2.42 0 1.34-.94 2.42-2.16 2.42Z"/></svg></a></div><starlight-theme-select><label style="--sl-select-width: 6.25em" class="astro-vriukqt3"><span class="sr-only astro-vriukqt3">Select theme</span><svg aria-hidden="true" class="icon label-icon astro-vriukqt3 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg><select autocomplete="off" class="astro-vriukqt3"><option value="dark" class="astro-vriukqt3">Dark</option><option value="light" class="astro-vriukqt3">Light</option><option value="auto" selected class="astro-vriukqt3">Auto</option></select><svg aria-hidden="true" class="icon caret astro-vriukqt3 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg></label></starlight-theme-select><script>
+	StarlightThemeProvider.updatePickers();
+</script><script type="module">var e=`starlight-theme`,t=e=>e===`auto`||e===`dark`||e===`light`?e:`auto`,n=()=>t(typeof localStorage<`u`&&localStorage.getItem(e));function r(t){typeof localStorage<`u`&&localStorage.setItem(e,t===`light`||t===`dark`?t:``)}var i=()=>matchMedia(`(prefers-color-scheme: light)`).matches?`light`:`dark`;function a(e){StarlightThemeProvider.updatePickers(e),document.documentElement.dataset.theme=e===`auto`?i():e,r(e)}matchMedia(`(prefers-color-scheme: light)`).addEventListener(`change`,()=>{n()===`auto`&&a(`auto`)});var o=class extends HTMLElement{constructor(){super(),a(n()),this.querySelector(`select`)?.addEventListener(`change`,e=>{e.currentTarget instanceof HTMLSelectElement&&a(t(e.currentTarget.value))})}};customElements.define(`starlight-theme-select`,o);</script><script type="module">var e=class extends HTMLElement{constructor(){super();let e=this.querySelector(`select`);e&&(e.addEventListener(`change`,e=>{e.currentTarget instanceof HTMLSelectElement&&(window.location.pathname=e.currentTarget.value)}),window.addEventListener(`pageshow`,t=>{if(!t.persisted)return;let n=e.querySelector(`option[selected]`)?.index;n!==e.selectedIndex&&(e.selectedIndex=n??0)}))}};customElements.define(`starlight-lang-select`,e);</script></div></div></header><nav class="sidebar print:hidden astro-c2fakgzk" aria-label="Main"><button popovertarget="starlight__sidebar" class="sl-menu-button sl-flex md:sl-hidden print:hidden astro-i66elvcg"><svg aria-hidden="true" class="open-menu astro-i66elvcg astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M3 8h18a1 1 0 1 0 0-2H3a1 1 0 0 0 0 2Zm18 8H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Zm0-5H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Z"/></svg><svg aria-hidden="true" class="close-menu astro-i66elvcg astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="m13.41 12 6.3-6.29a1.004 1.004 0 1 0-1.42-1.42L12 10.59l-6.29-6.3a1.004 1.004 0 0 0-1.42 1.42l6.3 6.29-6.3 6.29a1 1 0 0 0 0 1.42.998.998 0 0 0 1.42 0l6.29-6.3 6.29 6.3a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.42L13.41 12Z"/></svg><span class="sr-only astro-i66elvcg">Menu</span></button><script type="module">var e=class extends HTMLElement{constructor(){super();let e=matchMedia(`(min-width: 50em)`),t=()=>{this.popover=e.matches?null:`auto`};t(),e.addEventListener(`change`,()=>t()),this.addEventListener(`toggle`,({newState:e})=>this.trapFocus(e===`open`))}trapFocus(e){document.querySelectorAll(`.main-frame, .sl-skip-link`).forEach(t=>{t.toggleAttribute(`inert`,e)})}};customElements.define(`sl-sidebar-pane`,e);</script><sl-sidebar-pane popover id="starlight__sidebar" class="sidebar-pane astro-c2fakgzk"><div class="sidebar-content sl-flex astro-c2fakgzk"><sl-sidebar-state-persist data-hash="05lurjj" class="astro-e6jvlurb"><script aria-hidden="true">
+		(() => {
+			try {
+				if (!matchMedia('(min-width: 50em)').matches) return;
+				/** @type {HTMLElement | null} */
+				const target = document.querySelector('sl-sidebar-state-persist');
+				const state = JSON.parse(sessionStorage.getItem('sl-sidebar-state') || '0');
+				if (!target || !state || target.dataset.hash !== state.hash) return;
+				window._starlightScrollRestore = state.scroll;
+				customElements.define(
+					'sl-sidebar-restore',
+					class SidebarRestore extends HTMLElement {
+						connectedCallback() {
+							try {
+								const idx = parseInt(this.dataset.index || '');
+								const details = this.closest('details');
+								if (details && typeof state.open[idx] === 'boolean') details.open = state.open[idx];
+							} catch {}
+						}
+					}
+				);
+			} catch {}
+		})();
+	</script><ul class="top-level astro-ebp6ydt7"><li class="astro-ebp6ydt7"><a href="/docs/intro" class="large astro-ebp6ydt7"><span class="astro-ebp6ydt7">Introduction</span></a></li><li class="astro-ebp6ydt7"><details open class="astro-ebp6ydt7"><summary class="astro-ebp6ydt7"><span class="group-label astro-ebp6ydt7"><span class="large astro-ebp6ydt7">Installation &amp; Preparation</span></span><svg aria-hidden="true" class="caret astro-ebp6ydt7 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></summary><sl-sidebar-restore data-index="0"></sl-sidebar-restore><ul class="astro-ebp6ydt7"><li class="astro-ebp6ydt7"><a href="/docs/installing/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Installing Limey V1</span></a></li><li class="astro-ebp6ydt7"><a href="/docs/installing/custom-plugins/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Installing custom plugins</span></a></li><li class="astro-ebp6ydt7"><a href="/docs/installing/editor-setup/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Setting up your Editor</span></a></li></ul></details></li><li class="astro-ebp6ydt7"><details open class="astro-ebp6ydt7"><summary class="astro-ebp6ydt7"><span class="group-label astro-ebp6ydt7"><span class="large astro-ebp6ydt7">Plugin Development</span></span><svg aria-hidden="true" class="caret astro-ebp6ydt7 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></summary><sl-sidebar-restore data-index="1"></sl-sidebar-restore><ul class="astro-ebp6ydt7"><li class="astro-ebp6ydt7"><a href="/docs/plugins/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Basic Plugin Setup</span></a></li><li class="astro-ebp6ydt7"><a href="/docs/plugins/common/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Plugin API</span></a></li><li class="astro-ebp6ydt7"><a href="/docs/plugins/patches/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Patches</span></a></li><li class="astro-ebp6ydt7"><a href="/docs/plugins/native/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Native NodeJS Code</span></a></li><li class="astro-ebp6ydt7"><a href="/docs/plugins/submission/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Plugin Submission</span></a></li></ul></details></li><li class="astro-ebp6ydt7"><details open class="astro-ebp6ydt7"><summary class="astro-ebp6ydt7"><span class="group-label astro-ebp6ydt7"><span class="large astro-ebp6ydt7">Navigating Discord&#39;s Code</span></span><svg aria-hidden="true" class="caret astro-ebp6ydt7 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></summary><sl-sidebar-restore data-index="2"></sl-sidebar-restore><ul class="astro-ebp6ydt7"><li class="astro-ebp6ydt7"><a href="/docs/discord-code/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Introduction</span></a></li><li class="astro-ebp6ydt7"><a href="/docs/discord-code/modules/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Webpack Modules &amp; Chunks</span></a></li><li class="astro-ebp6ydt7"><a href="/docs/discord-code/find-code/" class="astro-ebp6ydt7"><span class="astro-ebp6ydt7">Finding Code</span></a></li></ul></details></li><li class="astro-ebp6ydt7"><a href="/docs/sdk" class="large astro-ebp6ydt7"><span class="astro-ebp6ydt7">Bot SDK</span></a></li><li class="astro-ebp6ydt7"><a href="/docs/release-channels" aria-current="page" class="large astro-ebp6ydt7"><span class="astro-ebp6ydt7">Release Channels</span></a></li></ul><script aria-hidden="true">
+		(() => {
+			const scroller = document.getElementById('starlight__sidebar');
+			if (!window._starlightScrollRestore || !scroller) return;
+			scroller.scrollTop = window._starlightScrollRestore;
+			delete window._starlightScrollRestore;
+		})();
+	</script></sl-sidebar-state-persist><div class="md:sl-hidden"><div class="mobile-preferences sl-flex astro-agazxwih"><div class="social-icons astro-agazxwih"><a href="https://github.com/xyz-elyxion/Discord" rel="me" class="sl-flex astro-jrs6hcag"><span class="sr-only astro-jrs6hcag">GitHub</span><svg aria-hidden="true" class="astro-jrs6hcag astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a><a href="https://discord.gg/your-invite" rel="me" class="sl-flex astro-jrs6hcag"><span class="sr-only astro-jrs6hcag">Discord</span><svg aria-hidden="true" class="astro-jrs6hcag astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M20.32 4.37a19.8 19.8 0 0 0-4.93-1.51 13.78 13.78 0 0 0-.64 1.28 18.27 18.27 0 0 0-5.5 0 12.64 12.64 0 0 0-.64-1.28h-.05A19.74 19.74 0 0 0 3.64 4.4 20.26 20.26 0 0 0 .11 18.09l.02.02a19.9 19.9 0 0 0 6.04 3.03l.04-.02a14.24 14.24 0 0 0 1.23-2.03.08.08 0 0 0-.05-.07 13.1 13.1 0 0 1-1.9-.92.08.08 0 0 1 .02-.1 10.2 10.2 0 0 0 .41-.31h.04a14.2 14.2 0 0 0 12.1 0l.04.01a9.63 9.63 0 0 0 .4.32.08.08 0 0 1-.03.1 12.29 12.29 0 0 1-1.9.91.08.08 0 0 0-.02.1 15.97 15.97 0 0 0 1.27 2.01h.04a19.84 19.84 0 0 0 6.03-3.05v-.03a20.12 20.12 0 0 0-3.57-13.69ZM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.96-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42Zm7.97 0c-1.18 0-2.15-1.08-2.15-2.42 0-1.33.95-2.42 2.15-2.42 1.22 0 2.18 1.1 2.16 2.42 0 1.34-.94 2.42-2.16 2.42Z"/></svg></a></div><starlight-theme-select><label style="--sl-select-width: 6.25em" class="astro-vriukqt3"><span class="sr-only astro-vriukqt3">Select theme</span><svg aria-hidden="true" class="icon label-icon astro-vriukqt3 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg><select autocomplete="off" class="astro-vriukqt3"><option value="dark" class="astro-vriukqt3">Dark</option><option value="light" class="astro-vriukqt3">Light</option><option value="auto" selected class="astro-vriukqt3">Auto</option></select><svg aria-hidden="true" class="icon caret astro-vriukqt3 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg></label></starlight-theme-select><script>
+	StarlightThemeProvider.updatePickers();
+</script></div></div></div></sl-sidebar-pane></nav><div class="main-frame astro-c2fakgzk"><script type="module">var e=document.getElementById(`starlight__sidebar`),t=e?.querySelector(`sl-sidebar-state-persist`),n=`sl-sidebar-state`,r=()=>{let r=[],i=t?.dataset.hash||``;try{let e=sessionStorage.getItem(n),t=JSON.parse(e||`{}`);Array.isArray(t.open)&&t.hash===i&&(r=t.open)}catch{}return{hash:i,open:r,scroll:e?.scrollTop||0}},i=e=>{try{sessionStorage.setItem(n,JSON.stringify(e))}catch{}},a=()=>i(r()),o=(e,t)=>{let n=r();n.open[t]=e,i(n)};t?.addEventListener(`click`,e=>{if(!(e.target instanceof Element))return;let t=e.target.closest(`summary`)?.closest(`details`);if(!t)return;let n=t.querySelector(`sl-sidebar-restore`),r=parseInt(n?.dataset.index||``);isNaN(r)||o(!t.open,r)}),addEventListener(`visibilitychange`,()=>{document.visibilityState===`hidden`&&a()});</script><div class="lg:sl-flex astro-4kj7q65d"><aside class="right-sidebar-container print:hidden astro-4kj7q65d"><div class="right-sidebar astro-4kj7q65d"><div class="lg:sl-hidden astro-sh3x4njh"><mobile-starlight-toc data-min-h="2" data-max-h="3" class="astro-4g6wox6v"><nav aria-labelledby="starlight__on-this-page--mobile" class="astro-4g6wox6v"><details id="starlight__mobile-toc" class="astro-4g6wox6v"><summary id="starlight__on-this-page--mobile" class="sl-flex astro-4g6wox6v"><span class="toggle sl-flex astro-4g6wox6v">On this page<svg aria-hidden="true" class="caret astro-4g6wox6v astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></span><span class="display-current astro-4g6wox6v"></span></summary><div class="dropdown astro-4g6wox6v"><ul class="isMobile astro-d22e5zlc" style="--depth: 0;"><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#_top" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">Overview</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#accuracy-notes-read-first" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">Accuracy notes (read first)</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#stability-scale" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">Stability scale</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#legend-for-the-origin-column" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">Legend for the “Origin” column</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#1-main-release-channels" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">1. Main release channels</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#2-development-channels" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">2. Development channels</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#3-early-access-channels" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">3. Early access channels</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#4-deployment--rollout-strategies" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">4. Deployment / rollout strategies</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#5-maintenance-and-support-channels" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">5. Maintenance and support channels</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#6-discord-client-compatibility-install-targets" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">6. Discord client compatibility (install targets)</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#recommended-hierarchy" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">Recommended hierarchy</span></a><ul class="isMobile astro-d22e5zlc" style="--depth: 1;"><li style="--depth: 1;" class="astro-d22e5zlc"><a href="#concrete-recommendations-for-the-limey-v1-updater" style="--depth: 1;" class="astro-d22e5zlc"><span style="--depth: 1;" class="astro-d22e5zlc">Concrete recommendations for the Limey V1 updater</span></a></li></ul></li></ul></div></details></nav></mobile-starlight-toc><script type="module" src="/docs/_astro/MobileTableOfContents.astro_astro_type_script_index_0_lang.C3fM4Kra.js"></script></div><div class="right-sidebar-panel sl-hidden lg:sl-block astro-sh3x4njh"><div class="sl-container astro-sh3x4njh"><starlight-toc data-min-h="2" data-max-h="3"><nav aria-labelledby="starlight__on-this-page"><h2 id="starlight__on-this-page">On this page</h2><ul class="astro-d22e5zlc" style="--depth: 0;"><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#_top" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">Overview</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#accuracy-notes-read-first" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">Accuracy notes (read first)</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#stability-scale" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">Stability scale</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#legend-for-the-origin-column" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">Legend for the “Origin” column</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#1-main-release-channels" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">1. Main release channels</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#2-development-channels" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">2. Development channels</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#3-early-access-channels" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">3. Early access channels</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#4-deployment--rollout-strategies" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">4. Deployment / rollout strategies</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#5-maintenance-and-support-channels" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">5. Maintenance and support channels</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#6-discord-client-compatibility-install-targets" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">6. Discord client compatibility (install targets)</span></a></li><li style="--depth: 0;" class="astro-d22e5zlc"><a href="#recommended-hierarchy" style="--depth: 0;" class="astro-d22e5zlc"><span style="--depth: 0;" class="astro-d22e5zlc">Recommended hierarchy</span></a><ul class="astro-d22e5zlc" style="--depth: 1;"><li style="--depth: 1;" class="astro-d22e5zlc"><a href="#concrete-recommendations-for-the-limey-v1-updater" style="--depth: 1;" class="astro-d22e5zlc"><span style="--depth: 1;" class="astro-d22e5zlc">Concrete recommendations for the Limey V1 updater</span></a></li></ul></li></ul></nav></starlight-toc><script type="module" src="/docs/_astro/TableOfContents.astro_astro_type_script_index_0_lang.BpJaGz7G.js"></script></div></div></div></aside><div class="main-pane astro-4kj7q65d"><main data-pagefind-body class="astro-gy2iwj2e" lang="en" dir="ltr"><div class="content-panel astro-dswmzwju"><div class="sl-container astro-dswmzwju"><h1 id="_top" class="astro-clfb6m7i">Release Channels</h1></div></div><div class="content-panel astro-dswmzwju"><div class="sl-container astro-dswmzwju"><div class="sl-markdown-content"><p>This page is the specification for a <strong>release manager / updater / launcher /
+settings menu</strong> for Limey V1 (a Vencord fork). It catalogues every channel name
+in the release-management space — which ones actually exist in the codebase, which
+ones are Discord’s own client branches, and which ones are <em>proposed custom
+labels</em> you can adopt without pretending upstream ships them.</p>
+
+<div class="card-grid stagger astro-2zkzjz66"><article class="card sl-flex astro-6akckidk"><p class="title sl-flex astro-6akckidk"><span class="astro-6akckidk">🏷 Origin tiers</span></p><div class="body astro-6akckidk"><p>Each entry is tagged <strong>Official · Limey</strong>, <strong>Official · upstream
+Vencord</strong>, <strong>Discord client</strong>, <strong>Discord rollout process</strong>, or
+<strong>Proposed</strong>. Nothing is claimed official unless the code shows it.</p></div></article><article class="card sl-flex astro-6akckidk"><p class="title sl-flex astro-6akckidk"><span class="astro-6akckidk">📐 Three axes</span></p><div class="body astro-6akckidk"><p>Names only become useful when split into three orthogonal axes:
+<em>Track</em> (what code), <em>Host</em> (which Discord build), <em>Rollout</em> (how it
+reaches users). See the <a href="#recommended-hierarchy">recommended hierarchy</a>.</p></div></article><article class="card sl-flex astro-6akckidk"><p class="title sl-flex astro-6akckidk"><span class="astro-6akckidk">🔤 Naming</span></p><div class="body astro-6akckidk"><p>IDs are lowercase kebab-case (<code dir="auto">stable</code>, <code dir="auto">dev</code>, <code dir="auto">canary-rollout</code>), suited
+for config keys, CLI flags and update feeds. Display names are Title
+Case for UI menus.</p></div></article></div>
+<div class="sl-heading-wrapper level-h2"><h2 id="accuracy-notes-read-first">Accuracy notes (read first)</h2><a class="sl-anchor-link" href="#accuracy-notes-read-first"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Accuracy notes (read first)”</span></a></div>
+<ul>
+<li><strong>What Limey V1 officially ships today.</strong> Two build tracks: the
+<strong>Stable</strong> builds served by the installer from the Limey backend, and
+<strong>DevBuilds</strong> built from source (self-identified, git-based updater active).
+Both target the desktop Discord app; a <strong>Web</strong> flavor ships as browser
+extension / userscript / browser bundle.</li>
+<li><strong>What upstream Vencord officially ships.</strong> The same two-track model
+(Stable + Development/DevBuild) with web/user builds — Limey V1 inherits it.</li>
+<li><strong>What Discord ships.</strong> Four official client branches: <strong>Stable</strong>, <strong>PTB</strong>,
+<strong>Canary</strong>, <strong>Development</strong> (all four are detected by the installer on
+Linux). Discord additionally runs its own <em>rollout processes</em> (canary
+rollout, staged/progressive numlock rollouts) — those are processes, not
+user-selectable channels.</li>
+<li><strong>Everything else</strong> — Preview, Beta, Alpha, RC, Nightly, Snapshot, Edge,
+Insider, Early Access, LTS, Legacy, hotfix pipelines, blue-green, shadow
+releases, feature-flagged and A/B testing — is a <strong>proposed custom label</strong>
+borrowed from industry practice (GitHub, Chrome, Firefox, Kubernetes, and so
+on). Adopt them freely; just don’t advertise them as built-in.</li>
+</ul>
+<div class="sl-heading-wrapper level-h2"><h2 id="stability-scale">Stability scale</h2><a class="sl-anchor-link" href="#stability-scale"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Stability scale”</span></a></div>
+<p>All rows below use this five-level scale:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">Level</th>
+<th style="text-align: left">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Fit for default use by anyone; releases are deliberate and reviewable</td>
+</tr>
+<tr>
+<td style="text-align: left">Testing</td>
+<td style="text-align: left">Reasonably safe; expect occasional rough edges</td>
+</tr>
+<tr>
+<td style="text-align: left">Unstable</td>
+<td style="text-align: left">Minutes-to-hours freshness; breakage is expected, not exceptional</td>
+</tr>
+<tr>
+<td style="text-align: left">Volatile</td>
+<td style="text-align: left">Arbitrary machine state; no support contract</td>
+</tr>
+<tr>
+<td style="text-align: left">Internal</td>
+<td style="text-align: left">Diagnostic-only; never distribute</td>
+</tr>
+</tbody>
+</table>
+<div class="sl-heading-wrapper level-h2"><h2 id="legend-for-the-origin-column">Legend for the “Origin” column</h2><a class="sl-anchor-link" href="#legend-for-the-origin-column"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Legend for the “Origin” column”</span></a></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">Tag</th>
+<th style="text-align: left">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left"><strong>Limey</strong></td>
+<td style="text-align: left">Official Limey V1 build channel (currently served / installable)</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong>Vencord</strong></td>
+<td style="text-align: left">Inherited official concept from upstream Vencord</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong>Discord</strong></td>
+<td style="text-align: left">Official Discord client release channel</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong>Discord·process</strong></td>
+<td style="text-align: left">Discord’s rollout mechanism in production — not a selectable channel</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Suggested custom label for this spec; not implemented anywhere</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="1-main-release-channels">1. Main release channels</h2><a class="sl-anchor-link" href="#1-main-release-channels"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “1. Main release channels”</span></a></div>
+<p>Sorted most stable → most experimental.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">ID</th>
+<th style="text-align: left">Display Name</th>
+<th style="text-align: left">Origin</th>
+<th style="text-align: left">Description</th>
+<th style="text-align: left">Intended audience</th>
+<th style="text-align: left">Stability</th>
+<th style="text-align: left">Update frequency</th>
+<th style="text-align: left">Recommended use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left"><code dir="auto">stable</code></td>
+<td style="text-align: left">Stable</td>
+<td style="text-align: left"><strong>Limey / Vencord / Discord</strong></td>
+<td style="text-align: left">The default, reviewed track. Installer pulls hash-stamped builds from the Limey backend; changelog is cut per release.</td>
+<td style="text-align: left">Everyone</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Deliberate (per feature batch or fix)</td>
+<td style="text-align: left">Daily use; the only track recommended to non-developers</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">lts</code></td>
+<td style="text-align: left">Stable LTS</td>
+<td style="text-align: left"><strong>Proposed</strong> (concept: enterprise LTS)</td>
+<td style="text-align: left">A frozen snapshot of <code dir="auto">stable</code> supported for a long window, accepting only security and crash fixes.</td>
+<td style="text-align: left">Hosters, admins, people who hate change</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Rarely → never</td>
+<td style="text-align: left">Downtime-sensitive setups, fork packagers</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">rc</code></td>
+<td style="text-align: left">Release Candidate</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">The final pre-release of the next stable version; feature-complete, only crash/security fixes allowed. Folded into <code dir="auto">stable</code> once clean.</td>
+<td style="text-align: left">Testers and plugin authors pre-validating</td>
+<td style="text-align: left">Testing</td>
+<td style="text-align: left">One per release cycle</td>
+<td style="text-align: left">Verify “breaking” changes before they reach everyone</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">beta</code></td>
+<td style="text-align: left">Beta</td>
+<td style="text-align: left"><strong>Proposed</strong> (concept: upstream Vencord <em>plugin-level</em> beta exists via plugin <code dir="auto">beta</code> field, but not as a client channel)</td>
+<td style="text-align: left">Public pre-release track accumulating features for the next version; wider audience than RC, less polish.</td>
+<td style="text-align: left">Curious users who accept some breakage</td>
+<td style="text-align: left">Testing</td>
+<td style="text-align: left">Per feature batch</td>
+<td style="text-align: left">Trying features early without maintenance-every-day cost</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">ptb</code></td>
+<td style="text-align: left">Public Test Build (PTB)</td>
+<td style="text-align: left"><strong>Discord</strong></td>
+<td style="text-align: left">Discord’s own public-testing client branch. Limey V1 installs into it (installer detects <code dir="auto">DiscordPTB</code>), but PTB itself is Discord’s release cadence, not a Limey channel.</td>
+<td style="text-align: left">Discord testers</td>
+<td style="text-align: left">Testing (Discord’s choice)</td>
+<td style="text-align: left">Discord-driven, weekly-ish</td>
+<td style="text-align: left">Reproducing Discord-platform bugs; early Discord features</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">preview</code></td>
+<td style="text-align: left">Preview</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Neutral umbrella “pre-stable” name for people who want newer-than-stable but not bleeding-edge. Can simply alias <code dir="auto">beta</code> or <code dir="auto">rc</code>.</td>
+<td style="text-align: left">Non-technical early adopters</td>
+<td style="text-align: left">Testing</td>
+<td style="text-align: left">With each dev batch</td>
+<td style="text-align: left">A friendly label for an “opt into newer stuff” toggle in settings UI</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">canary</code></td>
+<td style="text-align: left">Canary</td>
+<td style="text-align: left"><strong>Discord</strong> (Discord client) / <strong>Proposed</strong> for Limey V1 itself (client mods usually ship stable-only; upstream Vencord does not cut client canaries)</td>
+<td style="text-align: left">Note the crucial ambiguity: <strong>Canary branch</strong> = latest, usually-next-day Discord client provided by Discord; <strong>Canary rollout</strong> = gradual delivery. This spec reserves the name for the Discord client <em>branch</em> by default.</td>
+<td style="text-align: left">Discord-adjacent testers</td>
+<td style="text-align: left">Unstable (Discord side)</td>
+<td style="text-align: left">Daily, from Discord</td>
+<td style="text-align: left">Catching changes in Discord’s code that affect Limey V1 patches</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">alpha</code></td>
+<td style="text-align: left">Alpha</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Code that will change shape; no freeze promise.</td>
+<td style="text-align: left">Plugin developers porting against the future API</td>
+<td style="text-align: left">Unstable</td>
+<td style="text-align: left">per commit or per batch</td>
+<td style="text-align: left">Porting plugins to upcoming internal API changes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Overlap notes.</strong> <code dir="auto">beta</code>/<code dir="auto">rc</code>/<code dir="auto">preview</code> describe <em>stages</em> of the same flow
+(feature-batch → polish → freeze). Keep all three only if you want a public
+changelog narrative; otherwise collapse to <code dir="auto">preview</code>.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="2-development-channels">2. Development channels</h2><a class="sl-anchor-link" href="#2-development-channels"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “2. Development channels”</span></a></div>
+<p>Sorted most usable → most volatile.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">ID</th>
+<th style="text-align: left">Display Name</th>
+<th style="text-align: left">Origin</th>
+<th style="text-align: left">Description</th>
+<th style="text-align: left">Intended audience</th>
+<th style="text-align: left">Stability</th>
+<th style="text-align: left">Update frequency</th>
+<th style="text-align: left">Recommended use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left"><code dir="auto">dev</code></td>
+<td style="text-align: left">Development</td>
+<td style="text-align: left"><strong>Limey / Vencord</strong> (official; the “DevBuild”)</td>
+<td style="text-align: left">Source-built flavor of Limey V1. Self-identifies as a DevBuild (support warning + git updater active) instead of silently pretending to be a release.</td>
+<td style="text-align: left">Developers, contributors, power users</td>
+<td style="text-align: left">Unstable</td>
+<td style="text-align: left">Per commit; git updater pulls from the repo</td>
+<td style="text-align: left">Debugging, contributing, running new plugins before they’re blessed</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">devbuild</code></td>
+<td style="text-align: left">DevBuild</td>
+<td style="text-align: left"><strong>Limey / Vencord</strong> (official alias)</td>
+<td style="text-align: left">The <em>runtime label</em> of a <code dir="auto">dev</code> build. Use as an alias in the updater so “Am I on devbuild?” logic has one canonical id.</td>
+<td style="text-align: left">(same as <code dir="auto">dev</code>)</td>
+<td style="text-align: left">Unstable</td>
+<td style="text-align: left">= <code dir="auto">dev</code></td>
+<td style="text-align: left">Same as <code dir="auto">dev</code>; keep as alias, not separate channel</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">source</code></td>
+<td style="text-align: left">Source Build</td>
+<td style="text-align: left"><strong>Limey / Vencord</strong> (officially supported)</td>
+<td style="text-align: left">Any install built by the user from their own checkout (e.g. the local dev scripts). Includes locally modified code; updater operates against git by definition.</td>
+<td style="text-align: left">Developers</td>
+<td style="text-align: left">Volatile</td>
+<td style="text-align: left">On next manual build</td>
+<td style="text-align: left">Verifying fixes before contributing; hot-patching upstream</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">custom</code></td>
+<td style="text-align: left">Custom Build</td>
+<td style="text-align: left"><strong>Proposed</strong> (extends the above)</td>
+<td style="text-align: left">A user-built flavor from a fork with extra patches, distinct branding or plugin changes. Needs a <code dir="auto">channel-owner</code> field so the updater knows who’s authoritative.</td>
+<td style="text-align: left">Fork maintainers</td>
+<td style="text-align: left">Volatile</td>
+<td style="text-align: left">Owner-driven</td>
+<td style="text-align: left">Community forks, personal modpacks of plugins</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">nightly</code></td>
+<td style="text-align: left">Nightly</td>
+<td style="text-align: left"><strong>Proposed</strong> (Firefox-model name)</td>
+<td style="text-align: left">Scheduled (e.g. 00:00 UTC) snapshot of the main branch, built automatically even if commits are broken.</td>
+<td style="text-align: left">Continuous-testers &amp; plugin CI</td>
+<td style="text-align: left">Unstable</td>
+<td style="text-align: left">Daily</td>
+<td style="text-align: left">Automated cross-testing; making “I update once a day” a promise</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">snapshot</code></td>
+<td style="text-align: left">Snapshot</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Point-in-time named dev build (like Gradle/JVM snapshots). Differentiator vs nightly: snapshot inclusion is <em>manual</em> or gated by tests, nightly is a cron.</td>
+<td style="text-align: left">Same as nightly</td>
+<td style="text-align: left">Unstable</td>
+<td style="text-align: left">Irregular</td>
+<td style="text-align: left">Publishing “here’s a build with the fix to test” quickly</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">edge</code></td>
+<td style="text-align: left">Edge</td>
+<td style="text-align: left"><strong>Proposed</strong> (Heroku/Vercel-model name)</td>
+<td style="text-align: left">Purest freshness: same-source as <code dir="auto">nightly</code> but built per successful push, no schedule.</td>
+<td style="text-align: left">CI systems, ultra-impatient contributors</td>
+<td style="text-align: left">Volatile</td>
+<td style="text-align: left">Per push</td>
+<td style="text-align: left">Smoke-testing the exact commit that just landed</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">experimental</code></td>
+<td style="text-align: left">Experimental</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Aggregates exceptional, opt-in functionality(feature-flagged plugins, rewrites) pinned to a stable-ish base.</td>
+<td style="text-align: left"></td>
+<td style="text-align: left"></td>
+<td style="text-align: left"></td>
+<td style="text-align: left"></td>
+</tr>
+<tr>
+<td style="text-align: left">Plugin authors &amp; opt-in flag flips</td>
+<td style="text-align: left">Unstable / Volatile</td>
+<td style="text-align: left">With the experiments</td>
+<td style="text-align: left">Testing one specific feature without taking all dev-build risk</td>
+<td style="text-align: left"></td>
+<td style="text-align: left"></td>
+<td style="text-align: left"></td>
+<td style="text-align: left"></td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">debug</code></td>
+<td style="text-align: left">Debug</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Builds with verbose logging, sourcemaps, devtools unwrapping, integrity checks off — never meant to leave a machine. Support for reports: “please attach a debug-build log”.</td>
+<td style="text-align: left">Core developers</td>
+<td style="text-align: left">Internal</td>
+<td style="text-align: left">On demand</td>
+<td style="text-align: left">Diagnosing silent failures in <code dir="auto">stable</code> or <code dir="auto">dev</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Overlap notes.</strong> <code dir="auto">nightly</code> vs <code dir="auto">snapshot</code> vs <code dir="auto">edge</code> differ only in <em>what
+triggers a build</em> (cron / test-gate / push). Ship one of them; pick <code dir="auto">nightly</code>
+if you want a Firefox-style cadence, <code dir="auto">edge</code> if you want maximum freshness.
+<code dir="auto">dev</code> vs <code dir="auto">devbuild</code>: keep <code dir="auto">dev</code> as the channel id and <code dir="auto">devbuild</code> as its
+display/runtime alias so existing error-report wording keeps working.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="3-early-access-channels">3. Early access channels</h2><a class="sl-anchor-link" href="#3-early-access-channels"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “3. Early access channels”</span></a></div>
+<p>All of these are <strong>Proposed</strong> — none exist anywhere upstream. They exist to
+give marketing-friendly names to subsets of the technical channels above.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">ID</th>
+<th style="text-align: left">Display Name</th>
+<th style="text-align: left">Origin</th>
+<th style="text-align: left">Description</th>
+<th style="text-align: left">Intended audience</th>
+<th style="text-align: left">Stability</th>
+<th style="text-align: left">Update frequency</th>
+<th style="text-align: left">Recommended use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left"><code dir="auto">early</code></td>
+<td style="text-align: left">Early Access</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Paid/logged-in users get the next feature batch a little earlier, still built from <code dir="auto">rc</code>-quality code.</td>
+<td style="text-align: left">Limes perk-tier subscribers (optional perk on the economy tiers)</td>
+<td style="text-align: left">Testing</td>
+<td style="text-align: left">Same as <code dir="auto">beta</code>/<code dir="auto">rc</code></td>
+<td style="text-align: left">An “offline-friendly opt-in” in the settings menu</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">insider</code></td>
+<td style="text-align: left">Insider</td>
+<td style="text-align: left"><strong>Proposed</strong> (Windows/Chrome-model name)</td>
+<td style="text-align: left">A “read the dev diary” crowd — same artifacts as <code dir="auto">beta</code> but with release notes aggregated per batch rather than per channel.</td>
+<td style="text-align: left">People who want to know <em>why</em> changes are happening</td>
+<td style="text-align: left">Testing</td>
+<td style="text-align: left">Batch-shaped</td>
+<td style="text-align: left">Same artifact as <code dir="auto">beta</code>; choose purely for naming/UX preference</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">preview-ch</code></td>
+<td style="text-align: left">Preview Channel</td>
+<td style="text-align: left"><strong>Proposed</strong> (Android/model name)</td>
+<td style="text-align: left">Just a friendlier display name for <code dir="auto">beta</code>. Kept here so the settings menu can say “Preview (Beta)” without looking jargonny.</td>
+<td style="text-align: left">Same as <code dir="auto">beta</code></td>
+<td style="text-align: left">Testing</td>
+<td style="text-align: left">Same as <code dir="auto">beta</code></td>
+<td style="text-align: left">Pure naming-fallback; another name users search for</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">dev-preview</code></td>
+<td style="text-align: left">Developer Preview</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Guaranteed spec-stable-ish subset of the upcoming release — the ones <em>plugin authors</em> depend on (API changes, plugin manifest schema, patch points).</td>
+<td style="text-align: left">Plugin ecosystem maintainers</td>
+<td style="text-align: left">Testing (API-frozen)</td>
+<td style="text-align: left">Per planned release milestone</td>
+<td style="text-align: left">Migrating to the next plugin API before it ships</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">internal</code></td>
+<td style="text-align: left">Internal Testing</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Small ring for core collaborators before anything public: internal checksums, unreleased ban-heuristic tuning, security-sensitive fixes.</td>
+<td style="text-align: left">Core team</td>
+<td style="text-align: left">Testing or worse</td>
+<td style="text-align: left">Irregular</td>
+<td style="text-align: left">Round-0 verification of an upcoming security patch</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">community</code></td>
+<td style="text-align: left">Community Preview</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Public “vote on what’s next” lobe where the top-voted candidate experiments advance to <code dir="auto">beta</code>.</td>
+<td style="text-align: left">Plugin community, store authors</td>
+<td style="text-align: left">Testing</td>
+<td style="text-align: left">Community-driven</td>
+<td style="text-align: left">Democratic direction-setting, not just bug-catch</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Overlap notes.</strong> <code dir="auto">early</code> / <code dir="auto">insider</code> / <code dir="auto">preview-ch</code> are <em>branding names</em> for
+more or less the same artifact as <code dir="auto">beta</code> — pick one word for your UI and
+define the rest as aliases in the release-manager data model rather than
+shipping three independent channels.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="4-deployment--rollout-strategies">4. Deployment / rollout strategies</h2><a class="sl-anchor-link" href="#4-deployment--rollout-strategies"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “4. Deployment / rollout strategies”</span></a></div>
+<p>These are <strong>Discord·process</strong> (where they exist at Discord) or
+<strong>Proposed/proven industry patterns</strong> — <em>strategies</em>, not user-selectable
+channels. A release manager should pair each with one or more <em>tracks</em> from
+the tables above.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">ID</th>
+<th style="text-align: left">Display Name</th>
+<th style="text-align: left">Origin</th>
+<th style="text-align: left">Description</th>
+<th style="text-align: left">Intended audience</th>
+<th style="text-align: left">Stability</th>
+<th style="text-align: left">Update frequency</th>
+<th style="text-align: left">Recommended use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left"><code dir="auto">full</code></td>
+<td style="text-align: left">Immediate / Full rollout</td>
+<td style="text-align: left">Concept everywhere, effectively what Limey V1 does today</td>
+<td style="text-align: left">Newest build is served to everyone as soon as its hash changes.</td>
+<td style="text-align: left">Everyone</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Per release</td>
+<td style="text-align: left">The default, matches current <strong>Stable</strong></td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">canary-rollout</code></td>
+<td style="text-align: left">Canary Rollout</td>
+<td style="text-align: left"><strong>Discord·process</strong> / <strong>Proposed</strong> for Limey V1</td>
+<td style="text-align: left">Ship first to a tiny percentage of volunteers (often <code dir="auto">dev</code>-track users) before the broader audience.</td>
+<td style="text-align: left">Volunteers</td>
+<td style="text-align: left">Production (early cohort)</td>
+<td style="text-align: left">Per release, percentage-driven</td>
+<td style="text-align: left">Catch client-specific regressions with minimal blast radius</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">progressive</code></td>
+<td style="text-align: left">Progressive Rollout (Staged rollout)</td>
+<td style="text-align: left"><strong>Discord·process</strong> (numlock-based % cohorts are in Discord’s own updater) / <strong>Proposed</strong></td>
+<td style="text-align: left">Percentage cohorts (1% → 10% → 50% → 100%), each gated on error telemetry.</td>
+<td style="text-align: left">Everyone, spread over time</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Per release window</td>
+<td style="text-align: left">Universal, boring, extremely effective default</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">phased</code></td>
+<td style="text-align: left">Phased Rollout</td>
+<td style="text-align: left"><strong>Proposed</strong> (same family, cohort-by-cohort on a calendar rather than telemetry)</td>
+<td style="text-align: left">Fixed dates for steps (“2026-10-25: 10%”) rather than percentage health gates.</td>
+<td style="text-align: left">Ops/forks with uptime contracts</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Planned windows</td>
+<td style="text-align: left">Coordinating across maintainers, companies or server regions</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">rolling</code></td>
+<td style="text-align: left">Rolling Release</td>
+<td style="text-align: left"><strong>Proposed</strong> (apt/arch/Rust toolchain model name)</td>
+<td style="text-align: left">No versioned releases at all — updates continuously.</td>
+<td style="text-align: left">Developers &amp; tinkerers</td>
+<td style="text-align: left">Unstable</td>
+<td style="text-align: left">Continuous</td>
+<td style="text-align: left">Exactly what <code dir="auto">dev</code> already is; use this term when explaining the model, not as a channel</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">bluegreen</code></td>
+<td style="text-align: left">Blue-Green Deployment</td>
+<td style="text-align: left"><strong>Proposed</strong> (deployment topology, not a channel)</td>
+<td style="text-align: left">Run current build (blue) and new build (green) simultaneously; switch the pointer after health-check.</td>
+<td style="text-align: left">Backend / server.js wearing hats</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Per deploy</td>
+<td style="text-align: left">Zero-downtime backend deploys for the Limey V1 API itself</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">shadow</code></td>
+<td style="text-align: left">Shadow Release</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">New code runs, takes traffic, produces logs/metrics, but its user-visible output is discarded.</td>
+<td style="text-align: left">Performance &amp; safety instrumentation</td>
+<td style="text-align: left">Internal</td>
+<td style="text-align: left">Per experiment</td>
+<td style="text-align: left">Measuring a rewritten patching routine against identical Discord traffic</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">featureflagged</code></td>
+<td style="text-align: left">Feature-Flagged Release</td>
+<td style="text-align: left"><strong>Proposed</strong> (well-established industry pattern)</td>
+<td style="text-align: left">Ship a binary to <code dir="auto">stable</code> containing <em>disabled</em> features, then enable them per-user remotely.</td>
+<td style="text-align: left">Everyone (features are opt-in, code path is shared)</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Continuous, no re-install needed</td>
+<td style="text-align: left">Frequent-Safe experimentation without new builds; pairs perfectly with Limey’s Limes/perk tiers to gate early access</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">abtest</code></td>
+<td style="text-align: left">A/B Testing</td>
+<td style="text-align: left"><strong>Proposed</strong> (established industry pattern)</td>
+<td style="text-align: left">Two variants of the same feature delivered to random cohorts, decision made on measured outcomes.</td>
+<td style="text-align: left">Data-driven UI/UX work</td>
+<td style="text-align: left">Production (per-cohort)</td>
+<td style="text-align: left">Per experiment</td>
+<td style="text-align: left">Reflowing plugin-store pages or settings-menu UX with real data</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Overlap notes.</strong> <code dir="auto">canary-rollout</code> ⊂ <code dir="auto">progressive</code> ⊂ <code dir="auto">phased</code> — the same
+family at different calibration styles (volunteer / telemetry / calendar).
+Pick exactly one as the Limey V1 production strategy; keep the others in the
+release-manager schema as synonyms for different sensitivities.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="5-maintenance-and-support-channels">5. Maintenance and support channels</h2><a class="sl-anchor-link" href="#5-maintenance-and-support-channels"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “5. Maintenance and support channels”</span></a></div>
+<p>States and processes a track can enter — not (usually) channels users choose.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">ID</th>
+<th style="text-align: left">Display Name</th>
+<th style="text-align: left">Origin</th>
+<th style="text-align: left">Description</th>
+<th style="text-align: left">Intended audience</th>
+<th style="text-align: left">Stability</th>
+<th style="text-align: left">Update frequency</th>
+<th style="text-align: left">Recommended use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left"><code dir="auto">lts</code></td>
+<td style="text-align: left">Stable LTS</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">See §1. A <em>state</em> <code dir="auto">stable</code> may enter: a release line is declared LTS and stops taking features.</td>
+<td style="text-align: left">Long-cycle operators, maintainers, packagers</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Security/crash-fixes only for the frozen window</td>
+<td style="text-align: left">Long-supported install baselines</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">maintenance</code></td>
+<td style="text-align: left">Maintenance Release</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Bug-fix-only drop on an otherwise-frozen track.</td>
+<td style="text-align: left">Users of a given version</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">As bugs are fixed</td>
+<td style="text-align: left">Polish between feature batches</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">hotfix</code></td>
+<td style="text-align: left">Hotfix</td>
+<td style="text-align: left"><strong>Proposed</strong> (standard industry idiom)</td>
+<td style="text-align: left">Out-of-band patch applied bypassing normal gates because the live product is broken.</td>
+<td style="text-align: left">Everyone (fast-tracked)</td>
+<td style="text-align: left">Production (usually)</td>
+<td style="text-align: left">As needed</td>
+<td style="text-align: left">Fixing a broken build or a widespread plugin outage right now</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">security-patch</code></td>
+<td style="text-align: left">Security Patch</td>
+<td style="text-align: left"><strong>Proposed</strong> (concept known industry-wide; upstream Vencord itself does push urgent fixes)</td>
+<td style="text-align: left">Same as hotfix, plus <em>silent deploy priority</em> — security-sensitive fixes should reach <code dir="auto">stable</code> before a changelog is cut.</td>
+<td style="text-align: left">Everyone</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">As vulnerabilities are found</td>
+<td style="text-align: left">Patching patchers or anti-scam/anti-scam heuristics</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">rollback</code></td>
+<td style="text-align: left">Rollback</td>
+<td style="text-align: left"><strong>Proposed</strong> (operations concept)</td>
+<td style="text-align: left">Re-point users to the previous hash after a bad release. Keeps a “last known good” pointer in the backend to enable one-click revert.</td>
+<td style="text-align: left">Users being protected</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Emergency only</td>
+<td style="text-align: left">Recovering from a bad <code dir="auto">stable</code> push without waiting for the next patch</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">legacy</code></td>
+<td style="text-align: left">Legacy</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Old client-version-limited builds kept around for users who cannot (or will not) update their Discord client. Tool must state concrete “supported until” dates.</td>
+<td style="text-align: left">Users on old Discord versions</td>
+<td style="text-align: left">Testing (frozen)</td>
+<td style="text-align: left">Patch-stratified, rare</td>
+<td style="text-align: left">Long-tail Discord-version support</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">deprecated</code></td>
+<td style="text-align: left">Deprecated</td>
+<td style="text-align: left"><strong>Proposed</strong> (real concept upstream for <em>plugins</em>, proposed here for <em>tracks</em>)</td>
+<td style="text-align: left">A channel scheduled to be removed; updater should nag with a transition link.</td>
+<td style="text-align: left">Everyone</td>
+<td style="text-align: left">Any</td>
+<td style="text-align: left">Until removal</td>
+<td style="text-align: left">Cleaning up rarely-loaded channels without surprise delivery</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">archived</code></td>
+<td style="text-align: left">Archived</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Read-only snapshots of any channel, no binaries served, no support. Users cannot “install” it; they can only <em>inspect</em> old artifacts.</td>
+<td style="text-align: left">Historians, forensics</td>
+<td style="text-align: left">Frozen</td>
+<td style="text-align: left">Never updates</td>
+<td style="text-align: left">Audit trail, crash-regression archaeology</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Overlap notes.</strong> <code dir="auto">hotfix</code> / <code dir="auto">security-patch</code> / <code dir="auto">maintenance</code> are the same
+mechanism at different urgencies (breakage → fix, vulnerability → fix, minor
+bug → fix). Keep IDs distinct in the schema so a release manager can attach
+different deploy gating to each, even though they reuse the same artifact
+pipeline. <code dir="auto">legacy</code>/<code dir="auto">archived</code>/<code dir="auto">deprecated</code>/<code dir="auto">lts</code> are all <em>states a track can
+be in</em>, with distinct user promises (old-but-hot / read-only / dying /
+long-supported).</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="6-discord-client-compatibility-install-targets">6. Discord client compatibility (install targets)</h2><a class="sl-anchor-link" href="#6-discord-client-compatibility-install-targets"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “6. Discord client compatibility (install targets)”</span></a></div>
+<p>These are <strong>Discord</strong>’s own client branches plus <em>where</em> Limey V1 actually
+runs. The installer already detects and supports all four desktop branches,
+and the web bundle runs in browsers. Keep these as a <em>second axis</em> in your
+release manager (<code dir="auto">host</code>), never as a replacement for the first (<code dir="auto">track</code>).</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">ID</th>
+<th style="text-align: left">Display Name</th>
+<th style="text-align: left">Origin</th>
+<th style="text-align: left">Description</th>
+<th style="text-align: left">Intended audience</th>
+<th style="text-align: left">Stability</th>
+<th style="text-align: left">Update frequency</th>
+<th style="text-align: left">Recommended use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left"><code dir="auto">discord-stable</code></td>
+<td style="text-align: left">Discord Stable</td>
+<td style="text-align: left"><strong>Discord</strong></td>
+<td style="text-align: left">The mainstream Discord desktop app everyone has.</td>
+<td style="text-align: left">Everyone</td>
+<td style="text-align: left">Production (Discord’s)</td>
+<td style="text-align: left">Weekly-ish, Discord-driven</td>
+<td style="text-align: left">Default install target</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">discord-ptb</code></td>
+<td style="text-align: left">Public Test Build (Discord PTB)</td>
+<td style="text-align: left"><strong>Discord</strong></td>
+<td style="text-align: left">Discord’s wide pre-stable branch, available on the Download page.</td>
+<td style="text-align: left">Opt-in testers</td>
+<td style="text-align: left">Testing (Discord’s)</td>
+<td style="text-align: left">Weekly-ish, before wide release</td>
+<td style="text-align: left">Bug replication; early CSS/DOM drift</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">discord-canary</code></td>
+<td style="text-align: left">Discord Canary</td>
+<td style="text-align: left"><strong>Discord</strong></td>
+<td style="text-align: left">Discord’s fastest-moving client, near-day freshness.</td>
+<td style="text-align: left">Discord-adjacent testers</td>
+<td style="text-align: left">Unstable (Discord’s)</td>
+<td style="text-align: left">Near daily</td>
+<td style="text-align: left">Catching patch targets the moment they drift</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">discord-development</code></td>
+<td style="text-align: left">Development (Discord Development)</td>
+<td style="text-align: left"><strong>Discord</strong></td>
+<td style="text-align: left">Discord’s internal-flavor branch occasionally distributed for testers.</td>
+<td style="text-align: left">Discord staff &amp; client mod devs</td>
+<td style="text-align: left">Volatile (Discord’s)</td>
+<td style="text-align: left">Erratic</td>
+<td style="text-align: left">Verifying patches against unreleased internal BFS</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">desktop</code></td>
+<td style="text-align: left">Desktop Client (patched Discord app)</td>
+<td style="text-align: left"><strong>Limey / Vencord</strong></td>
+<td style="text-align: left">Limey V1’s format: injected <code dir="auto">patcher.js</code>/<code dir="auto">preload.js</code>/<code dir="auto">renderer.js</code>/<code dir="auto">renderer.css</code> installed into one of the four Discord branches above by the installer.</td>
+<td style="text-align: left">Desktop users</td>
+<td style="text-align: left">Depends on the <em>track</em> chosen</td>
+<td style="text-align: left">Per station’s track</td>
+<td style="text-align: left">The main product on the desktop</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">web</code></td>
+<td style="text-align: left">Web Client (browser)</td>
+<td style="text-align: left"><strong>Limey / Vencord</strong></td>
+<td style="text-align: left">Limey V1’s browser bundle — Chrome MV3 extension, Firefox MV2 shell, userscripts for discord.com.</td>
+<td style="text-align: left">Browser-first users (incl. mobile Discord web)</td>
+<td style="text-align: left">Matches <code dir="auto">stable</code> (web usually ships stable-only)</td>
+<td style="text-align: left">Per stable release</td>
+<td style="text-align: left">Users who can’t or won’t run an injector/UI installer</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">custom-client</code></td>
+<td style="text-align: left">Custom Client Build</td>
+<td style="text-align: left"><strong>Proposed</strong></td>
+<td style="text-align: left">Any other Discord-compatible client (VDI, EmbeddedApp builds, Electron-based forks shipped by other projects). Disclaimer required: compatibility is not guaranteed, plugin authors can’t test against it.</td>
+<td style="text-align: left">Fork operators</td>
+<td style="text-align: left">Volatile</td>
+<td style="text-align: left">Owner-driven</td>
+<td style="text-align: left">Power users in restricted environments</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Overlap notes.</strong> <code dir="auto">discord-canary</code> (a Discord <em>client branch</em>) is often
+confused with “Limey V1 canary” (a <em>track</em> of Limey V1 code). In a release
+manager they should be two different fields — e.g. <code dir="auto">track: canary-rollout</code>
+plus <code dir="auto">host: discord-canary</code> — even though the installer just reads the code
+for whatever Discord branch it sits inside.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="recommended-hierarchy">Recommended hierarchy</h2><a class="sl-anchor-link" href="#recommended-hierarchy"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Recommended hierarchy”</span></a></div>
+<p>The mistake most release systems make is treating all of the above as one
+flat list. Limey V1 has three genuinely different things, and keeping them
+separate keeps the settings menu honest:</p>
+<div class="expressive-code"><link rel="stylesheet" href="/docs/_astro/ec.w36nc.css"><script type="module" src="/docs/_astro/ec.0vx5m.js"></script><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="plaintext"><code><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">release-manager</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">├── TRACK        which Limey V1 code you run          (choose 1)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── stable      → default, installer-served, changelogged ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── dev         → DevBuild, git-updater, support warning  ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── rc          → proposed: pre-release freeze point</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── beta        → proposed: wider pre-release</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── nightly     → proposed: cron of main</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── edge        → proposed: per-push artifact</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   └── debug       → proposed: verbosity-only, never distributed</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">├── HOST         which Discord (or browser) it runs in (choose 1)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-stable      ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-ptb         ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-canary      ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-development ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── web                 ✅  TODAY (extension / userscript)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   └── custom-client       → proposed: best-effort, unsupported</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">└── ROLLOUT      how the next TRACK build reaches you  (choose 1)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── full            ✅  TODAY (hash-flip)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── canary-rollout  → proposed: opt-in volunteer cohort</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── progressive     → proposed: 1% → 10% → 100% by telemetry</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── featureflagged  → proposed: disabled-by-default toggles</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">└── rollback        → proposed: always-on capability, never "a channel"</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="release-manager├── TRACK        which Limey V1 code you run          (choose 1)│   ├── stable      → default, installer-served, changelogged ✅  TODAY│   ├── dev         → DevBuild, git-updater, support warning  ✅  TODAY│   ├── rc          → proposed: pre-release freeze point│   ├── beta        → proposed: wider pre-release│   ├── nightly     → proposed: cron of main│   ├── edge        → proposed: per-push artifact│   └── debug       → proposed: verbosity-only, never distributed│├── HOST         which Discord (or browser) it runs in (choose 1)│   ├── discord-stable      ✅  TODAY│   ├── discord-ptb         ✅  TODAY│   ├── discord-canary      ✅  TODAY│   ├── discord-development ✅  TODAY│   ├── web                 ✅  TODAY (extension / userscript)│   └── custom-client       → proposed: best-effort, unsupported│└── ROLLOUT      how the next TRACK build reaches you  (choose 1)    ├── full            ✅  TODAY (hash-flip)    ├── canary-rollout  → proposed: opt-in volunteer cohort    ├── progressive     → proposed: 1% → 10% → 100% by telemetry    ├── featureflagged  → proposed: disabled-by-default toggles    └── rollback        → proposed: always-on capability, never &quot;a channel&quot;"><div></div></button></div></figure></div>
+<p>And a maintenance ring a track can <em>enter</em>:</p>
+<div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="plaintext"><code><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">Production     testing     unstable     volatile     internal</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">   </span></span><span style="--0:#d6deeb;--1:#403f53">│              │            │            │            │</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">   </span></span><span style="--0:#d6deeb;--1:#403f53">▼              ▼            ▼            ▼            ▼</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53"> </span></span><span style="--0:#d6deeb;--1:#403f53">stable ◀──── beta ────── dev ─────── edge ─── debug</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">   </span></span><span style="--0:#d6deeb;--1:#403f53">│  ─ lts ───┘  └── rc ──┘   └ nightly ┘</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">   </span></span><span style="--0:#d6deeb;--1:#403f53">└ rollback / hotfix / security-patch / maintenance-release lanes</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="Production     testing     unstable     volatile     internal   │              │            │            │            │   ▼              ▼            ▼            ▼            ▼ stable ◀──── beta ────── dev ─────── edge ─── debug   │  ─ lts ───┘  └── rc ──┘   └ nightly ┘   └ rollback / hotfix / security-patch / maintenance-release lanes"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="concrete-recommendations-for-the-limey-v1-updater">Concrete recommendations for the Limey V1 updater</h3><a class="sl-anchor-link" href="#concrete-recommendations-for-the-limey-v1-updater"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Concrete recommendations for the Limey V1 updater”</span></a></div>
+<ol>
+<li><strong>Ship today’s reality under two IDs.</strong> Keep <code dir="auto">stable</code> and <code dir="auto">dev</code> as the
+only two <em>selectable</em> tracks in the settings dropdown for the MVP, with
+<code dir="auto">devbuild</code> as <code dir="auto">dev</code>’s display alias. Everything above is additive.</li>
+<li><strong>Model channels as data, not code.</strong> A channel is an object —
+<code dir="auto">{ id, displayName, description, audience, stability, cadence, origin, supportedHosts, artifacts, rollout }</code> — so the same spec powers the
+settings dropdown, the CLI (<code dir="auto">--track dev --host discord-ptb</code>), and the
+changelog page.</li>
+<li><strong>Never let rollout override track.</strong> % cohorts and hotfix-priority apply
+within a track; they are not new tracks. This is what keeps “why am I
+not on the newest version?” support tickets answerable.</li>
+<li><strong>Aliases, not duplicates.</strong> <code dir="auto">preview-ch</code>→<code dir="auto">beta</code>, <code dir="auto">insider</code>→<code dir="auto">beta</code>,
+<code dir="auto">snapshot</code>→<code dir="auto">nightly</code>, <code dir="auto">rolling</code>→<code dir="auto">dev</code>, <code dir="auto">security-patch</code>→<code dir="auto">hotfix</code> (with a
+flag) — collapse the naming family onto one canonical artifact.</li>
+<li><strong>Mark proposed names visually.</strong> In the settings UI, render unimplemented
+channels as grayed-out with a “coming later” tooltip so users never
+believe a non-existent feed exists.</li>
+</ol></div><footer class="sl-flex astro-icf2prqc"><div class="meta sl-flex astro-icf2prqc"><a href="https://github.com/xyz-elyxion/Discord/tree/main/src/content/docs/release-channels.mdx" class="sl-flex print:hidden astro-gwbof5h6"><svg aria-hidden="true" class="astro-gwbof5h6 astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M22 7.24a1 1 0 0 0-.29-.71l-4.24-4.24a1 1 0 0 0-1.1-.22 1 1 0 0 0-.32.22l-2.83 2.83L2.29 16.05a1 1 0 0 0-.29.71V21a1 1 0 0 0 1 1h4.24a1 1 0 0 0 .76-.29l10.87-10.93L21.71 8c.1-.1.17-.2.22-.33a1 1 0 0 0 0-.24v-.14l.07-.05ZM6.83 20H4v-2.83l9.93-9.93 2.83 2.83L6.83 20ZM18.17 8.66l-2.83-2.83 1.42-1.41 2.82 2.82-1.41 1.42Z"/></svg>Edit page</a></div><div class="pagination-links print:hidden astro-xxzxuk2t" dir="ltr"><a href="/docs/sdk" rel="prev" class="astro-xxzxuk2t"><svg aria-hidden="true" class="astro-xxzxuk2t astro-6m23bwaj" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.5rem;"><path d="M17 11H9.41l3.3-3.29a1.004 1.004 0 1 0-1.42-1.42l-5 5a1 1 0 0 0-.21.33 1 1 0 0 0 0 .76 1 1 0 0 0 .21.33l5 5a1.002 1.002 0 0 0 1.639-.325 1 1 0 0 0-.219-1.095L9.41 13H17a1 1 0 0 0 0-2Z"/></svg><span class="astro-xxzxuk2t">Previous<br class="astro-xxzxuk2t"><span class="link-title astro-xxzxuk2t">Bot SDK</span></span></a></div></footer></div></div></main></div></div></div></div></body></html>
