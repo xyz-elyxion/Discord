@@ -93,20 +93,74 @@ export const RELEASE_CHANNELS: ReleaseChannel[] = [
     {
         id: "nightly", name: "Nightly", category: "track", origin: "proposed",
         stability: "unstable", cadence: "daily cron of main", audience: "automated cross-testing",
-        description: "Scheduled snapshot of the main branch, built even if commits are broken.",
-        implemented: false
+        description: "Scheduled snapshot of the main branch, built automatically even if commits are broken.",
+        implemented: true
     },
     {
         id: "edge", name: "Edge", category: "track", origin: "proposed",
         stability: "volatile", cadence: "per push", audience: "CI systems",
-        description: "Purest freshness: built per successful push, no schedule.",
-        implemented: false
+        description: "Purest freshness: built per successful push, no schedule. Expect arbitrary machine state.",
+        implemented: true
     },
     {
         id: "debug", name: "Debug", category: "track", origin: "proposed",
         stability: "internal", cadence: "on demand", audience: "core developers",
-        description: "Verbose-logging diagnostic build; never distributed.",
-        implemented: false
+        description: "Verbose-logging diagnostic build; not meant to leave the build machine.",
+        implemented: true
+    },
+    {
+        id: "custom", name: "Custom Build", category: "track", origin: "proposed",
+        stability: "volatile", cadence: "owner-driven", audience: "fork maintainers",
+        description: "A user-built flavor from a fork with extra patches, distinct branding or plugin changes — owner-driven.",
+        implemented: true
+    },
+    {
+        id: "snapshot", name: "Snapshot", category: "track", origin: "proposed",
+        stability: "unstable", cadence: "manual or test-gated", audience: "plugin CI",
+        description: "Point-in-time named dev build; inclusion is manual or gated on tests, unlike nightly's cron.",
+        implemented: true
+    },
+    {
+        id: "experimental", name: "Experimental", category: "track", origin: "proposed",
+        stability: "volatile", cadence: "with the experiments", audience: "plugin authors opting into flags",
+        description: "Aggregates opt-in functionality (feature-flagged plugins, rewrites) pinned to a stable-ish base.",
+        implemented: true
+    },
+    {
+        id: "early", name: "Early Access", category: "track", origin: "proposed",
+        stability: "testing", cadence: "same as beta/rc", audience: "perk-tier subscribers",
+        description: "Logged-in users get the next feature batch a little earlier, built from rc-quality code.",
+        implemented: true
+    },
+    {
+        id: "insider", name: "Insider", category: "track", origin: "proposed",
+        stability: "testing", cadence: "batch-shaped", audience: "users who want the why",
+        description: "Same artifacts as beta, packaged with per-batch release notes ('read the dev diary' crowd).",
+        implemented: true
+    },
+    {
+        id: "preview-ch", name: "Preview Channel", category: "track", origin: "proposed",
+        stability: "testing", cadence: "same as beta", audience: "same as beta",
+        description: "Friendlier folded display name for the beta stream, so settings can say 'Preview (Beta)'.",
+        implemented: true
+    },
+    {
+        id: "dev-preview", name: "Developer Preview", category: "track", origin: "proposed",
+        stability: "testing", cadence: "per planned release milestone", audience: "plugin ecosystem maintainers",
+        description: "Spec-stable subset of the upcoming release — API/schema/patch points the plugin ecosystem depends on.",
+        implemented: true
+    },
+    {
+        id: "internal", name: "Internal Testing", category: "track", origin: "proposed",
+        stability: "internal", cadence: "irregular", audience: "core collaborators",
+        description: "Small ring for core collaborators before anything public: checksums, unreleased heuristics, security fixes.",
+        implemented: true
+    },
+    {
+        id: "community", name: "Community Preview", category: "track", origin: "proposed",
+        stability: "testing", cadence: "community-driven", audience: "plugin community, store authors",
+        description: "Public 'vote on what's next' lobe — top-voted candidate experiments advance to beta.",
+        implemented: true
     },
 
     // ---------------- Hosts ----------------

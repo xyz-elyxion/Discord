@@ -454,6 +454,138 @@
             </div>
 
             <div class="method">
+                <span class="method-badge">Snapshot</span>
+                <h2>Nightly</h2>
+                <p>
+                    Scheduled snapshot of the main branch, built automatically even if commits
+                    are broken — the Firefox-model cadence for continuous-testers and plugin CI.
+                </p>
+                <code class="lts-cmd" id="nightlyCmd" spellcheck="false">LimeyV1Installer-cli --install --channel nightly</code>
+                <span class="platforms" data-channel="nightly">per cron run · <span id="nightlyLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Snapshot</span>
+                <h2>Edge</h2>
+                <p>
+                    Purest freshness: same-source as nightly but built per successful push, no
+                    schedule. For CI systems and ultra-impatient contributors.
+                </p>
+                <code class="lts-cmd" id="edgeCmd" spellcheck="false">LimeyV1Installer-cli --install --channel edge</code>
+                <span class="platforms" data-channel="edge">per push · <span id="edgeLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Diagnostic</span>
+                <h2>Debug</h2>
+                <p>
+                    Verbose-logging diagnostic build with devtools unwrap and integrity checks
+                    reachable — never meant to leave the build machine.
+                </p>
+                <code class="lts-cmd" id="debugCmd" spellcheck="false">LimeyV1Installer-cli --install --channel debug</code>
+                <span class="platforms" data-channel="debug">on demand · <span id="debugLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Fork</span>
+                <h2>Custom Build</h2>
+                <p>
+                    A user-built flavor from a fork with extra patches, distinct branding or
+                    plugin changes — owner-driven by the fork maintainer.
+                </p>
+                <code class="lts-cmd" id="customCmd" spellcheck="false">LimeyV1Installer-cli --install --channel custom</code>
+                <span class="platforms" data-channel="custom">owner-driven · <span id="customLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Snapshot</span>
+                <h2>Snapshot</h2>
+                <p>
+                    Point-in-time named dev build — like nightly but inclusion is manual or
+                    test-gated instead of cron-driven: "here's a build with the fix, test it".
+                </p>
+                <code class="lts-cmd" id="snapshotCmd" spellcheck="false">LimeyV1Installer-cli --install --channel snapshot</code>
+                <span class="platforms" data-channel="snapshot">irregular · on demand · <span id="snapshotLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Opt-in</span>
+                <h2>Experimental</h2>
+                <p>
+                    Aggregates exceptional opt-in functionality — feature-flagged plugins and
+                    rewrites pinned to a stable-ish base for testing one specific feature.
+                </p>
+                <code class="lts-cmd" id="experimentalCmd" spellcheck="false">LimeyV1Installer-cli --install --channel experimental</code>
+                <span class="platforms" data-channel="experimental">with the experiments · <span id="experimentalLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Perk</span>
+                <h2>Early Access</h2>
+                <p>
+                    Logged-in users get the next feature batch a little earlier, still built
+                    from rc-quality code — the offline-friendly opt-in for perk-tier subscribers.
+                </p>
+                <code class="lts-cmd" id="earlyCmd" spellcheck="false">LimeyV1Installer-cli --install --channel early</code>
+                <span class="platforms" data-channel="early">same as beta/rc · <span id="earlyLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Naming</span>
+                <h2>Insider</h2>
+                <p>
+                    Same artifacts as beta but packaged as a “read the dev diary” crowd, with
+                    release notes aggregated per batch rather than per channel.
+                </p>
+                <code class="lts-cmd" id="insiderCmd" spellcheck="false">LimeyV1Installer-cli --install --channel insider</code>
+                <span class="platforms" data-channel="insider">batch-shaped · <span id="insiderLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Naming</span>
+                <h2>Preview (Beta)</h2>
+                <p>
+                    A friendlier folded display name for the beta stream, so the settings menu
+                    can say “Preview (Beta)” without looking jargonny — pure naming fallback.
+                </p>
+                <code class="lts-cmd" id="preview-chCmd" spellcheck="false">LimeyV1Installer-cli --install --channel preview-ch</code>
+                <span class="platforms" data-channel="preview-ch">same as beta · <span id="preview-chLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">API-frozen</span>
+                <h2>Developer Preview</h2>
+                <p>
+                    Guaranteed spec-stable subset of the upcoming release — the API changes,
+                    plugin manifest schema and patch points plugin authors depend on.
+                </p>
+                <code class="lts-cmd" id="dev-previewCmd" spellcheck="false">LimeyV1Installer-cli --install --channel dev-preview</code>
+                <span class="platforms" data-channel="dev-preview">per milestone · <span id="dev-previewLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Core</span>
+                <h2>Internal Testing</h2>
+                <p>
+                    Small ring for core collaborators before anything public — internal
+                    checksums, unreleased heuristics and security-sensitive fixes.
+                </p>
+                <code class="lts-cmd" id="internalCmd" spellcheck="false">LimeyV1Installer-cli --install --channel internal</code>
+                <span class="platforms" data-channel="internal">irregular · on demand · <span id="internalLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
+                <span class="method-badge">Community</span>
+                <h2>Community Preview</h2>
+                <p>
+                    Public “vote on what's next” lobe where the top-voted candidate experiments
+                    advance to beta — democratic direction-setting by store authors.
+                </p>
+                <code class="lts-cmd" id="communityCmd" spellcheck="false">LimeyV1Installer-cli --install --channel community</code>
+                <span class="platforms" data-channel="community">community-driven · <span id="communityLive">publish status unknown</span></span>
+            </div>
+
+            <div class="method">
                 <span class="method-badge">Alias</span>
                 <h2>Preview</h2>
                 <p>
@@ -662,7 +794,7 @@
     pick("auto");
 
     // The snapshot-channel cards show the same platform hint as the branch picker.
-    ["lts", "rc", "beta", "canary", "alpha"].forEach(function (ch) {
+    ["lts", "rc", "beta", "canary", "alpha", "nightly", "edge", "debug", "custom", "snapshot", "experimental", "early", "insider", "preview-ch", "dev-preview", "internal", "community"].forEach(function (ch) {
         var el = document.getElementById(ch + "Cmd");
         if (el) el.textContent = executableName + " --install --channel " + ch;
     });

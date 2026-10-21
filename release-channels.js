@@ -20,9 +20,14 @@
 
 const CURRENT_SCHEMA = "limey.v1/channels/1";
 
-/** Only two tracks ship artifacts today: the installer/update backend
- * serves the stable hash-stamped build files, and dev tracks build from
- * source with the git updater. Everything else is a definition. */
+/** Files a frozen snapshot channel contains — same set the Go installer
+ * downloads (installer/constants.go BuildFiles) and the admin panel copies. */
+const SNAPSHOT_ARTIFACTS = ["patcher.js", "preload.js", "renderer.js", "renderer.css"];
+
+/** The shipped artifact tracks: stable + dev come from the build
+ * pipeline, everything else is a snapshot channel frozen into
+ * dist/<channel>/ from the backend's current build (see
+ * scripts/publishChannel.mjs and the admin panel's freeze tab). */
 const CHANNELS = [
     // -----------------------------------------------------------------
     // Tracks — which Limey V1 code you run
@@ -97,20 +102,74 @@ const CHANNELS = [
     {
         id: "nightly", name: "Nightly", category: "track", origin: "proposed",
         stability: "unstable", cadence: "daily cron of main", audience: "automated cross-testing",
-        description: "Scheduled snapshot of the main branch, built even if commits are broken.",
-        implemented: false
+        description: "Scheduled snapshot of the main branch, built automatically even if commits are broken. Frozen per nightly cron run; unpublished windows answer not-published.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Frozen per nightly cron (or admin publish)."
     },
     {
         id: "edge", name: "Edge", category: "track", origin: "proposed",
         stability: "volatile", cadence: "per push", audience: "CI systems",
-        description: "Purest freshness: built per successful push, no schedule.",
-        implemented: false
+        description: "Purest freshness: same-source as nightly but built per successful push, no schedule. Expect arbitrary machine state.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Frozen per successful push (or admin publish)."
     },
     {
         id: "debug", name: "Debug", category: "track", origin: "proposed",
         stability: "internal", cadence: "on demand", audience: "core developers",
-        description: "Verbose-logging diagnostic build; never distributed.",
-        implemented: false
+        description: "Verbose-logging diagnostic build (sourcemaps, devtools unwrap, integrity checks off). Not meant to leave the build machine.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Frozen on demand for support requests."
+    },
+    {
+        id: "custom", name: "Custom Build", category: "track", origin: "proposed",
+        stability: "volatile", cadence: "owner-driven", audience: "fork maintainers",
+        description: "A user-built flavor from a fork with extra patches, distinct branding or plugin changes. Owner-driven — the fork maintainer knows who's authoritative.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Frozen from the fork's own build output."
+    },
+    {
+        id: "snapshot", name: "Snapshot", category: "track", origin: "proposed",
+        stability: "unstable", cadence: "manual or test-gated", audience: "plugin CI",
+        description: "Point-in-time named dev build. vs nightly: snapshot inclusion is manual or gated on tests, nightly is a cron.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Frozen on demand per snapshot batch."
+    },
+    {
+        id: "experimental", name: "Experimental", category: "track", origin: "proposed",
+        stability: "volatile", cadence: "with the experiments", audience: "plugin authors opting into flags",
+        description: "Aggregates exceptional opt-in functionality (feature-flagged plugins, rewrites) pinned to a stable-ish base.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Frozen whenever an experiment lands."
+    },
+    {
+        id: "early", name: "Early Access", category: "track", origin: "proposed",
+        stability: "testing", cadence: "same as beta/rc", audience: "perk-tier subscribers",
+        description: "Logged-in users get the next feature batch a little earlier, built from rc-quality code.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Optional perk for perk-tier subscribers."
+    },
+    {
+        id: "insider", name: "Insider", category: "track", origin: "proposed",
+        stability: "testing", cadence: "batch-shaped", audience: "users who want the why",
+        description: "Same artifacts as beta but packaged as a 'read the dev diary' crowd with per-batch release notes.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Same artifact as beta; choose by UX taste."
+    },
+    {
+        id: "preview-ch", name: "Preview Channel", category: "track", origin: "proposed",
+        stability: "testing", cadence: "same as beta", audience: "same as beta",
+        description: "A friendlier folded display name for the beta stream, kept so the settings menu can say 'Preview (Beta)'.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Pure naming fallback — another name users search for."
+    },
+    {
+        id: "dev-preview", name: "Developer Preview", category: "track", origin: "proposed",
+        stability: "testing", cadence: "per planned release milestone", audience: "plugin ecosystem maintainers",
+        description: "Spec-stable subset of the upcoming release — API changes, plugin manifest schema and patch points the plugin ecosystem depends on, frozen per milestone.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "API-frozen per planned milestone."
+    },
+    {
+        id: "internal", name: "Internal Testing", category: "track", origin: "proposed",
+        stability: "internal", cadence: "irregular", audience: "core collaborators",
+        description: "Small ring for core collaborators before anything public: internal checksums, unreleased heuristics, security-sensitive fixes.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Round-0 verification of an upcoming security patch."
+    },
+    {
+        id: "community", name: "Community Preview", category: "track", origin: "proposed",
+        stability: "testing", cadence: "community-driven", audience: "plugin community, store authors",
+        description: "Public 'vote on what's next' lobe where the top-voted candidate experiments advance to beta.",
+        implemented: true, artifacts: SNAPSHOT_ARTIFACTS, note: "Top-voted candidates advance to beta."
     },
 
     // -----------------------------------------------------------------

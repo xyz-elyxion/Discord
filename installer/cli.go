@@ -67,7 +67,7 @@ func main() {
 	var uninstallFlag = flag.Bool("uninstall", false, "Uninstall Limey V1")
 	var locationFlag = flag.String("location", "", "The location of the Discord install to modify")
 	var branchFlag = flag.String("branch", "", "The branch of Discord to modify [auto|stable|ptb|canary|development]")
-	var channelFlag = flag.String("channel", "stable", "The Limey V1 release channel to install [stable|lts|rc|beta|canary|alpha]")
+	var channelFlag = flag.String("channel", "stable", "The Limey V1 release channel to install [stable|lts|rc|beta|canary|alpha|nightly|edge|debug|custom|snapshot|experimental|early|insider|preview-ch|dev-preview|internal|community]")
 	flag.Parse()
 
 	if *helpFlag {
@@ -101,8 +101,7 @@ func main() {
 		die("The 'branch' flag must be one of the following: [auto|stable|ptb|canary|development]")
 	}
 
-	if !isValidChannel(*channelFlag) {
-		die("The 'channel' flag must be one of the following: [stable|lts|rc|beta|canary|alpha] (preview is a UI label — use --channel rc or --channel beta)")
+	if !isValidChannel(*channelFlag) {			die("The 'channel' flag must be one of: [stable|lts|rc|beta|canary|alpha|nightly|edge|debug|custom|snapshot|experimental|early|insider|preview-ch|dev-preview|internal|community] (preview is a UI label — use --channel rc or --channel beta)")
 	}
 	ReleaseChannel = *channelFlag
 

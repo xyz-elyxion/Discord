@@ -33,7 +33,7 @@ var ReleaseChannel = "stable"
 // implemented subset of the /v1/channels registry ("preview" is a UI alias
 // for rc/beta, not an artifact stream, and proposed channels are
 // definition-only). An unpublished snapshot channel answers 503.
-var ReleaseChannelsList = []string{"stable", "lts", "rc", "beta", "canary", "alpha"}
+var ReleaseChannelsList = []string{"stable", "lts", "rc", "beta", "canary", "alpha", "nightly", "edge", "debug", "custom", "snapshot", "experimental", "early", "insider", "preview-ch", "dev-preview", "internal", "community"}
 
 // ChannelLabel maps a channel id to what it means for the user, mirroring
 // the release-channels registry names.
@@ -51,6 +51,30 @@ func ChannelLabel(channel string) string {
 		return "Canary — freshest pre-release"
 	case "alpha":
 		return "Alpha — earliest, for plugin devs"
+	case "nightly":
+		return "Nightly — scheduled main-branch snapshot"
+	case "edge":
+		return "Edge — built per push, freshest"
+	case "debug":
+		return "Debug — verbose diagnostic build"
+	case "custom":
+		return "Custom — fork's own build stream"
+	case "snapshot":
+		return "Snapshot — point-in-time dev build"
+	case "experimental":
+		return "Experimental — opt-in features, unstable"
+	case "early":
+		return "Early Access — next batch a bit sooner"
+	case "insider":
+		return "Insider — beta artifacts with release notes"
+	case "preview-ch":
+		return "Preview (Beta) — same stream, friendlier name"
+	case "dev-preview":
+		return "Developer Preview — API-frozen per milestone"
+	case "internal":
+		return "Internal — core-collaborator ring"
+	case "community":
+		return "Community — top-voted experiments"
 	default:
 		return channel
 	}

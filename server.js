@@ -247,7 +247,7 @@ function handleInstall(req, res, url) {
     //         LTS they must never be silently replaced by stable files
     //         (stable is older than a pre-release), so an unpublished
     //         channel answers 503 with a clear error instead.
-    const CH_FILES = "(lts|rc|beta|canary|alpha)";
+    const CH_FILES = "(lts|rc|beta|canary|alpha|nightly|edge|debug|custom|snapshot|experimental|early|insider|preview-ch|dev-preview|internal|community)";
     const chMatch = new RegExp("^/v1/install/files/" + CH_FILES + "/([\\w.-]+\\.(?:js|css))$").exec(url);
     if (chMatch) {
         const channel = chMatch[1];
@@ -365,13 +365,7 @@ function handleInstall(req, res, url) {
                 ltsAvailable: existsSync(join(DIST, "lts", "patcher.js")),
                 // Publish state per snapshot channel (scripts/publishChannel.mjs):
                 // lts falls back to stable when unpinned; rc/beta answer 503.
-                published: {
-                    lts: existsSync(join(DIST, "lts", "patcher.js")),
-                    rc: existsSync(join(DIST, "rc", "patcher.js")),
-                    beta: existsSync(join(DIST, "beta", "patcher.js")),
-                    canary: existsSync(join(DIST, "canary", "patcher.js")),
-                    alpha: existsSync(join(DIST, "alpha", "patcher.js"))
-                },
+                published: Object.fromEntries(SNAPSHOT_CHANNELS.map(ch => [ch, existsSync(join(DIST, ch, "patcher.js"))])),
                 docs: "https://limey-discord.onrender.com/docs/release-channels",
                 installTargets: releaseChannels.CHANNELS
                     // Desktop hosts only — the web channel installs via the
@@ -1383,7 +1377,7 @@ const DASH_SESSIONS_KEY = "limey:dashboard-sessions";
 // Release channels the admin panel can freeze into / the live-rollout
 // strategy values the updater accepts ("stable" until an admin flips it —
 // matches release-channels.js implemented track ids).
-const SNAPSHOT_CHANNELS = ["lts", "rc", "beta", "canary", "alpha"];
+const SNAPSHOT_CHANNELS = ["lts", "rc", "beta", "canary", "alpha", "nightly", "edge", "debug", "custom", "snapshot", "experimental", "early", "insider", "preview-ch", "dev-preview", "internal", "community"];
 const LIVE_CHANNELS = ["stable", "lts"];
 const LIVE_CHANNEL_KEY = "limey:live-release-channel";
 
@@ -2060,7 +2054,7 @@ async function handleDashboard(req, res, url) {
         }), true;
     }
 
-    const chPublish = /^\/v1\/admin\/channels\/(lts|rc|beta|canary|alpha)\/publish$/.exec(url);
+    const chPublish = new RegExp(`^\\/v1\\/admin\\/channels\\/(${SNAPSHOT_CHANNELS.join("|")})\\/publish$`).exec(url);
     if (chPublish && req.method === "POST") {
         const adminSession = dashGetSession(req);
         if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
@@ -2100,7 +2094,7 @@ async function handleDashboard(req, res, url) {
         return json(res, 200, { ok: true, channel, hash: targetHash, forced: Boolean(force) }), true;
     }
 
-    const chUnpublish = /^\/v1\/admin\/channels\/(lts|rc|beta|canary|alpha)$/.exec(url);
+    const chUnpublish = new RegExp(`^\\/v1\\/admin\\/channels\\/(${SNAPSHOT_CHANNELS.join("|")})$`).exec(url);
     if (chUnpublish && req.method === "DELETE") {
         const adminSession = dashGetSession(req);
         if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;

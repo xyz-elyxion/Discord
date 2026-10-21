@@ -37,7 +37,7 @@ var (
 	customChoiceIdx int
 
 	// channelShortNames are the picker labels, in ReleaseChannelsList order.
-	channelShortNames = [...]string{"Stable", "LTS", "RC", "Beta", "Canary", "Alpha"}
+	channelShortNames = [...]string{"Stable", "LTS", "RC", "Beta", "Canary", "Alpha", "Nightly", "Edge", "Debug", "Custom", "Snapshot", "Exp.", "Early", "Insider", "PrevCh", "DevPrev", "Internal", "Community"}
 
 	// Release channel picker: same channels as the CLI's --channel flag.
 	channelIdx         int

@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const DIST = join(here, "..", "dist");
 
-const CHANNELS = ["lts", "rc", "beta", "canary", "alpha"];
+const CHANNELS = ["lts", "rc", "beta", "canary", "alpha", "nightly", "edge", "debug", "custom", "snapshot", "experimental", "early", "insider", "preview-ch", "dev-preview", "internal", "community"];
 // Same files the Go installer downloads (installer/constants.go BuildFiles).
 const FILES = ["patcher.js", "preload.js", "renderer.js", "renderer.css"];
 
