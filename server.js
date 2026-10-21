@@ -1387,6 +1387,114 @@ const SNAPSHOT_CHANNELS = ["lts", "rc", "beta", "canary", "alpha"];
 const LIVE_CHANNELS = ["stable", "lts"];
 const LIVE_CHANNEL_KEY = "limey:live-release-channel";
 
+// Channel publish state must survive container restarts: the frozen files in
+// dist/<channel>/ live on ephemeral disk, so every publish/unpublish is also
+// recorded here (PostgreSQL KV + a local JSON file fallback). On startup
+// restoreChannelSnapshots() re-copies the recorded snapshot files back into
+// dist/ so /v1/install/files/<channel>/* keep answering after a redeploy.
+const CHANNEL_STATE_KEY = "limey:channel-snapshots";
+const CHANNEL_STATE_FILE = join(ROOT, "data", "channel-snapshots.json");
+const CH_FILES_LIST = ["patcher.js", "preload.js", "renderer.js", "renderer.css"];
+// { [channel]: { hash, publishedAt, files: { [file]: base64 } } } — in-memory
+// mirror of the persisted publish state.
+let channelState = {};
+try {
+    channelState = JSON.parse(readFileSync(CHANNEL_STATE_FILE, "utf8"));
+    if (typeof channelState !== "object" || Array.isArray(channelState)) channelState = {};
+} catch { /* starts empty */ }
+
+function saveChannelState() {
+    void kvSet(CHANNEL_STATE_KEY, channelState);
+    try {
+        mkdirSync(join(ROOT, "data"), { recursive: true });
+        writeFileSync(CHANNEL_STATE_FILE, JSON.stringify(channelState, null, 2));
+    } catch (err) {
+        console.error("[channels] failed to persist publish state:", err.message);
+    }
+}
+
+function recordChannelPublish(channel, hash) {
+    channelState[channel] = { hash: hash ?? null, publishedAt: new Date().toISOString() };
+    saveChannelState();
+}
+
+function recordChannelUnpublish(channel) {
+    delete channelState[channel];
+    saveChannelState();
+}
+
+// Re-materialize recorded snapshots after a restart: copy the stored files
+// from KV (if present) into dist/<channel>/, or re-freeze from the current
+// stable dist files when the disk copy survived but only the db row is back.
+// Falls back gracefully when the recorded hash no longer matches dist.
+async function restoreChannelSnapshots() {
+    if (KV_ENABLED) {
+        try {
+            const stored = await kvGet(CHANNEL_STATE_KEY);
+            if (stored) {
+                const parsed = typeof stored === "string" ? JSON.parse(stored) : stored;
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) channelState = parsed;
+            }
+        } catch { /* keep file-loaded state */ }
+        if (Object.keys(channelState).length) {
+            try {
+                mkdirSync(join(ROOT, "data"), { recursive: true });
+                writeFileSync(CHANNEL_STATE_FILE, JSON.stringify(channelState, null, 2));
+            } catch { /* best-effort mirror */ }
+        }
+    }
+    for (const [channel, entry] of Object.entries(channelState)) {
+        if (!SNAPSHOT_CHANNELS.includes(channel)) continue;
+        const snapshotDir = join(DIST, channel);
+        const alreadyHere = existsSync(join(snapshotDir, "patcher.js"));
+        if (alreadyHere) {
+            console.log(`[channels] channel ${channel} snapshot already on disk (hash ${entry.hash ?? "unknown"})`);
+            continue;
+        }
+        // Re-freeze from the stored base64 copies when the KV row carries
+        // them (the normal restart path); otherwise copy from stable dist.
+        let restored = false;
+        if (entry.files && typeof entry.files === "object") {
+            try {
+                mkdirSync(snapshotDir, { recursive: true });
+                for (const file of CH_FILES_LIST) {
+                    const b64 = entry.files[file];
+                    if (!b64) continue;
+                    writeFileSync(join(snapshotDir, file), Buffer.from(b64, "base64"));
+                }
+                restored = existsSync(join(snapshotDir, "patcher.js"));
+            } catch (err) {
+                console.error(`[channels] failed to restore ${channel} from stored copies:`, err.message);
+            }
+        }
+        if (!restored) {
+            const stableReady = CH_FILES_LIST.every(f => existsSync(join(DIST, f)));
+            if (!stableReady) {
+                console.warn(`[channels] channel ${channel} recorded as published but dist is not ready — snapshot not restored`);
+                continue;
+            }
+            try {
+                mkdirSync(snapshotDir, { recursive: true });
+                for (const file of CH_FILES_LIST) copyFileSync(join(DIST, file), join(snapshotDir, file));
+                restored = true;
+            } catch (err) {
+                console.error(`[channels] failed to restore ${channel} from dist:`, err.message);
+            }
+        }
+        if (restored) console.log(`[channels] restored channel ${channel} snapshot (hash ${entry.hash ?? "unknown"}) after restart`);
+    }
+}
+
+function captureChannelFiles(channel) {
+    const files = {};
+    for (const file of CH_FILES_LIST) {
+        try {
+            files[file] = readFileSync(join(DIST, file)).toString("base64");
+        } catch { /* missing dist file — caller already validated */ }
+    }
+    return files;
+}
+
 // Hardcoded admin panel gate: only members of this guild holding this role
 // may sign in to /admin (via Discord OAuth with state=admin).
 const ADMIN_GUILD_ID = "1550709562267672607";
@@ -1948,7 +2056,7 @@ async function handleDashboard(req, res, url) {
             liveChannel: typeof strategy === "string" && LIVE_CHANNELS.includes(strategy) ? strategy : "stable",
             strategy: releaseChannels.manifest().strategy,
             published: Object.fromEntries(snapshotChannels.map(ch => [ch, existsSync(join(DIST, ch, "patcher.js"))])),
-            snapshots: Object.fromEntries(snapshotChannels.map(ch => [ch, { hash: hashes[ch], publishedAt: null }]))
+            snapshots: Object.fromEntries(snapshotChannels.map(ch => [ch, { hash: hashes[ch], publishedAt: channelState[ch]?.publishedAt ?? null }]))
         }), true;
     }
 
@@ -1983,6 +2091,11 @@ async function handleDashboard(req, res, url) {
         }
         mkdirSync(snapshotDir, { recursive: true });
         for (const file of files) copyFileSync(join(DIST, file), join(snapshotDir, file));
+        // Persist the publish state so a container restart can rebuild the
+        // snapshot from the recorded copies instead of dropping the channel.
+        recordChannelPublish(channel, targetHash);
+        channelState[channel].files = captureChannelFiles(channel);
+        saveChannelState();
         console.log(`[admin] ${adminSession.discordId} froze release channel ${channel} at hash ${targetHash ?? "unknown"}${force ? " (forced)" : ""}`);
         return json(res, 200, { ok: true, channel, hash: targetHash, forced: Boolean(force) }), true;
     }
@@ -1996,6 +2109,7 @@ async function handleDashboard(req, res, url) {
         for (const file of ["patcher.js", "preload.js", "renderer.js", "renderer.css"]) {
             try { rmSync(join(DIST, channel, file), { force: true }); } catch { /* best-effort */ }
         }
+        recordChannelUnpublish(channel);
         console.log(`[admin] ${adminSession.discordId} unpublished release channel ${channel}`);
         return json(res, 200, { ok: true, channel }), true;
     }
@@ -2633,6 +2747,10 @@ hydrateKv().then(() => {
     if (stored) {
         try { limeyStatus = JSON.parse(stored); } catch { /* ignore */ }
     }
+}).then(() => {
+    // Bring back channel snapshots the admin published before a restart —
+    // dist/<channel>/ lives on ephemeral container disk.
+    return restoreChannelSnapshots();
 }).finally(() => {
     server.listen(PORT, HOST, () => {
         console.log(`Limey V1 web server running at http://${HOST}:${PORT} (persistent storage: ${KV_ENABLED ? "PostgreSQL" : "local files"})`);
