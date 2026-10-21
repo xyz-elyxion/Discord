@@ -85,12 +85,17 @@ func pushLimeyTheme() {
 	imgui.PushStyleVarFloat(imgui.StyleVarScrollbarRounding, 8)
 	imgui.PushStyleVarFloat(imgui.StyleVarTabRounding, 8)
 	imgui.PushStyleVarFloat(imgui.StyleVarWindowBorderSize, 0)
-	g.PushFramePadding(8, 6)
-	g.PushItemSpacing(8, 8)
+	// NOTE: use imgui directly, not g.PushFramePadding/g.PushItemSpacing:
+	// giu v0.6.2's PushFramePadding pushes a second hidden style var
+	// (SelectableTextAlign), which silently desynchronized the push/pop
+	// counts and eventually tripped the VC runtime "assert Size > 0"
+	// (imgui.h:1752) on the frame's style stack.
+	imgui.PushStyleVarVec2(imgui.StyleVarFramePadding, imgui.Vec2{X: 8, Y: 6})
+	imgui.PushStyleVarVec2(imgui.StyleVarItemSpacing, imgui.Vec2{X: 8, Y: 8})
 }
 
 func popLimeyTheme() {
 	g.PopStyleV(2)        // FramePadding + ItemSpacing
 	imgui.PopStyleVarV(7) // the float roundings/border above
-	g.PopStyleColorV(21)  // every PushStyleColor above (must match the push count exactly — an extra pop underflows imgui's style stack and trips the VC runtime "assert Size > 0")
+	imgui.PopStyleColorV(21) // every PushStyleColor above (must match the push count exactly — an extra pop underflows imgui's style stack and trips the VC runtime "assert Size > 0")
 }
