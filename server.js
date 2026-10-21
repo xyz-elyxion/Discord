@@ -2309,6 +2309,15 @@ function serveFile(res, filePath, status = 200) {
         // build artifacts are immutable per version, cache them for a day
         headers["Cache-Control"] = "public, max-age=86400";
     }
+    // Installer binaries are the one thing that MUST track the current
+    // container: when we patch a crash (e.g. the imgui "assert Size > 0"),
+    // a rebuilt container has to be able to hand out fresh bytes within
+    // minutes, not a day later. Give just these a short window; the rest of
+    // dist/ (renderer/patcher files served per-build) stays immutable-cached.
+    const installerName = filePath.split(/[\\/]/).pop() || "";
+    if (installerName.startsWith("LimeyV1Installer")) {
+        headers["Cache-Control"] = "public, max-age=300";
+    }
 
     try {
         const stream = createReadStream(filePath);
