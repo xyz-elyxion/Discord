@@ -24,3 +24,5 @@ require (
 	golang.org/x/image v0.0.0-20220302094943-723b81ca9867 // indirect
 	gopkg.in/eapache/queue.v1 v1.1.0 // indirect
 )
+
+replace github.com/AllenDang/imgui-go => ../third_party/imgui-go
