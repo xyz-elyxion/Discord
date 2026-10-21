@@ -68,6 +68,14 @@ func Ternary[T any](b bool, ifTrue, ifFalse T) T {
 	return ifFalse
 }
 
+// minInt returns the smaller of two ints (Go < 1.21 has no builtin min).
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 var branches = []string{"canary", "development", "ptb"}
 
 func GetBranch(name string) string {

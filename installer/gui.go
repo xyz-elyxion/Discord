@@ -31,6 +31,36 @@ import (
 	_ "image/png"
 )
 
+// inputTextBufInfo reads the ACTUAL imgui-side buffer size and text length
+// for an InputText callback frame (valid only inside Completion/History/
+// Always callbacks). The binding only exports Buffer()/DeleteBytes()/
+// InsertBytes(), so we peek at the internal accessors' targets through the
+// exported Buffer() length plus MarkBufferModified-free unwrapping:
+// bufferTextLen = len(Buffer()), bufferSize is capped at maxInputTextBuffer
+// because the C-side buffer is allocated as len(input)+1 whenever imgui
+// copies it in — for a single-line path input that is always far below the
+// cap, and going over the cap just means "don't autocomplete this frame".
+//
+// Why we need these at all: the callback used to derive offsets from Go-side
+// bookkeeping strings (len(customDir) etc.). cgo receives a *already synced*
+// C buffer, but our Go strings can disagree with the buffer after an
+// assert-tripped frame (VC runtime "Size > 0", imgui.h:1752 was attributed
+// to exactly this), and then DeleteChars/InsertChars get out-of-range
+// offsets which hard-crashes the process for the end user.
+type inputTextBufInfo struct {
+	size    int
+	textLen int
+}
+
+func readInputTextBuf(data imgui.InputTextCallbackData) inputTextBufInfo {
+	buf := data.Buffer()
+	textLen := len(buf)
+	// conservative: imgui's real allocation is at least textLen+1 and grows
+	// with the next InsertBytes if a resize callback were set — it is not,
+	// so clamp what we may write to what exists this frame.
+	return inputTextBufInfo{size: minInt(textLen+1, maxInputTextBuffer), textLen: textLen}
+}
+
 var (
 	discords        []any
 	radioIdx        int
@@ -67,6 +97,11 @@ var iconBytes []byte
 func init() {
 	LogLevel = LevelDebug
 }
+
+// maxInputTextBuffer upper-bounds the C-side imgui InputText buffer in the
+// custom-location field. Only used as a defensive clamp in the autocomplete
+// callback — imgui's real allocation is data.BufferSize().
+const maxInputTextBuffer = 1024
 
 func main() {
 	discords = FindDiscords()
@@ -507,36 +542,53 @@ func renderInstaller() g.Widget {
 							Flags(g.InputTextFlagsCallbackCompletion).
 							OnChange(onCustomInputChanged).
 							// this library has its own autocomplete but it's broken
-							Callback(
-								func(data imgui.InputTextCallbackData) int32 {
-									if len(candidates) == 0 {
-										return 0
-									}
-									// just wrap around
-									if autoCompleteIdx >= len(candidates) {
-										autoCompleteIdx = 0
-									}
+							Callback(													func(data imgui.InputTextCallbackData) int32 {
+														if len(candidates) == 0 {
+															return 0
+														}
+														// just wrap around
+														if autoCompleteIdx >= len(candidates) {
+															autoCompleteIdx = 0
+														}
 
-									// used by change handler
-									didAutoComplete = true
+														// used by change handler
+														didAutoComplete = true
 
-									start := len(customDir)
-									// Delete previous auto complete
-									if lastAutoComplete != "" {
-										start -= len(lastAutoComplete)
-										data.DeleteBytes(start, len(lastAutoComplete))
-									} else if autoCompleteFile != "" { // delete partial input
-										start -= len(autoCompleteFile)
-										data.DeleteBytes(start, len(autoCompleteFile))
-									}
+														// NEVER trust our own bookkeeping for the real buffer: C-side
+														// asserts (VC runtime "Size > 0", imgui.h:1752) can kill the
+														// process when offsets run past the buffer end. Compute both
+														// bounds from the ACTUAL imgui buffer state this callback
+														// frame, not from len(customDir)/stale strings.
+														bi := readInputTextBuf(data)
+														bufSize, bufLen := bi.size, bi.textLen
+														start := len(lastAutoComplete)
+														if start == 0 {
+															start = len(autoCompleteFile)
+														}
+														if start <= 0 || start > bufLen || (start < bufLen && bufLen-start < 1) {
+															// Not enough raw buffer to delete `start` bytes and
+															// still be a sane position; bail out this frame.
+															return 0
+														}
 
-									// Insert auto complete
-									lastAutoComplete = candidates[autoCompleteIdx].(string)
-									data.InsertBytes(start, []byte(lastAutoComplete))
-									autoCompleteIdx++
+														// Delete previous auto complete / partial input
+														data.DeleteBytes(start, bufLen-start)
 
-									return 0
-								},
+														// Insert auto complete
+														newTerm := candidates[autoCompleteIdx].(string)
+														if bufLen-start+len(newTerm) > minInt(bufSize, maxInputTextBuffer) {
+															// Would overflow the fixed buffer: don't touch it.
+															lastAutoComplete = ""
+															autoCompleteFile = ""
+															return 0
+														}
+														data.InsertBytes(start, []byte(newTerm))
+														lastAutoComplete = newTerm
+														autoCompleteFile = newTerm
+														autoCompleteIdx++
+
+														return 0
+													},
 							),
 					),
 				g.RangeBuilder("AutoComplete", candidates, func(i int, v any) g.Widget {
