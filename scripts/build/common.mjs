@@ -51,7 +51,12 @@ export const gitHash = process.env.LIMEYV1_HASH || (() => {
     try {
         return execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
     } catch {
-        return "unknown";
+        // No git available (e.g. production Docker builds). Before this fell
+        // back to "unknown", which every deployed build stamped — the admin
+        // panel and installers then displayed "Limey V1 unknown" instead of
+        // something meaningful. The Limey V1 package version is a useful,
+        // monotonic stamp for those builds (it changes when a release is cut).
+        return VERSION;
     }
 })();
 
