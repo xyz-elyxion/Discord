@@ -12,6 +12,10 @@ WORKDIR /installer
 # mingw is needed to cross-compile the cgo-based GUI installer for Windows
 RUN apk add --no-cache mingw-w64-gcc
 COPY installer/go.mod installer/go.sum ./
+# The installer module force-replaces imgui-go with our vendored fork
+# (soft-assert patch, see third_party/imgui-go) — at /installer that relative
+# path resolves to /third_party/imgui-go, so copy it there too.
+COPY third_party /third_party
 RUN go mod download
 COPY installer .
 # Cross-compile the GUI installer (Windows .exe) and static CLI installers
