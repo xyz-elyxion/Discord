@@ -154,7 +154,7 @@ importers:
   ghost-client-app:
     devDependencies:
       electron:
-        specifier: ^33.0.0
+        specifier: 33.4.11
         version: 33.4.11
       electron-builder:
         specifier: ^25.1.8

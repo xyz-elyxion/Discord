@@ -92,11 +92,27 @@ WORKDIR /ghost
 
 RUN corepack enable
 
+# app-builder downloads the electron win32-x64 dist with a parallel-part
+# downloader that some CI hosts (Render et al.) rate-limit or block. Use the
+# npmmirror CDN mirror instead and pre-fetch the zip into electron-builder's
+# cache with retries, so the in-builder download short-circuits entirely.
+ENV ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+ENV XDG_CACHE_HOME=/node/.cache
+
 COPY ghost-client-app/package.json ./
 
-# electron's postinstall grabs a ~100MB binary we never run locally (build is
-# for win32-x64) — skip scripts, electron-builder pulls the right dist itself.
+# electron's postinstall grabs a ~100MB binary we never run locally and it
+# needs no scripts at build time (the correct dist is pre-fetched below).
 RUN pnpm install --frozen-lockfile=false --ignore-scripts
+
+RUN EV=$(node -p "require('electron/package.json').version") \
+    && mkdir -p /node/.cache/electron /root/.cache/electron \
+    && curl --fail --location --silent --show-error \
+        --retry 5 --retry-delay 3 --retry-all-errors \
+        -o /node/.cache/electron/electron-v${EV}-win32-x64.zip \
+        "https://npmmirror.com/mirrors/electron/v${EV}/electron-v${EV}-win32-x64.zip" \
+    && cp /node/.cache/electron/electron-v${EV}-win32-x64.zip /root/.cache/electron/ \
+    && ls -la /node/.cache/electron /root/.cache/electron
 
 COPY ghost-client-app ./
 RUN pnpm build:win \
