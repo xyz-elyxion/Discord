@@ -225,16 +225,12 @@ console.log("To remove: delete", injectDir, "and restore app.asar from app.orig.
     return zipped;
 }
 
-// Ready-built Limey V1 Desktop standalone app payload (built by the Docker
+// Ready-built Limey V1 Desktop standalone app build (built by the Docker
 // `desktop` stage): esbuild bundles in dist/, views/native helpers in
-// static/ and package.json at the root. Teammates run it with any desktop
-// Electron: unzip, `npm install`, `npm exec electron .` — no Discord patching
-// involved. Formal installers (.exe/.dmg/AppImage) are published by the repo's
-// GitHub release workflow on tags.
+// static/ and package.json at the root. Packaged installers (win.zip /
+// AppImage / tar.gz) are collected from the same layout and served one by
+// one — download and run, no Discord patching involved.
 const DESKTOP_APP_DIR = join(DIST, "limeyDesktop");
-
-let desktopAppZipCache = null;
-let desktopAppZipKey = "";
 
 // Payload location: in the production image the `desktop` Docker stage output
 // is copied to dist/limeyDesktop. When that copy is absent (dev/sandbox
@@ -291,43 +287,10 @@ function collectDesktopAppFiles(acc, dir, prefix = "") {
         // own .git — never ship those in the payload.
         if (name === "node_modules" || name === ".git") continue;
         const full = join(dir, name);
-        const rel = prefix ? `${prefix}/${name}` : name;
-        if (statSync(full).isDirectory()) collectDesktopAppFiles(acc, full, rel);
+        const rel = prefix ? `${prefix}/${name}` : name;        if (statSync(full).isDirectory()) collectDesktopAppFiles(acc, full, rel);
         else acc.push({ full, rel });
     }
     return acc;
-}
-
-function buildDesktopAppZip() {
-    const base = desktopAppDir();
-    if (!base) return null;
-
-    let zipSync;
-    try { ({ zipSync } = require("fflate")); } catch { return null; }
-
-    const files = collectDesktopAppFiles([], base);
-    const key = files.map(f => statSync(f.full).mtimeMs).join(",");
-    if (desktopAppZipCache && key === desktopAppZipKey) return desktopAppZipCache;
-
-    const zipData = {};
-    for (const { full, rel } of files) {
-        try {
-            zipData["LimeyV1Desktop/" + rel] = new Uint8Array(readFileSync(full));
-        } catch { /* skip unreadable files */ }
-    }
-    zipData["LimeyV1Desktop/RUN_INSTRUCTIONS.txt"] = new TextEncoder().encode(
-        "Limey V1 Desktop — standalone Discord client (Electron)\n\n" +
-        "1. Unzip this folder.\n" +
-        "2. Inside the folder run:  npm install\n" +
-        "3. Start the app with:     npm exec electron .\n\n" +
-        "The app never patches your Discord install; it loads the Limey V1 mod\n" +
-        "fresh from the Limey backend on first launch. Build from source or get\n" +
-        "packaged releases: https://github.com/xyz-elyxion/Discord/releases\n"
-    );
-    const zipped = Buffer.from(zipSync(zipData, { level: 9 }));
-    desktopAppZipCache = zipped;
-    desktopAppZipKey = key;
-    return zipped;
 }
 
 function handleInstall(req, res, url) {
@@ -444,9 +407,8 @@ function handleInstall(req, res, url) {
             app: "Limey V1 Desktop",
             description: "Standalone Discord client (Vesktop fork) with the Limey V1 mod preloaded",
             built,
-            zip: "/v1/install/desktop-app-zip",
-            // Ready-to-run packaged builds (AppImage / tar.gz / Windows zip),
-            // streamed from DON local disk (the `desktop` Docker stage output).
+            // Ready-to-run packaged builds (win.zip / AppImage / tar.gz),
+            // streamed straight from local disk (the `desktop` Docker stage output).
             installers: desktopAppInstallers().map(f => ({
                 name: f.base,
                 size: statSync(f.full).size,
@@ -481,20 +443,6 @@ function handleInstall(req, res, url) {
             "Access-Control-Allow-Origin": "*"
         });
         createReadStream(file.full).pipe(res);
-        return true;
-    }
-
-    if (url === "/v1/install/desktop-app-zip") {
-        const zip = buildDesktopAppZip();
-        if (!zip) return json(res, 503, { error: "desktop app build not available yet" }), true;
-        res.writeHead(200, {
-            "Content-Type": "application/zip",
-            "Content-Length": zip.length,
-            "Content-Disposition": "attachment; filename=\"LimeyV1Desktop-app.zip\"",
-            "Cache-Control": "no-cache",
-            "Access-Control-Allow-Origin": "*"
-        });
-        res.end(zip);
         return true;
     }
 

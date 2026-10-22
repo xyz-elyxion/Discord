@@ -165,8 +165,8 @@ COPY --from=build --chown=node:node /app/runtime_deps/node_modules ./node_module
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/dist ./dist
 # Limey V1 Desktop standalone app (built by the desktop stage): bundles, views
-# and manifest under /dist/limeyDesktop so /v1/install/desktop-app-zip can
-# package it and /dist/limeyDesktop/* serves the raw build files.
+# and manifest under /dist/limeyDesktop. /dist/limeyDesktop/* serves the raw
+# build files and /v1/install/desktop-app serves the packaged installers.
 COPY --from=desktop --chown=node:node /desktop/dist /app/dist/limeyDesktop/dist
 COPY --from=desktop --chown=node:node /desktop/static /app/dist/limeyDesktop/static
 COPY --from=desktop --chown=node:node /desktop/package.json /app/dist/limeyDesktop/package.json

@@ -651,7 +651,6 @@
                     <li>Open <a href="https://discord.com/app" target="_blank" rel="noopener">discord.com/app</a> and reload.</li>
                 </ol>
                 <a class="btn btn-primary" href="/dist/LimeyV1.user.js">Install Userscript</a>
-                <a class="btn btn-ghost" href="/dist/LimeyV1.user.css">Get the Theme (.user.css)</a>
                 <span class="platforms">Chromium &middot; Firefox &middot; Safari (Tampermonkey)</span>
             </div>
             <!-- Standalone desktop client (rebranded Vesktop fork, built
@@ -665,11 +664,10 @@
                     client-mod builds straight from this backend.
                 </p>
                 <ol>
-                    <li>Download the app bundle below and unzip it.</li>
-                    <li>Inside the folder run <code>npm install</code>, then <code>npm exec electron .</code>.</li>
+                    <li>Download the installer below for your OS and unzip/extract it where needed.</li>
+                    <li>Windows: just run <code>limey-v1-desktop.exe</code> — no setup, no npm steps.</li>
                     <li>That's it — the client loads Limey V1 from the backend on launch.</li>
                 </ol>
-                <a class="btn btn-primary" href="/v1/install/desktop-app-zip">Download Desktop App (.zip bundle)</a>
                 <div id="desktopAppInstallers" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px">
                     <span class="platforms">Checking packaged installers…</span>
                 </div>
@@ -880,7 +878,7 @@
         wrap.innerHTML = "";
         var installers = (info && info.installers) || [];
         if (!installers.length) {
-            wrap.innerHTML = "<span class=\"platforms\">Packaged installers not ready yet — use the bundle above.</span>";
+            wrap.innerHTML = "<span class=\"platforms\">Packaged installers not ready yet — check back shortly.</span>";
             return;
         }
         installers.forEach(function (installer) {
