@@ -1,5 +1,6 @@
 packages:
   - packages/*
+  - ghost-client-app
 patchedDependencies:
   eslint-plugin-path-alias@2.1.0: patches/eslint-plugin-path-alias@2.1.0.patch
 peerDependencyRules:
@@ -14,6 +15,7 @@ allowedDeprecatedVersions:
   q: '*'
 strictPeerDependencies: false
 allowBuilds:
+  electron: false
   esbuild: true
 pmOnFail: warn
 minimumReleaseAgeExclude:

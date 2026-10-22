@@ -82,6 +82,26 @@ RUN pnpm exec electron-builder --linux AppImage tar.gz --publish never \
 # are what ships; linux-unpacked/win-unpacked just inflate the image.
 RUN rm -rf dist/linux-unpacked dist/win-unpacked dist/*.blockmap dist/builder-debug.yml dist/builder-effective-config.yaml
 
+# ---------- Ghost Client overlay (Electron EXE) ----------
+# Builds the Prestige-style overlay app (ghost-client-app/) into a portable
+# Windows zip. Cross-compiled on Linux: electron-builder just downloads the
+# win32-x64 Electron dist and zips it, so no Wine is needed for the zip target.
+FROM node:22-slim AS ghost-client
+
+WORKDIR /ghost
+
+RUN corepack enable
+
+COPY ghost-client-app/package.json ./
+
+# electron's postinstall grabs a ~100MB binary we never run locally (build is
+# for win32-x64) — skip scripts, electron-builder pulls the right dist itself.
+RUN pnpm install --frozen-lockfile=false --ignore-scripts
+
+COPY ghost-client-app ./
+RUN pnpm build:win \
+    && test -f dist/LimeyV1GhostClient-win-x64-1.0.0.zip
+
 # ---------- Build stage ----------
 FROM node:22-alpine AS build
 
@@ -179,6 +199,8 @@ COPY --from=installer --chown=node:node /LimeyV1Installer-cli-win.exe ./dist/Lim
 COPY --from=installer --chown=node:node /LimeyV1Installer-cli-macos-arm64 ./dist/LimeyV1Installer-cli-macos-arm64
 COPY --from=installer --chown=node:node /LimeyV1Installer-cli-macos-amd64 ./dist/LimeyV1Installer-cli-macos-amd64
 COPY --from=installer --chown=node:node /LimeyV1Installer-cli-linux ./dist/LimeyV1Installer-cli-linux
+# Ghost Client overlay EXE (portable Windows zip) for download
+COPY --from=ghost-client --chown=node:node /ghost/dist/*.zip ./dist/
 COPY --from=limebot --chown=node:node /bot/dist ./limebot/dist
 COPY --from=limebot --chown=node:node /bot/node_modules ./limebot/node_modules
 COPY --from=limebot --chown=node:node /bot/package.json ./limebot/package.json

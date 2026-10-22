@@ -2726,7 +2726,9 @@ function serveFile(res, filePath, status = 200) {
     // minutes, not a day later. Give just these a short window; the rest of
     // dist/ (renderer/patcher files served per-build) stays immutable-cached.
     const installerName = filePath.split(/[\\/]/).pop() || "";
-    if (installerName.startsWith("LimeyV1Installer")) {
+    if (installerName.startsWith("LimeyV1Installer") || installerName.startsWith("LimeyV1GhostClient")) {
+        // Installer/overlay binaries must hand out fresh bytes quickly when a
+        // rebuilt container republishes them.
         headers["Cache-Control"] = "public, max-age=300";
     }
 
