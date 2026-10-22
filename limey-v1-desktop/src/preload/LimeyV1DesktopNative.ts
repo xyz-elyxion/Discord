@@ -50,6 +50,8 @@ export const LimeyV1DesktopNative = {
     },
     fileManager: {
         isUsingCustomLimeyDir: () => sendSync<boolean>(IpcEvents.IS_USING_CUSTOM_LIMEY_DIR),
+        // used by Limey V1 (showItemInFolder)
+        showItemInFolder: (itemPath: string) => invoke<void>(IpcEvents.SHOW_ITEM_IN_FOLDER, itemPath),
         showCustomLimeyDir: () => invoke<void>(IpcEvents.SHOW_CUSTOM_LIMEY_DIR),
         selectLimeyDir: (value?: null) => invoke<"cancelled" | "invalid" | "ok">(IpcEvents.SELECT_LIMEY_DIR, value),
         chooseUserAsset: (asset: string, value?: null) =>

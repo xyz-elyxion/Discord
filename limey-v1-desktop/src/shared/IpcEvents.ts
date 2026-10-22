@@ -62,7 +62,10 @@ export const enum IpcEvents {
     DEVTOOLS_OPENED = "LVD_DEVTOOLS_OPENED",
     DEVTOOLS_CLOSED = "LVD_DEVTOOLS_CLOSED",
 
-    CHOOSE_USER_ASSET = "LVD_CHOOSE_USER_ASSET"
+    CHOOSE_USER_ASSET = "LVD_CHOOSE_USER_ASSET",
+
+    // used by the Limey V1 mod's showItemInFolder()
+    SHOW_ITEM_IN_FOLDER = "LVD_SHOW_ITEM_IN_FOLDER"
 }
 
 export const enum UpdaterIpcEvents {

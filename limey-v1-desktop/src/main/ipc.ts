@@ -18,7 +18,7 @@ import {
     session,
     shell
 } from "electron";
-import { readFileSync, watch } from "fs";
+import { existsSync, readFileSync, watch } from "fs";
 import { readFile, stat } from "fs/promises";
 import { release } from "os";
 import { join } from "path";
@@ -97,6 +97,13 @@ handle(IpcEvents.SHOW_CUSTOM_LIMEY_DIR, async () => {
     if (!stats.isDirectory()) return;
 
     shell.openPath(limeyDir);
+});
+
+// Used by the Limey V1 mod's showItemInFolder (file drops, theme links etc.)
+handle(IpcEvents.SHOW_ITEM_IN_FOLDER, (e, itemPath: string) => {
+    if (typeof itemPath !== "string" || !existsSync(itemPath)) return;
+
+    shell.showItemInFolder(itemPath);
 });
 
 function getWindow(e: IpcMainInvokeEvent, key?: string) {

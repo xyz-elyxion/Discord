@@ -9,11 +9,17 @@ import { contextBridge, ipcRenderer, webFrame } from "electron/renderer";
 import { IpcEvents } from "../shared/IpcEvents";
 import { LimeyV1DesktopNative } from "./LimeyV1DesktopNative";
 
-// The name must differ from the client mod's own preload global
-// (LimeyV1Native, bound by limeyV1DesktopPreload.js below) — the mod preload
-// runs after this binding inside the same sandbox and ContextBridge throws
-// "Cannot bind an API on top of an existing property" on collisions, which
-// used to kill the whole preload and silently disable Limey V1.
+// Must not collide with the client mod's own preload global (LimeyV1Native,
+// bound by limeyV1DesktopPreload.js below) — the mod preload runs after these
+// bindings inside the same sandbox and ContextBridge throws "Cannot bind an
+// API on top of an existing property" on collisions, which used to kill the
+// whole preload and silently disable Limey V1.
+//
+// VesktopNative is the name the Limey V1 mod and upstream plugins expect
+// (src/utils/native.ts, IS_VESKTOP plugin code); LimeyV1DesktopNative is the
+// rebranded name the desktop shell's own renderer uses. Same object, both
+// names — neither collides with LimeyV1Native.
+contextBridge.exposeInMainWorld("VesktopNative", LimeyV1DesktopNative);
 contextBridge.exposeInMainWorld("LimeyV1DesktopNative", LimeyV1DesktopNative);
 
 // While sandboxed, Electron "polyfills" these APIs as local variables.
