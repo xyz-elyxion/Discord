@@ -33,16 +33,34 @@ export function rand(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+/** Throws a readable error if the response is not a JSON body (Reddit answers
+ * many anonymous API calls with an HTML block page, which used to surface as a
+ * raw "Unexpected token '<'" SyntaxError while the message was being sent). */
+function assertJsonBody(res: Response, apiName: string): void {
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!res.ok || !contentType.includes("json")) {
+        throw new Error(`${apiName} is unavailable right now (HTTP ${res.status}, content-type '${contentType || "unknown"}')`);
+    }
+}
+
 export async function getCuteAnimeBoys(sub: string) {
     const res = await fetch(`https://www.reddit.com/r/${sub}/top.json?limit=100&t=all`);
-    const { children } = (await res.json()).data;
+    assertJsonBody(res, `Reddit /r/${sub}`);
+
+    const { children } = await res.json();
+    if (!Array.isArray(children) || !children.length) {
+        throw new Error(`Reddit /r/${sub} returned no posts`);
+    }
+
     const r = rand(0, children.length - 1);
-    return children[r].data.url ?? "";
+    return children[r].data?.url ?? "";
 }
 
 export async function getCuteNeko(): Promise<string> {
     const res = await fetch("https://nekos.best/api/v2/neko");
-    const url = (await res.json()).results[0].url as string | null;
+    assertJsonBody(res, "nekos.best");
+
+    const url = (await res.json()).results?.[0]?.url as string | null;
     return url ?? "";
 }
 

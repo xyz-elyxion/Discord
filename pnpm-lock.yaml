@@ -163,6 +163,8 @@ importers:
         specifier: ^5.7.0
         version: 5.10.0
 
+  packages/limey-v1-sdk: {}
+
   packages/limeyV1-types:
     dependencies:
       '@limeyV1/discord-types':

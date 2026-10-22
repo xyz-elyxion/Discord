@@ -372,9 +372,16 @@ export default definePlugin({
         {
             name: "nekos",
             description: "Send Neko",
-            execute: async () => ({
-                content: await getCuteNeko()
-            })
+            execute: async (opts, ctx) => {
+                try {
+                    return { content: await getCuteNeko() };
+                } catch (err) {
+                    console.warn("[MoreCommands] /nekos failed:", err);
+                    sendBotMessage(ctx.channel.id, {
+                        content: "Couldn't fetch a neko right now 😿 (nekos.best is unreachable — try again in a moment.)"
+                    });
+                }
+            }
         },
         {
             name: "anime-boys",
@@ -387,11 +394,19 @@ export default definePlugin({
                     required: false,
                 },
             ],
-            execute: async opts => {
+            execute: async (opts, ctx) => {
                 let sub = "cuteanimeboys";
                 const cat = findOption(opts, "cat") as boolean | undefined;
                 if (cat) sub = "animecatboys";
-                return { content: await getCuteAnimeBoys(sub) };
+
+                try {
+                    return { content: await getCuteAnimeBoys(sub) };
+                } catch (err) {
+                    console.warn("[MoreCommands] /anime-boys failed:", err);
+                    sendBotMessage(ctx.channel.id, {
+                        content: "Couldn't fetch cute anime boys right now 😿 (Reddit is blocking anonymous API requests — try again later.)"
+                    });
+                }
             },
         },
         {
