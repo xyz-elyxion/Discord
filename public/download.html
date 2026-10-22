@@ -669,9 +669,11 @@
                     <li>Inside the folder run <code>npm install</code>, then <code>npm exec electron .</code>.</li>
                     <li>That's it — the client loads Limey V1 from the backend on launch.</li>
                 </ol>
-                <a class="btn btn-primary" href="/v1/install/desktop-app-zip">Download Desktop App (.zip)</a>
-                <a class="btn btn-ghost" href="https://github.com/xyz-elyxion/Discord/releases" target="_blank" rel="noopener">Packaged installers (.exe / .dmg / AppImage)</a>
-                <span class="platforms">Windows &middot; macOS &middot; Linux</span>
+                <a class="btn btn-primary" href="/v1/install/desktop-app-zip">Download Desktop App (.zip bundle)</a>
+                <div id="desktopAppInstallers" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px">
+                    <span class="platforms">Checking packaged installers…</span>
+                </div>
+                <span class="platforms">Windows &middot; Linux</span>
             </div>
         </div>
 
@@ -867,6 +869,31 @@
             if (el) el.innerHTML = published[ch] ? labels[ch][0] : labels[ch][1];
         });
     }).catch(function () { /* keep "status unknown" */ });
+
+    // Installers are built in the same pipeline as the rest of the site's
+    // artifacts (the Docker `desktop` stage). List whatever the backend has.
+    fetch("/v1/install/desktop-app").then(function (r) {
+        return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
+    }).then(function (info) {
+        var wrap = document.getElementById("desktopAppInstallers");
+        if (!wrap) return;
+        wrap.innerHTML = "";
+        var installers = (info && info.installers) || [];
+        if (!installers.length) {
+            wrap.innerHTML = "<span class=\"platforms\">Packaged installers not ready yet — use the bundle above.</span>";
+            return;
+        }
+        installers.forEach(function (installer) {
+            var a = document.createElement("a");
+            a.className = "btn dl-btn";
+            a.href = installer.url;
+            a.textContent = installer.name + " (" + Math.round(installer.size / 1048576) + " MB)";
+            wrap.appendChild(a);
+        });
+    }).catch(function () {
+        var wrap = document.getElementById("desktopAppInstallers");
+        if (wrap) wrap.innerHTML = "<span class=\"platforms\">Installer list unavailable right now.</span>";
+    });
 })();
 </script>
     <script src="/limey-dragify.js" defer></script>

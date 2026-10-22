@@ -257,6 +257,34 @@ function desktopAppBuilt() {
     return desktopAppDir() !== null;
 }
 
+// Packaged installers produced by the `desktop` Docker stage (or a local
+// `pnpm exec electron-builder` run in the checkout fallback): Linux
+// AppImage/.tar.gz and the portable Windows .zip. Served one by one so users
+// don't have to pull the full bundle zip for a ready-to-run build.
+// Path separators AND hyphens (artifact names carry "Limey V1 Desktop-x.y.z")
+// must both be in the class; hyphen stays last so it stays a literal.
+const DESKTOP_APP_INSTALLER_RE = /^[\w /.-]+\.(AppImage|deb|tar\.gz|zip)$/;
+
+// Collect from EVERY built source (runtime copy and checkout alike): the two
+// layouts can be out of sync with each other, and whichever one carries the
+// newest packaged artifacts should win. URLs use the BASENAME only — slashes
+// in the path segment get re-interpreted by proxies, breaking the download.
+function desktopAppInstallers() {
+    const seen = new Map();
+    for (const source of DESKTOP_APP_SOURCES) {
+        if (!existsSync(join(source, "dist", "js", "main.js"))) continue;
+        const distDir = join(source, "dist");
+        if (!existsSync(distDir)) continue;
+
+        for (const { full, rel } of collectDesktopAppFiles([], distDir, "dist")) {
+            if (!DESKTOP_APP_INSTALLER_RE.test(rel) || !statSync(full).isFile()) continue;
+            const base = rel.slice(rel.lastIndexOf("/") + 1);
+            if (!seen.has(base)) seen.set(base, { base, full });
+        }
+    }
+    return [...seen.values()];
+}
+
 function collectDesktopAppFiles(acc, dir, prefix = "") {
     for (const name of readdirSync(dir)) {
         // The checkout fallback lives next to node_modules and this project's
@@ -417,14 +445,43 @@ function handleInstall(req, res, url) {
             description: "Standalone Discord client (Vesktop fork) with the Limey V1 mod preloaded",
             built,
             zip: "/v1/install/desktop-app-zip",
+            // Ready-to-run packaged builds (AppImage / tar.gz / Windows zip),
+            // streamed from DON local disk (the `desktop` Docker stage output).
+            installers: desktopAppInstallers().map(f => ({
+                name: f.base,
+                size: statSync(f.full).size,
+                // installer names contain spaces — keep URLs encoded
+                url: `/v1/install/desktop-app/installers/${encodeURIComponent(f.base)}`
+            })),
             artifacts: built ? [
                 "/dist/limeyDesktop/dist/js/main.js",
                 "/dist/limeyDesktop/dist/js/preload.js",
                 "/dist/limeyDesktop/dist/js/renderer.js",
                 "/dist/limeyDesktop/dist/js/renderer.css"
-            ] : [],
-            releases: "https://github.com/xyz-elyxion/Discord/releases"
+            ] : []
         }), true;
+    }
+
+    // Installer names carry spaces, which arrive percent-encoded in the URL —
+    // the match must tolerate %20 and decode before filename comparison;
+    // names are re-validated against the strict regex after decoding.
+    const desktopAppInstaller = /^\/v1\/install\/desktop-app\/installers\/([\w %-.]+\.(?:AppImage|deb|tar\.gz|zip))$/.exec(url);
+    if (desktopAppInstaller) {
+        // Installer names carry spaces, which arrive percent-encoded — decode
+        // before matching; desktopAppInstallers() only ever returns whitelisted
+        // artifact basenames, so lookup by basename is safe.
+        const name = decodeURIComponent(desktopAppInstaller[1]);
+        const file = desktopAppInstallers().find(f => f.base === name);
+        if (!file) return json(res, 404, { error: "installer not found — is the desktop build ready?" }), true;
+        // Stream directly — these run 100MB+, no buffering through json/serve.
+        res.writeHead(200, {
+            "Content-Type": name.endsWith(".zip") ? "application/zip" : name.includes(".tar.gz") ? "application/gzip" : "application/octet-stream",
+            "Content-Disposition": `attachment; filename="${name}"`,
+            "Cache-Control": "no-cache",
+            "Access-Control-Allow-Origin": "*"
+        });
+        createReadStream(file.full).pipe(res);
+        return true;
     }
 
     if (url === "/v1/install/desktop-app-zip") {

@@ -50,9 +50,11 @@ RUN node scripts/build.mjs
 # Builds the rebranded Vesktop fork in limey-v1-desktop/: esbuild bundles the
 # app's main/preload/renderer/splash/updater scripts into /desktop/dist.
 # No Electron runtime scripts are needed for bundling, so install with
-# --ignore-scripts (keeps the electron binary download out of this stage) and
-# rebuild esbuild, the one devDependency that ships a platform binary.
-FROM node:22-alpine AS desktop
+# --ignore-scripts (electron binaries are fetched per-target by
+# electron-builder at package time) and rebuild esbuild, which ships a
+# platform binary. Debian (glibc) rather than Alpine: electron-builder's
+# native packers (app-builder, AppImage toolset) need glibc; musl breaks them.
+FROM node:22-slim AS desktop
 WORKDIR /desktop
 
 RUN corepack enable
@@ -67,6 +69,18 @@ RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild esbuild
 COPY limey-v1-desktop ./
 RUN pnpm build \
     && test -f dist/js/main.js && test -f dist/js/renderer.js && test -f dist/js/preload.js
+
+# Package real installers next to the plain bundles, all built in-image:
+#  - Linux: AppImage + .tar.gz (both arches from the electron-builder config)
+#  - Windows: portable .zip (unzip & run; no NSIS/Wine needed for zip targets)
+# Packaging pulls the per-target Electron dist zips itself. --publish never:
+# artifacts must stay local to the image, not be uploaded anywhere.
+RUN pnpm exec electron-builder --linux AppImage tar.gz --publish never \
+    && pnpm exec electron-builder --win zip --x64 --publish never
+
+# Drop unpacked intermediates electron-builder leaves behind — the installers
+# are what ships; linux-unpacked/win-unpacked just inflate the image.
+RUN rm -rf dist/linux-unpacked dist/win-unpacked dist/*.blockmap dist/builder-debug.yml dist/builder-effective-config.yaml
 
 # ---------- Build stage ----------
 FROM node:22-alpine AS build
