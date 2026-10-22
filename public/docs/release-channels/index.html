@@ -535,10 +535,18 @@ define the rest as aliases in the release-manager data model rather than
 shipping three independent channels.</p>
 <hr>
 <div class="sl-heading-wrapper level-h2"><h2 id="4-deployment--rollout-strategies">4. Deployment / rollout strategies</h2><a class="sl-anchor-link" href="#4-deployment--rollout-strategies"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “4. Deployment / rollout strategies”</span></a></div>
-<p>These are <strong>Discord·process</strong> (where they exist at Discord) or
-<strong>Proposed/proven industry patterns</strong> — <em>strategies</em>, not user-selectable
-channels. A release manager should pair each with one or more <em>tracks</em> from
-the tables above.</p>
+<p>All of these are <strong>implemented</strong> — backed by the backend’s rollout engine
+(okay, <code dir="auto">server.js</code> has a hat rack again): one module (<code dir="auto">rollouts.js</code>) decides,
+per stable-file request, <em>which copy</em> of the build answers — the live dist
+(blue), the frozen previous snapshot (<code dir="auto">dist/previous/</code>, green), or the frozen
+canary snapshot. Strategies are admin-controlled (Dashboard → rollout
+endpoints under <code dir="auto">/v1/admin/rollout/*</code>), state persists in the same KV store
+as the channel snapshots, and every strategy is observable at
+<code dir="auto">GET /v1/rollouts</code>.</p>
+<p>Cohorts are <strong>deterministic buckets</strong> of a client key — <code dir="auto">?installId=</code> if the
+client supplies one, else the forwarded IP — so a client lands in the same
+cohort across requests and restarts. <code dir="auto">full</code> stays the default; nothing below
+changes which artifacts exist, only which copy rides them.</p>
 <table>
 <thead>
 <tr>
@@ -556,99 +564,111 @@ the tables above.</p>
 <tr>
 <td style="text-align: left"><code dir="auto">full</code></td>
 <td style="text-align: left">Immediate / Full rollout</td>
-<td style="text-align: left">Concept everywhere, effectively what Limey V1 does today</td>
-<td style="text-align: left">Newest build is served to everyone as soon as its hash changes.</td>
+<td style="text-align: left"><strong>Limey</strong> (implemented)</td>
+<td style="text-align: left">Newest build is served to everyone as soon as its hash changes. The default strategy and the fallback for every other mode.</td>
 <td style="text-align: left">Everyone</td>
 <td style="text-align: left">Production</td>
 <td style="text-align: left">Per release</td>
 <td style="text-align: left">The default, matches current <strong>Stable</strong></td>
 </tr>
 <tr>
+<td style="text-align: left"><code dir="auto">rolling</code></td>
+<td style="text-align: left">Rolling Release</td>
+<td style="text-align: left"><strong>Limey</strong> (implemented)</td>
+<td style="text-align: left">Same serving behavior as <code dir="auto">full</code>, framed as continuous delivery — the current build is always live and batches chain into it.</td>
+<td style="text-align: left">Everyone</td>
+<td style="text-align: left">Production</td>
+<td style="text-align: left">Continuous</td>
+<td style="text-align: left">When you want to <em>call</em> the default rolling instead of staged</td>
+</tr>
+<tr>
 <td style="text-align: left"><code dir="auto">canary-rollout</code></td>
 <td style="text-align: left">Canary Rollout</td>
-<td style="text-align: left"><strong>Discord·process</strong> / <strong>Proposed</strong> for Limey V1</td>
-<td style="text-align: left">Ship first to a tiny percentage of volunteers (often <code dir="auto">dev</code>-track users) before the broader audience.</td>
-<td style="text-align: left">Volunteers</td>
+<td style="text-align: left"><strong>Limey</strong> (implemented)</td>
+<td style="text-align: left">A percentage cohort rides the frozen canary snapshot (<code dir="auto">dist/canary/</code>) while everyone else stays on stable. <code dir="auto">POST /v1/admin/rollout/canary {"percent":N}</code>; requires a published canary snapshot.</td>
+<td style="text-align: left">Volunteers (by cohort bucket)</td>
 <td style="text-align: left">Production (early cohort)</td>
 <td style="text-align: left">Per release, percentage-driven</td>
-<td style="text-align: left">Catch client-specific regressions with minimal blast radius</td>
+<td style="text-align: left">Catch client regressions with a bounded blast radius</td>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">progressive</code></td>
 <td style="text-align: left">Progressive Rollout (Staged rollout)</td>
-<td style="text-align: left"><strong>Discord·process</strong> (numlock-based % cohorts are in Discord’s own updater) / <strong>Proposed</strong></td>
-<td style="text-align: left">Percentage cohorts (1% → 10% → 50% → 100%), each gated on error telemetry.</td>
+<td style="text-align: left"><strong>Limey</strong> (implemented)</td>
+<td style="text-align: left">Stage cohorts (<code dir="auto">1% → 10% → 50% → 100%</code>) are served the current build while the rest of the population is held on the frozen previous copy. <code dir="auto">POST /v1/admin/rollout/stage {"percent":N}</code>; the current stable is frozen into <code dir="auto">dist/previous/</code> first.</td>
 <td style="text-align: left">Everyone, spread over time</td>
 <td style="text-align: left">Production</td>
-<td style="text-align: left">Per release window</td>
-<td style="text-align: left">Universal, boring, extremely effective default</td>
+<td style="text-align: left">Per stage bump</td>
+<td style="text-align: left">Rolling out a risky change gradually, with an instant way back</td>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">phased</code></td>
 <td style="text-align: left">Phased Rollout</td>
-<td style="text-align: left"><strong>Proposed</strong> (same family, cohort-by-cohort on a calendar rather than telemetry)</td>
-<td style="text-align: left">Fixed dates for steps (“2026-10-25: 10%”) rather than percentage health gates.</td>
-<td style="text-align: left">Ops/forks with uptime contracts</td>
+<td style="text-align: left"><strong>Limey</strong> (implemented)</td>
+<td style="text-align: left">Like progressive, but the effective percent comes from admin-set calendar windows (<code dir="auto">{ at, percent }</code>) resolved at request time — no manual bumps. <code dir="auto">POST /v1/admin/rollout/phases {"phases":[{"at":"2026-10-25T10:00:00Z","percent":10}, …]}</code>.</td>
+<td style="text-align: left">Ops with planned windows</td>
 <td style="text-align: left">Production</td>
-<td style="text-align: left">Planned windows</td>
-<td style="text-align: left">Coordinating across maintainers, companies or server regions</td>
-</tr>
-<tr>
-<td style="text-align: left"><code dir="auto">rolling</code></td>
-<td style="text-align: left">Rolling Release</td>
-<td style="text-align: left"><strong>Proposed</strong> (apt/arch/Rust toolchain model name)</td>
-<td style="text-align: left">No versioned releases at all — updates continuously.</td>
-<td style="text-align: left">Developers &amp; tinkerers</td>
-<td style="text-align: left">Unstable</td>
-<td style="text-align: left">Continuous</td>
-<td style="text-align: left">Exactly what <code dir="auto">dev</code> already is; use this term when explaining the model, not as a channel</td>
+<td style="text-align: left">Per planned window</td>
+<td style="text-align: left">Coordinating across regions/times without a human watching the clock</td>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">bluegreen</code></td>
 <td style="text-align: left">Blue-Green Deployment</td>
-<td style="text-align: left"><strong>Proposed</strong> (deployment topology, not a channel)</td>
-<td style="text-align: left">Run current build (blue) and new build (green) simultaneously; switch the pointer after health-check.</td>
-<td style="text-align: left">Backend / server.js wearing hats</td>
+<td style="text-align: left"><strong>Limey</strong> (implemented)</td>
+<td style="text-align: left">Two complete copies: blue = live dist, green = frozen previous snapshot. <code dir="auto">POST /v1/admin/rollout/serve {"serve":"green"}</code> moves <em>every</em> client onto the old copy — a one-click revert without waiting for a new build.</td>
+<td style="text-align: left">Everyone</td>
 <td style="text-align: left">Production</td>
-<td style="text-align: left">Per deploy</td>
-<td style="text-align: left">Zero-downtime backend deploys for the Limey V1 API itself</td>
+<td style="text-align: left">Per deployment</td>
+<td style="text-align: left">Reverting a bad stable release in one call</td>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">shadow</code></td>
 <td style="text-align: left">Shadow Release</td>
-<td style="text-align: left"><strong>Proposed</strong></td>
-<td style="text-align: left">New code runs, takes traffic, produces logs/metrics, but its user-visible output is discarded.</td>
-<td style="text-align: left">Performance &amp; safety instrumentation</td>
-<td style="text-align: left">Internal</td>
+<td style="text-align: left"><strong>Limey</strong> (implemented)</td>
+<td style="text-align: left">A tiny shadow cohort rides the new build while everyone else is held on the frozen previous copy; shadow responses carry <code dir="auto">X-Limey-Shadow: 1</code>. <code dir="auto">POST /v1/admin/rollout/shadow {"percent":N}</code>.</td>
+<td style="text-align: left">Diagnostic cohort</td>
+<td style="text-align: left">Production (shadow ring)</td>
 <td style="text-align: left">Per experiment</td>
-<td style="text-align: left">Measuring a rewritten patching routine against identical Discord traffic</td>
+<td style="text-align: left">Validating a new build against real update traffic without changing the user-visible baseline</td>
+</tr>
+<tr>
+<td style="text-align: left"><code dir="auto">shadow</code></td>
+<td style="text-align: left">Shadow Release</td>
+<td style="text-align: left"><strong>Limey</strong> (implemented)</td>
+<td style="text-align: left">See the row above — the engine serves the new build only to the shadow cohort and answers everyone else with the frozen previous copy, so the new code takes real traffic while the user-visible baseline never moves.</td>
+<td style="text-align: left"></td>
+<td style="text-align: left"></td>
+<td style="text-align: left"></td>
+<td style="text-align: left"></td>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">featureflagged</code></td>
 <td style="text-align: left">Feature-Flagged Release</td>
-<td style="text-align: left"><strong>Proposed</strong> (well-established industry pattern)</td>
-<td style="text-align: left">Ship a binary to <code dir="auto">stable</code> containing <em>disabled</em> features, then enable them per-user remotely.</td>
-<td style="text-align: left">Everyone (features are opt-in, code path is shared)</td>
+<td style="text-align: left"><strong>Limey</strong> (implemented)</td>
+<td style="text-align: left">Stable file serving is unaffected; per-cohort flags resolve at <code dir="auto">GET /v1/featureflags?installId=…</code> (<code dir="auto">POST /v1/admin/rollout/flags {"name":{"enabled":true,"percent":10}}</code>). Shipped-but-disabled features can be enabled remotely per cohort without any reinstall.</td>
+<td style="text-align: left">Everyone (features opt-in by bucket)</td>
 <td style="text-align: left">Production</td>
 <td style="text-align: left">Continuous, no re-install needed</td>
-<td style="text-align: left">Frequent-Safe experimentation without new builds; pairs perfectly with Limey’s Limes/perk tiers to gate early access</td>
+<td style="text-align: left">Frequent-Safe experimentation without new builds</td>
 </tr>
 <tr>
 <td style="text-align: left"><code dir="auto">abtest</code></td>
 <td style="text-align: left">A/B Testing</td>
-<td style="text-align: left"><strong>Proposed</strong> (established industry pattern)</td>
-<td style="text-align: left">Two variants of the same feature delivered to random cohorts, decision made on measured outcomes.</td>
-<td style="text-align: left">Data-driven UI/UX work</td>
+<td style="text-align: left"><strong>Limey</strong> (implemented)</td>
+<td style="text-align: left"><code dir="auto">GET /v1/abtest/:slug?installId=…</code> assigns a stable variant from the admin-defined list (<code dir="auto">POST /v1/admin/rollout/abtest/:slug {"variants":["control","variant-a"],"percent":50}</code>). The same client keeps its assignment forever.</td>
+<td style="text-align: left">Data-driven UX work</td>
 <td style="text-align: left">Production (per-cohort)</td>
 <td style="text-align: left">Per experiment</td>
-<td style="text-align: left">Reflowing plugin-store pages or settings-menu UX with real data</td>
+<td style="text-align: left">Plugin-store or settings-menu variants without shipping separate arrays</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Overlap notes.</strong> <code dir="auto">canary-rollout</code> ⊂ <code dir="auto">progressive</code> ⊂ <code dir="auto">phased</code> — the same
-family at different calibration styles (volunteer / telemetry / calendar).
-Pick exactly one as the Limey V1 production strategy; keep the others in the
-release-manager schema as synonyms for different sensitivities.</p>
+<p><strong>Overlap notes.</strong> <code dir="auto">canary-rollout</code> / <code dir="auto">progressive</code> / <code dir="auto">phased</code> / <code dir="auto">shadow</code> are
+the same cohort-bucket family calibrated differently (canary snapshot vs
+stage percent vs calendar windows vs diagnostic ring); <code dir="auto">bluegreen</code> is the
+crazy-care version of the same machinery where the green copy wins outright
+until someone flips it back. Pick one per release; they are all live at the
+same time, one at a time.</p>
 <hr>
 <div class="sl-heading-wrapper level-h2"><h2 id="5-maintenance-and-support-channels">5. Maintenance and support channels</h2><a class="sl-anchor-link" href="#5-maintenance-and-support-channels"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “5. Maintenance and support channels”</span></a></div>
 <p>States and processes a track can enter — not (usually) channels users choose.</p>
@@ -857,7 +877,7 @@ for whatever Discord branch it sits inside.</p>
 <p>The mistake most release systems make is treating all of the above as one
 flat list. Limey V1 has three genuinely different things, and keeping them
 separate keeps the settings menu honest:</p>
-<div class="expressive-code"><link rel="stylesheet" href="/docs/_astro/ec.w36nc.css"><script type="module" src="/docs/_astro/ec.0vx5m.js"></script><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="plaintext"><code><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">release-manager</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">├── TRACK        which Limey V1 code you run          (choose 1)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── stable      → default, installer-served, changelogged ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── dev         → DevBuild, git-updater, support warning  ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── rc          → proposed: pre-release freeze point</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── beta        → proposed: wider pre-release</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── nightly     → proposed: cron of main</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── edge        → proposed: per-push artifact</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   └── debug       → proposed: verbosity-only, never distributed</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">├── HOST         which Discord (or browser) it runs in (choose 1)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-stable      ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-ptb         ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-canary      ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-development ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── web                 ✅  TODAY (extension / userscript)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   └── custom-client       → proposed: best-effort, unsupported</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">└── ROLLOUT      how the next TRACK build reaches you  (choose 1)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── full            ✅  TODAY (hash-flip)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── canary-rollout  → proposed: opt-in volunteer cohort</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── progressive     → proposed: 1% → 10% → 100% by telemetry</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── featureflagged  → proposed: disabled-by-default toggles</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">└── rollback        → proposed: always-on capability, never "a channel"</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="release-manager├── TRACK        which Limey V1 code you run          (choose 1)│   ├── stable      → default, installer-served, changelogged ✅  TODAY│   ├── dev         → DevBuild, git-updater, support warning  ✅  TODAY│   ├── rc          → proposed: pre-release freeze point│   ├── beta        → proposed: wider pre-release│   ├── nightly     → proposed: cron of main│   ├── edge        → proposed: per-push artifact│   └── debug       → proposed: verbosity-only, never distributed│├── HOST         which Discord (or browser) it runs in (choose 1)│   ├── discord-stable      ✅  TODAY│   ├── discord-ptb         ✅  TODAY│   ├── discord-canary      ✅  TODAY│   ├── discord-development ✅  TODAY│   ├── web                 ✅  TODAY (extension / userscript)│   └── custom-client       → proposed: best-effort, unsupported│└── ROLLOUT      how the next TRACK build reaches you  (choose 1)    ├── full            ✅  TODAY (hash-flip)    ├── canary-rollout  → proposed: opt-in volunteer cohort    ├── progressive     → proposed: 1% → 10% → 100% by telemetry    ├── featureflagged  → proposed: disabled-by-default toggles    └── rollback        → proposed: always-on capability, never &quot;a channel&quot;"><div></div></button></div></figure></div>
+<div class="expressive-code"><link rel="stylesheet" href="/docs/_astro/ec.w36nc.css"><script type="module" src="/docs/_astro/ec.0vx5m.js"></script><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="plaintext"><code><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">release-manager</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">├── TRACK        which Limey V1 code you run          (choose 1)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── stable      → default, installer-served, changelogged ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── dev         → DevBuild, git-updater, support warning  ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── rc          → proposed: pre-release freeze point</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── beta        → proposed: wider pre-release</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── nightly     → proposed: cron of main</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── edge        → proposed: per-push artifact</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   └── debug       → proposed: verbosity-only, never distributed</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">├── HOST         which Discord (or browser) it runs in (choose 1)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-stable      ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-ptb         ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-canary      ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── discord-development ✅  TODAY</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   ├── web                 ✅  TODAY (extension / userscript)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│   └── custom-client       → proposed: best-effort, unsupported</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">│</span></div></div><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">└── ROLLOUT      how the next TRACK build reaches you  (choose 1)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── full            ✅  implemented (hash-flip)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── rolling         ✅  implemented (continuous framing of full)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── canary-rollout  ✅  implemented (percent cohort on the canary copy)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── progressive     ✅  implemented (1% → 10% → 100% staged on dist/previous)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── phased          ✅  implemented (calendar windows)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── bluegreen       ✅  implemented (blue/green serve flip — instant revert)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── shadow          ✅  implemented (shadow ring + X-Limey-Shadow header)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── featureflagged  ✅  implemented (per-cohort flags, no reinstall)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">├── abtest          ✅  implemented (stable variant per slug)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">    </span></span><span style="--0:#d6deeb;--1:#403f53">└── rollback        → proposed: always-on capability, never "a channel"</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="release-manager├── TRACK        which Limey V1 code you run          (choose 1)│   ├── stable      → default, installer-served, changelogged ✅  TODAY│   ├── dev         → DevBuild, git-updater, support warning  ✅  TODAY│   ├── rc          → proposed: pre-release freeze point│   ├── beta        → proposed: wider pre-release│   ├── nightly     → proposed: cron of main│   ├── edge        → proposed: per-push artifact│   └── debug       → proposed: verbosity-only, never distributed│├── HOST         which Discord (or browser) it runs in (choose 1)│   ├── discord-stable      ✅  TODAY│   ├── discord-ptb         ✅  TODAY│   ├── discord-canary      ✅  TODAY│   ├── discord-development ✅  TODAY│   ├── web                 ✅  TODAY (extension / userscript)│   └── custom-client       → proposed: best-effort, unsupported│└── ROLLOUT      how the next TRACK build reaches you  (choose 1)    ├── full            ✅  implemented (hash-flip)    ├── rolling         ✅  implemented (continuous framing of full)    ├── canary-rollout  ✅  implemented (percent cohort on the canary copy)    ├── progressive     ✅  implemented (1% → 10% → 100% staged on dist/previous)    ├── phased          ✅  implemented (calendar windows)    ├── bluegreen       ✅  implemented (blue/green serve flip — instant revert)    ├── shadow          ✅  implemented (shadow ring + X-Limey-Shadow header)    ├── featureflagged  ✅  implemented (per-cohort flags, no reinstall)    ├── abtest          ✅  implemented (stable variant per slug)    └── rollback        → proposed: always-on capability, never &quot;a channel&quot;"><div></div></button></div></figure></div>
 <p>And a maintenance ring a track can <em>enter</em>:</p>
 <div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="plaintext"><code><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">Production     testing     unstable     volatile     internal</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">   </span></span><span style="--0:#d6deeb;--1:#403f53">│              │            │            │            │</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">   </span></span><span style="--0:#d6deeb;--1:#403f53">▼              ▼            ▼            ▼            ▼</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53"> </span></span><span style="--0:#d6deeb;--1:#403f53">stable ◀──── beta ────── dev ─────── edge ─── debug</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">   </span></span><span style="--0:#d6deeb;--1:#403f53">│  ─ lts ───┘  └── rc ──┘   └ nightly ┘</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#d6deeb;--1:#403f53">   </span></span><span style="--0:#d6deeb;--1:#403f53">└ rollback / hotfix / security-patch / maintenance-release lanes</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="Production     testing     unstable     volatile     internal   │              │            │            │            │   ▼              ▼            ▼            ▼            ▼ stable ◀──── beta ────── dev ─────── edge ─── debug   │  ─ lts ───┘  └── rc ──┘   └ nightly ┘   └ rollback / hotfix / security-patch / maintenance-release lanes"><div></div></button></div></figure></div>
 <div class="sl-heading-wrapper level-h3"><h3 id="concrete-recommendations-for-the-limey-v1-updater">Concrete recommendations for the Limey V1 updater</h3><a class="sl-anchor-link" href="#concrete-recommendations-for-the-limey-v1-updater"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “Concrete recommendations for the Limey V1 updater”</span></a></div>

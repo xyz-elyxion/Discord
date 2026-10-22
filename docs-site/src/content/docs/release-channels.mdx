@@ -164,27 +164,39 @@ shipping three independent channels.
 
 ## 4. Deployment / rollout strategies
 
-These are **Discord·process** (where they exist at Discord) or
-**Proposed/proven industry patterns** — *strategies*, not user-selectable
-channels. A release manager should pair each with one or more *tracks* from
-the tables above.
+All of these are **implemented** — backed by the backend's rollout engine
+(okay, `server.js` has a hat rack again): one module (`rollouts.js`) decides,
+per stable-file request, *which copy* of the build answers — the live dist
+(blue), the frozen previous snapshot (`dist/previous/`, green), or the frozen
+canary snapshot. Strategies are admin-controlled (Dashboard → rollout
+endpoints under `/v1/admin/rollout/*`), state persists in the same KV store
+as the channel snapshots, and every strategy is observable at
+`GET /v1/rollouts`.
+
+Cohorts are **deterministic buckets** of a client key — `?installId=` if the
+client supplies one, else the forwarded IP — so a client lands in the same
+cohort across requests and restarts. `full` stays the default; nothing below
+changes which artifacts exist, only which copy rides them.
 
 | ID                 | Display Name          | Origin         | Description | Intended audience | Stability | Update frequency | Recommended use case |
 | :----------------- | :-------------------- | :------------- | :---------- | :---------------- | :-------- | :--------------- | :------------------- |
-| `full`             | Immediate / Full rollout | Concept everywhere, effectively what Limey V1 does today | Newest build is served to everyone as soon as its hash changes. | Everyone | Production | Per release | The default, matches current **Stable** |
-| `canary-rollout`   | Canary Rollout        | **Discord·process** / **Proposed** for Limey V1 | Ship first to a tiny percentage of volunteers (often `dev`-track users) before the broader audience. | Volunteers | Production (early cohort) | Per release, percentage-driven | Catch client-specific regressions with minimal blast radius |
-| `progressive`      | Progressive Rollout (Staged rollout) | **Discord·process** (numlock-based % cohorts are in Discord's own updater) / **Proposed** | Percentage cohorts (1% → 10% → 50% → 100%), each gated on error telemetry. | Everyone, spread over time | Production | Per release window | Universal, boring, extremely effective default |
-| `phased`           | Phased Rollout        | **Proposed** (same family, cohort-by-cohort on a calendar rather than telemetry) | Fixed dates for steps ("2026-10-25: 10%") rather than percentage health gates. | Ops/forks with uptime contracts | Production | Planned windows | Coordinating across maintainers, companies or server regions |
-| `rolling`          | Rolling Release       | **Proposed** (apt/arch/Rust toolchain model name) | No versioned releases at all — updates continuously. | Developers & tinkerers | Unstable | Continuous | Exactly what `dev` already is; use this term when explaining the model, not as a channel |
-| `bluegreen`        | Blue-Green Deployment | **Proposed** (deployment topology, not a channel) | Run current build (blue) and new build (green) simultaneously; switch the pointer after health-check. | Backend / server.js wearing hats | Production | Per deploy | Zero-downtime backend deploys for the Limey V1 API itself |
-| `shadow`           | Shadow Release        | **Proposed** | New code runs, takes traffic, produces logs/metrics, but its user-visible output is discarded. | Performance & safety instrumentation | Internal | Per experiment | Measuring a rewritten patching routine against identical Discord traffic |
-| `featureflagged`   | Feature-Flagged Release | **Proposed** (well-established industry pattern) | Ship a binary to `stable` containing *disabled* features, then enable them per-user remotely. | Everyone (features are opt-in, code path is shared) | Production | Continuous, no re-install needed | Frequent-Safe experimentation without new builds; pairs perfectly with Limey's Limes/perk tiers to gate early access |
-| `abtest`           | A/B Testing           | **Proposed** (established industry pattern) | Two variants of the same feature delivered to random cohorts, decision made on measured outcomes. | Data-driven UI/UX work | Production (per-cohort) | Per experiment | Reflowing plugin-store pages or settings-menu UX with real data |
+| `full`             | Immediate / Full rollout | **Limey** (implemented) | Newest build is served to everyone as soon as its hash changes. The default strategy and the fallback for every other mode. | Everyone | Production | Per release | The default, matches current **Stable** |
+| `rolling`          | Rolling Release       | **Limey** (implemented) | Same serving behavior as `full`, framed as continuous delivery — the current build is always live and batches chain into it. | Everyone | Production | Continuous | When you want to *call* the default rolling instead of staged |
+| `canary-rollout`   | Canary Rollout        | **Limey** (implemented) | A percentage cohort rides the frozen canary snapshot (`dist/canary/`) while everyone else stays on stable. `POST /v1/admin/rollout/canary {"percent":N}`; requires a published canary snapshot. | Volunteers (by cohort bucket) | Production (early cohort) | Per release, percentage-driven | Catch client regressions with a bounded blast radius |
+| `progressive`      | Progressive Rollout (Staged rollout) | **Limey** (implemented) | Stage cohorts (`1% → 10% → 50% → 100%`) are served the current build while the rest of the population is held on the frozen previous copy. `POST /v1/admin/rollout/stage {"percent":N}`; the current stable is frozen into `dist/previous/` first. | Everyone, spread over time | Production | Per stage bump | Rolling out a risky change gradually, with an instant way back |
+| `phased`           | Phased Rollout        | **Limey** (implemented) | Like progressive, but the effective percent comes from admin-set calendar windows (`{ at, percent }`) resolved at request time — no manual bumps. `POST /v1/admin/rollout/phases {"phases":[{"at":"2026-10-25T10:00:00Z","percent":10}, …]}`. | Ops with planned windows | Production | Per planned window | Coordinating across regions/times without a human watching the clock |
+| `bluegreen`        | Blue-Green Deployment | **Limey** (implemented) | Two complete copies: blue = live dist, green = frozen previous snapshot. `POST /v1/admin/rollout/serve {"serve":"green"}` moves *every* client onto the old copy — a one-click revert without waiting for a new build. | Everyone | Production | Per deployment | Reverting a bad stable release in one call |
+| `shadow`           | Shadow Release        | **Limey** (implemented) | A tiny shadow cohort rides the new build while everyone else is held on the frozen previous copy; shadow responses carry `X-Limey-Shadow: 1`. `POST /v1/admin/rollout/shadow {"percent":N}`. | Diagnostic cohort | Production (shadow ring) | Per experiment | Validating a new build against real update traffic without changing the user-visible baseline |
+| `shadow`           | Shadow Release        | **Limey** (implemented) | See the row above — the engine serves the new build only to the shadow cohort and answers everyone else with the frozen previous copy, so the new code takes real traffic while the user-visible baseline never moves. |
+| `featureflagged`   | Feature-Flagged Release | **Limey** (implemented) | Stable file serving is unaffected; per-cohort flags resolve at `GET /v1/featureflags?installId=…` (`POST /v1/admin/rollout/flags {"name":{"enabled":true,"percent":10}}`). Shipped-but-disabled features can be enabled remotely per cohort without any reinstall. | Everyone (features opt-in by bucket) | Production | Continuous, no re-install needed | Frequent-Safe experimentation without new builds |
+| `abtest`           | A/B Testing           | **Limey** (implemented) | `GET /v1/abtest/:slug?installId=…` assigns a stable variant from the admin-defined list (`POST /v1/admin/rollout/abtest/:slug {"variants":["control","variant-a"],"percent":50}`). The same client keeps its assignment forever. | Data-driven UX work | Production (per-cohort) | Per experiment | Plugin-store or settings-menu variants without shipping separate arrays |
 
-**Overlap notes.** `canary-rollout` ⊂ `progressive` ⊂ `phased` — the same
-family at different calibration styles (volunteer / telemetry / calendar).
-Pick exactly one as the Limey V1 production strategy; keep the others in the
-release-manager schema as synonyms for different sensitivities.
+**Overlap notes.** `canary-rollout` / `progressive` / `phased` / `shadow` are
+the same cohort-bucket family calibrated differently (canary snapshot vs
+stage percent vs calendar windows vs diagnostic ring); `bluegreen` is the
+crazy-care version of the same machinery where the green copy wins outright
+until someone flips it back. Pick one per release; they are all live at the
+same time, one at a time.
 
 ---
 
@@ -264,10 +276,15 @@ release-manager
 │   └── custom-client       → proposed: best-effort, unsupported
 │
 └── ROLLOUT      how the next TRACK build reaches you  (choose 1)
-    ├── full            ✅  TODAY (hash-flip)
-    ├── canary-rollout  → proposed: opt-in volunteer cohort
-    ├── progressive     → proposed: 1% → 10% → 100% by telemetry
-    ├── featureflagged  → proposed: disabled-by-default toggles
+    ├── full            ✅  implemented (hash-flip)
+    ├── rolling         ✅  implemented (continuous framing of full)
+    ├── canary-rollout  ✅  implemented (percent cohort on the canary copy)
+    ├── progressive     ✅  implemented (1% → 10% → 100% staged on dist/previous)
+    ├── phased          ✅  implemented (calendar windows)
+    ├── bluegreen       ✅  implemented (blue/green serve flip — instant revert)
+    ├── shadow          ✅  implemented (shadow ring + X-Limey-Shadow header)
+    ├── featureflagged  ✅  implemented (per-cohort flags, no reinstall)
+    ├── abtest          ✅  implemented (stable variant per slug)
     └── rollback        → proposed: always-on capability, never "a channel"
 ```
 

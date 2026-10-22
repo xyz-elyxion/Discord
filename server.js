@@ -358,13 +358,24 @@ function handleInstall(req, res, url) {
     if (url.startsWith("/v1/install/files/")) {
         const name = url.slice("/v1/install/files/".length);
         if (!/^[\w.-]+\.(js|css)$/.test(name)) return json(res, 400, { error: "invalid file name" }), true;
-        const filePath = join(DIST, name);
+        // Rollout strategy (docs §4): WHICH stable copy answers this request —
+        // the current build, the frozen previous copy (green / staged
+        // back-stop) or the canary snapshot. Cohorts are deterministic
+        // buckets of a client key (?installId= preferred, else forwarded IP).
+        let rolloutQuery = {};
+        try { rolloutQuery = Object.fromEntries(new URLSearchParams(req.url.split("?")[1] || "")); } catch { /* ignore */ }
+        const clientKey = rollouts.clientKeyFor(req, rolloutQuery);
+        const serve = rollouts.resolveServing(clientKey);
+        rollouts.recordServing(serve.mode, serve.isShadow);
+        const serveDir = serve.dir || DIST;
+        const filePath = join(serveDir, name);
         if (!existsSync(filePath)) return json(res, 404, { error: "file not found — is the build ready?" }), true;
 
         let content = readFileSync(filePath);
         let hash = null;
         try {
-            const patcherHead = readFileSync(join(DIST, "patcher.js")).toString("utf8", 0, 64);
+            // Hash stamp must always match the copy the cohort actually gets.
+            const patcherHead = readFileSync(join(serveDir, "patcher.js")).toString("utf8", 0, 64);
             const m = /^\/\/ Limey V1 (\S+)/.exec(patcherHead);
             if (m) hash = m[1];
         } catch { /* keep null */ }
@@ -384,7 +395,9 @@ function handleInstall(req, res, url) {
             "Content-Type": name.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8",
             "Content-Length": content.length,
             "Cache-Control": "no-cache",
-            "Access-Control-Allow-Origin": "*"
+            "Access-Control-Allow-Origin": "*",
+            "X-Limey-Rollout": serve.mode,
+            ...(serve.isShadow ? { "X-Limey-Shadow": "1" } : {})
         });
         return res.end(content), true;
     }
@@ -1456,6 +1469,15 @@ try {
 }
 
 // ------------------------------------------------------------------
+// Rollout strategies (docs §4): every row of
+// /docs/release-channels#4-deployment--rollout-strategies is backed by real
+// serving behavior in rollouts.js — current/previous/canary dist copies
+// chosen per request by deterministic cohort buckets. State persists in KV
+// like every other admin-managed panel.
+// ------------------------------------------------------------------
+const rollouts = require("./rollouts");
+
+// ------------------------------------------------------------------
 // Limey Sentinel — self-hosted proof-of-work captcha (ALTCHA Sentinel
 // inspired), mounted at /v1/sentinel/*. Free, no third-party service.
 // ------------------------------------------------------------------
@@ -1530,6 +1552,43 @@ function recordChannelUnpublish(channel) {
     saveChannelState();
 }
 
+// Freeze the CURRENT stable dist build into dist/previous/ — the "green" copy
+// the rollout engine's staged/bluegreen/shadow strategies fall back to. The
+// copy (and its hash) is recorded in channelState under the pseudo-channel
+// "previous" so restoreChannelSnapshots rebuilds it on a container restart.
+function freezePreviousStable(actor) {
+    if (!CH_FILES_LIST.every(file => existsSync(join(DIST, file)))) return null;
+    const hash = (() => {
+        try {
+            const head = readFileSync(join(DIST, "patcher.js"), "utf8").slice(0, 64);
+            return (/^\/\/ Limey V1 (\S+)/.exec(head) || [])[1] ?? null;
+        } catch { return null; }
+    })();
+    try {
+        mkdirSync(join(DIST, "previous"), { recursive: true });
+        for (const file of CH_FILES_LIST) copyFileSync(join(DIST, file), join(DIST, "previous", file));
+    } catch (err) {
+        console.error("[rollouts] failed to freeze previous snapshot:", err.message);
+        return null;
+    }
+    channelState["previous"] = { hash, publishedAt: new Date().toISOString(), files: captureChannelFilesOf(join(DIST, "previous")) };
+    saveChannelState();
+    if (typeof hash === "string") void rollouts.notePreviousCopy(hash);
+    console.log(`[rollouts] frozen current stable (hash ${hash ?? "unknown"}) as dist/previous — ${actor}`);
+    return hash;
+}
+
+// base64 copies of an already-frozen snapshot dir (for restart restore).
+function captureChannelFilesOf(dir) {
+    const files = {};
+    for (const file of CH_FILES_LIST) {
+        try {
+            files[file] = readFileSync(join(dir, file)).toString("base64");
+        } catch { /* missing file — restore falls back below */ }
+    }
+    return files;
+}
+
 // Re-materialize recorded snapshots after a restart: copy the stored files
 // from KV (if present) into dist/<channel>/, or re-freeze from the current
 // stable dist files when the disk copy survived but only the db row is back.
@@ -1551,7 +1610,7 @@ async function restoreChannelSnapshots() {
         }
     }
     for (const [channel, entry] of Object.entries(channelState)) {
-        if (!SNAPSHOT_CHANNELS.includes(channel)) continue;
+        if (!SNAPSHOT_CHANNELS.includes(channel) && channel !== "previous") continue;
         const snapshotDir = join(DIST, channel);
         const alreadyHere = existsSync(join(snapshotDir, "patcher.js"));
         if (alreadyHere) {
@@ -1590,6 +1649,41 @@ async function restoreChannelSnapshots() {
         }
         if (restored) console.log(`[channels] restored channel ${channel} snapshot (hash ${entry.hash ?? "unknown"}) after restart`);
     }
+}
+
+// Rollout strategy surface (docs §4): public status, per-cohort feature
+// flags, and A/B variant resolution. Admin writes live under /v1/admin/*.
+async function handleRollouts(req, res, url) {
+    if (url === "/v1/rollouts" || url === "/v1/rollouts.json") {
+        return json(res, 200, {
+            ...rollouts.publicStatus(),
+            previousCopyFrozen: rollouts.hasPreviousCopy(),
+            canaryPublished: rollouts.canaryCopyPublished()
+        }), true;
+    }
+    if (url === "/v1/featureflags") {
+        // Flags resolve per cohort key — same bucketing as the file servers,
+        // so a client keeps its assignments across requests. installId wins
+        // over IP so moved clients don't flip their flags.
+        let query = {};
+        try { query = Object.fromEntries(new URLSearchParams(req.url.split("?")[1] || "")); } catch { /* ignore */ }
+        const clientKey = rollouts.clientKeyFor(req, query);
+        return json(res, 200, {
+            schema: rollouts.CURRENT_SCHEMA,
+            installKey: clientKey,
+            flags: rollouts.resolveFlags(clientKey)
+        }), true;
+    }
+    const abtest = /^\/v1\/abtest\/([a-z0-9_-]+)$/.exec(url);
+    if (abtest) {
+        let query = {};
+        try { query = Object.fromEntries(new URLSearchParams(req.url.split("?")[1] || "")); } catch { /* ignore */ }
+        const clientKey = rollouts.clientKeyFor(req, query);
+        const result = rollouts.abtestVariant(abtest[1], clientKey);
+        if (!result) return json(res, 404, { error: "unknown experiment", experiment: abtest[1] }), true;
+        return json(res, 200, { schema: rollouts.CURRENT_SCHEMA, experiment: abtest[1], ...result }), true;
+    }
+    return false;
 }
 
 function captureChannelFiles(channel) {
@@ -2237,6 +2331,72 @@ async function handleDashboard(req, res, url) {
         return json(res, 200, { ok: true, liveChannel }), true;
     }
 
+    // ------------------------------------------------------------------
+    // Rollout strategy controls (docs §4 engine in rollouts.js)
+    // ------------------------------------------------------------------
+    if (url === "/v1/admin/rollout" && req.method === "GET") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        return json(res, 200, {
+            ...rollouts.publicStatus(),
+            strategies: rollouts.STRATEGIES,
+            previousCopyFrozen: rollouts.hasPreviousCopy(),
+            canaryPublished: rollouts.canaryCopyPublished()
+        }), true;
+    }
+
+    const rolloutAdminPost = /^(\/v1\/admin\/rollout\/(strategy|canary|stage|phases|shadow|serve|flags|freeze-previous))$/.exec(url);
+    if (rolloutAdminPost && req.method === "POST") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        let body = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const action = rolloutAdminPost[1].split("/").pop();
+        try {
+            if (action === "strategy") {
+                await rollouts.setStrategy(String(body.strategy || ""));
+            } else if (action === "canary") {
+                await rollouts.setCanaryPercent(body.percent);
+            } else if (action === "stage") {
+                await rollouts.setStagePercent(body.percent);
+            } else if (action === "phases") {
+                await rollouts.setPhases(body.phases);
+            } else if (action === "shadow") {
+                await rollouts.setShadowPercent(body.percent);
+            } else if (action === "serve") {
+                await rollouts.setServe(String(body.serve || "blue"));
+            } else if (action === "flags") {
+                await rollouts.setFlags(body.flags);
+            } else if (action === "freeze-previous") {
+                const hash = freezePreviousStable(`admin:${adminSession.discordId}`);
+                if (!hash) return json(res, 503, { error: "dist artifacts missing — is the build ready?" }), true;
+            }
+        } catch (err) {
+            return json(res, 400, { error: String(err?.message || err) }), true;
+        }
+        console.log(`[admin] ${adminSession.discordId} rollout ${action}: ${JSON.stringify(body).slice(0, 120)}`);
+        return json(res, 200, { ok: true, rollout: rollouts.publicStatus() }), true;
+    }
+
+    const rolloutAbtestPost = /^\/v1\/admin\/rollout\/abtest\/([a-z0-9_-]+)$/.exec(url);
+    if (rolloutAbtestPost && req.method === "POST") {
+        const adminSession = dashGetSession(req);
+        if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
+        let body = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        try {
+            await rollouts.setAbtests(rolloutAbtestPost[1], body.variants, body.percent);
+        } catch (err) {
+            return json(res, 400, { error: String(err?.message || err) }), true;
+        }
+        console.log(`[admin] ${adminSession.discordId} rollout abtest ${rolloutAbtestPost[1]}: ${JSON.stringify(body).slice(0, 120)}`);
+        return json(res, 200, { ok: true, rollout: rollouts.publicStatus() }), true;
+    }
+
     return false;
 }
 
@@ -2730,6 +2890,8 @@ const server = http.createServer(async (req, res) => {
         if (await handleMediaProxy(req, res, url)) return;
         // Release-channel manifest (updaters / SDK / settings UI)
         if (releaseChannels && releaseChannels.handle(req, res, url)) return;
+        // Rollout strategy status / flag + experiment resolution (docs §4 engine)
+        if (await handleRollouts(req, res, url)) return;
         // User dashboard session API (handled in-process)
         if (await handleDashboard(req, res, url)) return;
         // Backend-provided install: freshly packaged extension zip + desktop install info
@@ -2867,6 +3029,10 @@ hydrateKv().then(() => {
     // Bring back channel snapshots the admin published before a restart —
     // dist/<channel>/ lives on ephemeral container disk.
     return restoreChannelSnapshots();
+}).then(() => {
+    // Rollout strategy state (docs §4 engine) — persisted in KV like the
+    // channel publish state; must be loaded before the first request.
+    return rollouts.init({ DIST, kvGet, kvSet });
 }).finally(() => {
     server.listen(PORT, HOST, () => {
         console.log(`Limey V1 web server running at http://${HOST}:${PORT} (persistent storage: ${KV_ENABLED ? "PostgreSQL" : "local files"})`);

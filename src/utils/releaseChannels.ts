@@ -202,6 +202,11 @@ export const RELEASE_CHANNELS: ReleaseChannel[] = [
     },
 
     // ---------------- Rollout strategies ----------------
+    // Backed by the backend's rollout engine (server-side rollouts.js, docs
+    // §4): full/rolling/canary-rollout/progressive/phased/bluegreen/shadow
+    // choose which stable copy answers a build request; featureflagged and
+    // abtest resolve at /v1/featureflags and /v1/abtest. Registry mirrors
+    // release-channels.js — keep the two in sync.
     {
         id: "full", name: "Immediate (Full rollout)", category: "rollout", origin: "limey",
         stability: "production", cadence: "per release", audience: "everyone",
@@ -209,22 +214,52 @@ export const RELEASE_CHANNELS: ReleaseChannel[] = [
         implemented: true
     },
     {
-        id: "canary-rollout", name: "Canary Rollout", category: "rollout", origin: "proposed",
+        id: "rolling", name: "Rolling Release", category: "rollout", origin: "limey",
+        stability: "production", cadence: "continuous", audience: "everyone",
+        description: "Same serving behavior as full, framed as continuous delivery: the current build is always live and batches chain into it as they land.",
+        implemented: true
+    },
+    {
+        id: "canary-rollout", name: "Canary Rollout", category: "rollout", origin: "limey",
         stability: "production", cadence: "per release, percentage-driven", audience: "volunteers",
-        description: "Ship first to a tiny percentage of volunteers before the broader audience. Distinct from the canary track (a shipped pre-release build) and from the Discord canary host branch.",
-        implemented: false
+        description: "A percentage cohort rides the frozen canary snapshot while everyone else stays on stable; cohorts are deterministic client buckets.",
+        implemented: true
     },
     {
-        id: "progressive", name: "Progressive Rollout", category: "rollout", origin: "proposed",
+        id: "progressive", name: "Progressive Rollout", category: "rollout", origin: "limey",
         stability: "production", cadence: "cohort gates", audience: "everyone, spread over time",
-        description: "1% → 10% → 50% → 100% cohorts, each gated on error telemetry.",
-        implemented: false
+        description: "1% → 10% → 50% → 100% stage cohorts get the current build while the rest stay on the frozen previous copy (dist/previous/).",
+        implemented: true
     },
     {
-        id: "featureflagged", name: "Feature-Flagged Release", category: "rollout", origin: "proposed",
+        id: "phased", name: "Phased Rollout", category: "rollout", origin: "limey",
+        stability: "production", cadence: "planned windows", audience: "everyone, cohort-by-cohort on a calendar",
+        description: "Like progressive, but the effective percent comes from admin-set calendar windows resolved at request time.",
+        implemented: true
+    },
+    {
+        id: "bluegreen", name: "Blue-Green Deployment", category: "rollout", origin: "limey",
+        stability: "production", cadence: "per serve flip", audience: "everyone",
+        description: "Blue = live dist, green = frozen previous snapshot; a serve flip moves every client between them — one-click revert.",
+        implemented: true
+    },
+    {
+        id: "shadow", name: "Shadow Release", category: "rollout", origin: "limey",
+        stability: "production", cadence: "per experiment", audience: "internal/diagnostic cohort",
+        description: "A tiny shadow cohort rides the new build (X-Limey-Shadow header) while everyone else is held on the frozen previous copy.",
+        implemented: true
+    },
+    {
+        id: "featureflagged", name: "Feature-Flagged Release", category: "rollout", origin: "limey",
         stability: "production", cadence: "continuous, no reinstall", audience: "everyone",
-        description: "Ship disabled features to stable, enable them remotely per user/cohort.",
-        implemented: false
+        description: "Stable serving unaffected; per-cohort flags resolve at /v1/featureflags?installId=... so shipped-but-disabled features flip remotely.",
+        implemented: true
+    },
+    {
+        id: "abtest", name: "A/B Testing", category: "rollout", origin: "limey",
+        stability: "production", cadence: "per experiment", audience: "data-driven UX work",
+        description: "GET /v1/abtest/:slug?installId=... assigns a stable variant from the admin-defined list — the same client keeps its assignment forever.",
+        implemented: true
     },
     {
         id: "rollback", name: "Rollback", category: "rollout", origin: "proposed",

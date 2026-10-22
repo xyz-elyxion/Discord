@@ -20,6 +20,12 @@
 
 const CURRENT_SCHEMA = "limey.v1/channels/1";
 
+/** Optional live rollout provider (set by server.js after rollouts.js init). */
+let rolloutProvider = null;
+function setRolloutProvider(fn) {
+    rolloutProvider = typeof fn === "function" ? fn : null;
+}
+
 /** Files a frozen snapshot channel contains — same set the Go installer
  * downloads (installer/constants.go BuildFiles) and the admin panel copies. */
 const SNAPSHOT_ARTIFACTS = ["patcher.js", "preload.js", "renderer.js", "renderer.css"];
@@ -185,10 +191,15 @@ const CHANNELS = [
     // -----------------------------------------------------------------
     // Rollout strategies — how the next build reaches users
     // -----------------------------------------------------------------
-    { id: "full", name: "Immediate (Full rollout)", category: "rollout", origin: "limey", stability: "production", cadence: "per release", audience: "everyone", description: "Newest served to everyone as soon as the hash flips. Current behavior.", implemented: true },
-    { id: "canary-rollout", name: "Canary Rollout", category: "rollout", origin: "proposed", stability: "production (early cohort)", cadence: "per release, percentage-driven", audience: "volunteers", description: "Ship first to a tiny percentage of volunteers before the broader audience. Note: distinct from the canary track, which is a shipped pre-release build, and from the Discord canary host branch.", implemented: false },
-    { id: "progressive", name: "Progressive Rollout", category: "rollout", origin: "proposed", stability: "production", cadence: "cohort gates", audience: "everyone, spread over time", description: "1% → 10% → 50% → 100% cohorts, each gated on error telemetry.", implemented: false },
-    { id: "featureflagged", name: "Feature-Flagged Release", category: "rollout", origin: "proposed", stability: "production", cadence: "continuous, no reinstall", audience: "everyone", description: "Ship disabled features to stable, enable them remotely per user/cohort.", implemented: false },
+    { id: "full", name: "Immediate (Full rollout)", category: "rollout", origin: "limey", stability: "production", cadence: "per release", audience: "everyone", description: "Newest served to everyone as soon as the hash flips. Implemented in rollouts.js plus all admin rollout endpoints.", implemented: true },
+    { id: "rolling", name: "Rolling Release", category: "rollout", origin: "limey", stability: "production", cadence: "continuous", audience: "everyone", description: "Same serving behavior as full, framed as continuous delivery: the current build is always the live one and batches chain into it as they land. Implemented alongside full in rollouts.js.", implemented: true },
+    { id: "canary-rollout", name: "Canary Rollout", category: "rollout", origin: "limey", stability: "production (early cohort)", cadence: "per release, percentage-driven", audience: "volunteers", description: "A percentage cohort rides the frozen canary snapshot while everyone else stays on stable. Admin sets the percentage; cohorts are deterministic client buckets. Note: distinct from the canary track (a shipped pre-release build) and from the Discord canary host branch.", implemented: true },
+    { id: "progressive", name: "Progressive Rollout", category: "rollout", origin: "limey", stability: "production", cadence: "cohort gates", audience: "everyone, spread over time", description: "1% → 10% → 50% → 100% stage cohorts served the current build while the rest stay on the frozen previous copy (dist/previous/). Stages are admin-bumped; earlier cohorts riding the new build first is the modern staged-rollout direction.", implemented: true },
+    { id: "phased", name: "Phased Rollout", category: "rollout", origin: "limey", stability: "production", cadence: "planned windows", audience: "everyone, cohort-by-cohort on a calendar", description: "Like progressive, but the effective percent comes from admin-set calendar windows ({at, percent}) resolved at request time — no telemetry gates required.", implemented: true },
+    { id: "bluegreen", name: "Blue-Green Deployment", category: "rollout", origin: "limey", stability: "production", cadence: "per serve flip", audience: "everyone", description: "Two complete copies: blue = live dist, green = frozen previous snapshot. An admin serve-flip moves every client between them — a one-click revert without waiting for a new build.", implemented: true },
+    { id: "shadow", name: "Shadow Release", category: "rollout", origin: "limey", stability: "production (diagnostic ring)", cadence: "per experiment", audience: "internal/diagnostic cohort", description: "A tiny shadow cohort rides the new build (marked with an X-Limey-Shadow response header) while everyone else is held on the frozen previous copy — new code takes real traffic without changing the user-visible baseline.", implemented: true },
+    { id: "featureflagged", name: "Feature-Flagged Release", category: "rollout", origin: "limey", stability: "production", cadence: "continuous, no reinstall", audience: "everyone", description: "Stable file serving is unaffected; per-cohort flags resolve at GET /v1/featureflags?installId=... so shipped-but-disabled features can be enabled remotely per user bucket.", implemented: true },
+    { id: "abtest", name: "A/B Testing", category: "rollout", origin: "limey", stability: "production (per-cohort)", cadence: "per experiment", audience: "data-driven UX work", description: "GET /v1/abtest/:slug?installId=... assigns a stable variant from the admin-defined variant list — same client keeps its assignment forever.", implemented: true },
     { id: "rollback", name: "Rollback", category: "rollout", origin: "proposed", stability: "production", cadence: "emergency only", audience: "users being protected", description: "Re-point users to the last known good hash after a bad release.", implemented: false },
 
     // -----------------------------------------------------------------
@@ -217,11 +228,16 @@ function sendJson(res, status, body) {
 function manifest() {
     return {
         schema: CURRENT_SCHEMA,
-        strategy: "full", // current rollout strategy (immediate hash-flip)
+        strategy: rolloutProvider?.()?.strategy ?? "full", // live rollout strategy from rollouts.js when wired
+        rollout: rolloutProvider?.() ?? undefined,
         implementedOnly: Object.fromEntries(CATEGORY_ORDER.map(c => [c, CHANNELS.filter(ch => ch.category === c && ch.implemented).map(ch => ch.id)])),
         channels: CHANNELS
     };
 }
+
+// Optional hook: server.js wires rollouts.publicStatus() in after the
+// rollout engine's state is loaded, so /v1/channels reports the live
+// strategy instead of a hardcoded "full".
 
 /**
  * GET /v1/channels      -> full manifest
@@ -245,6 +261,7 @@ function handle(req, res, url) {
 module.exports = {
     handle,
     manifest,
+    setRolloutProvider,
     CHANNELS,
     CURRENT_SCHEMA
 };
