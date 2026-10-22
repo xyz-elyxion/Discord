@@ -1,0 +1,29 @@
+name: Update latest Limey V1 Desktop version
+
+on:
+    release:
+        types:
+            - published
+
+jobs:
+    update:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Update scripts/_latestLimeyV1DesktopVersion.txt file in Limey V1 Desktop repo
+              run: |
+                  git config --global user.name "$USERNAME"
+                  git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+                  git clone https://$USERNAME:$API_TOKEN@github.com/$GH_REPO.git repo
+
+                  cd repo
+                  version="${{ github.event.release.tag_name }}"
+                  echo "${version#v}" > limey-v1-desktop/scripts/_latestLimeyV1DesktopVersion.txt
+
+                  git add limey-v1-desktop/scripts/_latestLimeyV1DesktopVersion.txt
+                  git commit -m "Update Limey V1 Desktop version to ${{ github.event.release.tag_name }}"
+                  git push https://$USERNAME:$API_TOKEN@github.com/$GH_REPO.git
+              env:
+                  API_TOKEN: ${{ secrets.LIMEY_DEV_GITHUB_TOKEN }}
+                  GH_REPO: ${{ github.repository }}
+                  USERNAME: GitHub-Actions

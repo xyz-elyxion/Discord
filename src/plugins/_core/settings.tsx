@@ -17,7 +17,7 @@
 */
 
 import { definePluginSettings } from "@api/Settings";
-import { BackupRestoreIcon, ChangelogIcon, CloudIcon, MainSettingsIcon, PatchHelperIcon, PlaceholderIcon, PluginsIcon, UpdaterIcon, VesktopSettingsIcon } from "@components/Icons";
+import { BackupRestoreIcon, ChangelogIcon, CloudIcon, LimeyV1DesktopSettingsIcon, MainSettingsIcon, PatchHelperIcon, PlaceholderIcon, PluginsIcon, UpdaterIcon } from "@components/Icons";
 import { BackupAndRestoreTab, ChangelogTab, CloudTab, LimeyV1Tab, PatchHelperTab, PluginsTab, UpdaterTab } from "@components/settings/tabs";
 import { Devs } from "@utils/constants";
 import { isTruthy } from "@utils/guards";
@@ -230,7 +230,7 @@ export default definePlugin({
                     key: `limeyV1_deprecated_custom_${section}`,
                     title: label,
                     Component: element,
-                    Icon: section === "Vesktop" ? VesktopSettingsIcon : PlaceholderIcon
+                    Icon: section === "Limey V1 Desktop" ? LimeyV1DesktopSettingsIcon : PlaceholderIcon
                 });
             })
         ].filter(isTruthy);

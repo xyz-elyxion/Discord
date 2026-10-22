@@ -605,7 +605,7 @@ export function PatchHelperIcon(props: IconProps) {
     );
 }
 
-export function VesktopSettingsIcon(props: IconProps) {
+export function LimeyV1DesktopSettingsIcon(props: IconProps) {
     return (
         <Icon
             {...props}

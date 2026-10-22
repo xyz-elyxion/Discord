@@ -53,7 +53,7 @@ limeyV1RootNode.append(coreStyleRootNode, managedStyleRootNode, userStyleRootNod
 export function initStyles() {
     createAndAppendStyle("limeyV1-text", coreStyleRootNode).textContent = generateTextCss();
     const rendererCssNode = createAndAppendStyle("limeyV1-css-core", coreStyleRootNode);
-    const vesktopCssNode = IS_VESKTOP ? createAndAppendStyle("vesktop-css-core", coreStyleRootNode) : null;
+    const vesktopCssNode = IS_VESKTOP ? createAndAppendStyle("limey-v1-desktop-css-core", coreStyleRootNode) : null;
     createAndAppendStyle("limeyV1-margins", coreStyleRootNode).textContent = generateMarginCss();
 
     LimeyV1Native.native.getRendererCss().then(css => rendererCssNode.textContent = css);
