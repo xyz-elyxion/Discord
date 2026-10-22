@@ -107,10 +107,27 @@ RUN pnpm install --frozen-lockfile=false --ignore-scripts
 
 RUN EV=$(node -p "require('electron/package.json').version") \
     && mkdir -p /node/.cache/electron /root/.cache/electron \
-    && curl --fail --location --silent --show-error \
-        --retry 5 --retry-delay 3 --retry-all-errors \
-        -o /node/.cache/electron/electron-v${EV}-win32-x64.zip \
-        "https://npmmirror.com/mirrors/electron/v${EV}/electron-v${EV}-win32-x64.zip" \
+    && node -e '
+        const { pipeline } = require("stream/promises");
+        const { createWriteStream } = require("fs");
+        const ev = process.argv[1];
+        const url = `https://npmmirror.com/mirrors/electron/v${ev}/electron-v${ev}-win32-x64.zip`;
+        const out = `/node/.cache/electron/electron-v${ev}-win32-x64.zip`;
+        (async () => {
+            for (let attempt = 1; ; attempt++) {
+                try {
+                    const res = await fetch(url, { redirect: "follow" });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    await pipeline(res.body, createWriteStream(out));
+                    break;
+                } catch (err) {
+                    if (attempt >= 5) throw err;
+                    console.error(`attempt ${attempt} failed (${err.message}) — retrying in 3s`);
+                    await new Promise(r => setTimeout(r, 3000));
+                }
+            }
+        })();
+    ' "$EV" \
     && cp /node/.cache/electron/electron-v${EV}-win32-x64.zip /root/.cache/electron/ \
     && ls -la /node/.cache/electron /root/.cache/electron
 
