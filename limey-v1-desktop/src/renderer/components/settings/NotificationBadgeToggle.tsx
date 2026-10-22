@@ -18,7 +18,7 @@ export const NotificationBadgeToggle: SettingsComponent = ({ settings }) => {
             onChange={v => {
                 settings.appBadge = v;
                 if (v) setBadge();
-                else LimeyV1Native.app.setBadgeCount(0);
+                else LimeyV1DesktopNative.app.setBadgeCount(0);
             }}
         />
     );

@@ -21,7 +21,7 @@ addPatch({
 
     flashFrame() {
         if (Settings.store.enableTaskbarFlashing) {
-            LimeyV1Native.win.flashFrame(true);
+            LimeyV1DesktopNative.win.flashFrame(true);
         }
     }
 });

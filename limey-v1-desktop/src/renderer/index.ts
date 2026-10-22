@@ -21,7 +21,7 @@ import { Settings } from "./settings";
 export { Settings };
 
 LimeyV1Logger.log("read if cute :3");
-LimeyV1Logger.log("Limey V1 Desktop v" + LimeyV1Native.app.getVersion());
+LimeyV1Logger.log("Limey V1 Desktop v" + LimeyV1DesktopNative.app.getVersion());
 
 const SettingsPlugin = LimeyV1.Plugins.plugins
     .Settings as typeof import("@vencord/types/plugins/_core/settings").default;

@@ -25,8 +25,8 @@ function openDeveloperOptionsModal(settings: Settings) {
                 Debugging
             </Heading>
             <div className={cl("button-grid")}>
-                <Button onClick={() => LimeyV1Native.debug.launchGpu()}>Open chrome://gpu</Button>
-                <Button onClick={() => LimeyV1Native.debug.launchWebrtcInternals()}>
+                <Button onClick={() => LimeyV1DesktopNative.debug.launchGpu()}>Open chrome://gpu</Button>
+                <Button onClick={() => LimeyV1DesktopNative.debug.launchWebrtcInternals()}>
                     Open chrome://webrtc-internals
                 </Button>
             </div>
@@ -36,7 +36,7 @@ function openDeveloperOptionsModal(settings: Settings) {
 
 const LimeyV1LocationPicker: SettingsComponent = ({ settings }) => {
     const forceUpdate = useForceUpdater();
-    const usingCustomLimeyDir = LimeyV1Native.fileManager.isUsingCustomLimeyDir();
+    const usingCustomLimeyDir = LimeyV1DesktopNative.fileManager.isUsingCustomLimeyDir();
 
     return (
         <>
@@ -47,7 +47,7 @@ const LimeyV1LocationPicker: SettingsComponent = ({ settings }) => {
                         variant="link"
                         onClick={e => {
                             e.preventDefault();
-                            LimeyV1Native.fileManager.showCustomLimeyDir();
+                            LimeyV1DesktopNative.fileManager.showCustomLimeyDir();
                         }}
                     >
                         a custom location
@@ -59,7 +59,7 @@ const LimeyV1LocationPicker: SettingsComponent = ({ settings }) => {
             <div className={cl("button-grid")}>
                 <Button
                     onClick={async () => {
-                        const choice = await LimeyV1Native.fileManager.selectLimeyDir();
+                        const choice = await LimeyV1DesktopNative.fileManager.selectLimeyDir();
                         switch (choice) {
                             case "cancelled":
                                 break;
@@ -87,7 +87,7 @@ const LimeyV1LocationPicker: SettingsComponent = ({ settings }) => {
                 <Button
                     variant="dangerPrimary"
                     onClick={async () => {
-                        await LimeyV1Native.fileManager.selectLimeyDir(null);
+                        await LimeyV1DesktopNative.fileManager.selectLimeyDir(null);
                         forceUpdate();
                     }}
                 >

@@ -14,10 +14,10 @@ type IpcCommandHandler = (data: any) => any;
 const handlers = new Map<string, IpcCommandHandler>();
 
 function respond(nonce: string, ok: boolean, data: any) {
-    LimeyV1Native.commands.respond({ nonce, ok, data });
+    LimeyV1DesktopNative.commands.respond({ nonce, ok, data });
 }
 
-LimeyV1Native.commands.onCommand(async ({ message, nonce, data }) => {
+LimeyV1DesktopNative.commands.onCommand(async ({ message, nonce, data }) => {
     const handler = handlers.get(message);
     if (!handler) {
         return respond(nonce, false, `No handler for message: ${message}`);

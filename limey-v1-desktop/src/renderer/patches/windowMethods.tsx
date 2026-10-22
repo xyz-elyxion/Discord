@@ -13,15 +13,15 @@ addPatch({
             replacement: [
                 {
                     match: /\i\.window\.(close|minimize|maximize)/g,
-                    replace: `LimeyV1Native.win.$1`
+                    replace: `LimeyV1DesktopNative.win.$1`
                 },
                 {
                     match: /(focus(\(\i\)){).{0,150}?\.focus\(\i,\i\)/,
-                    replace: "$1LimeyV1Native.win.focus$2"
+                    replace: "$1LimeyV1DesktopNative.win.focus$2"
                 },
                 {
                     match: /,getEnableHardwareAcceleration/,
-                    replace: "$&:LimeyV1Native.app.getEnableHardwareAcceleration,_oldGetEnableHardwareAcceleration"
+                    replace: "$&:LimeyV1DesktopNative.app.getEnableHardwareAcceleration,_oldGetEnableHardwareAcceleration"
                 }
             ]
         }

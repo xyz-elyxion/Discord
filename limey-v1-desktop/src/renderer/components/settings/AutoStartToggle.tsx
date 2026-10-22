@@ -10,7 +10,7 @@ import { SettingsComponent } from "./Settings";
 import { LimeyV1SettingsSwitch } from "./LimeyV1SettingsSwitch";
 
 export const AutoStartToggle: SettingsComponent = ({ settings }) => {
-    const [autoStartEnabled, setAutoStartEnabled] = useState(LimeyV1Native.autostart.isEnabled());
+    const [autoStartEnabled, setAutoStartEnabled] = useState(LimeyV1DesktopNative.autostart.isEnabled());
 
     return (
         <>
@@ -19,7 +19,7 @@ export const AutoStartToggle: SettingsComponent = ({ settings }) => {
                 description="Automatically start Limey V1 Desktop on computer start-up"
                 value={autoStartEnabled}
                 onChange={async v => {
-                    await LimeyV1Native.autostart[v ? "enable" : "disable"]();
+                    await LimeyV1DesktopNative.autostart[v ? "enable" : "disable"]();
                     setAutoStartEnabled(v);
                 }}
             />

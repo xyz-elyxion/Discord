@@ -10,8 +10,8 @@ import { SettingsStore } from "shared/utils/SettingsStore";
 import { LimeyV1Logger } from "./logger";
 import { localStorage } from "./utils";
 
-export const Settings = new SettingsStore(LimeyV1Native.settings.get());
-Settings.addGlobalChangeListener((o, p) => LimeyV1Native.settings.set(o, p));
+export const Settings = new SettingsStore(LimeyV1DesktopNative.settings.get());
+Settings.addGlobalChangeListener((o, p) => LimeyV1DesktopNative.settings.set(o, p));
 
 export function useSettings() {
     const [, update] = useReducer(x => x + 1, 0);

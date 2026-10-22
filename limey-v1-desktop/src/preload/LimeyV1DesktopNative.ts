@@ -26,7 +26,7 @@ let onDevtoolsClose = () => {};
 ipcRenderer.on(IpcEvents.DEVTOOLS_OPENED, () => onDevtoolsOpen());
 ipcRenderer.on(IpcEvents.DEVTOOLS_CLOSED, () => onDevtoolsClose());
 
-export const LimeyV1Native = {
+export const LimeyV1DesktopNative = {
     app: {
         relaunch: () => invoke<void>(IpcEvents.RELAUNCH),
         getVersion: () => sendSync<void>(IpcEvents.GET_VERSION),

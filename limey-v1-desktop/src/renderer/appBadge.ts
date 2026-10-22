@@ -25,7 +25,7 @@ export function setBadge() {
         let totalCount = mentionCount + pendingRequests;
         if (!totalCount && hasUnread && !disableUnreadBadge) totalCount = -1;
 
-        LimeyV1Native.app.setBadgeCount(totalCount);
+        LimeyV1DesktopNative.app.setBadgeCount(totalCount);
     } catch (e) {
         LimeyV1Logger.error("Failed to update badge count", e);
     }

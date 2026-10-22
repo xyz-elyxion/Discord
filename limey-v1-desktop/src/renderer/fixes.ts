@@ -12,7 +12,7 @@ Object.defineProperty(Notification.prototype, "onclick", {
     set(onClick) {
         originalSetOnClick.call(this, function (this: unknown) {
             onClick.apply(this, arguments);
-            LimeyV1Native.win.focus();
+            LimeyV1DesktopNative.win.focus();
         });
     },
     configurable: true

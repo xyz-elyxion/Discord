@@ -12,7 +12,7 @@ import { SimpleErrorBoundary } from "../SimpleErrorBoundary";
 import { SettingsComponent } from "./Settings";
 
 export const WindowsTransparencyControls: SettingsComponent = ({ settings }) => {
-    if (!LimeyV1Native.app.supportsWindowsTransparency()) return null;
+    if (!LimeyV1DesktopNative.app.supportsWindowsTransparency()) return null;
 
     return (
         <div>

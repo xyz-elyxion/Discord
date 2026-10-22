@@ -46,12 +46,12 @@ addPatch({
         }
 
         const cb = (w: string, c: string[]) => {
-            LimeyV1Native.spellcheck.offSpellcheckResult(cb);
+            LimeyV1DesktopNative.spellcheck.offSpellcheckResult(cb);
             word = w;
             corrections = c;
             openMenu();
         };
-        LimeyV1Native.spellcheck.onSpellcheckResult(cb);
+        LimeyV1DesktopNative.spellcheck.onSpellcheckResult(cb);
     }
 });
 
@@ -61,7 +61,7 @@ addContextMenuPatch("textarea-context", children => {
 
     const availableLanguages = useMemo(
         () =>
-            LimeyV1Native.spellcheck
+            LimeyV1DesktopNative.spellcheck
                 .getAvailableLanguages()
                 .map(lang => ({
                     name: lang,
@@ -97,14 +97,14 @@ addContextMenuPatch("textarea-context", children => {
                             key={c}
                             id={"vcd-spellcheck-suggestion-" + c}
                             label={c}
-                            action={() => LimeyV1Native.spellcheck.replaceMisspelling(c)}
+                            action={() => LimeyV1DesktopNative.spellcheck.replaceMisspelling(c)}
                         />
                     ))}
                     <Menu.MenuSeparator />
                     <Menu.MenuItem
                         id="vcd-spellcheck-learn"
                         label={`Add ${word} to dictionary`}
-                        action={() => LimeyV1Native.spellcheck.addToDictionary(word)}
+                        action={() => LimeyV1DesktopNative.spellcheck.addToDictionary(word)}
                     />
                 </>
             )}

@@ -130,7 +130,7 @@ if (isLinux) {
                 return;
             }
 
-            LimeyV1Native.virtmic.stop();
+            LimeyV1DesktopNative.virtmic.stop();
         });
 
         FluxDispatcher.subscribe("STREAM_UPDATE", ({ streamKey }: { streamKey: string }) => {
@@ -138,7 +138,7 @@ if (isLinux) {
                 return;
             }
 
-            LimeyV1Native.virtmic.unmute();
+            LimeyV1DesktopNative.virtmic.unmute();
         });
     });
 }
@@ -156,11 +156,11 @@ export function openScreenSharePicker(screens: Source[], skipPicker: boolean) {
 
                         if (v.includeSources && v.includeSources !== "None") {
                             if (v.includeSources === "Entire System") {
-                                await LimeyV1Native.virtmic.startSystem(
+                                await LimeyV1DesktopNative.virtmic.startSystem(
                                     !v.excludeSources || isSpecialSource(v.excludeSources) ? [] : v.excludeSources
                                 );
                             } else {
-                                await LimeyV1Native.virtmic.start(v.includeSources);
+                                await LimeyV1DesktopNative.virtmic.start(v.includeSources);
                             }
                         }
 
@@ -364,7 +364,7 @@ function StreamSettingsUi({
     const qualitySettings = State.store.screenshareQuality!;
 
     const [thumb] = useAwaiter(
-        () => (skipPicker ? Promise.resolve(source.url) : LimeyV1Native.capturer.getLargeThumbnail(source.id)),
+        () => (skipPicker ? Promise.resolve(source.url) : LimeyV1DesktopNative.capturer.getLargeThumbnail(source.id)),
         {
             fallbackValue: source.url,
             deps: [source.id]
@@ -574,7 +574,7 @@ function AudioSourcePickerLinux({
     setExcludeSources: (s: AudioSources) => void;
 }) {
     const [audioSourcesSignal, refreshAudioSources] = useForceUpdater(true);
-    const [sources, _, loading] = useAwaiter(() => LimeyV1Native.virtmic.list(), {
+    const [sources, _, loading] = useAwaiter(() => LimeyV1DesktopNative.virtmic.list(), {
         fallbackValue: { ok: true, targets: [], hasPipewirePulse: true },
         deps: [audioSourcesSignal]
     });

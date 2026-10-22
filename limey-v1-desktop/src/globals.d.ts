@@ -7,7 +7,7 @@
 import "@vencord/types";
 
 declare global {
-    export var LimeyV1Native: typeof import("preload/LimeyV1Native").LimeyV1Native;
+    export var LimeyV1DesktopNative: typeof import("preload/LimeyV1DesktopNative").LimeyV1DesktopNative;
     export var LimeyV1Desktop: typeof import("renderer/index");
     export var LimeyV1PatchGlobals: any;
 

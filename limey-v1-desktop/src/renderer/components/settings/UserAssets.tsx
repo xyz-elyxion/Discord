@@ -41,7 +41,7 @@ function Asset({ asset }: { asset: UserAssetType }) {
     const imageRendering = isSplash && settings.splashPixelated ? "pixelated" : "auto";
 
     const onChooseAsset = (value?: null) => async () => {
-        const res = await LimeyV1Native.fileManager.chooseUserAsset(asset, value);
+        const res = await LimeyV1DesktopNative.fileManager.chooseUserAsset(asset, value);
         if (res === "ok") {
             setVersion(Date.now());
             if (isSplash && value === null) {

@@ -10,7 +10,7 @@ import { useAwaiter } from "@vencord/types/utils";
 import { cl } from "./Settings";
 
 export function OutdatedLimeyV1Warning() {
-    const [isOutdated] = useAwaiter(LimeyV1Native.app.isOutdated);
+    const [isOutdated] = useAwaiter(LimeyV1DesktopNative.app.isOutdated);
 
     if (!isOutdated) return null;
 
@@ -19,7 +19,7 @@ export function OutdatedLimeyV1Warning() {
             <HeadingTertiary>Your Limey V1 Desktop is outdated!</HeadingTertiary>
             <Paragraph>Staying up to date is important for security and stability.</Paragraph>
 
-            <Button onClick={() => LimeyV1Native.app.openUpdater()} variant="secondary">
+            <Button onClick={() => LimeyV1DesktopNative.app.openUpdater()} variant="secondary">
                 Open Updater
             </Button>
         </Card>

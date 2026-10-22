@@ -60,7 +60,7 @@ onIpcCommand(IpcCommands.RPC_INVITE, async code => {
     const { invite } = await InviteActions.resolveInvite(code, "Desktop Modal");
     if (!invite) return false;
 
-    LimeyV1Native.win.focus();
+    LimeyV1DesktopNative.win.focus();
 
     FluxDispatcher.dispatch({
         type: "INVITE_MODAL_OPEN",

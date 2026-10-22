@@ -31,7 +31,7 @@ addPatch({
                 },
                 {
                     match: /\b\i\.window\.setDevtoolsCallbacks/g,
-                    replace: "LimeyV1Native.win.setDevtoolsCallbacks"
+                    replace: "LimeyV1DesktopNative.win.setDevtoolsCallbacks"
                 }
             ]
         }
