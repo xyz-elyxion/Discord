@@ -17,10 +17,8 @@
 */
 
 import { useSettings } from "@api/Settings";
-import { Button } from "@components/Button";
 import { Card } from "@components/Card";
 import { Divider } from "@components/Divider";
-import { Flex } from "@components/Flex";
 import { FormSwitch } from "@components/FormSwitch";
 import { HeadingSecondary } from "@components/Heading";
 import { Link } from "@components/Link";
@@ -90,34 +88,6 @@ function ReleaseChannelSection() {
     );
 }
 
-function VesktopSection() {
-    if (!IS_VESKTOP) return null;
-
-    const [isVesktopOutdated] = useAwaiter<boolean>(VesktopNative.app.isOutdated, { fallbackValue: false });
-
-    return (
-        <Flex className={Margins.bottom20} flexDirection="column" gap="1em">
-            <Card variant="info">
-                <HeadingSecondary>Vesktop & Limey V1</HeadingSecondary>
-                <Paragraph>Vesktop and Limey V1 are two separate things. This updater is for LimeyV1.</Paragraph>
-                <Paragraph className={Margins.top8}>
-                    You receive separate popups for Vesktop updates. You can also manually update by installing the <Link href="https://vesktop.dev/install">latest version</Link>.
-                </Paragraph>
-            </Card>
-
-            {isVesktopOutdated && (
-                <Card variant="warning">
-                    <HeadingSecondary>Vesktop Outdated</HeadingSecondary>
-                    <Flex flexDirection="column" gap="0.5em">
-                        <Paragraph>Your version of Vesktop is outdated!</Paragraph>
-                        <Button variant="link" onClick={() => VesktopNative.app.openUpdater()}>Open Vesktop Updater</Button>
-                    </Flex>
-                </Card>
-            )}
-        </Flex>
-    );
-}
-
 function Updater() {
     const settings = useSettings(["autoUpdate", "autoUpdateNotification"]);
 
@@ -136,8 +106,6 @@ function Updater() {
             <UpstreamSection />
 
             <ReleaseChannelSection />
-
-            <VesktopSection />
 
             <div className="vc-settings-switches">
                 <FormSwitch
