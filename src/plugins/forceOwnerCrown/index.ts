@@ -19,6 +19,7 @@
 import { Channel, User } from "@limeyV1/discord-types";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
+import { shouldHideInDiscord } from "@plugins/ghostClient";
 import { GuildStore } from "@webpack/common";
 
 export default definePlugin({
@@ -31,7 +32,7 @@ export default definePlugin({
             risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
         }
     ],
-    description: "Force the owner crown next to usernames even if the server is large.",
+    description: "Force the owner crown next to usernames even if the server is large. When the Ghost Client overlay is connected, the forced crown renders on the overlay instead of inside Discord.",
     authors: [Devs.D3SOX, Devs.Nickyux],
     tags: ["Roles", "Appearance", "Servers"],
     patches: [
@@ -44,6 +45,11 @@ export default definePlugin({
         }
     ],
     isGuildOwner(props: { user: User, channel: Channel, isOwner: boolean, guildId?: string; }) {
+        // Ghost Client overlay mode: the forced crown lives on the Ghost Client
+        // EXE, not inside the client where Limey V1 is installed. Fall back to
+        // Discord's own isOwner so nothing native disappears too.
+        if (shouldHideInDiscord()) return props.isOwner;
+
         if (!props?.user?.id) return props.isOwner;
         if (props.channel?.type === 3 /* GROUP_DM */)
             return props.isOwner;

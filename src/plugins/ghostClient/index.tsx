@@ -17,12 +17,26 @@ const API_URL = "https://limey-discord.onrender.com/v1/ghost";
 const PING_INTERVAL_MS = 30 * 1000;
 
 export const settings = definePluginSettings({
+    ghostOnly: {
+        type: OptionType.BOOLEAN,
+        description: "Render relayed effects ONLY on the Ghost Client overlay — hide them inside Discord while the overlay is connected",
+        default: true
+    },
     notifyConnect: {
         type: OptionType.BOOLEAN,
         description: "Show a toast inside Discord when the Ghost Client app connects or disconnects",
         default: true
     }
 });
+
+/**
+ * Plugins call this to know whether their visual effect should currently be
+ * hidden inside Discord and rendered by the Ghost Client overlay instead
+ * (e.g. ForceOwnerCrown standing down while the EXE shows the crown).
+ */
+export function shouldHideInDiscord() {
+    return ghostAppOnline && settings.store.ghostOnly;
+}
 
 let ghostAppOnline = false;
 
