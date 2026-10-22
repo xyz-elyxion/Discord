@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- Limey V1 Ghost Client overlay GUI.
+     This is what renders INSIDE the EXE floating above Discord: the visual
+     plugin effects (crown etc.) drawn here instead of inside Discord. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src https://limey-discord.onrender.com http://127.0.0.1:* https://*">
+<title>Limey V1 Ghost Client</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="overlay">
+        <header id="drag-bar">
+            <span class="ghost">👻</span>
+            <span class="title">Ghost Client</span>
+            <span class="dot" id="conn-dot"></span>
+            <button id="lock-btn" title="Toggle click-through (Shift+F10)">🔒</button>
+            <button id="hide-btn" title="Hide overlay (Shift+F9)">–</button>
+            <button id="quit-btn" title="Quit">✕</button>
+        </header>
+
+        <section id="pair-panel">
+            <label for="user-id">Discord user ID (the account Limey V1 runs on)</label>
+            <div class="row">
+                <input id="user-id" inputmode="numeric" spellcheck="false" placeholder="18-20 digit ID">
+                <button id="pair-btn">Pair</button>
+            </div>
+            <div class="hint" id="pair-hint">Pairs with the Ghost Client plugin in Discord.</div>
+        </section>
+
+        <section id="effects-panel" class="hidden">
+            <h2>Active effects <small>drawn on the Ghost Client only</small></h2>
+            <div id="effects"></div>
+        </section>
+
+        <section id="plugins-panel" class="hidden">
+            <h2>Enabled plugins <small id="plugin-count"></small></h2>
+            <ul id="plugins"></ul>
+        </section>
+
+        <div id="offline" class="hint">Waiting for Limey V1…</div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

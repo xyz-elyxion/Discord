@@ -1426,36 +1426,24 @@ async function handleDetector(req, res, url) {
 
 // ------------------------------------------------------------------
 // Limey V1 Ghost Client relay — connects the Ghost Client plugin running
-// inside Limey V1 (in Discord) with the standalone Ghost Client GUI app at
-// /ghost. The GUI is rendered here; every action still executes inside
-// Discord via the plugin.
+// inside Limey V1 (in Discord) with the standalone Ghost Client overlay app
+// (the EXE that floats above the Discord client). The overlay renders the
+// GUI from the plugin state relayed here; the actual behavior still comes
+// from Limey V1 installed in Discord.
 //
 // Endpoints (all with open CORS, like the detector API):
 //   POST /v1/ghost/ping     — plugin heartbeat { userId, username, ... }
-//   POST /v1/ghost/beacon   — Ghost Client app heartbeat + mirror fetch
-//   POST /v1/ghost/command  — queue an action for the plugin to run
+//   POST /v1/ghost/beacon   — Ghost Client overlay heartbeat + state fetch
 // ------------------------------------------------------------------
 const GHOST_SESSION_TTL_MS = 90 * 1000;
-const GHOST_MAX_MESSAGES = 25;
-const GHOST_MAX_MESSAGE_CHARS = 400;
-const GHOST_MAX_QUEUE = 25;
+const GHOST_MAX_PLUGINS = 200;
+const GHOST_MAX_PLUGIN_NAME = 64;
 
 // { "session:<userId>": { userId, online, appOnline, lastDiscordPingAt,
-//   lastAppPingAt, username, displayName, channelName, channelContent,
-//   messages, commands } } — sessions are ephemeral presence state, refreshed
+//   lastAppPingAt, username, displayName, enabledPlugins, flags } } —
+// sessions are ephemeral presence state, refreshed
 // by both heartbeats ~30s apart, so nothing here is persisted to disk/kv.
 const ghostSessions = new Map();
-let ghostCommandId = 0;
-
-function takeGhostCommands(session) {
-    if (!session || !Array.isArray(session.commands)) return [];
-    const queued = session.commands.filter(cmd =>
-        typeof cmd.action === "string" &&
-        Date.now() - (cmd.createdAt || 0) < GHOST_SESSION_TTL_MS
-    );
-    session.commands = [];
-    return queued;
-}
 
 function ghostSanitize(value, max) {
     if (value === null || value === undefined) return null;
@@ -1482,10 +1470,8 @@ function ensureGhostSession(userId) {
             lastAppPingAt: null,
             username: null,
             displayName: null,
-            channelName: null,
-            channelContent: null,
-            messages: [],
-            commands: [],
+            enabledPlugins: [],
+            flags: {},
         };
         ghostSessions.set(key, session);
     }
@@ -1520,20 +1506,28 @@ async function handleGhostClient(req, res, url) {
         session.online = true;
         session.username = ghostSanitize(body.username, 64);
         session.displayName = ghostSanitize(body.display, 64);
-        session.channelName = ghostSanitize(body.channelName, 128);
-        session.channelContent = ghostSanitize(body.channelContent, 4000);
-        if (Array.isArray(body.messages)) {
-            session.messages = body.messages.slice(0, GHOST_MAX_MESSAGES).map(m => ({
-                id: ghostSanitize(m?.id, 40) ?? "",
-                author: ghostSanitize(m?.author, 64) ?? "",
-                content: ghostSanitize(m?.content, GHOST_MAX_MESSAGE_CHARS) ?? "",
-                ts: typeof m?.ts === "number" && Number.isFinite(m.ts) ? m.ts : null,
-            }));
+        if (Array.isArray(body.enabledPlugins)) {
+            const seen = new Set();
+            session.enabledPlugins = body.enabledPlugins
+                .map(name => ghostSanitize(name, GHOST_MAX_PLUGIN_NAME))
+                .filter(name => {
+                    if (!name || seen.has(name)) return false;
+                    seen.add(name);
+                    return true;
+                })
+                .slice(0, GHOST_MAX_PLUGINS);
+        }
+        if (body.flags && typeof body.flags === "object") {
+            const cleanFlags = {};
+            for (const [flag, value] of Object.entries(body.flags)) {
+                const name = ghostSanitize(flag, GHOST_MAX_PLUGIN_NAME);
+                if (name) cleanFlags[name] = Boolean(value);
+            }
+            session.flags = cleanFlags;
         }
         pruneGhostSessions();
         return json(res, 200, {
             appOnline: !!session.appOnline,
-            commands: takeGhostCommands(session),
         }), true;
     }
 
@@ -1559,43 +1553,9 @@ async function handleGhostClient(req, res, url) {
             displayName: session.displayName,
             username: session.username,
             online: !!session.online,
-            channelName: session.channelName,
-            messages: session.messages,
+            enabledPlugins: session.enabledPlugins,
+            flags: session.flags,
         }), true;
-    }
-
-    // POST /v1/ghost/command — action from the Ghost Client GUI; executed in Discord
-    if (req.method === "POST" && url === "/v1/ghost/command") {
-        let body;
-        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
-            return json(res, 400, { error: "invalid JSON body" }), true;
-        }
-        const userId = String(body.userId || "");
-        if (!/^\d{5,25}$/.test(userId)) {
-            return json(res, 400, { error: "invalid userId" }), true;
-        }
-        const session = ghostSessions.get(`session:${userId}`);
-        if (!session || !session.online) {
-            return json(res, 503, { error: "no active Limey V1 client for this user" }), true;
-        }
-        const action = String(body.action || "");
-        if (!/^[a-zA-Z]{4,32}$/.test(action)) {
-            return json(res, 400, { error: "invalid action" }), true;
-        }
-        const args = (body.args && typeof body.args === "object") ? body.args : {};
-        const command = {
-            id: ++ghostCommandId,
-            action,
-            args: {
-                channelId: ghostSanitize(args.channelId, 40) ?? null,
-                guildId: ghostSanitize(args.guildId, 40) ?? null,
-                content: ghostSanitize(args.content, GHOST_MAX_MESSAGE_CHARS) ?? undefined,
-            },
-            createdAt: Date.now(),
-        };
-        session.commands.push(command);
-        if (session.commands.length > GHOST_MAX_QUEUE) session.commands.shift();
-        return json(res, 200, { queued: true, command: { id: command.id } }), true;
     }
 
     if (url.startsWith("/v1/ghost/")) return json(res, 404, { error: "not found" }), true;

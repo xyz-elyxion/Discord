@@ -1,0 +1,43 @@
+{
+    "name": "limey-ghost-client",
+    "productName": "Limey V1 Ghost Client",
+    "version": "1.0.0",
+    "description": "Limey V1 Ghost Client — a transparent overlay that floats above the Discord client and renders Limey V1 plugin GUI (Prestige-style ghost client)",
+    "private": true,
+    "main": "src/main.js",
+    "packageManager": "pnpm@9.0.0",
+    "scripts": {
+        "dev": "electron .",
+        "build:linux": "electron-builder --linux tar.gz --publish never",
+        "build:win": "electron-builder --win zip --x64 --publish never"
+    },
+    "devDependencies": {
+        "electron": "^33.0.0",
+        "electron-builder": "^25.1.8"
+    },
+    "build": {
+        "appId": "com.limeyv1.ghostclient",
+        "productName": "Limey V1 Ghost Client",
+        "directories": {
+            "output": "dist"
+        },
+        "files": [
+            "src/**/*"
+        ],
+        "win": {
+            "target": [
+                {
+                    "target": "zip",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ]
+        },
+        "linux": {
+            "target": [
+                "tar.gz"
+            ]
+        }
+    }
+}
