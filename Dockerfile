@@ -105,31 +105,13 @@ COPY ghost-client-app/package.json ./
 # needs no scripts at build time (the correct dist is pre-fetched below).
 RUN pnpm install --frozen-lockfile=false --ignore-scripts
 
-RUN EV=$(node -p "require('electron/package.json').version") \
-    && mkdir -p /node/.cache/electron /root/.cache/electron \
-    && node -e '
-        const { pipeline } = require("stream/promises");
-        const { createWriteStream } = require("fs");
-        const ev = process.argv[1];
-        const url = `https://npmmirror.com/mirrors/electron/v${ev}/electron-v${ev}-win32-x64.zip`;
-        const out = `/node/.cache/electron/electron-v${ev}-win32-x64.zip`;
-        (async () => {
-            for (let attempt = 1; ; attempt++) {
-                try {
-                    const res = await fetch(url, { redirect: "follow" });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    await pipeline(res.body, createWriteStream(out));
-                    break;
-                } catch (err) {
-                    if (attempt >= 5) throw err;
-                    console.error(`attempt ${attempt} failed (${err.message}) — retrying in 3s`);
-                    await new Promise(r => setTimeout(r, 3000));
-                }
-            }
-        })();
-    ' "$EV" \
-    && cp /node/.cache/electron/electron-v${EV}-win32-x64.zip /root/.cache/electron/ \
-    && ls -la /node/.cache/electron /root/.cache/electron
+# Pre-fetch the electron win32-x64 dist into electron-builder's cache from the
+# npmmirror CDN with retries — app-builder's own GitHub release download gets
+# rate-limited/blocked on some CI hosts and would kill the whole build.
+# Living in the app repo's scripts/ keeps the Dockerfile parser-friendly
+# (no multi-line inline scripts) and testable outside Docker.
+COPY ghost-client-app/scripts/fetch-electron-dist.mjs ./scripts/fetch-electron-dist.mjs
+RUN node scripts/fetch-electron-dist.mjs
 
 COPY ghost-client-app ./
 RUN pnpm build:win \
