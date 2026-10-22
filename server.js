@@ -10,7 +10,7 @@ const http = require("http");
 const { spawn } = require("child_process");
 const { createHmac, createHash } = require("crypto");
 const { inflateRawSync, inflateSync } = require("zlib");
-const { copyFileSync, createReadStream, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } = require("fs");
+const { copyFileSync, createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } = require("fs");
 const { join, extname, normalize, resolve } = require("path");
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -236,8 +236,32 @@ const DESKTOP_APP_DIR = join(DIST, "limeyDesktop");
 let desktopAppZipCache = null;
 let desktopAppZipKey = "";
 
+// Payload location: in the production image the `desktop` Docker stage output
+// is copied to dist/limeyDesktop. When that copy is absent (dev/sandbox
+// servers, where dist/ is not synced), fall back to packaging straight from
+// the limey-v1-desktop checkout — its layout (dist/ + static/ +
+// package.json) is identical to the copied one.
+const DESKTOP_APP_SOURCES = [
+    join(DIST, "limeyDesktop"),
+    join(ROOT, "limey-v1-desktop"),
+];
+
+function desktopAppDir() {
+    for (const dir of DESKTOP_APP_SOURCES) {
+        if (existsSync(join(dir, "dist", "js", "main.js"))) return dir;
+    }
+    return null;
+}
+
+function desktopAppBuilt() {
+    return desktopAppDir() !== null;
+}
+
 function collectDesktopAppFiles(acc, dir, prefix = "") {
     for (const name of readdirSync(dir)) {
+        // The checkout fallback lives next to node_modules and this project's
+        // own .git — never ship those in the payload.
+        if (name === "node_modules" || name === ".git") continue;
         const full = join(dir, name);
         const rel = prefix ? `${prefix}/${name}` : name;
         if (statSync(full).isDirectory()) collectDesktopAppFiles(acc, full, rel);
@@ -246,19 +270,14 @@ function collectDesktopAppFiles(acc, dir, prefix = "") {
     return acc;
 }
 
-function desktopAppBuilt() {
-    return existsSync(join(DESKTOP_APP_DIR, "dist", "js", "main.js"))
-        && existsSync(join(DESKTOP_APP_DIR, "dist", "js", "renderer.js"))
-        && existsSync(join(DESKTOP_APP_DIR, "dist", "js", "preload.js"));
-}
-
 function buildDesktopAppZip() {
-    if (!desktopAppBuilt()) return null;
+    const base = desktopAppDir();
+    if (!base) return null;
 
     let zipSync;
     try { ({ zipSync } = require("fflate")); } catch { return null; }
 
-    const files = collectDesktopAppFiles([], DESKTOP_APP_DIR);
+    const files = collectDesktopAppFiles([], base);
     const key = files.map(f => statSync(f.full).mtimeMs).join(",");
     if (desktopAppZipCache && key === desktopAppZipKey) return desktopAppZipCache;
 
