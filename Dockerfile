@@ -46,6 +46,28 @@ RUN pnpm install --frozen-lockfile --ignore-scripts \
     && pnpm rebuild better-sqlite3 sharp
 RUN node scripts/build.mjs
 
+# ---------- Limey V1 Desktop (standalone Electron client) ----------
+# Builds the rebranded Vesktop fork in limey-v1-desktop/: esbuild bundles the
+# app's main/preload/renderer/splash/updater scripts into /desktop/dist.
+# No Electron runtime scripts are needed for bundling, so install with
+# --ignore-scripts (keeps the electron binary download out of this stage) and
+# rebuild esbuild, the one devDependency that ships a platform binary.
+FROM node:22-alpine AS desktop
+WORKDIR /desktop
+
+RUN corepack enable
+
+COPY limey-v1-desktop/package.json limey-v1-desktop/pnpm-lock.yaml limey-v1-desktop/pnpm-workspace.yaml ./
+COPY limey-v1-desktop/patches ./patches
+COPY limey-v1-desktop/packages ./packages
+RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild esbuild
+
+# .dockerignore keeps the context lean (node_modules/ and dist/ never match),
+# so this copies clean source; the build regenerates dist/ in-image.
+COPY limey-v1-desktop ./
+RUN pnpm build \
+    && test -f dist/js/main.js && test -f dist/js/renderer.js && test -f dist/js/preload.js
+
 # ---------- Build stage ----------
 FROM node:22-alpine AS build
 
@@ -128,6 +150,12 @@ COPY --from=build --chown=node:node /app/release-channels.js ./
 COPY --from=build --chown=node:node /app/runtime_deps/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/dist ./dist
+# Limey V1 Desktop standalone app (built by the desktop stage): bundles, views
+# and manifest under /dist/limeyDesktop so /v1/install/desktop-app-zip can
+# package it and /dist/limeyDesktop/* serves the raw build files.
+COPY --from=desktop --chown=node:node /desktop/dist /app/dist/limeyDesktop/dist
+COPY --from=desktop --chown=node:node /desktop/static /app/dist/limeyDesktop/static
+COPY --from=desktop --chown=node:node /desktop/package.json /app/dist/limeyDesktop/package.json
 # Full browser/ extension shell so the server can package the install zip itself
 COPY --from=build --chown=node:node /app/browser ./browser
 COPY --from=cloud --chown=node:node /cloud/limeycloud-backend ./cloud/limeycloud-backend

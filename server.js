@@ -225,6 +225,64 @@ console.log("To remove: delete", injectDir, "and restore app.asar from app.orig.
     return zipped;
 }
 
+// Ready-built Limey V1 Desktop standalone app payload (built by the Docker
+// `desktop` stage): esbuild bundles in dist/, views/native helpers in
+// static/ and package.json at the root. Teammates run it with any desktop
+// Electron: unzip, `npm install`, `npm exec electron .` — no Discord patching
+// involved. Formal installers (.exe/.dmg/AppImage) are published by the repo's
+// GitHub release workflow on tags.
+const DESKTOP_APP_DIR = join(DIST, "limeyDesktop");
+
+let desktopAppZipCache = null;
+let desktopAppZipKey = "";
+
+function collectDesktopAppFiles(acc, dir, prefix = "") {
+    for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        const rel = prefix ? `${prefix}/${name}` : name;
+        if (statSync(full).isDirectory()) collectDesktopAppFiles(acc, full, rel);
+        else acc.push({ full, rel });
+    }
+    return acc;
+}
+
+function desktopAppBuilt() {
+    return existsSync(join(DESKTOP_APP_DIR, "dist", "js", "main.js"))
+        && existsSync(join(DESKTOP_APP_DIR, "dist", "js", "renderer.js"))
+        && existsSync(join(DESKTOP_APP_DIR, "dist", "js", "preload.js"));
+}
+
+function buildDesktopAppZip() {
+    if (!desktopAppBuilt()) return null;
+
+    let zipSync;
+    try { ({ zipSync } = require("fflate")); } catch { return null; }
+
+    const files = collectDesktopAppFiles([], DESKTOP_APP_DIR);
+    const key = files.map(f => statSync(f.full).mtimeMs).join(",");
+    if (desktopAppZipCache && key === desktopAppZipKey) return desktopAppZipCache;
+
+    const zipData = {};
+    for (const { full, rel } of files) {
+        try {
+            zipData["LimeyV1Desktop/" + rel] = new Uint8Array(readFileSync(full));
+        } catch { /* skip unreadable files */ }
+    }
+    zipData["LimeyV1Desktop/RUN_INSTRUCTIONS.txt"] = new TextEncoder().encode(
+        "Limey V1 Desktop — standalone Discord client (Electron)\n\n" +
+        "1. Unzip this folder.\n" +
+        "2. Inside the folder run:  npm install\n" +
+        "3. Start the app with:     npm exec electron .\n\n" +
+        "The app never patches your Discord install; it loads the Limey V1 mod\n" +
+        "fresh from the Limey backend on first launch. Build from source or get\n" +
+        "packaged releases: https://github.com/xyz-elyxion/Discord/releases\n"
+    );
+    const zipped = Buffer.from(zipSync(zipData, { level: 9 }));
+    desktopAppZipCache = zipped;
+    desktopAppZipKey = key;
+    return zipped;
+}
+
 function handleInstall(req, res, url) {
     // Serve the desktop build files to the Go installer, stamped with the
     // build hash (first line of patcher.js: "// Limey V1 <hash>") so the
@@ -333,6 +391,37 @@ function handleInstall(req, res, url) {
         res.end(zip);
         return true;
     }
+    if (url === "/v1/install/desktop-app") {
+        const built = desktopAppBuilt();
+        return json(res, 200, {
+            app: "Limey V1 Desktop",
+            description: "Standalone Discord client (Vesktop fork) with the Limey V1 mod preloaded",
+            built,
+            zip: "/v1/install/desktop-app-zip",
+            artifacts: built ? [
+                "/dist/limeyDesktop/dist/js/main.js",
+                "/dist/limeyDesktop/dist/js/preload.js",
+                "/dist/limeyDesktop/dist/js/renderer.js",
+                "/dist/limeyDesktop/dist/js/renderer.css"
+            ] : [],
+            releases: "https://github.com/xyz-elyxion/Discord/releases"
+        }), true;
+    }
+
+    if (url === "/v1/install/desktop-app-zip") {
+        const zip = buildDesktopAppZip();
+        if (!zip) return json(res, 503, { error: "desktop app build not available yet" }), true;
+        res.writeHead(200, {
+            "Content-Type": "application/zip",
+            "Content-Length": zip.length,
+            "Content-Disposition": "attachment; filename=\"LimeyV1Desktop-app.zip\"",
+            "Cache-Control": "no-cache",
+            "Access-Control-Allow-Origin": "*"
+        });
+        res.end(zip);
+        return true;
+    }
+
     if (url === "/v1/build/status") {
         const st = key => ({
             state: buildStatus[key].state,
