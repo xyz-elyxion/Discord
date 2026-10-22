@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<!-- Limey V1 Ghost Client — the companion GUI app.
+
+     This page is the "second app" half of the Ghost Client pair: the Ghost Client
+     plugin inside Limey V1 (in Discord) mirrors your Discord GUI state to the
+     relay endpoints in server.js, and this app renders that mirror while queueing
+     actions (send message, open channel/guild) that Discord executes. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Limey V1 Ghost Client</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E👻%3C/text%3E%3C/svg%3E">
+<style>
+    :root {
+        --bg: #0e1013;
+        --panel: #16181d;
+        --panel-2: #1c1f26;
+        --line: #262a33;
+        --text: #e8eaf0;
+        --muted: #8b93a5;
+        --lime: #b8e83c;
+        --lime-dim: #8fb52c;
+        --ghost: #a78bfa;
+        --red: #f16262;
+        --green: #3ecf6e;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        background:
+            radial-gradient(1200px 500px at 85% -10%, rgba(167, 139, 250, 0.08), transparent 60%),
+            radial-gradient(900px 420px at 10% 110%, rgba(184, 232, 60, 0.06), transparent 55%),
+            var(--bg);
+        color: var(--text);
+        font-family: "gg sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+        min-height: 100vh;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 60px; }
+    header.top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+    .logo {
+        font-size: 34px;
+        filter: drop-shadow(0 0 14px rgba(167, 139, 250, 0.55));
+        animation: float 3.2s ease-in-out infinite;
+    }
+    @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-5px) } }
+    h1 { font-size: 22px; margin: 0; letter-spacing: 0.4px; }
+    h1 .accent { color: var(--ghost); }
+    .sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+
+    .status-row { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+        border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+        white-space: nowrap;
+    }
+    .pill::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
+    .pill.on { color: var(--green); border-color: rgba(62, 207, 110, 0.4); }
+    .pill.on::before { background: var(--green); box-shadow: 0 0 8px rgba(62, 207, 110, 0.8); }
+    .pill.app-on { color: var(--lime); border-color: rgba(184, 232, 60, 0.35); }
+    .pill.app-on::before { background: var(--lime); box-shadow: 0 0 8px rgba(184, 232, 60, 0.7); }
+
+    .card {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+        padding: 18px; margin-bottom: 18px;
+    }
+    .card h2 {
+        margin: 0 0 12px; font-size: 13px; text-transform: uppercase;
+        letter-spacing: 1.2px; color: var(--muted); font-weight: 700;
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    input, button, textarea {
+        font: inherit; border-radius: 8px; border: 1px solid var(--line);
+        background: var(--panel-2); color: var(--text); padding: 9px 12px;
+        outline: none; transition: border-color 0.15s ease;
+    }
+    input:focus { border-color: var(--ghost); }
+    input { min-width: 220px; flex: 1 1 220px; }
+    button {
+        background: linear-gradient(180deg, #2a2e38, #232733);
+        border-color: #333947; cursor: pointer; font-weight: 600;
+    }
+    button:hover { border-color: var(--ghost); }
+    button.primary{
+        background: linear-gradient(180deg, var(--lime), var(--lime-dim));
+        color: #17180e; border-color: transparent;
+    }
+    button.ghosty { color: var(--ghost); }
+
+    .channel-line {
+        font-size: 16px; font-weight: 700; color: var(--lime);
+        display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+    }
+    .char-name { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+    .mirror {
+        max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 11px;
+        padding-right: 4px;
+    }
+    .msg { display: flex; gap: 10px; }
+    .msg .avatar {
+        width: 34px; height: 34px; flex: none; border-radius: 50%;
+        background: var(--panel-2); border: 1px solid var(--line);
+        display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .msg .body { min-width: 0; }
+    .msg .who { font-weight: 700; font-size: 14px; color: var(--ghost); }
+    .msg .when { color: var(--muted); font-size: 11px; margin-left: 8px; }
+    .msg .content { font-size: 14px; line-height: 1.45; word-wrap: break-word; white-space: pre-wrap; color: #d6dbe4; }
+    .empty { color: var(--muted); font-size: 14px; }
+
+    .actions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+    .action-box { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+    .action-box label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; font-weight: 700; }
+    .action-box input { width: 100%; min-width: 0; margin-bottom: 8px; }
+    .out { color: var(--muted); font-size: 12px; margin-top: 6px; min-height: 15px; }
+    footer { color: var(--muted); font-size: 12px; margin-top: 26px; text-align: center; }
+    footer a { color: var(--lime-dim); text-decoration: none; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.5; }
+    .hint code { color: var(--lime); background: rgba(184,232,60,0.08); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header class="top">
+        <div class="logo">👻</div>
+        <div>
+            <h1>Limey V1 <span class="accent">Ghost Client</span></h1>
+            <div class="sub">The GUI lives here — every action still runs in Discord, where Limey V1 is installed.</div>
+        </div>
+        <div class="status-row">
+            <span class="pill" id="status-discord">Ghost Client off</span>
+            <span class="pill app-on" id="status-app" title="This Ghost Client GUI is running">👻 App running</span>
+        </div>
+    </header>
+
+    <div class="card">
+        <h2>Connect</h2>
+        <div class="row">
+            <input id="userId" inputmode="numeric" placeholder="Your Discord user ID (the one Limey V1 runs on)">
+            <button class="primary" id="connect">Run Ghost Client</button>
+        </div>
+        <div class="hint" id="connectHint">
+            This is the ID of the Discord account the Ghost Client plugin reports (open Limey V1 settings → Ghost Client to see it).
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Discord mirror</h2>
+        <div class="channel-line" id="channelName">—</div>
+        <div class="char-name" id="whoLine">waiting for the plugin…</div>
+        <div class="mirror" id="mirror" style="margin-top: 12px;"></div>
+    </div>
+
+    <div class="card">
+        <h2>Actions (queued for Discord)</h2>
+        <div class="actions-grid">
+            <div class="action-box">
+                <label>Send message</label>
+                <input id="sendText" placeholder="Message text…">
+                <button class="primary" id="sendBtn">Send</button>
+                <div class="out" id="sendOut"></div>
+            </div>
+            <div class="action-box">
+                <label>Open channel</label>
+                <input id="channelId" placeholder="Channel ID…">
+                <button class="ghosty" id="channelBtn">Open</button>
+                <div class="out" id="channelOut"></div>
+            </div>
+            <div class="action-box">
+                <label>Open server</label>
+                <input id="guildId" placeholder="Guild ID…">
+                <button class="ghosty" id="guildBtn">Open</button>
+                <div class="out" id="guildOut"></div>
+            </div>
+        </div>
+        <div class="hint">Actions run inside Discord on the Limey V1 client — they only queue here while the Ghost Client plugin is pinged by the plugin (every ~30s).</div>
+    </div>
+
+    <footer>
+        Limey V1 Ghost Client · pairs with the <span class="lime-dim">Ghost Client plugin</span> (enable it inside Limey V1's plugin settings in Discord) ·
+        <a href="/">limey-discord.onrender.com</a>
+    </footer>
+</div>
+
+<script>
+(function () {
+    "use strict";
+
+    const API = "/v1/ghost";
+    const STATE_KEY = "ghost-client-user-id";
+
+    const $ = id => document.getElementById(id);
+    const userIdInput = $("userId");
+    const discordPill = $("status-discord");
+    const appPill = $("status-app");
+    const channelNameEl = $("channelName");
+    const whoLine = $("whoLine");
+    const mirrorEl = $("mirror");
+    const connectHint = $("connectHint");
+    const connectBtn = $("connect");
+
+    let connectedUserId = "";
+    let beaconTimer = null;
+
+    function command(key, text) {
+        $(key).textContent = text;
+        setTimeout(() => { if ($(key).textContent === text) $(key).textContent = ""; }, 4000);
+    }
+
+    function fmtTime(ts) {
+        if (!ts) return "";
+        try { return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+        catch { return ""; }
+    }
+
+    function setDiscordOnline(on, who) {
+        discordPill.classList.toggle("on", !!on);
+        discordPill.textContent = on ? "Ghost Client running" : "Ghost Client off";
+        whoLine.textContent = on
+            ? `${who || "Discord client"} · Limey V1 visible in Discord · actions execute there`
+            : "No Limey V1 client pinged the relay yet — enable the Ghost Client plugin in Discord.";
+            channelNameEl.textContent = "—";
+        mirrorEl.innerHTML = '<div class="empty">Nothing mirrored yet.</div>';
+    }
+
+    function renderMirror(state) {
+        setDiscordOnline(state.online, state.displayName || state.username);
+        channelNameEl.textContent = state.channelName
+            ? "# " + state.channelName
+            : "—";
+        mirrorEl.innerHTML = "";
+        const messages = Array.isArray(state.messages) ? state.messages : [];
+        if (!messages.length) {
+            mirrorEl.innerHTML = '<div class="empty">No messages mirrored (plugin "mirrorMessages" off or channel empty).</div>';
+            return;
+        }
+        for (const m of messages) {
+            const row = document.createElement("div");
+            row.className = "msg";
+            const avatar = document.createElement("div");
+            avatar.className = "avatar";
+            avatar.textContent = (m.author || "?").slice(0, 1).toUpperCase();
+            const body = document.createElement("div");
+            body.className = "body";
+            const who = document.createElement("div");
+            who.innerHTML = "";
+            const whoName = document.createElement("span");
+            whoName.className = "who";
+            whoName.textContent = m.author || "unknown";
+            const when = document.createElement("span");
+            when.className = "when";
+            when.textContent = fmtTime(m.ts);
+            who.append(whoName, when);
+            const content = document.createElement("div");
+            content.className = "content";
+            content.textContent = m.content || "";
+            body.append(who, content);
+            row.append(avatar, body);
+            mirrorEl.append(row);
+        }
+        mirrorEl.scrollTop = mirrorEl.scrollHeight;
+    }
+
+    async function beacon() {
+        if (!connectedUserId) return;
+        try {
+            const res = await fetch(`${API}/beacon`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: connectedUserId })
+            });
+            if (!res.ok) return;
+            const state = await res.json();
+            if (state.session === null) {
+                setDiscordOnline(false);
+                return;
+            }
+            renderMirror(state);
+        } catch {
+            /* relay hiccup — keep the GUI as-is */
+        }
+    }
+
+    function connect() {
+        const id = userIdInput.value.trim();
+        if (!/^\d{5,25}$/.test(id)) {
+            connectHint.textContent = "That doesn't look like a Discord user ID (16–20 digits).";
+            return;
+        }
+        connectedUserId = id;
+        try { localStorage.setItem(STATE_KEY, id); } catch { /* private mode */ }
+        connectHint.textContent = `Ghost Client paired with Discord user ${id}. The plugin inside Discord heartbeats this relay; actions you queue here execute in Discord.`;
+        setDiscordOnline(false);
+        void beacon();
+        if (beaconTimer) clearInterval(beaconTimer);
+        beaconTimer = setInterval(beacon, 15000);
+    }
+
+    async function sendCommand(action, args, outKey, okText) {
+        if (!connectedUserId) {
+            command(outKey, "Connect first above.");
+            return;
+        }
+        try {
+            const res = await fetch(`${API}/command`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: connectedUserId, action, args })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) command(outKey, okText);
+            else command(outKey, data.error || `failed (${res.status})`);
+        } catch {
+            command(outKey, "network error");
+        }
+    }
+
+    connectBtn.addEventListener("click", connect);
+    userIdInput.addEventListener("keydown", e => { if (e.key === "Enter") connect(); });
+
+    $("sendBtn").addEventListener("click", () => {
+        const text = $("sendText").value.trim();
+        if (!text) return command("sendOut", "Type a message first.");
+        $("sendText").value = "";
+        void sendCommand("sendMessage", { content: text }, "sendOut", "Queued — runs in Discord on the next plugin ping.");
+    });
+    $("sendText").addEventListener("keydown", e => { if (e.key === "Enter") $("sendBtn").click(); });
+
+    $("channelBtn").addEventListener("click", () => {
+        const id = $("channelId").value.trim();
+        if (!id) return command("channelOut", "Enter a channel ID.");
+        $("channelId").value = "";
+        void sendCommand("openChannel", { channelId: id }, "channelOut", "Queued — Discord opens that channel.");
+    });
+    $("guildBtn").addEventListener("click", () => {
+        const id = $("guildId").value.trim();
+        if (!id) return command("guildOut", "Enter a guild ID.");
+        $("guildId").value = "";
+        void sendCommand("openGuild", { guildId: id }, "guildOut", "Queued — Discord opens that server.");
+    });
+
+    try {
+        const saved = localStorage.getItem(STATE_KEY);
+        if (saved) {
+            userIdInput.value = saved;
+            connect();
+        }
+    } catch { /* first run */ }
+})();
+</script>
+</body>
+</html>

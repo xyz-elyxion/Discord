@@ -1424,6 +1424,184 @@ async function handleDetector(req, res, url) {
     return false;
 }
 
+// ------------------------------------------------------------------
+// Limey V1 Ghost Client relay — connects the Ghost Client plugin running
+// inside Limey V1 (in Discord) with the standalone Ghost Client GUI app at
+// /ghost. The GUI is rendered here; every action still executes inside
+// Discord via the plugin.
+//
+// Endpoints (all with open CORS, like the detector API):
+//   POST /v1/ghost/ping     — plugin heartbeat { userId, username, ... }
+//   POST /v1/ghost/beacon   — Ghost Client app heartbeat + mirror fetch
+//   POST /v1/ghost/command  — queue an action for the plugin to run
+// ------------------------------------------------------------------
+const GHOST_SESSION_TTL_MS = 90 * 1000;
+const GHOST_MAX_MESSAGES = 25;
+const GHOST_MAX_MESSAGE_CHARS = 400;
+const GHOST_MAX_QUEUE = 25;
+
+// { "session:<userId>": { userId, online, appOnline, lastDiscordPingAt,
+//   lastAppPingAt, username, displayName, channelName, channelContent,
+//   messages, commands } } — sessions are ephemeral presence state, refreshed
+// by both heartbeats ~30s apart, so nothing here is persisted to disk/kv.
+const ghostSessions = new Map();
+let ghostCommandId = 0;
+
+function takeGhostCommands(session) {
+    if (!session || !Array.isArray(session.commands)) return [];
+    const queued = session.commands.filter(cmd =>
+        typeof cmd.action === "string" &&
+        Date.now() - (cmd.createdAt || 0) < GHOST_SESSION_TTL_MS
+    );
+    session.commands = [];
+    return queued;
+}
+
+function ghostSanitize(value, max) {
+    if (value === null || value === undefined) return null;
+    const s = String(value).slice(0, max);
+    return s.length ? s : null;
+}
+
+function pruneGhostSessions() {
+    const cutoff = Date.now() - GHOST_SESSION_TTL_MS;
+    for (const [key, session] of ghostSessions) {
+        if ((session.t.lastDiscordPingAt ?? session.t.created) < cutoff) ghostSessions.delete(key);
+    }
+}
+
+function ensureGhostSession(userId) {
+    const key = `session:${userId}`;
+    let session = ghostSessions.get(key);
+    if (!session) {
+        session = {
+            userId,
+            t: { created: Date.now(), lastDiscordPingAt: null },
+            online: false,
+            appOnline: false,
+            lastAppPingAt: null,
+            username: null,
+            displayName: null,
+            channelName: null,
+            channelContent: null,
+            messages: [],
+            commands: [],
+        };
+        ghostSessions.set(key, session);
+    }
+    return session;
+}
+
+async function handleGhostClient(req, res, url) {
+    if (!url.startsWith("/v1/ghost/")) return false;
+
+    if (req.method === "OPTIONS") {
+        res.writeHead(204, {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        });
+        return res.end(), true;
+    }
+
+    // POST /v1/ghost/ping — the Limey V1 plugin inside Discord
+    if (req.method === "POST" && url === "/v1/ghost/ping") {
+        let body;
+        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const userId = String(body.userId || "");
+        if (!/^\d{5,25}$/.test(userId)) {
+            return json(res, 400, { error: "invalid userId" }), true;
+        }
+        const session = ensureGhostSession(userId);
+        const now = Date.now();
+        session.t.lastDiscordPingAt = now;
+        session.online = true;
+        session.username = ghostSanitize(body.username, 64);
+        session.displayName = ghostSanitize(body.display, 64);
+        session.channelName = ghostSanitize(body.channelName, 128);
+        session.channelContent = ghostSanitize(body.channelContent, 4000);
+        if (Array.isArray(body.messages)) {
+            session.messages = body.messages.slice(0, GHOST_MAX_MESSAGES).map(m => ({
+                id: ghostSanitize(m?.id, 40) ?? "",
+                author: ghostSanitize(m?.author, 64) ?? "",
+                content: ghostSanitize(m?.content, GHOST_MAX_MESSAGE_CHARS) ?? "",
+                ts: typeof m?.ts === "number" && Number.isFinite(m.ts) ? m.ts : null,
+            }));
+        }
+        pruneGhostSessions();
+        return json(res, 200, {
+            appOnline: !!session.appOnline,
+            commands: takeGhostCommands(session),
+        }), true;
+    }
+
+    // POST /v1/ghost/beacon — the Ghost Client GUI app heartbeat + mirror fetch
+    if (req.method === "POST" && url === "/v1/ghost/beacon") {
+        let body;
+        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const userId = String(body.userId || "");
+        if (!/^\d{5,25}$/.test(userId)) {
+            return json(res, 400, { error: "invalid userId" }), true;
+        }
+        pruneGhostSessions();
+        const session = ghostSessions.get(`session:${userId}`);
+        if (!session || !session.online) {
+            return json(res, 200, { session: null }), true;
+        }
+        session.appOnline = true;
+        session.lastAppPingAt = Date.now();
+        return json(res, 200, {
+            session: session.userId,
+            displayName: session.displayName,
+            username: session.username,
+            online: !!session.online,
+            channelName: session.channelName,
+            messages: session.messages,
+        }), true;
+    }
+
+    // POST /v1/ghost/command — action from the Ghost Client GUI; executed in Discord
+    if (req.method === "POST" && url === "/v1/ghost/command") {
+        let body;
+        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const userId = String(body.userId || "");
+        if (!/^\d{5,25}$/.test(userId)) {
+            return json(res, 400, { error: "invalid userId" }), true;
+        }
+        const session = ghostSessions.get(`session:${userId}`);
+        if (!session || !session.online) {
+            return json(res, 503, { error: "no active Limey V1 client for this user" }), true;
+        }
+        const action = String(body.action || "");
+        if (!/^[a-zA-Z]{4,32}$/.test(action)) {
+            return json(res, 400, { error: "invalid action" }), true;
+        }
+        const args = (body.args && typeof body.args === "object") ? body.args : {};
+        const command = {
+            id: ++ghostCommandId,
+            action,
+            args: {
+                channelId: ghostSanitize(args.channelId, 40) ?? null,
+                guildId: ghostSanitize(args.guildId, 40) ?? null,
+                content: ghostSanitize(args.content, GHOST_MAX_MESSAGE_CHARS) ?? undefined,
+            },
+            createdAt: Date.now(),
+        };
+        session.commands.push(command);
+        if (session.commands.length > GHOST_MAX_QUEUE) session.commands.shift();
+        return json(res, 200, { queued: true, command: { id: command.id } }), true;
+    }
+
+    if (url.startsWith("/v1/ghost/")) return json(res, 404, { error: "not found" }), true;
+    return false;
+}
+
 // Persistence is now handled by PostgreSQL (pgkv.js); the Go cloud backend
 // still takes a REDIS_URI for its own use.
 function normalizeRedisUri(uri) {
@@ -2617,6 +2795,7 @@ const NAMED_PAGES = {
     "/dashboard": "dashboard.html",
     "/submit-plugin": "submit-plugin.html",
     "/code": "code.html",
+    "/ghost": "ghost.html",
     "/404": "404.html",
     "/sdk": "sdk.html",
     "/terms": "terms.html",
@@ -2884,6 +3063,8 @@ const server = http.createServer(async (req, res) => {
         if (await handleUsrbg(req, res, url)) return;
         // Limey V1 Detector API (handled in-process)
         if (await handleDetector(req, res, url)) return;
+        // Limey V1 Ghost Client relay (plugin <-> companion app GUI)
+        if (await handleGhostClient(req, res, url)) return;
         // Tools page lookup proxy (invite + guild widget)
         if (await handleToolsLookup(req, res, url)) return;
         // CORS-friendly media proxy for the GifCaptioner plugin
