@@ -87,10 +87,9 @@ function collectClientState(): GhostClientState {
         if (!enabled || plugin.name?.startsWith("_")) continue;
         enabledPlugins.push(plugin.name!);
     }
+    // isPluginEnabled takes the plugin NAME, not the plugin object
     for (const visual of VISUAL_PLUGINS) {
-        flags[visual.flag] = Object.values(plugins).some(
-            (plugin: any) => plugin.name === visual.id && isPluginEnabled(plugin)
-        );
+        flags[visual.flag] = isPluginEnabled(visual.id);
     }
 
     return {
