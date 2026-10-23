@@ -20,9 +20,8 @@ import { Channel, User } from "@limeyV1/discord-types";
 import { addMemberListDecorator, removeMemberListDecorator } from "@api/MemberListDecorators";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import { React } from "@webpack/common";
+import { GuildStore, React, SelectedGuildStore } from "@webpack/common";
 import { shouldHideInDiscord } from "@plugins/ghostClient";
-import { GuildStore } from "@webpack/common";
 
 export default definePlugin({
     name: "ForceOwnerCrown",
@@ -70,7 +69,19 @@ export default definePlugin({
         // exactly where it belongs — ESP-style, over the Discord window.
         addMemberListDecorator("ForceOwnerCrown", props => {
             if (!shouldHideInDiscord()) return null;
-            if (!props?.user?.id || !props.isOwner) return null;
+            if (!props?.user?.id) return null;
+
+            // props.isOwner is the patch context's own ownership decision; not
+            // every member-list patch context carries it, so fall back to
+            // checking the selected guild's owner directly.
+            const isOwner = props.isOwner ??
+                (() => {
+                    // Not every member-list patch context carries isOwner, so
+                    // fall back to checking the selected guild's owner directly.
+                    const guildId = SelectedGuildStore?.getGuildId?.();
+                    return Boolean(guildId) && GuildStore.getGuild(guildId!)?.ownerId === props.user.id;
+                })();
+            if (!isOwner) return null;
 
             return React.createElement("span", {
                 className: "limey-ghost-anchor",
