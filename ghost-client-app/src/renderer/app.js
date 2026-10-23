@@ -22,7 +22,7 @@ let timer = null;
 const FLAG_RENDERERS = {
     crown: {
         label: "Force Owner Crown",
-        note: "crown shown here, not in Discord",
+        note: "drawn ESP-style at the owner's spot in Discord (🎯)",
         render(box) {
             box.insertAdjacentHTML("beforeend",
                 '<div class="effect"><span class="crown-float">👑</span></div>');
@@ -86,12 +86,25 @@ async function fetchState() {
         const state = await res.json();
         if (state.session === null) {
             renderOffline("Ghost Client waiting for Limey V1 in Discord…");
+            forwardEspState(state);
             return;
         }
         renderState(state);
+        forwardEspState(state);
     } catch {
         renderOffline("Cannot reach the Limey V1 relay — check your connection.");
     }
+}
+
+function forwardEspState(state) {
+    // Main process relays this to the ESP canvas window (it draws the effects
+    // pinned over the Discord window at their live measured positions).
+    ipcRenderer.send("ghost-state", {
+        paired: state.session !== null,
+        flags: state.flags || {},
+        anchors: state.anchors || [],
+        viewport: state.viewport || null,
+    });
 }
 
 function pair() {
@@ -110,6 +123,26 @@ function pair() {
 
 $("pair-btn").addEventListener("click", pair);
 $("user-id").addEventListener("keydown", e => { if (e.key === "Enter") pair(); });
+
+// ---- ESP mode ------------------------------------------------------------
+// 🎯 pins a transparent click-through canvas onto the Discord window and draws
+// the crown (and friends) at the live positions the plugin measures in the
+// Discord UI — exactly like game ESP, but screenshare-proof: it is drawn by
+// the EXE's own window, so it never appears in Discord's own screen share.
+const espBtn = $("esp-btn");
+
+function setEspUi(on, reason) {
+    espBtn.textContent = on ? "🎯" : "🎯";
+    espBtn.style.color = on ? "var(--lime)" : "";
+    espBtn.title = on
+        ? "ESP is ON — the crown is drawn over the owner's row in Discord (Shift+F11 to stop)"
+        : `ESP mode (Shift+F11): draw the crown at its exact spot in the member list (Windows)${reason ? " — " + reason : ""}`;
+}
+
+espBtn.addEventListener("click", () => {
+    ipcRenderer.invoke("esp-toggle").then(on => setEspUi(on));
+});
+ipcRenderer.on("esp-status", (_e, status) => setEspUi(Boolean(status?.on), status?.reason));
 
 ipcRenderer.on("click-through-set", (_e, on) => {
     $("lock-btn").textContent = on ? "🔓" : "🔒";

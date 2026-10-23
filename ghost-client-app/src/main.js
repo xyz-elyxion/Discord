@@ -23,6 +23,7 @@ const {
 } = require("electron");
 const { readFileSync, writeFileSync, mkdirSync } = require("fs");
 const { join, dirname } = require("path");
+const { spawn } = require("child_process");
 
 const CONFIG_DIR = join(app.getPath("userData"), "config");
 const CONFIG_FILE = join(CONFIG_DIR, "ghost.json");
@@ -30,6 +31,199 @@ const CONFIG_FILE = join(CONFIG_DIR, "ghost.json");
 let win = null;
 let tray = null;
 let clickThrough = false;
+
+// ---- ESP mode ------------------------------------------------------------
+// ESP is the original "ghost client" trick: instead of drawing the plugin
+// effects inside a separate GUI panel, we pin a transparent click-through
+// canvas window exactly over the Discord client window and draw the effects
+// at the live screen position of the Discord UI elements they belong to
+// (like a game overlay drawing ESP marks on top of the real players).
+// Positions come from the Limey V1 Goldpin relay: the plugin inside Discord
+// measures its own effect markers and relays them; we only handle the window
+// snapping. Windows-only (Win32 window rect lookup).
+let espEnabled = false;
+let espWin = null;
+let espAlignTimer = null;
+let lastGhostState = null;
+
+// Win32 lookup: find the visible top-level Electron window of the modded
+// client (class Chrome_WidgetWin_1), skipping our own overlay, and return its
+// screen rect in physical pixels.
+const POWERSHELL_WINDOW_LOOKUP = `
+Add-Type -TypeDefinition @'
+using System; using System.Text; using System.Runtime.InteropServices;
+public class LimWin {
+    [DllImport("user32.dll")] public static extern int GetClassName(IntPtr h, System.Text.StringBuilder n, int c);
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out LimWin.R r);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+    public struct R { public int L; public int T; public int Rt; public int B; }
+}
+'@
+foreach ($p in Get-Process | Where-Object { ($_.ProcessName -match '(?i)discord|limey') -and ($_.ProcessName -notmatch '(?i)ghost') -and $_.MainWindowHandle -ne 0 }) {
+    $h = $p.MainWindowHandle
+    try {
+        if (-not [LimWin]::IsWindowVisible($h)) { continue }
+        $sb = New-Object System.Text.StringBuilder 256
+        [void][LimWin]::GetClassName($h, $sb, 256)
+        if ($sb.ToString() -ne 'Chrome_WidgetWin_1') { continue }
+        $r = New-Object LimWin+R
+        [void][LimWin]::GetWindowRect($h, [ref]$r)
+        "$($r.L),$($r.T),$($r.Rt),$($r.B)"
+    } catch { }
+}
+`;
+
+function findDiscordWindow() {
+    if (process.platform !== "win32") return Promise.resolve(null);
+    return new Promise(resolve => {
+        let out = "";
+        let child;
+        try {
+            child = spawn("powershell.exe", [
+                "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
+                POWERSHELL_WINDOW_LOOKUP,
+            ], { windowsHide: true });
+        } catch {
+            return resolve(null);
+        }
+        child.stdout.on("data", d => { out += d; });
+        child.on("error", () => resolve(null));
+        child.on("close", () => {
+            let best = null;
+            for (const line of out.split(/\r?\n/)) {
+                const m = line.trim().match(/^(-?\d+),(-?\d+),(-?\d+),(-?\d+)$/);
+                if (!m) continue;
+                const rect = {
+                    left: +m[1], top: +m[2], right: +m[3], bottom: +m[4],
+                    area: (+m[3] - +m[1]) * (+m[4] - +m[2]),
+                };
+                if (rect.area > (best ? best.area : 0)) best = rect;
+            }
+            resolve(best);
+        });
+    });
+}
+
+/** The physical-px rect lives on exactly one display; Electron takes DIPs. */
+function displayForPhysicalRect(rect) {
+    const displays = screen.getAllDisplays();
+    for (const d of displays) {
+        const s = d.scaleFactor || 1;
+        const phys = {
+            x: Math.round(d.bounds.x * s),
+            y: Math.round(d.bounds.y * s),
+            width: Math.round(d.bounds.width * s),
+            height: Math.round(d.bounds.height * s),
+        };
+        if (rect.left >= phys.x && rect.top >= phys.y &&
+            rect.right <= phys.x + phys.width && rect.bottom <= phys.y + phys.height) {
+            return d;
+        }
+    }
+    return screen.getPrimaryDisplay();
+}
+
+function sendEspStatusToGui(status) {
+    if (win && !win.isDestroyed()) win.webContents.send("esp-status", status);
+}
+
+function sendEspState() {
+    if (espWin && !espWin.isDestroyed()) espWin.webContents.send("esp-state", lastGhostState);
+}
+
+/** Find Discord, snap the ESP canvas onto it (DIP bounds + zoom factor). */
+async function ensureEsp() {
+    const rect = await findDiscordWindow();
+    if (!rect) {
+        stopEsp();
+        sendEspStatusToGui({ on: false, reason: "Discord window not found" });
+        return false;
+    }
+
+    if (!espWin || espWin.isDestroyed()) {
+        espWin = new BrowserWindow({
+            x: rect.left,
+            y: rect.top,
+            width: Math.max(1, rect.right - rect.left),
+            height: Math.max(1, rect.bottom - rect.top),
+            frame: false,
+            transparent: true,
+            hasShadow: false,
+            resizable: false,
+            skipTaskbar: true,
+            focusable: false,
+            alwaysOnTop: true,
+            backgroundColor: "#00000000",
+            show: false,
+            webPreferences: {
+                contextIsolation: false,
+                nodeIntegration: true,
+                backgroundThrottling: false
+            }
+        });
+        espWin.setAlwaysOnTop(true, "screen-saver");
+        // The canvas is display-only: every click, scroll and key goes to Discord.
+        espWin.setIgnoreMouseEvents(true);
+        espWin.loadFile(join(__dirname, "renderer", "esp.html"));
+        espWin.webContents.once("did-finish-load", () => {
+            if (espWin && !espWin.isDestroyed()) {
+                espWin.showInactive();
+                sendEspState();
+            }
+        });
+        espWin.on("closed", () => { espWin = null; });
+    }
+
+    const d = displayForPhysicalRect(rect);
+    const scale = d.scaleFactor || 1;
+    espWin.setBounds({
+        x: Math.round(rect.left / scale),
+        y: Math.round(rect.top / scale),
+        width: Math.max(1, Math.round((rect.right - rect.left) / scale)),
+        height: Math.max(1, Math.round((rect.bottom - rect.top) / scale)),
+    });
+
+    // Match the Discord renderer's page zoom: its devicePixelRatio equals
+    // screen scale x page zoom, so mirroring it lets our CSS px line up 1:1
+    // with the anchor coordinates the plugin measured in its own viewport.
+    const dpr = (lastGhostState && lastGhostState.viewport && lastGhostState.viewport.dpr) || scale;
+    espWin.webContents.setZoomFactor(dpr / scale);
+
+    return true;
+}
+
+function stopEsp() {
+    espEnabled = false;
+    if (espAlignTimer) {
+        clearInterval(espAlignTimer);
+        espAlignTimer = null;
+    }
+    if (espWin && !espWin.isDestroyed()) espWin.destroy();
+    espWin = null;
+}
+
+async function toggleEsp() {
+    if (espEnabled) {
+        stopEsp();
+        sendEspStatusToGui({ on: false });
+        return false;
+    }
+    if (process.platform !== "win32") {
+        sendEspStatusToGui({ on: false, reason: "ESP mode is Windows-only (it snaps onto the Discord window)" });
+        return false;
+    }
+    espEnabled = true;
+    const ok = await ensureEsp();
+    if (!ok) return false;
+
+    // Re-snap periodically in case Discord is moved, resized or restarted.
+    espAlignTimer = setInterval(async () => {
+        if (!espEnabled) return;
+        await ensureEsp();
+    }, 4000);
+    sendEspStatusToGui({ on: true });
+    return true;
+}
 
 function readConfig() {
     try {
@@ -152,6 +346,7 @@ app.whenReady().then(() => {
         if (win) win.isVisible() ? win.hide() : win.show();
     });
     globalShortcut.register("Shift+F10", () => setClickThrough(!clickThrough));
+    globalShortcut.register("Shift+F11", () => void toggleEsp());
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -172,4 +367,12 @@ ipcMain.on("set-click-through", (_event, on) => setClickThrough(Boolean(on)));
 ipcMain.on("quit-app", () => app.quit());
 ipcMain.handle("win-flash", () => {
     if (win) win.flashFrame(true);
+});
+
+// ESP mode: the GUI toggles the canvas (button or Shift+F11); the GUI renderer
+// also forwards every relay state snapshot here so the canvas can redraw live.
+ipcMain.handle("esp-toggle", () => toggleEsp());
+ipcMain.on("ghost-state", (_event, state) => {
+    lastGhostState = state;
+    sendEspState();
 });

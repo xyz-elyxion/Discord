@@ -1438,9 +1438,13 @@ async function handleDetector(req, res, url) {
 const GHOST_SESSION_TTL_MS = 90 * 1000;
 const GHOST_MAX_PLUGINS = 200;
 const GHOST_MAX_PLUGIN_NAME = 64;
+// ESP anchors: screen positions of the plugin effects' placeholders in the
+// Discord renderer, relayed so the EXE can draw the effects where they belong.
+const GHOST_MAX_ANCHORS = 48;
 
 // { "session:<userId>": { userId, online, appOnline, lastDiscordPingAt,
-//   lastAppPingAt, username, displayName, enabledPlugins, flags } } —
+//   lastAppPingAt, username, displayName, enabledPlugins, flags,
+//   anchors, viewport } } —
 // sessions are ephemeral presence state, refreshed
 // by both heartbeats ~30s apart, so nothing here is persisted to disk/kv.
 const ghostSessions = new Map();
@@ -1472,10 +1476,41 @@ function ensureGhostSession(userId) {
             displayName: null,
             enabledPlugins: [],
             flags: {},
+            anchors: [],
+            viewport: null,
         };
         ghostSessions.set(key, session);
     }
     return session;
+}
+
+function ghostSanitizeViewport(v) {
+    if (!v || typeof v !== "object") return null;
+    const dpr = Number(v.dpr), vw = Number(v.vw), vh = Number(v.vh);
+    if (!Number.isFinite(dpr) || dpr <= 0 || dpr > 10) return null;
+    if (!Number.isFinite(vw) || vw < 0 || vw > 100000) return null;
+    if (!Number.isFinite(vh) || vh < 0 || vh > 100000) return null;
+    return { dpr: Math.round(dpr * 100) / 100, vw: Math.round(vw), vh: Math.round(vh) };
+}
+
+// Ghost Client ESP anchor + viewport payloads must stay tiny and numeric.
+function ghostSanitizeAnchors(raw) {
+    if (!Array.isArray(raw)) return null;
+    const out = [];
+    for (const a of raw) {
+        if (!a || typeof a !== "object") continue;
+        const effect = ghostSanitize(a.effect, 32);
+        const userId = typeof a.userId === "string" && /^\d{1,25}$/.test(a.userId) ? a.userId : "";
+        const pos = ["x", "y", "w", "h"].map(k => {
+            const n = Number(a[k]);
+            return Number.isFinite(n) && Math.abs(n) <= 1e6 ? Math.round(n * 10) / 10 : null;
+        });
+        if (effect && userId && !pos.includes(null)) {
+            out.push({ effect, userId, x: pos[0], y: pos[1], w: pos[2], h: pos[3] });
+            if (out.length >= GHOST_MAX_ANCHORS) break;
+        }
+    }
+    return out;
 }
 
 async function handleGhostClient(req, res, url) {
@@ -1525,10 +1560,37 @@ async function handleGhostClient(req, res, url) {
             }
             session.flags = cleanFlags;
         }
+        const pingAnchors = ghostSanitizeAnchors(body.anchors);
+        if (pingAnchors) session.anchors = pingAnchors;
+        const pingViewport = ghostSanitizeViewport(body.viewport);
+        if (pingViewport) session.viewport = pingViewport;
         pruneGhostSessions();
         return json(res, 200, {
             appOnline: !!session.appOnline,
         }), true;
+    }
+
+    // POST /v1/ghost/anchors — ESP fast lane: the plugin pushes fresh
+    // effect placeholders (viewport-relative rects) up to every second so the
+    // EXE can draw them at their exact spot while the member list scrolls.
+    if (req.method === "POST" && url === "/v1/ghost/anchors") {
+        let body;
+        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
+            return json(res, 400, { error: "invalid JSON body" }), true;
+        }
+        const userId = String(body.userId || "");
+        if (!/^\d{5,25}$/.test(userId)) {
+            return json(res, 400, { error: "invalid userId" }), true;
+        }
+        pruneGhostSessions();
+        const session = ghostSessions.get(`session:${userId}`);
+        if (!session || !session.online) return json(res, 200, { error: "no session" }), true;
+        const anchors = ghostSanitizeAnchors(body.anchors);
+        if (!anchors) return json(res, 400, { error: "invalid anchors" }), true;
+        session.anchors = anchors;
+        const viewport = ghostSanitizeViewport(body.viewport);
+        if (viewport) session.viewport = viewport;
+        return json(res, 200, { ok: true }), true;
     }
 
     // POST /v1/ghost/beacon — the Ghost Client GUI app heartbeat + mirror fetch
@@ -1555,6 +1617,8 @@ async function handleGhostClient(req, res, url) {
             online: !!session.online,
             enabledPlugins: session.enabledPlugins,
             flags: session.flags,
+            anchors: session.anchors || [],
+            viewport: session.viewport || null,
         }), true;
     }
 

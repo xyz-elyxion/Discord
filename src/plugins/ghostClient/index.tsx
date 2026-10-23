@@ -15,6 +15,8 @@ import { showToast, Toasts, UserStore } from "@webpack/common";
 const API_URL = "https://limey-discord.onrender.com/v1/ghost";
 // The backend prunes sessions after 90s; the plugin pings every 30s (3 misses).
 const PING_INTERVAL_MS = 30 * 1000;
+// Cap relayed to match the server's GHOST_MAX_ANCHORS.
+const MAX_ANCHORS = 48;
 
 export const settings = definePluginSettings({
     ghostOnly: {
@@ -29,6 +31,8 @@ export const settings = definePluginSettings({
     }
 });
 
+let ghostAppOnline = false;
+
 /**
  * Plugins call this to know whether their visual effect should currently be
  * hidden inside Discord and rendered by the Ghost Client overlay instead
@@ -37,8 +41,6 @@ export const settings = definePluginSettings({
 export function shouldHideInDiscord() {
     return ghostAppOnline && settings.store.ghostOnly;
 }
-
-let ghostAppOnline = false;
 
 export function isGhostAppOnline() {
     return ghostAppOnline;
@@ -77,7 +79,96 @@ export interface GhostClientState {
     flags: Record<string, boolean>;
 }
 
-function collectClientState(): GhostClientState {
+/** One relayed effect placeholder, in Discord viewport coordinates (CSS px). */
+interface GhostAnchor {
+    effect: string;
+    userId: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+
+interface GhostViewport {
+    dpr: number;
+    vw: number;
+    vh: number;
+}
+
+/**
+ * Visual plugins drop invisible `[data-limey-ghost-anchor]` markers into the
+ * Discord DOM exactly where their effect would render (e.g. ForceOwnerCrown
+ * puts one in the guild owner's member-list row). We measure those markers
+ * and relay their live position so the Ghost Client EXE can draw the effect
+ * ESP-style, directly on top of the right Discord UI element.
+ */
+function collectAnchors(): { anchors: GhostAnchor[]; viewport: GhostViewport; } {
+    const anchors: GhostAnchor[] = [];
+
+    if (typeof document !== "undefined") {
+        for (const el of document.querySelectorAll("[data-limey-ghost-anchor]")) {
+            const effect = el.getAttribute("data-limey-ghost-anchor");
+            const userId = el.getAttribute("data-user-id") ?? "";
+            if (!effect || !/^\d+$/.test(userId)) continue;
+
+            // getBoundingClientRect keeps the geometry of visibility:hidden
+            // elements (unlike display:none), so zero-width marker spans work.
+            const r = el.getBoundingClientRect();
+            if (!r || (r.x === 0 && r.y === 0 && !r.width && !r.height)) continue; // detached
+
+            anchors.push({
+                effect,
+                userId,
+                x: Math.round(r.x * 10) / 10,
+                y: Math.round(r.y * 10) / 10,
+                w: Math.round(r.width * 10) / 10,
+                h: Math.round(r.height * 10) / 10,
+            });
+            if (anchors.length >= MAX_ANCHORS) break;
+        }
+    }
+
+    return {
+        anchors,
+        viewport: {
+            dpr: window.devicePixelRatio || 1,
+            vw: window.innerWidth,
+            vh: window.innerHeight,
+        },
+    };
+}
+
+let lastAnchorSignature = "";
+let lastPushHadAnchors = false;
+
+/**
+ * ESP fast lane: push fresh anchor positions to the relay so the EXE can draw
+ * the effects at their exact spot while the member list scrolls. Only pushes
+ * when something actually changed (plus one clearing push when the last
+ * anchors disappear).
+ */
+async function pushAnchors(myId: string) {
+    const { anchors, viewport } = collectAnchors();
+    const signature = JSON.stringify([anchors, viewport]);
+    if (signature === lastAnchorSignature) return;
+    lastAnchorSignature = signature;
+
+    // Only clear when there is something stale to clear; never spam empty pushes.
+    if (!anchors.length && !lastPushHadAnchors) return;
+    lastPushHadAnchors = anchors.length > 0;
+
+    try {
+        await fetch(`${API_URL}/anchors`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: myId, anchors, viewport }),
+        });
+    } catch (e) {
+        console.error("[GhostClient] anchor push failed:", e);
+    }
+}
+
+function collectClientState() {
     const me = UserStore.getCurrentUser();
     const enabledPlugins: string[] = [];
     const flags: Record<string, boolean> = {};
@@ -98,6 +189,7 @@ function collectClientState(): GhostClientState {
         displayName: (me as any)?.globalName ?? (me as any)?.displayName ?? null,
         enabledPlugins,
         flags,
+        ...collectAnchors(),
     };
 }
 
@@ -120,24 +212,32 @@ interface PingResponse {
 
 export default definePlugin({
     name: "Ghost Client",
-    description: "Reports your plugin state to the Ghost Client overlay app: the EXE floats above Discord and renders the GUI (like a Prestige-style ghost client) for the visual plugins you have enabled — the actions and effects still come from Limey V1 installed in Discord.",
+    description: "Reports your plugin state to the Ghost Client overlay app: the EXE floats above Discord and renders the GUI (like a Prestige-style ghost client) for the visual plugins you have enabled — the actions and effects still come from Limey V1 installed in Discord. In ghost-only mode the effects are drawn ESP-style at their exact spots in the Discord UI.",
     tags: ["Utility"],
     authors: [Devs.Limey],
 
     settings,
 
     intervalId: undefined as ReturnType<typeof setInterval> | undefined,
+    anchorTimerId: undefined as ReturnType<typeof setInterval> | undefined,
 
     start() {
         addProfileBadge(GhostBadge);
         this.ping();
         this.intervalId = setInterval(() => this.ping(), PING_INTERVAL_MS);
+
+        this.anchorTimerId = setInterval(() => {
+            const me = UserStore.getCurrentUser();
+            if (me) void pushAnchors(me.id);
+        }, 1000);
     },
 
     stop() {
         removeProfileBadge(GhostBadge);
         if (this.intervalId) clearInterval(this.intervalId);
         this.intervalId = undefined;
+        if (this.anchorTimerId) clearInterval(this.anchorTimerId);
+        this.anchorTimerId = undefined;
         ghostAppOnline = false;
     },
 

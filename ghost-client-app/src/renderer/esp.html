@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!-- Limey V1 Ghost Client — ESP canvas.
+     This window is snapped exactly over the Discord client window by the main
+     process and is fully transparent + click-through. It draws the plugin
+     effects AT THEIR POSITIONS IN DISCORD (member-list rows etc.), like game
+     ESP — but rendered by our own window, never by Discord, so it is invisible
+     to Discord's screen share. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Limey V1 Ghost Client — ESP</title>
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+        pointer-events: none;
+    }
+    #esp { position: relative; width: 100%; height: 100%; }
+
+    .esp-anchor {
+        position: absolute;
+        pointer-events: none;
+    }
+
+    /* The crown: drawn right at the owner's row in the member list. */
+    .esp-crown {
+        font-size: 18px;
+        line-height: 18px;
+        filter: drop-shadow(0 0 6px rgba(255, 208, 64, 0.9));
+        transform: translate(-50%, -55%);
+        animation: esp-pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes esp-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.75; }
+    }
+</style>
+</head>
+<body>
+    <div id="esp"></div>
+    <script src="esp.js"></script>
+</body>
+</html>
