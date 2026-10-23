@@ -22,13 +22,19 @@ function draw() {
     let html = "";
     let anchors = 0;
     if (lastState && lastState.paired !== false) {
+        // Web version: browser chrome (tab bar, URL bar) sits above the
+        // Discord viewport; main computes that offset from the relayed
+        // viewport size vs the OS window size. Desktop ~0.
+        const offX = (lastState.offsets && lastState.offsets.x) || 0;
+        const offY = (lastState.offsets && lastState.offsets.y) || 0;
         for (const a of lastState.anchors || []) {
             if (a.effect === "crown") {
                 anchors++;
                 // The anchor marker is zero-width; its center line is the
                 // username line of the owner's row.
-                const top = a.y + (a.h || 16) / 2;
-                html += `<div class="esp-anchor esp-crown" style="left:${a.x}px;top:${top}px;">👑</div>`;
+                const left = offX + a.x;
+                const top = offY + a.y + (a.h || 16) / 2;
+                html += `<div class="esp-anchor esp-crown" style="left:${left}px;top:${top}px;">👑</div>`;
             }
         }
     }

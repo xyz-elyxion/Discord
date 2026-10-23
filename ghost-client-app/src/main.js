@@ -46,31 +46,49 @@ let espWin = null;
 let espAlignTimer = null;
 let lastGhostState = null;
 
-// Win32 lookup: find the visible top-level Electron window of the modded
-// client (class Chrome_WidgetWin_1), skipping our own overlay, and return its
-// screen rect in physical pixels.
+// Win32 lookup: enumerate ALL visible top-level windows whose class is an
+// Electron/Chromium shell ('Chrome_WidgetWin_1') or Firefox
+// ('MozillaWindowClass') and whose title looks like the modded client
+// ('Limey V1 Desktop' fork, or '… Discord' when Limey V1 runs in the WEB
+// version inside a browser/PWA tab). Skip our own overlay + minimized windows
+// and return each candidate's screen rect in physical pixels.
 const POWERSHELL_WINDOW_LOOKUP = `
 Add-Type -TypeDefinition @'
 using System; using System.Text; using System.Runtime.InteropServices;
-public class LimWin {
+public class LimWin2 {
     [DllImport("user32.dll")] public static extern int GetClassName(IntPtr h, System.Text.StringBuilder n, int c);
-    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out LimWin.R r);
+    [DllImport("user32.dll")] public static extern bool GetWindowText(IntPtr h, System.Text.StringBuilder n, int c);
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out LimWin2.R r);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
     public struct R { public int L; public int T; public int Rt; public int B; }
+    public delegate bool EnumProc(IntPtr h, IntPtr l);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);
 }
 '@
-foreach ($p in Get-Process | Where-Object { ($_.ProcessName -match '(?i)discord|limey') -and ($_.ProcessName -notmatch '(?i)ghost') -and $_.MainWindowHandle -ne 0 }) {
-    $h = $p.MainWindowHandle
+$found = New-Object System.Collections.Generic.List[string]
+$cb = [LimWin2+EnumProc]{
+    param($h, $l)
     try {
-        if (-not [LimWin]::IsWindowVisible($h)) { continue }
-        $sb = New-Object System.Text.StringBuilder 256
-        [void][LimWin]::GetClassName($h, $sb, 256)
-        if ($sb.ToString() -ne 'Chrome_WidgetWin_1') { continue }
-        $r = New-Object LimWin+R
-        [void][LimWin]::GetWindowRect($h, [ref]$r)
-        "$($r.L),$($r.T),$($r.Rt),$($r.B)"
+        if (-not [LimWin2]::IsWindowVisible($h)) { return $true }
+        $cn = New-Object System.Text.StringBuilder 256
+        [void][LimWin2]::GetClassName($h, $cn, 256)
+        $cls = $cn.ToString()
+        if ($cls -ne 'Chrome_WidgetWin_1' -and $cls -ne 'MozillaWindowClass') { return $true }
+        $tt = New-Object System.Text.StringBuilder 512
+        [void][LimWin2]::GetWindowText($h, $tt, 512)
+        $title = $tt.ToString()
+        if (-not $title) { return $true }
+        if ($title -match '(?i)ghost') { return $true }   # our own overlay
+        if ($title -match '(?i)discord|limey') {
+            $r = New-Object LimWin2+R
+            [void][LimWin2]::GetWindowRect($h, [ref]$r)
+            if ($r.L -gt -30000) { $found.Add("$($r.L),$($r.T),$($r.Rt),$($r.B)") }
+        }
     } catch { }
+    return $true
 }
+[void][LimWin2]::EnumWindows($cb, [IntPtr]::Zero)
+$found
 `;
 
 function findDiscordWindow() {
@@ -128,10 +146,30 @@ function sendEspStatusToGui(status) {
 }
 
 function sendEspState() {
-    if (espWin && !espWin.isDestroyed()) espWin.webContents.send("esp-state", lastGhostState);
+    if (!espWin || espWin.isDestroyed()) return;
+
+    // Web version (Discord in a browser tab): the OS window contains browser
+    // chrome (tab bar, URL bar) above the Discord viewport, so anchor coords
+    // need the viewport's offset inside the full window. The plugin relays its
+    // viewport size; we know the OS window's physical size, so the difference,
+    // expressed in the same CSS px the canvas uses, is the offset. The
+    // desktop version is frameless with an in-page title bar, so this is ~0.
+    let offsets = { x: 0, y: 0 };
+    const vp = lastGhostState && lastGhostState.viewport;
+    if (lastDiscordRect && vp && vp.dpr > 0 && vp.vw > 0 && vp.vh > 0) {
+        const cssW = (lastDiscordRect.right - lastDiscordRect.left) / vp.dpr;
+        const cssH = (lastDiscordRect.bottom - lastDiscordRect.top) / vp.dpr;
+        offsets = {
+            x: Math.max(0, Math.round(((cssW - vp.vw) / 2) * 10) / 10),
+            y: Math.max(0, Math.round((cssH - vp.vh) * 10) / 10),
+        };
+    }
+    espWin.webContents.send("esp-state", { ...lastGhostState, offsets });
 }
 
 /** Find Discord, snap the ESP canvas onto it (DIP bounds + zoom factor). */
+let lastDiscordRect = null;
+
 async function ensureEsp() {
     const rect = await findDiscordWindow();
     if (!rect) {
@@ -186,6 +224,7 @@ async function ensureEsp() {
     // Match the Discord renderer's page zoom: its devicePixelRatio equals
     // screen scale x page zoom, so mirroring it lets our CSS px line up 1:1
     // with the anchor coordinates the plugin measured in its own viewport.
+    lastDiscordRect = rect;
     const dpr = (lastGhostState && lastGhostState.viewport && lastGhostState.viewport.dpr) || scale;
     espWin.webContents.setZoomFactor(dpr / scale);
 
