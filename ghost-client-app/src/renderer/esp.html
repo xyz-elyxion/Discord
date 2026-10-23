@@ -38,10 +38,30 @@
         0%, 100% { opacity: 1; }
         50% { opacity: 0.75; }
     }
+
+    /* Status badge: proof the canvas is really there and what it is waiting
+       for (a faint hint so an empty ESP canvas is never a mystery). */
+    #esp-badge {
+        position: absolute;
+        top: 6px;
+        left: 8px;
+        padding: 3px 10px;
+        font-family: "gg sans", "Segoe UI", system-ui, sans-serif;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        color: rgba(255, 208, 64, 0.95);
+        background: rgba(10, 12, 15, 0.72);
+        border: 1px solid rgba(255, 208, 64, 0.35);
+        border-radius: 8px;
+        pointer-events: none;
+        transition: opacity 0.4s;
+    }
+    #esp-badge.dim { opacity: 0.55; }
 </style>
 </head>
 <body>
     <div id="esp"></div>
+    <div id="esp-badge">🎯 ESP on…</div>
     <script src="esp.js"></script>
 </body>
 </html>
