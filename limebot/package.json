@@ -5,6 +5,7 @@
     "main": "dist/botOnly.js",
     "scripts": {
         "start": "pnpm sql:up & pnpm build && node --enable-source-maps dist/botOnly.js",
+        "startSingleFile": "node run.js",
         "startServer": "pnpm sql:up & pnpm build && node --enable-source-maps dist/serverOnly.js",
         "startAll": "pnpm sql:up & pnpm build && node --enable-source-maps . LIMEBOT",
         "startBotOnly": "pnpm start",
@@ -18,7 +19,7 @@
         "sql:up": "mkdir -p data && sqlite3 data/db.sqlite3 < sql/create.sql",
         "sql:down": "mkdir -p data && sqlite3 data/db.sqlite3 < sql/drop.sql",
         "sql:types": "kysely-codegen --url data/db.sqlite3",
-        "postinstall": "pnpm sql:up && pnpm genTypes"
+        "postinstall": "node scripts/postinstall.mjs"
     },
     "keywords": [],
     "author": "Limey <limey+npm@riseup.net>",
