@@ -3,6 +3,9 @@
     "version": "1.0.0",
     "description": "Discord Bot for the Limey V1 server",
     "main": "dist/botOnly.js",
+    "allowScripts": {
+        "better-sqlite3": true
+    },
     "scripts": {
         "start": "pnpm sql:up & pnpm build && node --enable-source-maps dist/botOnly.js",
         "startSingleFile": "node run.js",

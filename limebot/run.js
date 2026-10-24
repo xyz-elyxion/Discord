@@ -54,6 +54,21 @@ if (!has("dist/botOnly.js")) {
 
 // 3. native binding for better-sqlite3 (idempotent, instant when already built)
 run(npmCmd, ["rebuild", "better-sqlite3"]);
+const bindingPaths = [
+    "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
+    "node_modules/better-sqlite3/build/better_sqlite3.node"
+];
+if (!has(bindingPaths[0]) && !has(bindingPaths[1])) {
+    // npm >= 12 blocks install scripts unless the package is allow-listed
+    // (allowScripts in package.json / allow-scripts in .npmrc covers it, but
+    // belt-and-braces: run better-sqlite3's own install script directly).
+    console.log("[limebot] binding still missing after rebuild — running better-sqlite3's install script directly...");
+    run(process.execPath, ["node_modules/better-sqlite3/install.js"]);
+    if (!has(bindingPaths[0]) && !has(bindingPaths[1])) {
+        console.error("[limebot] better-sqlite3 native binding could not be built (missing build tools on the host?)");
+        process.exit(1);
+    }
+}
 
 if (process.env.LIMEBOT_BOOTSTRAP_DRYRUN === "1") {
     console.log("[limebot] bootstrap dry run OK — dependencies installed, dist present, SQLite binding intact (not starting)");
