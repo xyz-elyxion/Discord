@@ -1,4 +1,8 @@
-dist
+/dist/*
+!/dist/botOnly.js
+limebot/dist
+ghost-client-app/dist
+packages/limey-v1-sdk/dist
 node_modules
 .gocache/
 
