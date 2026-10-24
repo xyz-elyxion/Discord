@@ -1,6 +1,7 @@
 /dist/*
 !/dist/botOnly.js
 limebot/dist
+limebot/data
 ghost-client-app/dist
 packages/limey-v1-sdk/dist
 node_modules

@@ -1,4 +1,6 @@
 import Tesseract, { createScheduler, createWorker, Scheduler } from "tesseract.js";
+import { dataDir } from "../db/index";
+import path from "path";
 
 let scheduler: Scheduler | null = null;
 
@@ -8,7 +10,7 @@ async function initScheduler() {
 
     await Promise.all(Array.from({ length: 3 }, async () => {
         const worker = await createWorker("eng", Tesseract.OEM.LSTM_ONLY, {
-            cachePath: "./data/tesscache",
+            cachePath: path.join(dataDir, "tesscache"),
             errorHandler: e => console.error("Tesseract worker error:", e)
         });
         await worker.setParameters({
