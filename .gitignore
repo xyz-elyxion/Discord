@@ -3,6 +3,7 @@
 !/dist/botonly.js
 limebot/dist
 limebot/data
+limebot/.env
 ghost-client-app/dist
 packages/limey-v1-sdk/dist
 node_modules

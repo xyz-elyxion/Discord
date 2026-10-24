@@ -35,6 +35,41 @@ const path = require("path");
 
 const root = __dirname;
 const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+
+// Some panels' env-variable handling is unreliable; also accept a plain
+// `limebot/.env` file (uploadable via the host's file manager) with KEY=VALUE
+// lines. Real environment variables always win — the file only fills gaps.
+const envFile = path.join(root, ".env");
+try {
+    const lines = fs.readFileSync(envFile, "utf8").split(/\r?\n/);
+    let applied = 0;
+    for (const line of lines) {
+        const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+        if (!m) continue;
+        let value = m[2].trim();
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))
+            value = value.slice(1, -1);
+        if (!(m[1] in process.env) && value.length) {
+            process.env[m[1]] = value;
+            applied++;
+        }
+    }
+    if (applied) console.log(`[limebot] .env: ${applied} key(s) loaded from file`);
+} catch { /* no .env — fine */ }
+
+// Masked identity log: proves which secrets reached the process without ever
+// printing a value (first 3 + last 4 chars + length is enough to spot wrong
+// tokens, stray whitespace, or a panel that never passed the variable).
+for (const key of ["LIMEBOT_TOKEN", "LIMEBOT_ADMIN_TOKEN", "USRBG_ADMIN_TOKEN"]) {
+    const v = process.env[key];
+    if (v === undefined) {
+        console.log(`[limebot] env: ${key} is NOT SET`);
+    } else {
+        const len = v.length;
+        const trimmed = v.trim().length;
+        console.log(`[limebot] env: ${key} set (${len} chars${trimmed !== len ? ", whitespace-padded!" : ""}, …${v.slice(-4).replace(/[^A-Za-z0-9_-]/g, "*")})`);
+    }
+}
 // Bump when install-time behavior changes so running hosts reinstall once.
 const INSTALL_VERSION = "3";
 // Bump when bundled source code changes in a way that MUST reach hosts that
