@@ -2,10 +2,12 @@
  * Bot state persistence — the bot's SQLite database lives on the Render
  * container's ephemeral filesystem, so every restart/deploy wipes counting
  * progress and all feature configs. This module mirrors the feature tables
- * into the web server's durable Postgres kv store (via /v1/bot-state, authed
- * with the shared admin token) and restores them into a fresh SQLite DB on
- * boot. Local SQLite stays the source of truth at runtime; Postgres is the
- * cold backup that survives container recreation.
+ * into the v1 server's durable Postgres kv store (via /v1/bot-state, authed
+ * with the shared admin token). Fully separated: the SQLite/ephemeral side
+ * still holds runtime state, but everything is reconciled with the v1
+ * server every few seconds — dashboard edits made on the separated HTTP
+ * side are pulled in, and local changes are pushed back as a hot backup
+ * that survives container recreation.
  */
 
 import { db } from "~/db";
@@ -22,6 +24,23 @@ const TABLES = [
     "starboardEntries",
     "suggestionConfigs"
 ] as const;
+
+// Tables the v1 server / dashboard may edit remotely — pulled back into the
+// bot on sync (full separation: the HTTP service and the site can change
+// these; the Raspberry bot runtime must adopt those changes). All of them
+// are keyed by guildId so row-level replacement is safe.
+const REMOTE_EDITABLE = [
+    "countingConfigs",
+    "verificationConfigs",
+    "welcomerConfigs",
+    "levelingConfigs",
+    "autoroleConfigs",
+    "reactionRoleConfigs",
+    "starboardConfigs",
+    "suggestionConfigs"
+] as const;
+
+
 
 type TableName = (typeof TABLES)[number];
 
@@ -63,6 +82,46 @@ async function insertRows(table: TableName, rows: any[]): Promise<void> {
     }
 }
 
+function sameRows(a: any[], b: any[]): boolean {
+    const byKey = <T>(rows: T[]) => new Map((rows as any[]).map(r => [String(r.guildId), JSON.stringify(r)]));
+    const mapA = byKey(a), mapB = byKey(b);
+    if (mapA.size !== mapB.size) return false;
+    for (const [k, v] of mapA) if (mapB.get(k) !== v) return false;
+    return true;
+}
+
+/**
+ * Pull a remote-editable table from the v1 server's kv store and make the
+ * local SQLite table match it exactly (insert/update/delete per guildId).
+ * Returns true when the local table was replaced.
+ */
+async function pullTable(table: (typeof REMOTE_EDITABLE)[number], remoteRows: any[]): Promise<boolean> {
+    try {
+        const current = await db.selectFrom(table as any).selectAll().execute() as any[];
+        if (sameRows(current, remoteRows)) return false;
+        await (db.deleteFrom(table as any) as any).execute();
+        await insertRows(table, remoteRows);
+        return true;
+    } catch (err) {
+        console.error(`[bot-state] failed to apply remote ${table}:`, err);
+        return false;
+    }
+}
+
+/**
+ * Pull remote-editable config tables from the v1 server so changes made in
+ * the separated dashboard/HTTP side reach the running client (and vice
+ * versa). Runtime data tables are bot-authoritative and never pulled.
+ */
+async function pullRemoteChanges(): Promise<void> {
+    if (!TOKEN) return;
+    for (const table of REMOTE_EDITABLE) {
+        const rows = await getTable(table);
+        if (rows == null) continue; // no remote data yet
+        await pullTable(table, rows);
+    }
+}
+
 /**
  * Restores the feature tables from the durable kv store into a fresh
  * (empty) SQLite database. Only inserts rows when the local table is
@@ -91,14 +150,19 @@ export async function restoreBotState() {
 }
 
 /**
- * Periodically pushes feature tables that changed to the kv store.
+ * Two-way sync with the v1 server's kv store, every 15s:
+ *   1. pull remote-editable config tables from /v1/bot-state (dashboard
+ *      edits made on the separated HTTP/v1 side reach the bot runtime);
+ *   2. push this process's feature tables if they changed locally.
  * Tables are tiny (a handful of rows), so a diff-check every 15s is cheap.
  */
 export function startBotStateSync(intervalMs = 15_000) {
     let lastSnapshot = "";
 
-    const push = async () => {
+    const sync = async () => {
         try {
+            await pullRemoteChanges();
+
             const snapshot: Record<string, unknown[]> = {};
             let total = 0;
             for (const table of TABLES) {
@@ -123,6 +187,6 @@ export function startBotStateSync(intervalMs = 15_000) {
         }
     };
 
-    void push();
-    setInterval(() => void push(), intervalMs).unref();
+    void sync();
+    setInterval(() => void sync(), intervalMs).unref();
 }

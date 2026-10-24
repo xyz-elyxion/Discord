@@ -25,6 +25,7 @@
 
 import { Vaius } from "./Client";
 import Config from "./config";
+import { restoreBotState, startBotStateSync } from "./util/persist";
 
 import "./server";
 
@@ -37,6 +38,12 @@ async function main() {
     } catch (e) {
         console.error("[server] failed to initialize the REST-only Discord client:", e);
     }
+
+    // Before serving any requests, pull durable feature configs from the v1
+    // server (util/persist.ts → /v1/bot-state), then keep syncing two-way
+    // forever so dashboard edits reach v1 and remote edits show up here.
+    await restoreBotState();
+    startBotStateSync();
 
     if (!Config.httpServer.enabled) {
         console.error("[server] config.httpServer.enabled is false — nothing to run in server-only mode, exiting");
