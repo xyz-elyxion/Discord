@@ -78,10 +78,10 @@ const includeDirPlugin = namespace => ({
 });
 
 await esbuild.build({
-    entryPoints: ["src/index.ts"],
+    entryPoints: ["src/index.ts", "src/botOnly.ts", "src/serverOnly.ts"],
     bundle: true,
     plugins: [includeDirPlugin("commands"), includeDirPlugin("modules"), makeAllPackagesExternalPlugin],
-    outfile: "dist/index.js",
+    outdir: "dist",
     minify: false,
     treeShaking: true,
     target: "esnext",

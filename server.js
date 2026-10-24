@@ -21,6 +21,9 @@ const PUBLIC = join(ROOT, "public");
 const CLOUD_BIN = join(ROOT, "cloud", "limeycloud-backend");
 const CLOUD_PORT = Number(process.env.CLOUD_PORT) || 3099;
 const CLOUD_HOST = "127.0.0.1";
+// Public base URL of the Discord bot's separated HTTP service (startServer);
+// the state=verify OAuth handoff 302s the browser there instead of proxying.
+const limebotPublicUrl = process.env.LIMEBOT_PUBLIC_URL || "";
 
 // ------------------------------------------------------------------
 // Persistent storage — PostgreSQL (Supabase) via the `pg` client.
@@ -2031,109 +2034,12 @@ async function handleDashboard(req, res, url) {
     const isAdminRoute = url.startsWith("/v1/admin/");
     if (!url.startsWith("/v1/dashboard") && !isAdminRoute) return false;
 
-    // Session-authenticated proxy for the per-guild verification setup API
-    // (limebot /v1/verify/guild/*). We verify the caller has an active
-    // dashboard session and append ?userId= so the bot can attribute the
-    // change. Guild membership/permission checks happen in the bot (which
-    // sees the live member list).
-    if (url.startsWith("/v1/dashboard/verify-guild/")) {
-        const session = dashGetSession(req);
-        if (!session) return json(res, 401, { error: "not logged in" }), true;
-        const sub = url.slice("/v1/dashboard/verify-guild/".length);
-        const guildId = sub.split("/")[0];
-        if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
-        if (req.method === "OPTIONS") return res.end(), true;
-        const sep = url.includes("?") ? "&" : "?";
-        const upstreamUrl = "/v1/verify/guild/" + sub + sep + "userId=" + session.discordId;
-        proxyLimebot(req, res, upstreamUrl);
-        return true;
-    }
+    // Fully separated: the per-guild setup APIs (and my-guilds) moved to the
+    // Discord bot's own HTTP service (startServer). The site no longer
+    // proxies into limebot — tell callers it's gone so they can repoint.
+    if (url.startsWith("/v1/dashboard/verify-guild/") || url.startsWith("/v1/dashboard/counting-guild/") || url.startsWith("/v1/dashboard/welcomer-guild/") || url.startsWith("/v1/dashboard/leveling-guild/") || url.startsWith("/v1/dashboard/verify-rules/") || url === "/v1/dashboard/my-guilds")
+        return json(res, 410, { error: "moved: this setup API now lives in the Discord bot's separated HTTP service" }), true;
 
-    // Counting setup proxy: /v1/dashboard/counting-guild/:guildId -> limebot /v1/counting/guild/:guildId
-    if (url.startsWith("/v1/dashboard/counting-guild/")) {
-        const session = dashGetSession(req);
-        if (!session) return json(res, 401, { error: "not logged in" }), true;
-        const sub = url.slice("/v1/dashboard/counting-guild/".length);
-        const guildId = sub.split("/")[0];
-        if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
-        if (req.method === "OPTIONS") return res.end(), true;
-        const sep = url.includes("?") ? "&" : "?";
-        const upstreamUrl = "/v1/counting/guild/" + sub + sep + "userId=" + session.discordId;
-        proxyLimebot(req, res, upstreamUrl);
-        return true;
-    }
-
-    // Welcomer setup proxy: /v1/dashboard/welcomer-guild/:guildId -> limebot /v1/welcomer/guild/:guildId
-    if (url.startsWith("/v1/dashboard/welcomer-guild/")) {
-        const session = dashGetSession(req);
-        if (!session) return json(res, 401, { error: "not logged in" }), true;
-        const sub = url.slice("/v1/dashboard/welcomer-guild/".length);
-        const guildId = sub.split("/")[0];
-        if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
-        if (req.method === "OPTIONS") return res.end(), true;
-        const sep = url.includes("?") ? "&" : "?";
-        const upstreamUrl = "/v1/welcomer/guild/" + sub + sep + "userId=" + session.discordId;
-        proxyLimebot(req, res, upstreamUrl);
-        return true;
-    }
-
-    // Leveling setup proxy: /v1/dashboard/leveling-guild/:guildId -> limebot /v1/leveling/guild/:guildId
-    if (url.startsWith("/v1/dashboard/leveling-guild/")) {
-        const session = dashGetSession(req);
-        if (!session) return json(res, 401, { error: "not logged in" }), true;
-        const sub = url.slice("/v1/dashboard/leveling-guild/".length);
-        const guildId = sub.split("/")[0];
-        if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
-        if (req.method === "OPTIONS") return res.end(), true;
-        const sep = url.includes("?") ? "&" : "?";
-        const upstreamUrl = "/v1/leveling/guild/" + sub + sep + "userId=" + session.discordId;
-        proxyLimebot(req, res, upstreamUrl);
-        return true;
-    }
-
-    // Generic feature-setup proxies (same model as counting/welcomer/leveling):
-    // /v1/dashboard/<feature>-guild/:guildId -> limebot /v1/<feature>/guild/:guildId
-    for (const feature of ["autoroles", "reaction-roles", "starboard", "suggestions"]) {
-        if (url.startsWith(`/v1/dashboard/${feature}-guild/`)) {
-            const session = dashGetSession(req);
-            if (!session) return json(res, 401, { error: "not logged in" }), true;
-            const sub = url.slice(`/v1/dashboard/${feature}-guild/`.length);
-            const guildId = sub.split("/")[0];
-            if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
-            if (req.method === "OPTIONS") return res.end(), true;
-            const sep = url.includes("?") ? "&" : "?";
-            const upstreamUrl = `/v1/${feature}/guild/` + sub + sep + "userId=" + session.discordId;
-            proxyLimebot(req, res, upstreamUrl);
-            return true;
-        }
-    }
-
-    // Rules editor: /v1/dashboard/verify-rules/:guildId[?] -> /v1/verify/guild/:guildId/rules
-    if (url.startsWith("/v1/dashboard/verify-rules/")) {
-        const session = dashGetSession(req);
-        if (!session) return json(res, 401, { error: "not logged in" }), true;
-        const sub = url.slice("/v1/dashboard/verify-rules/".length);
-        const guildId = sub.split("/")[0];
-        if (!/^\d{17,20}$/.test(guildId)) return json(res, 400, { error: "invalid guild id" }), true;
-        const sep = url.includes("?") ? "&" : "?";
-        const upstreamUrl = "/v1/verify/guild/" + sub + "/rules" + sep + "userId=" + session.discordId;
-        proxyLimebot(req, res, upstreamUrl);
-        return true;
-    }
-
-    if (url === "/v1/dashboard/my-guilds" && req.method === "GET") {
-        const session = dashGetSession(req);
-        if (!session) return json(res, 401, { error: "not logged in" }), true;
-        // The session recorded the user's guild ids at login (guilds scope).
-        // The bot filters to servers it shares where the user can manage.
-        try {
-            const ids = (session.guildIds || []).join(",");
-            proxyLimebot(req, res, "/v1/verify/my-guilds?userId=" + session.discordId + "&ids=" + encodeURIComponent(ids));
-            return true;
-        } catch (e) {
-            return json(res, 500, { error: "guild list failed" }), true;
-        }
-    }
 
     if (req.method === "OPTIONS") {
         res.writeHead(204, {
@@ -2152,19 +2058,9 @@ async function handleDashboard(req, res, url) {
         // Enrich the basic session with live status from the rest of the stack
         const discordId = session.discordId;
         const [verified, limes] = await Promise.all([
-            // verification status comes from the limebot (proxied below)
-            new Promise(resolve => {
-                const upReq = http.request({ host: "127.0.0.1", port: 8152, path: `/v1/verify/status/${discordId}`, method: "GET", timeout: 4000 }, up => {
-                    let data = "";
-                    up.on("data", c => data += c);
-                    up.on("end", () => {
-                        try { resolve(JSON.parse(data).verified === true); } catch { resolve(null); }
-                    });
-                });
-                upReq.on("error", () => resolve(null));
-                upReq.on("timeout", () => { upReq.destroy(); resolve(null); });
-                upReq.end();
-            }),
+    // verification status moved to the Discord bot's fully separated HTTP
+    // service — the site no longer probes limebot on 8152
+    Promise.resolve(null),
             // limes wallet from the economy backend
             new Promise(async resolve => {
                 try {
@@ -2662,35 +2558,6 @@ function startCloud() {
     }, 1000);
 }
 
-function proxyLimebot(req, res, overridePath) {
-    const opts = {
-        host: "127.0.0.1",
-        port: 8152,
-        path: overridePath || req.url,
-        method: req.method,
-        headers: { ...req.headers, host: "127.0.0.1:8152" }
-    };
-    const upstream = http.request(opts, upRes => {
-        // A caller bug must never take the whole server down (double-write
-        // used to throw ERR_HTTP_HEADERS_SENT and crash the process).
-        try {
-            if (res.headersSent) return upRes.destroy();
-            res.writeHead(upRes.statusCode || 502, upRes.headers);
-            upRes.pipe(res);
-        } catch (e) {
-            console.error("[proxy] limebot response error:", e.message);
-            upRes.destroy();
-        }
-    });
-    upstream.on("error", () => {
-        try {
-            if (!res.headersSent) json(res, 503, { error: "verification service unavailable" });
-            else res.end();
-        } catch { /* socket already gone */ }
-    });
-    req.pipe(upstream);
-}
-
 function proxyCloud(req, res, overridePath) {
     if (!cloudUp) return send(res, 503, "Cloud backend unavailable");
 
@@ -3011,8 +2878,6 @@ const server = http.createServer(async (req, res) => {
     }
     if (serveNamedPage(res, url)) return;
 
-    // Proxy the verification API to the limebot fastify server (port 8152)
-    if (url.startsWith("/v1/verify/")) return proxyLimebot(req, res);
 
     // Donor badges JSON for the BadgeAPI plugin
     if (handleBadges(req, res, url)) return;
@@ -3051,12 +2916,17 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(302, { Location: dest });
             return res.end();
         }
-        // state=verify: the Go backend returns { userId } for the verify flow,
-        // but ONLY the bot's own origin is allowed to call it with that state.
-        // Hand the exchange to the limebot, which owns the verify role.
+        // state=verify: hand the exchange to the Discord bot's fully separated
+        // HTTP service (it owns the verify role). Point LIMEBOT_PUBLIC_URL at
+        // that service's base URL; no proxying through the site anymore.
         if (params.get("state") === "verify" || params.get("clientMod") === "verify") {
             const clean = new URLSearchParams(params);
-            return proxyLimebot(req, Object.assign(res, {}), "/v1/verify/oauth/callback" + (clean.toString() ? "?" + clean.toString() : ""));
+            const cleanQuery = clean.toString();
+            if (limebotPublicUrl) {
+                res.writeHead(302, { Location: `${limebotPublicUrl}/v1/verify/oauth/callback${cleanQuery ? "?" + cleanQuery : ""}` });
+                return res.end();
+            }
+            return json(res, 503, { error: "verify flow moved to the bot's separated HTTP service — set LIMEBOT_PUBLIC_URL on the site to its base URL" }), true;
         }
         if (params.get("state") === "setup") {
             const clean = new URLSearchParams(params);
@@ -3192,8 +3062,8 @@ function startLimebot() {
         console.log("[limebot] LIMEBOT_TOKEN not set — bot disabled");
         return;
     }
-    if (!existsSync(join(ROOT, "limebot", "dist", "index.js"))) {
-        console.log("[limebot] dist/index.js not found — bot disabled (was it built?)");
+    if (!existsSync(join(ROOT, "limebot", "dist", "botOnly.js"))) {
+        console.log("[limebot] dist/botOnly.js not found — bot disabled (was it built?)");
         return;
     }
 

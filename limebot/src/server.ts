@@ -915,8 +915,44 @@ if (enabled) {
         }
     });
 
+    // Guild-cache hydration for the fully separated HTTP process
+    // (src/serverOnly.ts, restMode): Vaius.guilds is gateway-filled, so in REST-only
+    // mode we fetch guilds over HTTP as the dashboard endpoints request them.
+    // In the bot process this hook is a no-op (cache is already gateway-filled).
+    const GUILD_ID_PATH = /\/v1\/(?:verify|counting|welcomer|leveling|autoroles|reaction-roles|starboard|suggestions)\/guild\/(\d{17,20})/;
+    const GUILD_IDS_QUERY = /[?&](?:ids|guildId|guild)=(\d{17,20}(?:,\d{17,20})*)(?:[&]|$)/;
+
+    const hydrateGuild = async (guildId: string) => {
+        if (Vaius.guilds.has(guildId) || Vaius.options.restMode !== true) return;
+        try {
+            const guild = await Vaius.rest.guilds.get(guildId);
+            Vaius.guilds.add(guild);
+            console.log(`[server] hydrated guild ${guild.name} (${guildId}) via REST`);
+        } catch (e: any) {
+            console.error(`[server] could not hydrate guild ${guildId}:`, e?.message ?? e);
+        }
+    };
+
+    fastify.addHook("onRequest", async (req: import("fastify").FastifyRequest) => {
+        if (Vaius.options.restMode !== true) return;
+        const path = req.raw.url ?? "";
+        const byPath = path.match(GUILD_ID_PATH);
+        if (byPath) return void (await hydrateGuild(byPath[1]));
+        const byQuery = path.match(GUILD_IDS_QUERY);
+        if (byQuery) {
+            for (const id of byQuery[1].split(",").slice(0, 100)) await hydrateGuild(id);
+        }
+    });
+
     // defer listen to allow for fastify plugins to be registered before starting the server
     setImmediate(() => {
+        // The bot-only entry (src/botOnly.ts) runs the gateway + commands without
+        // the HTTP server; setImmediate fires after every module body has run,
+        // so the flag set there is reliably visible from here.
+        if (process.env.LIMEBOT_BOT_ONLY === "1") {
+            console.log("[server] LIMEBOT_BOT_ONLY=1 — not starting the HTTP server");
+            return;
+        }
         fastify.listen({ port: port }, err => {
             if (err) {
                 fastify.log.error(err);

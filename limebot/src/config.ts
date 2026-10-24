@@ -6,8 +6,10 @@ const Config = {
     // "development" | "production"
     "mode": "development",
 
-    // base URL of the limey web server (used to update the public status endpoint)
-    "limeyApiBase": process.env.LIMEY_API_BASE || "http://127.0.0.1:" + (process.env.PORT || 3000),
+    // base URL of the limey web server (used to update the public status endpoint).
+    // Fully separated: the bot is its own process and reaches the render server
+    // over HTTP by default; set LIMEY_API_BASE in dev to point at a local server.js
+    "limeyApiBase": process.env.LIMEY_API_BASE || "https://limey-discord.onrender.com",
 
     "channels": {
         // channel where limebot will post automatic moderation logs, leave empty to disable
