@@ -4,7 +4,11 @@
     "description": "Discord Bot for the Limey V1 server",
     "main": "dist/botOnly.js",
     "allowScripts": {
-        "better-sqlite3": true
+        "better-sqlite3": true,
+        "esbuild": true,
+        "@google/genai": true,
+        "protobufjs": true,
+        "tesseract.js": true
     },
     "scripts": {
         "start": "pnpm sql:up & pnpm build && node --enable-source-maps dist/botOnly.js",
