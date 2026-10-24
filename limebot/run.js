@@ -37,6 +37,10 @@ const root = __dirname;
 const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
 // Bump when install-time behavior changes so running hosts reinstall once.
 const INSTALL_VERSION = "3";
+// Bump when bundled source code changes in a way that MUST reach hosts that
+// already have a built dist/ (run.js never rebuilds an existing bundle, so
+// a marker mismatch forces exactly one rebuild).
+const BUILD_VERSION = "2";
 
 const has = p => fs.existsSync(path.join(root, p));
 const markerFile = path.join(root, "node_modules", ".limebot-install-version");
@@ -65,9 +69,18 @@ if (marker !== INSTALL_VERSION) {
 }
 
 // 2. bundle
-if (!has("dist/botOnly.js")) {
-    console.log("[limebot] building dist/ bundles with esbuild...");
+const buildMarkerFile = path.join(root, "dist", ".limebot-build-version");
+const buildMarker = (() => {
+    try { return fs.readFileSync(buildMarkerFile, "utf8").trim(); } catch { return null; }
+})();
+if (!has("dist/botOnly.js") || buildMarker !== BUILD_VERSION) {
+    if (has("dist/botOnly.js"))
+        console.log(`[limebot] dist/ was built by an older bootstrap (build marker ${String(buildMarker)} != ${BUILD_VERSION}) — rebuilding...`);
+    else
+        console.log("[limebot] building dist/ bundles with esbuild...");
     run(process.execPath, ["scripts/build.mjs"]);
+    fs.mkdirSync(path.dirname(buildMarkerFile), { recursive: true });
+    fs.writeFileSync(buildMarkerFile, BUILD_VERSION);
 }
 
 // 3. verify native pieces
