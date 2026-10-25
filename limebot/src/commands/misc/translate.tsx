@@ -59,12 +59,12 @@ registerChatInputCommand(
 
             const flags = ephemeral ? MessageFlags.EPHEMERAL : 0;
 
-            interaction.defer(flags);
+            await interaction.defer(flags);
 
             const res = await doTranslate(text, sourceLang as Locale, targetLang as Locale);
             res.flags! |= flags;
 
-            interaction.createFollowup(res);
+            await interaction.createFollowup(res);
         },
 
         async autoComplete(i) {
@@ -96,11 +96,11 @@ registerMessageCommand({
                 content: "The selected message has no content to translate."
             });
 
-        interaction.defer();
+        await interaction.defer();
 
         const defaultLanguage = channelID === "1121201005456011366" ? "de" : "en";
 
-        interaction.createFollowup(await doTranslate(interaction.data.target.content, "auto", defaultLanguage));
+        await interaction.createFollowup(await doTranslate(interaction.data.target.content, "auto", defaultLanguage));
     },
 });
 

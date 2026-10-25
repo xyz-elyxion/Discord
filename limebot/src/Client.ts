@@ -94,6 +94,10 @@ Vaius.once("ready", async () => {
 
     Vaius.rest.oauth.getApplication().then(app => {
         OwnerId = app.ownerID;
+    }).catch(e => {
+        // Without this, every owner-only command (say, clamp, …) silently
+        // no-ops for everyone. Log loudly so the next boot shows it.
+        console.error("[client] failed to fetch the application owner — owner-only commands will be denied until the next restart", e);
     });
 
     console.log("hi");

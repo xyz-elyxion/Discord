@@ -81,17 +81,34 @@ function resolveHandler(interaction: AnyInteractionGateway): AnyInteractionHandl
     );
 }
 
+/**
+ * Tell the invoker why their interaction was dropped instead of silently
+ * returning — a silent drop looks like "The application didn't respond in
+ * time" in Discord with zero trace in the logs.
+ */
+async function denyInteraction(interaction: AnyInteractionGateway, reason: string): Promise<void> {
+    // Autocomplete has no denial UI — just don't return results.
+    if (interaction.type === InteractionTypes.APPLICATION_COMMAND_AUTOCOMPLETE) return;
+    try {
+        if (!interaction.acknowledged)
+            await interaction.createMessage({ content: reason, flags: MessageFlags.EPHEMERAL });
+    } catch { /* interaction may already be expired */ }
+}
+
 Vaius.on("interactionCreate", async interaction => {
     const handler = resolveHandler(interaction);
     if (!handler) return;
-    if (handler.ownerOnly && interaction.user.id !== OwnerId) return;
-    if (handler.guildOnly && !interaction.inCachedGuildChannel()) return;
+    if (handler.ownerOnly && interaction.user.id !== OwnerId)
+        return void denyInteraction(interaction, "🔒 This command can only be used by the bot's owner.");
+    if (handler.guildOnly && !interaction.inCachedGuildChannel())
+        return void denyInteraction(interaction, "🔒 This command only works inside servers.");
 
     if (handler.allowedRoles) {
-        if (!interaction.inCachedGuildChannel()) return;
+        if (!interaction.inCachedGuildChannel())
+            return void denyInteraction(interaction, "🔒 This command only works inside servers.");
 
         if (!handler.allowedRoles.some(r => interaction.member.roles.includes(r)))
-            return;
+            return void denyInteraction(interaction, "🔒 You don't have a role that allows this command.");
     }
 
     try {

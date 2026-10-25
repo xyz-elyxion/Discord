@@ -33,13 +33,24 @@ registerChatInputCommand(
                 }
             };
 
+            // Acknowledge FIRST — sending the message over REST can be slow,
+            // and replying only afterwards expires the interaction (Discord's
+            // 3s window) which shows as "The application didn't respond in time".
+            await i.defer(MessageFlags.EPHEMERAL);
             try {
                 await Vaius.rest.channels.createMessage(i.channelID, data);
-                await i.reply({ content: "done", flags: MessageFlags.EPHEMERAL });
-            } catch {
-                await i.createMessage(data);
+                await i.createFollowup({ content: "done", flags: MessageFlags.EPHEMERAL });
+            } catch (sendErr) {
+                try {
+                    await i.createMessage(data);
+                } catch (followupErr) {
+                    console.error("[say] failed to send the message:", sendErr, followupErr);
+                    await i.createFollowup({
+                        content: "couldn't send that message — check the bot console",
+                        flags: MessageFlags.EPHEMERAL
+                    }).catch(() => null);
+                }
             }
         }
-    }
 );
 
