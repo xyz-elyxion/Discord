@@ -54,8 +54,29 @@ try {
             applied++;
         }
     }
-    if (applied) console.log(`[limebot] .env: ${applied} key(s) loaded from file`);
-} catch { /* no .env — fine */ }
+    if (applied)
+        console.log(`[limebot] .env: ${applied} key(s) loaded from ${path.relative(process.cwd(), envFile)}`);
+    else
+        console.log("[limebot] .env: file present but empty — put lines like LIMEBOT_TOKEN=xxx in it");
+} catch {
+    // no .env file — say so, so a missing panel variable isn't a mystery
+    console.log("[limebot] .env: no limebot/.env file (create one in the file manager with LIMEBOT_TOKEN=… if panel variables don't arrive)");
+}
+
+// Same reliability problem, different name: some panels only inject their own
+// predefined variables, so accept the common bot-token aliases when the
+// canonical LIMEBOT_TOKEN is absent. Always logged so the substitution is visible.
+if (!process.env.LIMEBOT_TOKEN) {
+    const aliases = ["DISCORD_TOKEN", "BOT_TOKEN", "LIMEY_TOKEN", "DISC_TOKEN", "TOKEN"];
+    for (const alias of aliases) {
+        const v = process.env[alias];
+        if (typeof v === "string" && v.trim()) {
+            process.env.LIMEBOT_TOKEN = v.trim();
+            console.log(`[limebot] env: LIMEBOT_TOKEN missing — using the ${alias} variable instead`);
+            break;
+        }
+    }
+}
 
 // Masked identity log: proves which secrets reached the process without ever
 // printing a value (first 3 + last 4 chars + length is enough to spot wrong
