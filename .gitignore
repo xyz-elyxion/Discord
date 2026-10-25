@@ -4,6 +4,9 @@
 limebot/dist
 limebot/data
 limebot/.env
+.env
+.env.local
+.env.*.local
 ghost-client-app/dist
 packages/limey-v1-sdk/dist
 node_modules
