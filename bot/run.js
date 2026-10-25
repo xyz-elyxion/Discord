@@ -92,7 +92,7 @@ for (const key of ["LIMEBOT_TOKEN", "LIMEBOT_ADMIN_TOKEN", "USRBG_ADMIN_TOKEN"])
     }
 }
 // Bump when install-time behavior changes so running hosts reinstall once.
-const INSTALL_VERSION = "3";
+const INSTALL_VERSION = "4";
 // Bump when bundled source code changes in a way that MUST reach hosts that
 // already have a built dist/ (run.js never rebuilds an existing bundle, so
 // a marker mismatch forces exactly one rebuild).
@@ -190,9 +190,26 @@ if (firstSharpError !== null) {
 
         let fixed = false;
         for (const variant of variants) {
-            const pkg = `@img/sharp-${variant}-${arch}`;
-            console.log(`[limebot] sharp still failing — installing ${pkg} directly...`);
-            const install = spawnSync(npmCmd, ["install", "--no-save", "--include=optional", pkg, "--no-audit", "--no-fund"], {
+            // The binding and its libvips library MUST be version-paired:
+            // installing only the @img/sharp-*-<arch> package leaves an old
+            // @img/sharp-libvips-* behind, and the binding then fails with
+            // "libvips-cpp.so.8.<x>: cannot open shared object file". Both
+            // versions are read from the installed sharp's own metadata.
+            const specs = [];
+            let sharpVer = null;
+            try {
+                const sharpPkg = JSON.parse(fs.readFileSync(path.join(root, "node_modules", "sharp", "package.json"), "utf8"));
+                sharpVer = sharpPkg.version;
+                const libvipsSpec = sharpPkg.optionalDependencies?.[`@img/sharp-libvips-${variant}-${arch}`];
+                if (libvipsSpec) specs.push(`@img/sharp-libvips-${variant}-${arch}@${libvipsSpec}`);
+            } catch {
+                // sharp itself isn't installed — nothing to pair against
+            }
+            if (sharpVer) specs.push(`@img/sharp-${variant}-${arch}@${sharpVer}`);
+            const what = specs.length ? specs.join(" + ") : `@img/sharp-${variant}-${arch}`;
+
+            console.log(`[limebot] sharp still failing — installing ${what} directly...`);
+            const install = spawnSync(npmCmd, ["install", "--no-save", "--include=optional", ...(specs.length ? specs : [`@img/sharp-${variant}-${arch}`]), "--no-audit", "--no-fund"], {
                 stdio: "inherit",
                 cwd: root
             });
@@ -200,7 +217,7 @@ if (firstSharpError !== null) {
                 fixed = true;
                 break;
             }
-            console.log(`[limebot] ${pkg} didn't fix it — trying the next candidate...`);
+            console.log(`[limebot] ${specs.join(" + ") || "the platform package"} didn't fix it — trying the next candidate...`);
         }
 
         if (!fixed) {
