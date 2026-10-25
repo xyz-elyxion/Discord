@@ -19,7 +19,7 @@ const Config = {
         "modLog": "1554326022252535918",
 
         // channel where limebot will post bot audit logs (badge changes, etc), leave empty to disable
-        "botAuditLog": "1450180761679302676",
+        "botAuditLog": "1554326022252535918",
 
         // channel where limebot will send information like errors
         "dev": "1033680203433660458",
