@@ -95,11 +95,18 @@ async function denyInteraction(interaction: AnyInteractionGateway, reason: strin
     } catch { /* interaction may already be expired */ }
 }
 
+/** Command name, component customID, or "?" for PING — type-safe via in-narrowing. */
+function interactionLabel(interaction: AnyInteractionGateway): string {
+    if (!interaction.data) return "?";
+    return "name" in interaction.data ? interaction.data.name : interaction.data.customID;
+}
+
 Vaius.on("interactionCreate", async interaction => {
     const handler = resolveHandler(interaction);
-    console.log(`[interaction] ${interaction.type} "${interaction.data?.name ?? interaction.data?.customID ?? "?"}" from ${interaction.user?.username ?? "?"}`);
+    const label = interactionLabel(interaction);
+    console.log(`[interaction] ${interaction.type} "${label}" from ${interaction.user?.username ?? "?"}`);
     if (!handler) {
-        console.warn(`[interaction] no handler for ${interaction.type} "${interaction.data?.name ?? interaction.data?.customID ?? "?"}" — ignoring`);
+        console.warn(`[interaction] no handler for ${interaction.type} "${label}" — ignoring`);
         return;
     }
     if (handler.ownerOnly && interaction.user.id !== OwnerId)
