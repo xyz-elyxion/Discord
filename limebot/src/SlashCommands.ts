@@ -97,7 +97,11 @@ async function denyInteraction(interaction: AnyInteractionGateway, reason: strin
 
 Vaius.on("interactionCreate", async interaction => {
     const handler = resolveHandler(interaction);
-    if (!handler) return;
+    console.log(`[interaction] ${interaction.type} "${interaction.data?.name ?? interaction.data?.customID ?? "?"}" from ${interaction.user?.username ?? "?"}`);
+    if (!handler) {
+        console.warn(`[interaction] no handler for ${interaction.type} "${interaction.data?.name ?? interaction.data?.customID ?? "?"}" — ignoring`);
+        return;
+    }
     if (handler.ownerOnly && interaction.user.id !== OwnerId)
         return void denyInteraction(interaction, "🔒 This command can only be used by the bot's owner.");
     if (handler.guildOnly && !interaction.inCachedGuildChannel())
