@@ -6,7 +6,7 @@
  * Go toolchain available but no Go module cache warmed for our module paths.
  * This script cross-compiles EVERY Go artifact the deployment needs:
  *
- *   cloud/limeycloud-backend  settings-sync cloud API (spawned by server.js)
+ *   services/cloud/limeycloud-backend  settings-sync cloud API (spawned by web/server.js)
  *   dist/LimeyV1Installer-cli-{win,macos-arm64,macos-amd64,linux}
  *                             CLI installers served at /dist/ — same matrix
  *                             as the Dockerfile's installer stage, so edits
@@ -16,7 +16,7 @@
  * Rules:
  *  - CGO off, static, one GOOS/GOARCH pair per target (override via env).
  *  - Errors are logged but NEVER fail the hosting build: cloud/installers
- *    are optional runtimes and server.js/public pages already degrade
+ *    are optional runtimes and web/server.js + public pages already degrade
  *    gracefully ("[cloud] binary not found", 404 download) when absent.
  *  - Idempotent: skips rebuild when the binary is newer than its sources.
  */
@@ -33,7 +33,7 @@ const GOARCH = process.env.GOHOST_BIN_GOARCH || "amd64";
 
 const TARGETS = [
     // linux/amd64 — the runtime container's arch (spawned by server.js).
-    { dir: "cloud", pkg: ".", out: "limeycloud-backend", env: { GOOS: "linux", GOARCH: "amd64" } },
+    { dir: "services/cloud", pkg: ".", out: "limeycloud-backend", env: { GOOS: "linux", GOARCH: "amd64" } },
     // Installer downloads served from /dist/LimeyV1Installer* — same matrix
     // as the Dockerfile's installer stage. CLI builds are CGO-free static.
     { dir: "installer", pkg: ".", out: "dist/LimeyV1Installer-cli-win.exe", env: { GOOS: "windows", GOARCH: "amd64", TAGS: ["cli"] } },

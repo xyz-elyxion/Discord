@@ -37,7 +37,7 @@ const root = __dirname;
 const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
 
 // Some panels' env-variable handling is unreliable; also accept a plain
-// `limebot/.env` file (uploadable via the host's file manager) with KEY=VALUE
+// `bot/.env` file (uploadable via the host's file manager) with KEY=VALUE
 // lines. Real environment variables always win — the file only fills gaps.
 const envFile = path.join(root, ".env");
 try {
@@ -60,7 +60,7 @@ try {
         console.log("[limebot] .env: file present but empty — put lines like LIMEBOT_TOKEN=xxx in it");
 } catch {
     // no .env file — say so, so a missing panel variable isn't a mystery
-    console.log("[limebot] .env: no limebot/.env file (create one in the file manager with LIMEBOT_TOKEN=… if panel variables don't arrive)");
+    console.log("[limebot] .env: no bot/.env file (create one in the file manager with LIMEBOT_TOKEN=… if panel variables don't arrive)");
 }
 
 // Same reliability problem, different name: some panels only inject their own

@@ -18,9 +18,9 @@ jobs:
 
                   cd repo
                   version="${{ github.event.release.tag_name }}"
-                  echo "${version#v}" > limey-v1-desktop/scripts/_latestLimeyV1DesktopVersion.txt
+                  echo "${version#v}" > desktop/scripts/_latestLimeyV1DesktopVersion.txt
 
-                  git add limey-v1-desktop/scripts/_latestLimeyV1DesktopVersion.txt
+                  git add desktop/scripts/_latestLimeyV1DesktopVersion.txt
                   git commit -m "Update Limey V1 Desktop version to ${{ github.event.release.tag_name }}"
                   git push https://$USERNAME:$API_TOKEN@github.com/$GH_REPO.git
               env:

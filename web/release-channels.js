@@ -3,7 +3,7 @@
  *
  * Single source of truth for the channel manifest served at GET
  * /v1/channels. Modeled directly on the "Release Channels" docs page
- * (docs-site/src/content/docs/release-channels.mdx): every entry is tagged
+ * (docs/src/content/docs/release-channels.mdx): every entry is tagged
  * with its origin and implemented flag so no consumer can mistake a
  * proposed label for a channel that actually ships builds.
  *

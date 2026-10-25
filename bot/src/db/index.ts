@@ -6,7 +6,7 @@ import { Kysely, SqliteDialect } from "kysely";
 import type { DB } from "kysely-codegen";
 
 // Anchor the data dir and schema file to THIS module's compiled location
-// (the esbuild bundle lives in limebot/dist, so ".." is the limebot package
+// (the esbuild bundle lives in bot/dist, so ".." is the bot package
 // root), not to the process working directory: single-file hosts like
 // WispByte run `node .../dist/botOnly.js` from the container root, and a
 // cwd-relative "./data" would create a fresh, schema-less database there.

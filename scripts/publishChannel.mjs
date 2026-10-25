@@ -7,7 +7,7 @@
  * dist/<channel>/, hash stamps and all, so the channel serves exactly this
  * build until the next freeze.
  *
- * Semantics (see docs/release-channels and server.js):
+ * Semantics (see docs/release-channels and web/server.js):
  *   lts        — falls back to the current stable files until a pin exists,
  *                so freezing sets the long-support point explicitly.
  *   rc / beta  — pre-release snapshots of the NEXT version; the backend

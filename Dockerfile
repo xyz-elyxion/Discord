@@ -1,9 +1,9 @@
 # ---------- Cloud backend (Go) ----------
 FROM golang:1.27-alpine AS cloud
-WORKDIR /cloud
-COPY cloud/go.mod cloud/go.sum ./
+WORKDIR /services/cloud
+COPY services/cloud/go.mod services/cloud/go.sum ./
 RUN go mod download
-COPY cloud .
+COPY services/cloud .
 RUN CGO_ENABLED=0 go build -o limeycloud-backend .
 
 # ---------- Limey V1 Installer (Go CLI + Windows GUI) ----------
@@ -36,8 +36,8 @@ WORKDIR /bot
 
 RUN corepack enable
 
-COPY limebot/package.json limebot/pnpm-lock.yaml ./
-COPY limebot ./
+COPY bot/package.json bot/pnpm-lock.yaml ./
+COPY bot ./
 
 # Ignore scripts at install time (the root postinstall needs the sqlite3 CLI,
 # which we don't want in the image), then rebuild only the packages that ship
@@ -47,7 +47,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts \
 RUN node scripts/build.mjs
 
 # ---------- Limey V1 Desktop (standalone Electron client) ----------
-# Builds the rebranded Vesktop fork in limey-v1-desktop/: esbuild bundles the
+# Builds the rebranded Vesktop fork in desktop/: esbuild bundles the
 # app's main/preload/renderer/splash/updater scripts into /desktop/dist.
 # No Electron runtime scripts are needed for bundling, so install with
 # --ignore-scripts (electron binaries are fetched per-target by
@@ -59,14 +59,14 @@ WORKDIR /desktop
 
 RUN corepack enable
 
-COPY limey-v1-desktop/package.json limey-v1-desktop/pnpm-lock.yaml limey-v1-desktop/pnpm-workspace.yaml ./
-COPY limey-v1-desktop/patches ./patches
-COPY limey-v1-desktop/packages ./packages
+COPY desktop/package.json desktop/pnpm-lock.yaml desktop/pnpm-workspace.yaml ./
+COPY desktop/patches ./patches
+COPY desktop/packages ./packages
 RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild esbuild
 
 # .dockerignore keeps the context lean (node_modules/ and dist/ never match),
 # so this copies clean source; the build regenerates dist/ in-image.
-COPY limey-v1-desktop ./
+COPY desktop ./
 RUN pnpm build \
     && test -f dist/js/main.js && test -f dist/js/renderer.js && test -f dist/js/preload.js
 
@@ -83,7 +83,7 @@ RUN pnpm exec electron-builder --linux AppImage tar.gz --publish never \
 RUN rm -rf dist/linux-unpacked dist/win-unpacked dist/*.blockmap dist/builder-debug.yml dist/builder-effective-config.yaml
 
 # ---------- Ghost Client overlay (Electron EXE) ----------
-# Builds the Prestige-style overlay app (ghost-client-app/) into a portable
+# Builds the Prestige-style overlay app (ghost-client/) into a portable
 # Windows zip. Cross-compiled on Linux: electron-builder just downloads the
 # win32-x64 Electron dist and zips it, so no Wine is needed for the zip target.
 FROM node:22-slim AS ghost-client
@@ -99,7 +99,7 @@ RUN corepack enable
 ENV ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
 ENV XDG_CACHE_HOME=/node/.cache
 
-COPY ghost-client-app/package.json ./
+COPY ghost-client/package.json ./
 
 # electron's postinstall grabs a ~100MB binary we never run locally and it
 # needs no scripts at build time (the correct dist is pre-fetched below).
@@ -110,10 +110,10 @@ RUN pnpm install --frozen-lockfile=false --ignore-scripts
 # rate-limited/blocked on some CI hosts and would kill the whole build.
 # Living in the app repo's scripts/ keeps the Dockerfile parser-friendly
 # (no multi-line inline scripts) and testable outside Docker.
-COPY ghost-client-app/scripts/fetch-electron-dist.mjs ./scripts/fetch-electron-dist.mjs
+COPY ghost-client/scripts/fetch-electron-dist.mjs ./scripts/fetch-electron-dist.mjs
 RUN node scripts/fetch-electron-dist.mjs
 
-COPY ghost-client-app ./
+COPY ghost-client ./
 RUN pnpm build:win \
     && test -f dist/LimeyV1GhostClient-win-x64-1.0.0.zip
 
@@ -159,7 +159,7 @@ RUN mkdir -p /app/runtime_deps/node_modules \
     && echo '{"name":"limey-runtime-deps","private":true}' > package.json \
     && npm install --no-audit --no-fund --loglevel=error "pg@$(node -p "require('/app/node_modules/pg/package.json').version")"
 # Generate the plugin catalog data for /plugins/
-RUN pnpm generatePluginJson public/plugins.json public/readmes.json
+RUN pnpm generatePluginJson web/public/plugins.json web/public/readmes.json
 
 # ---------- Runtime stage ----------
 FROM node:22-alpine
@@ -172,8 +172,8 @@ ENV HOST=0.0.0.0
 
 # Writable data dirs (must run as root before switching to node):
 # JSON persistence for usrbg/detector/reviewdb fallbacks (Redis is the primary
-# store when REDIS_URI is set) and the limebot SQLite database.
-RUN mkdir -p /app/data /app/limebot/data && chown -R node:node /app/data /app/limebot/data
+# store when REDIS_URI is set) and the bot's SQLite database.
+RUN mkdir -p /app/web/data /app/bot/data && chown -R node:node /app/web/data /app/bot/data
 
 # Release-channel snapshot dirs (lts/rc/beta/canary/alpha) inside /app/dist so
 # the admin panel can freeze the container's built artifacts into a channel
@@ -188,17 +188,11 @@ RUN mkdir -p /app/dist/lts /app/dist/rc /app/dist/beta /app/dist/canary /app/dis
 # Run as a non-root user
 USER node
 
-# Copy only what the server needs
+# Copy only what the server needs (the web server now lives in web/; the
+# root server.js is a launcher shim kept for hosts that start `node server.js`)
 COPY --from=build --chown=node:node /app/package.json /app/server.js ./
-COPY --from=build --chown=node:node /app/pgkv.js ./
-COPY --from=build --chown=node:node /app/reviewdb-backend.js ./
-COPY --from=build --chown=node:node /app/lime-economy-backend.js ./
-COPY --from=build --chown=node:node /app/lime-pluginstore-backend.js ./
-COPY --from=build --chown=node:node /app/sentinel-backend.js ./
-COPY --from=build --chown=node:node /app/release-channels.js ./
-COPY --from=build --chown=node:node /app/rollouts.js ./
+COPY --from=build --chown=node:node /app/web ./web
 COPY --from=build --chown=node:node /app/runtime_deps/node_modules ./node_modules
-COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/dist ./dist
 # Limey V1 Desktop standalone app (built by the desktop stage): bundles, views
 # and manifest under /dist/limeyDesktop. /dist/limeyDesktop/* serves the raw
@@ -208,7 +202,7 @@ COPY --from=desktop --chown=node:node /desktop/static /app/dist/limeyDesktop/sta
 COPY --from=desktop --chown=node:node /desktop/package.json /app/dist/limeyDesktop/package.json
 # Full browser/ extension shell so the server can package the install zip itself
 COPY --from=build --chown=node:node /app/browser ./browser
-COPY --from=cloud --chown=node:node /cloud/limeycloud-backend ./cloud/limeycloud-backend
+COPY --from=cloud --chown=node:node /services/cloud/limeycloud-backend ./services/cloud/limeycloud-backend
 COPY --from=installer --chown=node:node /LimeyV1Installer.exe ./dist/LimeyV1Installer.exe
 COPY --from=installer --chown=node:node /LimeyV1Installer-cli-win.exe ./dist/LimeyV1Installer-cli-win.exe
 COPY --from=installer --chown=node:node /LimeyV1Installer-cli-macos-arm64 ./dist/LimeyV1Installer-cli-macos-arm64
@@ -216,13 +210,13 @@ COPY --from=installer --chown=node:node /LimeyV1Installer-cli-macos-amd64 ./dist
 COPY --from=installer --chown=node:node /LimeyV1Installer-cli-linux ./dist/LimeyV1Installer-cli-linux
 # Ghost Client overlay EXE (portable Windows zip) for download
 COPY --from=ghost-client --chown=node:node /ghost/dist/*.zip ./dist/
-COPY --from=limebot --chown=node:node /bot/dist ./limebot/dist
-COPY --from=limebot --chown=node:node /bot/node_modules ./limebot/node_modules
-COPY --from=limebot --chown=node:node /bot/package.json ./limebot/package.json
-COPY --from=limebot --chown=node:node /bot/assets ./limebot/assets
+COPY --from=limebot --chown=node:node /bot/dist ./bot/dist
+COPY --from=limebot --chown=node:node /bot/node_modules ./bot/node_modules
+COPY --from=limebot --chown=node:node /bot/package.json ./bot/package.json
+COPY --from=limebot --chown=node:node /bot/assets ./bot/assets
 # Limebot needs its SQLite database to exist with tables before it starts
-COPY --chown=node:node limebot/sql/create.sql ./limebot/sql/create.sql
-RUN node -e "const d=require('/app/limebot/node_modules/better-sqlite3');const db=new d('/app/limebot/data/db.sqlite3');db.exec(require('fs').readFileSync('/app/limebot/sql/create.sql','utf8'));db.close();"
+COPY --chown=node:node bot/sql/create.sql ./bot/sql/create.sql
+RUN node -e "const d=require('/app/bot/node_modules/better-sqlite3');const db=new d('/app/bot/data/db.sqlite3');db.exec(require('fs').readFileSync('/app/bot/sql/create.sql','utf8'));db.close();"
 
 EXPOSE 3000
 

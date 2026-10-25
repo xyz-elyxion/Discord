@@ -7,6 +7,25 @@ The cutest Discord client mod
 
 ![](https://github.com/user-attachments/assets/3fac98c0-c411-4d2a-97a3-13b7da8687a2)
 
+## Repository layout
+
+This is a monorepo — each top-level folder is its own project:
+
+| Folder | Project |
+| --- | --- |
+| `src/`, `browser/`, `packages/`, `installer/`, `scripts/`, `patches/` + root configs | **Limey V1 client mod** (Discord client mod, browser extension + userscript) |
+| `server.js` (shim) + `web/` | **Web server** — site, admin panel, `/v1/*` APIs, single-file backends (`server.js` at the root is kept for hosts that hardcode that start path) |
+| `bot/` | **Discord bot** (Limebot) — starts via `dist/botOnly.js` → `bot/run.js` on single-file hosts like Wispbyte |
+| `desktop/` | **Standalone Electron client** (packaged installer + portable builds) |
+| `ghost-client/` | **Ghost client** overlay app (Windows) |
+| `docs/` | **Astro docs site** (built output served from `web/public/docs`) |
+| `services/` | Small **Go services**: `services/cloud` (settings-sync API), `services/sentinel-color-dirs` |
+| `third_party/` | Vendored dependencies (imgui-go fork for the installer) |
+
+Load-bearing static hosts (do not rename casually):
+- Wispbyte always runs `node dist/botOnly.js` — the shim forwards to `bot/run.js`
+- Render/Docker start commands resolve `server.js` → `web/server.js`
+
 ## Features
 
 -   Easy to install

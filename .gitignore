@@ -1,13 +1,13 @@
 /dist/*
 !/dist/botOnly.js
 !/dist/botonly.js
-limebot/dist
-limebot/data
-limebot/.env
+bot/dist
+bot/data
+bot/.env
 .env
 .env.local
 .env.*.local
-ghost-client-app/dist
+ghost-client/dist
 packages/limey-v1-sdk/dist
 node_modules
 .gocache/

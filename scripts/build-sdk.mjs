@@ -174,7 +174,7 @@ writeFileSync(path.join(dist, "index.d.ts"), DECL);
 // straight from limey-discord.onrender.com without installing anything:
 //   import { LimeyV1 } from "https://limey-discord.onrender.com/sdk/index.js";
 // (Node ESM supports https imports natively; the CDN copy is pure JS.)
-const webDir = path.join(here, "..", "public", "sdk");
+const webDir = path.join(here, "..", "web", "public", "sdk");
 mkdirSync(webDir, { recursive: true });
 cpSync(path.join(dist, "index.js"), path.join(webDir, "index.js"));
 cpSync(path.join(dist, "index.d.ts"), path.join(webDir, "index.d.ts"));
