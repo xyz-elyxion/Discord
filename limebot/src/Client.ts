@@ -89,11 +89,25 @@ applyProxy();
 Vaius.setMaxListeners(50);
 
 export let OwnerId: string;
+export const OwnerIds = new Set<string>();
+
+/** All known owner user IDs: the application (or team) owner + LIMEBOT_OWNER_IDS extras. */
+export function isOwner(id: string): boolean {
+    return OwnerIds.has(id);
+}
 Vaius.once("ready", async () => {
     ensureEmojis();
 
     Vaius.rest.oauth.getApplication().then(app => {
-        OwnerId = app.ownerID;
+        // Discord team-owned applications report ownerID as the TEAM's id, not
+        // a user id — user IDs never match it. Use the team's owner_user_id.
+        OwnerId = app.team?.ownerID ?? app.ownerID;
+        OwnerIds.add(OwnerId);
+        // Optional extra owners (comma-separated user IDs) for admins who are
+        // not the team owner itself.
+        const extra = (process.env.LIMEBOT_OWNER_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+        for (const id of extra) OwnerIds.add(id);
+        console.log(`[client] owner(s): ${[...OwnerIds].join(", ")}`);
     }).catch(e => {
         // Without this, every owner-only command (say, clamp, …) silently
         // no-ops for everyone. Log loudly so the next boot shows it.

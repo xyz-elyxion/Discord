@@ -13,7 +13,7 @@ import { atomicWriteFileSync } from "~/util/atomicWriteFile";
 import { getHomeGuild } from "~/util/discord";
 import { logBotAuditAction } from "~/util/logAction";
 import { CommandAttachmentOption, CommandBooleanOption, CommandIntegerOption, CommandStringOption, CommandUserOption } from "~components";
-import { OwnerId } from "../../Client";
+import { isOwner } from "../../Client";
 import { PROD } from "../../constants";
 import { fetchBuffer } from "../../util/fetch";
 
@@ -120,7 +120,7 @@ function writeBadgeImage(userId: string, fileName: string, imgData: Buffer) {
 
 const handler: CommandInteractionHandler = {
     async handle(i) {
-        if (i.user.id !== OwnerId) return;
+        if (!isOwner(i.user.id)) return;
 
         const { data } = i;
         const guild = i.guild ?? getHomeGuild();

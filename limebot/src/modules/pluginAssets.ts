@@ -6,7 +6,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { pipeline } from "stream/promises";
 
-import { OwnerId, Vaius } from "~/Client";
+import { Vaius, isOwner } from "~/Client";
 import { Emoji } from "~/constants";
 import { execFileP, execP } from "~/util/childProcess";
 import { reply } from "~/util/discord";
@@ -29,7 +29,7 @@ interface MediaParams {
 }
 
 Vaius.on("messageCreate", async msg => {
-    if (msg.channelID !== CHANNEL_ID || msg.author.id !== OwnerId) return;
+    if (msg.channelID !== CHANNEL_ID || !isOwner(msg.author.id)) return;
 
     const pluginName = msg.content;
     const attachment = msg.attachments.first();

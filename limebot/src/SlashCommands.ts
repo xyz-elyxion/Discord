@@ -3,7 +3,7 @@ import { AnyInteractionChannel, AnyInteractionGateway, AnyTextableGuildChannel, 
 import { SetOptional } from "type-fest";
 import { handleError } from ".";
 import { CommandContext, Commands } from "./Commands";
-import { OwnerId, Vaius } from "./Client";
+import { Vaius, isOwner } from "./Client";
 import Config from "./config";
 
 interface BaseInteractionHandler {
@@ -109,7 +109,7 @@ Vaius.on("interactionCreate", async interaction => {
         console.warn(`[interaction] no handler for ${interaction.type} "${label}" — ignoring`);
         return;
     }
-    if (handler.ownerOnly && interaction.user.id !== OwnerId)
+    if (handler.ownerOnly && !isOwner(interaction.user.id))
         return void denyInteraction(interaction, "🔒 This command can only be used by the bot's owner.");
     if (handler.guildOnly && !interaction.inCachedGuildChannel())
         return void denyInteraction(interaction, "🔒 This command only works inside servers.");
