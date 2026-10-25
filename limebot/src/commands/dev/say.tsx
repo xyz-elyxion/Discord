@@ -1,6 +1,7 @@
 import { CreateMessageOptions, MessageFlags } from "oceanic.js";
 
 import { Vaius } from "~/Client";
+import Config from "~/config";
 import { registerChatInputCommand } from "~/SlashCommands";
 import { CommandStringOption } from "~components";
 
@@ -15,7 +16,7 @@ registerChatInputCommand(
         </>
     },
     {
-        ownerOnly: true,
+        allowedRoles: [Config.roles.owner], // @everyone check: role management commands identify by role membership
         async handle(i) {
             const content = i.data.options.getString("content", true);
             const reply = i.data.options.getString("reply-to");
