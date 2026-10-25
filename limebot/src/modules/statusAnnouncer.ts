@@ -68,7 +68,16 @@ export async function announceStatus(message: string, active: boolean) {
         setTimeout(() => {
             fetch(`${Config.limeyApiBase}/v1/status`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    // The web server only accepts status updates from localhost
+                    // (bot co-located on the same box) or this admin token —
+                    // without it a bot hosted elsewhere gets 401 and stale
+                    // banners (e.g. a leftover rate-limit warning) never clear.
+                    ...(process.env.USRBG_ADMIN_TOKEN
+                        ? { Authorization: `Bearer ${process.env.USRBG_ADMIN_TOKEN}` }
+                        : {})
+                },
                 body: JSON.stringify({ active, message: active ? message : "" })
             }).catch(() => {});
         }, 3000).unref();
