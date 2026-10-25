@@ -96,7 +96,7 @@ const INSTALL_VERSION = "3";
 // Bump when bundled source code changes in a way that MUST reach hosts that
 // already have a built dist/ (run.js never rebuilds an existing bundle, so
 // a marker mismatch forces exactly one rebuild).
-const BUILD_VERSION = "5";
+const BUILD_VERSION = "6";
 
 const has = p => fs.existsSync(path.join(root, p));
 const markerFile = path.join(root, "node_modules", ".limebot-install-version");

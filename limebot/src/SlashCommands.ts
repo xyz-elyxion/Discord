@@ -4,7 +4,6 @@ import { SetOptional } from "type-fest";
 import { handleError } from ".";
 import { CommandContext, Commands } from "./Commands";
 import { Vaius, isOwner } from "./Client";
-import Config from "./config";
 
 interface BaseInteractionHandler {
     ownerOnly?: boolean;
@@ -197,15 +196,16 @@ export function registerChatInputCommand(options: ChatInputCommandOptions, handl
 
 Vaius.once("ready", async () => {
     try {
-        await Vaius.application.bulkEditGuildCommands(Config.homeGuildId, SlashCommands);
-
+        // Register every command ONCE, globally, for both install types.
+        // Registering guild copies for the home guild as well made commands
+        // appear twice wherever the app was both guild- and user-installed.
         await Vaius.application.bulkEditGlobalCommands(SlashCommands.map(cmd => ({
             ...cmd,
-            integrationTypes: [ApplicationIntegrationTypes.USER_INSTALL],
+            integrationTypes: [ApplicationIntegrationTypes.GUILD_INSTALL, ApplicationIntegrationTypes.USER_INSTALL],
             contexts: [InteractionContextTypes.BOT_DM, InteractionContextTypes.GUILD, InteractionContextTypes.PRIVATE_CHANNEL],
         })));
     } catch (e) {
-        console.error("Failed to register slash commands (is the bot in homeGuildId with the applications.commands scope?)", e);
+        console.error("Failed to register slash commands", e);
     }
 });
 
