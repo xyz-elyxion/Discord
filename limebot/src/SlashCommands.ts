@@ -4,6 +4,7 @@ import { SetOptional } from "type-fest";
 import { handleError } from ".";
 import { CommandContext, Commands } from "./Commands";
 import { Vaius, isOwner } from "./Client";
+import Config from "./config";
 
 interface BaseInteractionHandler {
     ownerOnly?: boolean;
@@ -204,6 +205,10 @@ Vaius.once("ready", async () => {
             integrationTypes: [ApplicationIntegrationTypes.GUILD_INSTALL, ApplicationIntegrationTypes.USER_INSTALL],
             contexts: [InteractionContextTypes.BOT_DM, InteractionContextTypes.GUILD, InteractionContextTypes.PRIVATE_CHANNEL],
         })));
+
+        // Older boots registered per-guild copies; clear those so the global
+        // set above is the only source.
+        await Vaius.application.bulkEditGuildCommands(Config.homeGuildId, []);
     } catch (e) {
         console.error("Failed to register slash commands", e);
     }
