@@ -7,7 +7,6 @@ import { ChatInputCommandOptions, CommandInteractionHandler, registerChatInputCo
 import { run } from "~/util/functions";
 import { parseBulkBadges } from "./parseBulkBadges";
 
-import sharp from "sharp";
 import Config from "~/config";
 import { atomicWriteFileSync } from "~/util/atomicWriteFile";
 import { getHomeGuild } from "~/util/discord";
@@ -45,6 +44,16 @@ const NameCopy = Name + "-copy";
 const NameBulkAdd = Name + "-bulk-add";
 
 async function optimizeImage(imgData: Buffer, ext: string) {
+    // Loaded lazily: sharp resolves its per-platform binary from an optional
+    // dependency which is missing/broken on some hosts. At that moment
+    // require("sharp") throws — but it must not take the whole bot down.
+    let sharp: (typeof import("sharp"))["default"];
+    try {
+        sharp = (await import("sharp")).default;
+    } catch (e: any) {
+        throw new Error(`badge image optimization unavailable — sharp failed to load on this host (${String(e?.message ?? e).split("\n")[0]})`);
+    }
+
     const img = sharp(imgData, {
         animated: true,
         autoOrient: true

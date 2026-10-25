@@ -96,7 +96,7 @@ const INSTALL_VERSION = "3";
 // Bump when bundled source code changes in a way that MUST reach hosts that
 // already have a built dist/ (run.js never rebuilds an existing bundle, so
 // a marker mismatch forces exactly one rebuild).
-const BUILD_VERSION = "7";
+const BUILD_VERSION = "8";
 
 const has = p => fs.existsSync(path.join(root, p));
 const markerFile = path.join(root, "node_modules", ".limebot-install-version");
@@ -158,15 +158,59 @@ if (!has(bindingPaths[0]) && !has(bindingPaths[1])) {
 
 // 3b. sharp: loads its per-platform binary from an optional dependency; if
 //     the tree is missing it the whole module fails to load.
-const sharpCheck = spawnSync(process.execPath, ["-e", "require('sharp')"], { cwd: root, stdio: "pipe" });
-if (sharpCheck.status !== 0) {
+//     It must NOT be fatal: sharp is only used for donor-badge image
+//     optimization, which is also loaded lazily, so the bot can start
+//     without it and just report the failure when the feature is used.
+function sharpLoadError() {
+    const r = spawnSync(
+        process.execPath,
+        ["-e", "try { require('sharp'); } catch (e) { process.stderr.write(String((e && e.stack) || e)); process.exit(1); }"],
+        { cwd: root, stdio: "pipe" }
+    );
+    if (r.status === 0) return null;
+    return (r.stderr || "").toString().trim() || "unknown error (no stderr captured)";
+}
+
+const firstSharpError = sharpLoadError();
+if (firstSharpError !== null) {
     console.log("[limebot] sharp failed to load — reinstalling with optional dependencies included...");
     run(npmCmd, ["install", "--include=optional", "--no-audit", "--no-fund"]);
-    const retry = spawnSync(process.execPath, ["-e", "require('sharp')"], { cwd: root, stdio: "pipe" });
-    if (retry.status !== 0) {
-        console.error("[limebot] sharp still failing after reinstall. stderr:");
-        console.error((retry.stderr || "").toString().split("\n").slice(-6).join("\n"));
-        process.exit(1);
+
+    // Still failing? The optional binaries are selected by os/cpu/libc
+    // fields, which some npm versions mis-detect (in particular on musl
+    // images). Last resort: install the exact package for this host
+    // directly, musl first when /bin/ldd identifies musl.
+    if (sharpLoadError() !== null) {
+        const arch = (spawnSync(process.execPath, ["-p", "process.arch"], { cwd: root, stdio: "pipe" }).stdout || process.arch)
+            .toString().trim();
+        const ldd = spawnSync("ldd", ["--version"], { stdio: "pipe" });
+        const variants = ((ldd.stdout || "") + (ldd.stderr || "")).toString().includes("musl")
+            ? ["linuxmusl", "linux"]
+            : ["linux", "linuxmusl"];
+
+        let fixed = false;
+        for (const variant of variants) {
+            const pkg = `@img/sharp-${variant}-${arch}`;
+            console.log(`[limebot] sharp still failing — installing ${pkg} directly...`);
+            const install = spawnSync(npmCmd, ["install", "--no-save", "--include=optional", pkg, "--no-audit", "--no-fund"], {
+                stdio: "inherit",
+                cwd: root
+            });
+            if (install.status === 0 && sharpLoadError() === null) {
+                fixed = true;
+                break;
+            }
+            console.log(`[limebot] ${pkg} didn't fix it — trying the next candidate...`);
+        }
+
+        if (!fixed) {
+            const finalError = sharpLoadError() ?? firstSharpError;
+            console.error("[limebot] sharp could not be loaded on this host — starting WITHOUT it.");
+            console.error("[limebot] /donors badge image optimization will fail at runtime until it does; error:");
+            console.error(finalError);
+            // deliberately no process.exit: a native image library must not
+            // crash-loop the entire gateway process on hosts it can't load.
+        }
     }
 }
 
