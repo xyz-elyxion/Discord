@@ -59,11 +59,6 @@ export default tseslint.config(
             }
         },
         rules: {
-            /*
-             * Since it's only been a month and Limey V1 has already been stolen
-             * by random skids who rebranded it to "AlphaCord" and erased all license
-             * information
-             */
             "simple-header/header": [
                 "error",
                 {
