@@ -12,6 +12,7 @@
 // @grant           unsafeWindow
 // @connect         limey-discord.onrender.com
 // @connect         raw.githubusercontent.com
+// @connect         nekos.best
 // @run-at          document-start
 // @compatible      chrome Chrome + Tampermonkey or Violentmonkey
 // @compatible      firefox Firefox Tampermonkey
