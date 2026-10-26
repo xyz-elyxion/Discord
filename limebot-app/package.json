@@ -1,0 +1,71 @@
+{
+    "name": "limebot-app",
+    "productName": "Limebot",
+    "version": "1.0.0",
+    "description": "Desktop app that lets volunteers run the Limebot Discord bot: paste the token, press Start, watch the logs",
+    "private": true,
+    "main": "src/main.js",
+    "license": "GPL-3.0-or-later",
+    "author": "Limey <limey+npm@riseup.net>",
+    "packageManager": "pnpm@9.0.0",
+    "allowScripts": {
+        "electron": true
+    },
+    "scripts": {
+        "dev": "electron .",
+        "check": "node --check src/main.js && node --check src/core.js && node --check src/preload.js && node --check src/renderer/renderer.js",
+        "build:linux": "electron-builder --linux tar.gz --publish never",
+        "build:win": "electron-builder --win zip --x64 --publish never"
+    },
+    "devDependencies": {
+        "electron": "33.4.11",
+        "electron-builder": "^25.1.8"
+    },
+    "build": {
+        "appId": "com.limeyv1.limebot",
+        "productName": "Limebot",
+        "directories": {
+            "output": "dist"
+        },
+        "artifactName": "Limebot-${os}-${arch}-${version}.${ext}",
+        "files": [
+            "src/**/*",
+            "package.json"
+        ],
+        "extraResources": [
+            {
+                "from": "../bot",
+                "to": "bot",
+                "filter": [
+                    "**/*",
+                    "!node_modules/**",
+                    "!dist/**",
+                    "!data/**",
+                    "!.env",
+                    "!.git/**"
+                ]
+            }
+        ],
+        "win": {
+            "target": [
+                {
+                    "target": "zip",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "signAndEditExecutable": false
+        },
+        "linux": {
+            "target": [
+                "tar.gz"
+            ]
+        },
+        "mac": {
+            "target": [
+                "zip"
+            ]
+        }
+    }
+}

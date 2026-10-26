@@ -8,6 +8,7 @@ bot/.env
 .env.local
 .env.*.local
 ghost-client/dist
+limebot-app/dist
 packages/limey-v1-sdk/dist
 node_modules
 .gocache/

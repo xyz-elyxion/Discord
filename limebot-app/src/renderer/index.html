@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:;">
+    <title>Limebot</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <main class="app">
+        <header class="topbar">
+            <div class="brand">
+                <span class="mark">LB</span>
+                <div>
+                    <h1>Limebot</h1>
+                    <p class="sub">Run the bot from this computer</p>
+                </div>
+            </div>
+            <div class="status" id="status" data-state="stopped">
+                <span class="dot" aria-hidden="true"></span>
+                <span id="status-text">Stopped</span>
+                <span class="uptime" id="uptime"></span>
+            </div>
+        </header>
+
+        <section class="notice" id="node-notice" hidden>
+            <div>
+                <strong id="node-title">Node.js is required</strong>
+                <p id="node-detail"></p>
+            </div>
+            <div class="notice-actions">
+                <button type="button" class="secondary" id="node-recheck">Check again</button>
+                <button type="button" class="primary" id="node-download">Get Node.js</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Bot token</h2>
+            <div class="token-row">
+                <input id="token" type="password" spellcheck="false" autocomplete="off" autocapitalize="off"
+                    placeholder="Paste the bot token here">
+                <button type="button" class="ghost" id="toggle-token">Show</button>
+            </div>
+            <p class="hint">
+                Discord Developer Portal → your app → Bot → Reset Token. The token is only saved on this computer.
+                <button type="button" class="link" id="open-portal">Open developer portal</button>
+            </p>
+
+            <div class="actions">
+                <button type="button" class="primary" id="start">Start bot</button>
+                <button type="button" class="danger" id="stop">Stop</button>
+                <button type="button" class="ghost" id="restart">Restart</button>
+            </div>
+
+            <p class="error" id="error" hidden></p>
+        </section>
+
+        <section class="card logs">
+            <div class="logs-head">
+                <h2>Console</h2>
+                <div class="logs-tools">
+                    <span class="line-count" id="line-count"></span>
+                    <button type="button" class="ghost small" id="copy">Copy</button>
+                    <button type="button" class="ghost small" id="clear">Clear</button>
+                    <button type="button" class="ghost small" id="open-logs">Log file</button>
+                </div>
+            </div>
+            <pre class="log" id="log"><span class="log-empty">Nothing yet — press “Start bot”.</span></pre>
+        </section>
+
+        <footer class="footer">
+            <span class="folder" id="folder" title="">Bot folder: —</span>
+            <span class="footer-actions">
+                <button type="button" class="link" id="change-dir">Change folder…</button>
+                <button type="button" class="link" id="reset-dir" hidden>Use bundled copy</button>
+            </span>
+        </footer>
+    </main>
+
+    <script src="renderer.js"></script>
+</body>
+
+</html>

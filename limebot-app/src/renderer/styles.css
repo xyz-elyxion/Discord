@@ -1,0 +1,385 @@
+/*
+ * Limebot
+ * Copyright (c) 2026 Limey and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+:root {
+    --bg: #17171c;
+    --surface: #1f1f27;
+    --surface-2: #262631;
+    --border: #32323f;
+    --text: #ececf2;
+    --muted: #9c9cae;
+    --accent: #5865f2;
+    --accent-hover: #6b76f5;
+    --danger: #d64550;
+    --ok: #3ecf8e;
+    --warn: #e0a33a;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+    user-select: none;
+}
+
+.app {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    height: 100%;
+    padding: 18px 20px 14px;
+}
+
+/* --- header -------------------------------------------------------------- */
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mark {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: linear-gradient(140deg, var(--accent), #8b5cf6);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+h1 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 650;
+}
+
+.sub {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 13px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 13px;
+    font-weight: 550;
+}
+
+.status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+}
+
+.status[data-state="running"] .dot {
+    background: var(--ok);
+    box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.16);
+}
+
+.status[data-state="starting"] .dot,
+.status[data-state="stopping"] .dot {
+    background: var(--warn);
+    animation: pulse 1.1s ease-in-out infinite;
+}
+
+.status[data-state="crashed"] .dot {
+    background: var(--danger);
+}
+
+.status[data-state="running"] #status-text {
+    color: var(--ok);
+}
+
+.status[data-state="crashed"] #status-text {
+    color: var(--danger);
+}
+
+.uptime {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulse {
+    50% {
+        opacity: 0.35;
+    }
+}
+
+/* --- notice / cards ------------------------------------------------------ */
+
+.notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 13px 16px;
+    border: 1px solid rgba(214, 69, 80, 0.5);
+    border-radius: 12px;
+    background: rgba(214, 69, 80, 0.1);
+}
+
+.notice p {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 12.5px;
+}
+
+.notice-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.card {
+    padding: 15px 17px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
+.card h2 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.card.logs {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 180px;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* --- token row ----------------------------------------------------------- */
+
+.token-row {
+    display: flex;
+    gap: 8px;
+}
+
+input[type="password"],
+input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--bg);
+    color: var(--text);
+    font: 13px/1.4 ui-monospace, "Cascadia Code", Consolas, monospace;
+    user-select: text;
+}
+
+input:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.22);
+}
+
+.hint {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.actions {
+    display: flex;
+    gap: 9px;
+    margin-top: 14px;
+}
+
+button {
+    border: 0;
+    border-radius: 9px;
+    padding: 9px 16px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--surface-2);
+    cursor: pointer;
+    transition: background 0.12s ease, opacity 0.12s ease;
+}
+
+button:hover:not(:disabled) {
+    filter: brightness(1.12);
+}
+
+button:disabled {
+    opacity: 0.42;
+    cursor: default;
+}
+
+button.primary {
+    background: var(--accent);
+    color: #fff;
+}
+
+button.primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+button.danger {
+    background: rgba(214, 69, 80, 0.18);
+    color: #ff8a93;
+}
+
+button.ghost {
+    background: var(--surface-2);
+    color: var(--muted);
+}
+
+button.secondary {
+    background: var(--surface-2);
+}
+
+button.small {
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+button.link {
+    padding: 0;
+    background: none;
+    color: var(--accent-hover);
+    font-size: 12px;
+    font-weight: 550;
+}
+
+button.link:hover {
+    text-decoration: underline;
+}
+
+.error {
+    margin: 12px 0 0;
+    padding: 9px 12px;
+    border-radius: 9px;
+    background: rgba(214, 69, 80, 0.14);
+    color: #ff9aa2;
+    font-size: 12.5px;
+    user-select: text;
+}
+
+/* --- console ------------------------------------------------------------- */
+
+.logs-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 15px;
+    border-bottom: 1px solid var(--border);
+}
+
+.logs-head h2 {
+    margin: 0;
+}
+
+.logs-tools {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.line-count {
+    margin-right: 3px;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.log {
+    flex: 1;
+    margin: 0;
+    padding: 11px 15px 15px;
+    overflow-y: auto;
+    background: #131318;
+    font: 12px/1.6 ui-monospace, "Cascadia Code", Consolas, monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+    user-select: text;
+}
+
+.log-line {
+    display: block;
+}
+
+.log-line .time {
+    color: #55556a;
+    margin-right: 8px;
+}
+
+.log-line.stderr {
+    color: #ff9aa2;
+}
+
+.log-line.app {
+    color: #8ea6ff;
+}
+
+.log-line.stdout {
+    color: #d6d6e2;
+}
+
+.log-empty {
+    color: var(--muted);
+}
+
+/* --- footer -------------------------------------------------------------- */
+
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    color: var(--muted);
+    font-size: 11.5px;
+}
+
+.folder {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    user-select: text;
+}
+
+.footer-actions {
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+}
