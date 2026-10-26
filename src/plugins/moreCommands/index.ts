@@ -395,19 +395,17 @@ export default definePlugin({
                 },
             ],
             execute: async (opts, ctx) => {
-                let sub = "cuteanimeboys";
-                const cat = findOption(opts, "cat") as boolean | undefined;
-                if (cat) sub = "animecatboys";
+                const cat = Boolean(findOption(opts, "cat"));
 
                 try {
-                    return { content: await getCuteAnimeBoys(sub) };
+                    return { content: await getCuteAnimeBoys(cat) };
                 } catch (err) {
                     console.warn("[MoreCommands] /anime-boys failed:", err);
                     sendBotMessage(ctx.channel.id, {
-                        content: "Couldn't fetch cute anime boys right now 😿 (Reddit is blocking anonymous API requests — try again later.)"
+                        content: "Couldn't fetch cute anime boys right now 😿 (nekos.best is unreachable — try again in a moment.)"
                     });
                 }
-            },
+            }
         },
         {
             name: "ping",

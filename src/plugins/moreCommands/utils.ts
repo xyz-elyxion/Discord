@@ -43,17 +43,53 @@ function assertJsonBody(res: Response, apiName: string): void {
     }
 }
 
-export async function getCuteAnimeBoys(sub: string) {
-    const res = await fetch(`https://www.reddit.com/r/${sub}/top.json?limit=100&t=all`);
-    assertJsonBody(res, `Reddit /r/${sub}`);
+type NekosBestResults = { results?: Array<{ url?: string; }>; };
 
-    const { children } = await res.json();
-    if (!Array.isArray(children) || !children.length) {
-        throw new Error(`Reddit /r/${sub} returned no posts`);
-    }
+/** nekos.best only serves SFW images and answers with CORS-enabled JSON, so it
+ * can be called straight from the client — unlike Reddit, which blocks anonymous
+ * API requests, and Safebooru, which refuses browser user agents. */
+async function fetchNekosBest<T>(path: string): Promise<T> {
+    const res = await fetch(`https://nekos.best/api/v2${path}`);
+    assertJsonBody(res, "nekos.best");
+    return res.json();
+}
 
-    const r = rand(0, children.length - 1);
-    return children[r].data?.url ?? "";
+/** Every usable image URL in a nekos.best result list. */
+function pickAll(json: NekosBestResults, keep?: (url: string) => boolean): string[] {
+    return (json.results ?? [])
+        .map(result => result.url)
+        .filter((url): url is string => typeof url === "string" && !!url && (!keep || keep(url)));
+}
+
+/** Pick a random image URL out of a nekos.best result list. */
+function pickImage(json: NekosBestResults, keep?: (url: string) => boolean): string | null {
+    const urls = pickAll(json, keep);
+    return urls.length ? urls[rand(0, urls.length - 1)] : null;
+}
+
+/** nekos.best has no cat-boy endpoint, so tag-search for animal-eared boys and
+ * keep only the male (`husbando`) results, falling back to a plain husbando. */
+async function getCuteCatBoy(): Promise<string> {
+    const searched = await Promise.all(
+        ["nekomimi 1boy", "cat_ears 1boy"].map(query =>
+            fetchNekosBest<NekosBestResults>(`/search?query=${encodeURIComponent(query)}&type=1&amount=40`)
+        )
+    );
+
+    const boys = new Set(searched.flatMap(json => pickAll(json, url => url.includes("/husbando/"))));
+    if (!boys.size) return getCuteHusbando();
+
+    return [...boys][rand(0, boys.size - 1)];
+}
+
+export async function getCuteHusbando(): Promise<string> {
+    const url = pickImage(await fetchNekosBest<NekosBestResults>("/husbando"));
+    if (!url) throw new Error("nekos.best returned no husbando");
+    return url;
+}
+
+export async function getCuteAnimeBoys(cat: boolean): Promise<string> {
+    return cat ? getCuteCatBoy() : getCuteHusbando();
 }
 
 export async function getCuteNeko(): Promise<string> {
