@@ -57,6 +57,7 @@ interface BlackjackGame {
     player: Card[];
     dealer: Card[];
     messageId?: string;
+    opponentId?: string;
     doubled: boolean;
     canDouble: boolean;
 }
@@ -72,6 +73,7 @@ interface CrashRound {
     bustAt: number;
     startedAt: number;
     messageId?: string;
+    opponentId?: string;
     finished: boolean;
     timer?: ReturnType<typeof setInterval>;
 }
@@ -81,6 +83,7 @@ interface HigherLowerRound {
     deck: Card[];
     card: Card;
     messageId?: string;
+    opponentId?: string;
 }
 
 interface LuckGame {
@@ -88,6 +91,7 @@ interface LuckGame {
     cleared: Set<number>;
     dud: number;
     messageId?: string;
+    opponentId?: string;
 }
 
 interface MinesGame {
@@ -95,6 +99,7 @@ interface MinesGame {
     mines: Set<number>;
     revealed: Set<number>;
     messageId?: string;
+    opponentId?: string;
 }
 
 const blackjackGames = new Map<string, BlackjackGame>();
@@ -403,12 +408,13 @@ export default definePlugin({
 
                     const opponentId = findOption<string>(args, "opponent");
                     const messageId = post(channel.id, [
-                        "🪙 **Coinflip** — what do you want to bet on?",
+                        `🪙 **Coinflip** — what do you want to bet on?${opponentId ? ` <@${opponentId}>` : ""}`,
                         `Bet: **${formatCoins(betCheck.bet)}**`,
-                        opponentId ? `Challenging <@${opponentId}> — heads or tails?` : "",
                         "",
-                        "Run `/coinflip` again with the **choice** option set to **heads** or **tails**. This message turns into the result."
-                    ].filter(Boolean).join("\n"));
+                        opponentId
+                            ? `<@${opponentId}>, call it: **heads** or **tails**? Then run \`/coinflip\` again with their pick — this message turns into the result.`
+                            : "Run `/coinflip` again with the **choice** option set to **heads** or **tails**. This message turns into the result."
+                    ].join("\n"));
 
                     coinflipRounds.set(channel.id, { bet: betCheck.bet, messageId, opponentId });
                     return;
@@ -449,7 +455,7 @@ export default definePlugin({
                 },
                 {
                     name: "action",
-                    description: "What to do with the hand you already have",
+                    description: "What to do with the hand you already have — use what the other player calls",
                     type: ApplicationCommandOptionType.STRING,
                     required: false,
                     choices: [
@@ -457,6 +463,12 @@ export default definePlugin({
                         { name: "Stand", value: "stand", label: "Stand" },
                         { name: "Double down", value: "double", label: "Double down" }
                     ]
+                },
+                {
+                    name: "opponent",
+                    description: "The person who decides your hits and stands (optional)",
+                    type: ApplicationCommandOptionType.USER,
+                    required: false
                 }
             ],
             async execute(args, { channel }) {
@@ -476,6 +488,7 @@ export default definePlugin({
                         deck,
                         player: [draw(deck), draw(deck)],
                         dealer: [draw(deck), draw(deck)],
+                        opponentId: findOption<string>(args, "opponent"),
                         doubled: false,
                         canDouble: true
                     };
@@ -489,7 +502,9 @@ export default definePlugin({
                     if (playerTotal === 21 || dealerTotal === 21)
                         return settleBlackjack(channel.id, newGame, playerTotal === 21 && dealerTotal !== 21);
 
-                    return edit(channel.id, newGame.messageId, blackjackText(newGame, false, "Run `/blackjack` again with **action** set to `hit`, `stand` or `double`."));
+                    return edit(channel.id, newGame.messageId, blackjackText(newGame, false, newGame.opponentId
+                        ? `Ask <@${newGame.opponentId}>: \`hit\`, \`stand\` or \`double\`? Then run \`/blackjack\` again with their choice.`
+                        : "Run `/blackjack` again with **action** set to `hit`, `stand` or `double`."));
                 }
 
                 switch (action) {
@@ -505,7 +520,9 @@ export default definePlugin({
                             return settleBlackjack(channel.id, game);
                         }
 
-                        return edit(channel.id, game.messageId, blackjackText(game, false, "Run `/blackjack` again with **action** set to `hit` or `stand`."));
+                        return edit(channel.id, game.messageId, blackjackText(game, false, game.opponentId
+                            ? `Ask <@${game.opponentId}>: \`hit\` or \`stand\`? Then run \`/blackjack\` again with their choice.`
+                            : "Run `/blackjack` again with **action** set to `hit` or `stand`."));
                     }
 
                     case "stand": {
@@ -636,6 +653,12 @@ export default definePlugin({
                     choices: [
                         { name: "Cash out", value: "cashout", label: "Cash out" }
                     ]
+                },
+                {
+                    name: "opponent",
+                    description: "The person who calls the next move (optional)",
+                    type: ApplicationCommandOptionType.USER,
+                    required: false
                 }
             ],
             async execute(args, { channel }) {
@@ -664,9 +687,12 @@ export default definePlugin({
                     bet: betResult.bet,
                     bustAt: crashBustPoint(),
                     startedAt: Date.now(),
+                    opponentId: findOption<string>(args, "opponent"),
                     finished: false
                 };
-                const footer = "Run `/crash` again with **action** set to `cashout` to lock in your winnings.";
+                const footer = newRound.opponentId
+                    ? `Ask <@${newRound.opponentId}> when to cash out, then run \`/crash\` again with **action** set to \`cashout\`.`
+                    : "Run `/crash` again with **action** set to `cashout` to lock in your winnings.";
 
                 newRound.messageId = post(channel.id, crashText(newRound, 1, footer));
                 crashRounds.set(channel.id, newRound);
@@ -704,7 +730,7 @@ export default definePlugin({
                 },
                 {
                     name: "tile",
-                    description: "The tile to reveal, 1-25",
+                    description: "The tile to reveal, 1-25 — the one the other player picked",
                     type: ApplicationCommandOptionType.INTEGER,
                     required: false
                 },
@@ -716,6 +742,12 @@ export default definePlugin({
                     choices: [
                         { name: "Cash out", value: "cashout", label: "Cash out" }
                     ]
+                },
+                {
+                    name: "opponent",
+                    description: "The person who picks the tiles (optional)",
+                    type: ApplicationCommandOptionType.USER,
+                    required: false
                 }
             ],
             async execute(args, { channel }) {
@@ -753,7 +785,9 @@ export default definePlugin({
                     }
 
                     const multiplier = minesMultiplier(game.mines.size, game.revealed.size);
-                    return edit(channel.id, game.messageId, minesText(game, `Safe! Reveal another tile with \`/mines\`, or cash out ${formatCoins(Math.floor(game.bet * multiplier))} with \`/mines action:cashout\`.`));
+                    return edit(channel.id, game.messageId, minesText(game, game.opponentId
+                        ? `Safe! Ask <@${game.opponentId}> for the next tile, then run \`/mines\` again — or cash out ${formatCoins(Math.floor(game.bet * multiplier))} with \`/mines action:cashout\`.`
+                        : `Safe! Reveal another tile with \`/mines\`, or cash out ${formatCoins(Math.floor(game.bet * multiplier))} with \`/mines action:cashout\`.`));
                 }
 
                 if (game)
@@ -766,8 +800,10 @@ export default definePlugin({
                 const betResult = await placeBet(findOption(args, "bet"));
                 if ("error" in betResult) return sendBotMessage(channel.id, { content: betResult.error });
 
-                const newGame: MinesGame = { bet: betResult.bet, mines: placeMines(mines), revealed: new Set() };
-                newGame.messageId = post(channel.id, minesText(newGame, "Run `/mines` again with a **tile** to reveal it — every safe tile raises the multiplier."));
+                const newGame: MinesGame = { bet: betResult.bet, mines: placeMines(mines), revealed: new Set(), opponentId: findOption<string>(args, "opponent") };
+                newGame.messageId = post(channel.id, minesText(newGame, newGame.opponentId
+                    ? `<@${newGame.opponentId}> — pick a tile from 1 to ${MINES_TILES}. Then run \`/mines\` again with **tile** set to their pick.`
+                    : "Run `/mines` again with a **tile** to reveal it — every safe tile raises the multiplier."));
                 minesGames.set(channel.id, newGame);
             }
         },
@@ -895,13 +931,19 @@ export default definePlugin({
                 },
                 {
                     name: "guess",
-                    description: "Your guess for the card that's already showing",
+                    description: "Higher or lower for the card that's showing — use the other player's call",
                     type: ApplicationCommandOptionType.STRING,
                     required: false,
                     choices: [
                         { name: "Higher", value: "higher", label: "Higher" },
                         { name: "Lower", value: "lower", label: "Lower" }
                     ]
+                },
+                {
+                    name: "opponent",
+                    description: "The person who calls higher or lower (optional)",
+                    type: ApplicationCommandOptionType.USER,
+                    required: false
                 }
             ],
             async execute(args, { channel }) {
@@ -916,8 +958,10 @@ export default definePlugin({
                     if ("error" in betResult) return sendBotMessage(channel.id, { content: betResult.error });
 
                     const deck = createDeck();
-                    const round: HigherLowerRound = { bet: betResult.bet, deck, card: draw(deck) };
-                    round.messageId = post(channel.id, higherLowerText(round, "Run `/higherlower` again with **guess** set to `higher` or `lower`. This message turns into the result."));
+                    const round: HigherLowerRound = { bet: betResult.bet, deck, card: draw(deck), opponentId: findOption<string>(args, "opponent") };
+                    round.messageId = post(channel.id, higherLowerText(round, round.opponentId
+                        ? `<@${round.opponentId}> — higher or lower? Then run \`/higherlower\` again with their guess. This message turns into the result.`
+                        : "Run `/higherlower` again with **guess** set to `higher` or `lower`. This message turns into the result."));
                     higherLowerRounds.set(channel.id, round);
                     return;
                 }
@@ -963,7 +1007,7 @@ export default definePlugin({
                 },
                 {
                     name: "seat",
-                    description: "The seat to clear, 1-6",
+                    description: "The seat to clear, 1-6 — the one the other player picked",
                     type: ApplicationCommandOptionType.INTEGER,
                     required: false
                 },
@@ -975,6 +1019,12 @@ export default definePlugin({
                     choices: [
                         { name: "Cash out", value: "cashout", label: "Cash out" }
                     ]
+                },
+                {
+                    name: "opponent",
+                    description: "The person who calls the next move (optional)",
+                    type: ApplicationCommandOptionType.USER,
+                    required: false
                 }
             ],
             async execute(args, { channel }) {
@@ -1024,7 +1074,9 @@ export default definePlugin({
                     }
 
                     game.dud = rollDud(game.cleared);
-                    return edit(channel.id, game.messageId, luckText(game, `Safe! Pick another seat with \`/luck\`, or cash out ${formatCoins(payout)} with \`/luck action:cashout\`.`));
+                    return edit(channel.id, game.messageId, luckText(game, game.opponentId
+                        ? `Safe! Ask <@${game.opponentId}> for the next seat, then run \`/luck\` again — or cash out ${formatCoins(payout)} with \`/luck action:cashout\`.`
+                        : `Safe! Pick another seat with \`/luck\`, or cash out ${formatCoins(payout)} with \`/luck action:cashout\`.`));
                 }
 
                 if (game)
@@ -1033,8 +1085,10 @@ export default definePlugin({
                 const betResult = await placeBet(findOption(args, "bet"));
                 if ("error" in betResult) return sendBotMessage(channel.id, { content: betResult.error });
 
-                const newGame: LuckGame = { bet: betResult.bet, cleared: new Set(), dud: rollDud(new Set()) };
-                newGame.messageId = post(channel.id, luckText(newGame, "Run `/luck` again with a **seat** to clear it — one seat is the dud, so cash out while you're ahead."));
+                const newGame: LuckGame = { bet: betResult.bet, cleared: new Set(), dud: rollDud(new Set()), opponentId: findOption<string>(args, "opponent") };
+                newGame.messageId = post(channel.id, luckText(newGame, newGame.opponentId
+                    ? `<@${newGame.opponentId}> — pick a seat from 1 to ${LUCK_SEATS}. Then run \`/luck\` again with **seat** set to their pick.`
+                    : "Run `/luck` again with a **seat** to clear it — one seat is the dud, so cash out while you're ahead."));
                 luckGames.set(channel.id, newGame);
             }
         },
