@@ -60,7 +60,26 @@ const COMMON = {
 // The entry assigns the global because the page loads this with a plain
 // <script> tag, exactly like the workspace bundle it already ships.
 const ENTRY = `
-import * as monaco from "monaco-editor";
+// The bare "monaco-editor" entry registers every tokenizer but exports only the
+// editor API, so monaco.languages.typescript/json/css/html do not exist. The
+// language services are separate modules and have to be attached by hand here.
+// (editor.main.js would do it, but it also pulls in the LSP client.)
+import * as monacoApi from "monaco-editor";
+import * as typescriptFeature from "monaco-editor/languages/features/typescript/register.js";
+import * as jsonFeature from "monaco-editor/languages/features/json/register.js";
+import * as cssFeature from "monaco-editor/languages/features/css/register.js";
+import * as htmlFeature from "monaco-editor/languages/features/html/register.js";
+
+const monaco = {
+    ...monacoApi,
+    languages: {
+        ...monacoApi.languages,
+        typescript: typescriptFeature,
+        json: jsonFeature,
+        css: cssFeature,
+        html: htmlFeature
+    }
+};
 
 // Monaco asks for a worker by language label; each bundle below is built as
 // its own classic worker script.

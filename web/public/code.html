@@ -1283,7 +1283,17 @@ declare module "@webpack/common" {
     }
 
     function configureLanguages(monaco) {
-        const ts = monaco.languages.typescript;
+        const ts = (monaco.languages && monaco.languages.typescript) || monaco.typescript;
+        if (!ts) {
+            // A bundle built from the API-only Monaco entry ships no language
+            // services. Report it and keep editing rather than failing to boot.
+            console.warn("[Limey Code] This Monaco bundle has no TypeScript language service — rebuild with pnpm buildMonaco for plugin completions.");
+            dom.statusProblems.textContent = "no language service";
+            dom.statusProblems.className = "warn";
+            dom.statusProblems.title = "This Monaco bundle was built without its language services.";
+            return;
+        }
+
         const options = {
             target: ts.ScriptTarget.ES2022,
             module: ts.ModuleKind.ESNext,
