@@ -2683,7 +2683,6 @@ const NAMED_PAGES = {
     "/docs": "docs/index.html",
     "/plugins": "plugins.html",
     "/marketplace": "marketplace.html",
-    "/limey-code": "limey-code.html",
     "/tools": "tools.html",
     "/rules": "rules.html",
     "/usrbg": "usrbg.html",
@@ -2692,7 +2691,7 @@ const NAMED_PAGES = {
     "/limes": "limes.html",
     "/dashboard": "dashboard.html",
     "/submit-plugin": "submit-plugin.html",
-    "/code": "limey-code.html",
+    "/code": "code.html",
     "/ghost": "ghost.html",
     "/404": "404.html",
     "/sdk": "sdk.html",
@@ -2719,7 +2718,8 @@ const HTML_REDIRECTS = new Map([
     ["/docs/index.html", "/docs"],
     ["/admin.html", "/admin"],
     ["/verify.html", "/verify"],
-    ["/code.html", "/code"],
+    // The editor used to be served at /limey-code; keep old links alive.
+    ["/limey-code", "/code"],
     // Aliases with their own .html spelling
     ["/terms-of-service.html", "/terms-of-service"],
     ["/privacy-policy.html", "/privacy-policy"],

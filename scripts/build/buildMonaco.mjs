@@ -28,7 +28,7 @@
  *   json/css/html.worker.js  the other language services
  *   assets/*          codicon font + any other assets the styles reference
  *
- * Used by /limey-code and by the /code workshop, which already tries to load
+ * Used by /code, which tries to load
  * exactly these two files and silently falls back to a textarea without them.
  */
 
