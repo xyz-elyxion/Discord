@@ -158,8 +158,10 @@ RUN mkdir -p /app/runtime_deps/node_modules \
     && cd /app/runtime_deps \
     && echo '{"name":"limey-runtime-deps","private":true}' > package.json \
     && npm install --no-audit --no-fund --loglevel=error "pg@$(node -p "require('/app/node_modules/pg/package.json').version")"
-# Generate the plugin catalog data for /plugins/
-RUN pnpm generatePluginJson web/public/plugins.json web/public/readmes.json
+# Generate the plugin catalog data for /plugins/ and the source archives the
+# /marketplace download buttons hand out
+RUN pnpm generatePluginJson web/public/plugins.json web/public/readmes.json \
+    && node scripts/generatePluginDownloads.mjs
 
 # ---------- Runtime stage ----------
 FROM node:22-alpine

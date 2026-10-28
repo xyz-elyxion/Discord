@@ -35,3 +35,6 @@ src/userplugins
 
 ExtensionCache/
 /settings
+
+# Generated plugin archives for the /marketplace download buttons
+web/public/plugin-downloads/

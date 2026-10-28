@@ -2682,6 +2682,7 @@ function serveFile(res, filePath, status = 200) {
 const NAMED_PAGES = {
     "/docs": "docs/index.html",
     "/plugins": "plugins.html",
+    "/marketplace": "marketplace.html",
     "/tools": "tools.html",
     "/rules": "rules.html",
     "/usrbg": "usrbg.html",

@@ -181,6 +181,19 @@ function checkSentinel(body) {
 // HTTP handling
 // ---------------------------------------------------------------------------
 
+// fflate is a runtime dependency of the web server (see the Dockerfile), but
+// the store should keep answering when it is missing instead of crashing.
+let cachedZipSync;
+function loadZipSync() {
+    if (cachedZipSync !== undefined) return cachedZipSync;
+    try {
+        cachedZipSync = require("fflate").zipSync;
+    } catch {
+        cachedZipSync = null;
+    }
+    return cachedZipSync;
+}
+
 function send(res, status, body, headers = {}) {
     res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*", ...headers });
     res.end(typeof body === "string" ? body : JSON.stringify(body));
@@ -282,6 +295,53 @@ async function handle(req, res, url) {
         saveStore();
         console.log(`[pluginstore] submitted: ${id} by ${value.author.name} (${value.author.id})`);
         return send(res, 201, { ok: true, id, message: "Submitted! It will appear in the store once an admin approves it." }), true;
+    }
+
+    // GET /v1/plugins/:id/download — the attached workshop files as a real .zip
+    // the marketplace hands to users, ready to unzip into src/userplugins.
+    const downloadMatch = url.match(/^\/v1\/plugins\/([a-z0-9-]+)\/download$/);
+    if (method === "GET" && downloadMatch) {
+        const plugin = store.approved[downloadMatch[1]];
+        if (!plugin) return send(res, 404, { error: "No approved plugin with that id." }), true;
+
+        const files = plugin.files && typeof plugin.files === "object" ? plugin.files : null;
+        if (!files || !Object.keys(files).length) {
+            return send(res, 404, {
+                error: "This plugin has no attached files — download it from its source URL instead.",
+                sourceUrl: plugin.sourceUrl || null
+            }), true;
+        }
+
+        const zipSync = loadZipSync();
+        if (!zipSync) return send(res, 503, { error: "Zip support is unavailable on this server." }), true;
+
+        const entries = {};
+        for (const [name, content] of Object.entries(files)) {
+            // Flatten to `<id>/<file>` so the archive drops straight into userplugins
+            const safe = String(name)
+                .replace(/\\/g, "/")
+                .replace(/^\/+/, "")
+                .split("/")
+                .filter(part => part && part !== "." && part !== "..")
+                .join("/");
+            if (!safe) continue;
+            entries[`${plugin.id}/${safe}`] = new TextEncoder().encode(String(content));
+        }
+
+        if (!Object.keys(entries).length) {
+            return send(res, 404, { error: "This plugin has no usable attached files." }), true;
+        }
+
+        const zip = Buffer.from(zipSync(entries, { level: 6 }));
+        res.writeHead(200, {
+            "Content-Type": "application/zip",
+            "Content-Disposition": `attachment; filename="${plugin.id}.zip"`,
+            "Content-Length": zip.length,
+            "Access-Control-Allow-Origin": "*"
+        });
+        res.end(zip);
+        console.log(`[pluginstore] download: ${plugin.id} (${zip.length} bytes)`);
+        return true;
     }
 
     // GET /v1/plugins/:id/code — attached workshop files for an approved plugin
