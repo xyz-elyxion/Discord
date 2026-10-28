@@ -340,6 +340,229 @@
         .row:hover { background: #1f1f1f; }
         .empty { padding: 18px; text-align: center; color: var(--lc-dim); font-size: 0.8rem; }
 
+        /* ---------- work area, panel, preview ---------- */
+        #workArea { display: flex; min-width: 0; min-height: 0; }
+        #editorColumn {
+            flex: 1;
+            display: grid;
+            grid-template-rows: 1fr auto;
+            min-width: 0;
+            min-height: 0;
+        }
+        #previewColumn {
+            width: 370px;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--lc-border);
+            background: var(--lc-panel);
+        }
+        #previewColumn[hidden] { display: none; }
+        .panel-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--lc-border);
+            color: var(--lc-dim);
+            font-size: 0.68rem;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+        }
+        .panel-head .spacer { flex: 1; }
+        .panel-head button {
+            width: 22px;
+            height: 22px;
+            display: grid;
+            place-items: center;
+            border-radius: 5px;
+            color: var(--lc-dim);
+            font-size: 0.7rem;
+        }
+        .panel-head button:hover { background: #1f1f1f; color: var(--lc-text); }
+        #previewFrame { flex: 1; width: 100%; border: 0; background: #313338; }
+
+        #panel {
+            height: 236px;
+            display: flex;
+            flex-direction: column;
+            border-top: 1px solid var(--lc-border);
+            background: var(--lc-panel);
+        }
+        #panel[hidden] { display: none; }
+        #panelTabs {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 3px 8px 0;
+            border-bottom: 1px solid var(--lc-border);
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        #panelTabs .spacer { flex: 1; }
+        .panel-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 6px 6px 0 0;
+            color: var(--lc-dim);
+        }
+        .panel-tab:hover { color: var(--lc-text); }
+        .panel-tab.active { color: var(--lc-text); background: var(--lc-bg); box-shadow: inset 0 -2px 0 var(--lc-lime); }
+        .panel-tab .count {
+            padding: 0 5px;
+            border-radius: 999px;
+            background: #2a2a2a;
+            color: var(--lc-dim);
+            font-size: 0.62rem;
+            letter-spacing: 0;
+        }
+        .panel-tab .count.bad { background: #3b1a1a; color: #fca5a5; }
+        .panel-body { flex: 1; overflow: auto; padding: 6px; }
+        .panel-body[hidden] { display: none; }
+        .panel-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-family: var(--lc-mono);
+            font-size: 0.72rem;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .panel-row:hover { background: #1e1e1e; }
+        .panel-row.hit { padding-left: 26px; }
+        .panel-row .where { color: var(--lc-dim); flex-shrink: 0; }
+        .panel-row .src { color: #cfcfcf; overflow: hidden; text-overflow: ellipsis; }
+        .panel-row .src b { color: var(--lc-lime); font-weight: 700; }
+        .sev { width: 12px; text-align: center; flex-shrink: 0; }
+        .sev.error { color: var(--lc-red); }
+        .sev.warning { color: var(--lc-amber); }
+        .sev.info { color: var(--lc-blue); }
+        .panel-empty { padding: 18px; text-align: center; color: var(--lc-dim); font-size: 0.78rem; }
+
+        #searchBody { display: flex; flex-direction: column; }
+        #searchBody[hidden] { display: none; }
+        #searchBar { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 8px; }
+        #searchBar input[type="text"] {
+            flex: 1;
+            min-width: 130px;
+            padding: 6px 9px;
+            border-radius: 6px;
+            border: 1px solid var(--lc-border);
+            background: #1b1b1b;
+            color: var(--lc-text);
+            font-family: var(--lc-mono);
+            font-size: 0.74rem;
+            outline: none;
+        }
+        #searchBar input[type="text"]:focus { border-color: var(--lc-lime-dim); }
+        .chip {
+            padding: 5px 9px;
+            border-radius: 6px;
+            border: 1px solid var(--lc-border);
+            background: #1b1b1b;
+            color: var(--lc-dim);
+            font-size: 0.7rem;
+            font-family: var(--lc-mono);
+        }
+        .chip:hover { border-color: #3a3a3a; color: var(--lc-text); }
+        .chip.on { background: var(--lc-lime); border-color: var(--lc-lime); color: #0d0d0d; font-weight: 700; }
+        #searchResults { flex: 1; overflow: auto; min-height: 0; }
+        .file-group { margin-bottom: 2px; }
+        .file-group > .file-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 5px;
+            color: var(--lc-text);
+            font-size: 0.74rem;
+            cursor: pointer;
+        }
+        .file-group > .file-head:hover { background: #1e1e1e; }
+        .file-group > .file-head .hits { margin-left: auto; color: var(--lc-dim); font-size: 0.68rem; font-family: var(--lc-mono); }
+
+        /* ---------- settings, shortcuts, templates ---------- */
+        .modal.wide { width: min(780px, 94vw); }
+        .modal-head {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--lc-border);
+            color: var(--lc-dim);
+            font-size: 0.66rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 20px;
+            padding: 16px;
+            max-height: 58vh;
+            overflow: auto;
+        }
+        .field { display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; }
+        .field.check { flex-direction: row; align-items: center; gap: 9px; }
+        .field.check input { width: 15px; height: 15px; accent-color: var(--lc-lime); }
+        .field select, .field input[type="number"] {
+            padding: 7px 9px;
+            border-radius: 6px;
+            border: 1px solid var(--lc-border);
+            background: #1b1b1b;
+            color: var(--lc-text);
+            font-family: var(--lc-mono);
+            font-size: 0.76rem;
+            outline: none;
+        }
+        .field small { color: var(--lc-dim); font-size: 0.7rem; }
+        .modal-foot {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 10px 16px;
+            border-top: 1px solid var(--lc-border);
+        }
+        .btn-sm {
+            padding: 7px 15px;
+            border-radius: 6px;
+            border: 1px solid var(--lc-border);
+            background: #1b1b1b;
+            color: var(--lc-text);
+            font-size: 0.76rem;
+        }
+        .btn-sm:hover { border-color: #3a3a3a; }
+        .btn-sm.primary { background: var(--lc-lime); border-color: var(--lc-lime); color: #0d0d0d; font-weight: 700; }
+        .shortcut-table { width: 100%; border-collapse: collapse; font-size: 0.79rem; }
+        .shortcut-table td { padding: 6px 16px; border-bottom: 1px solid #1c1c1c; }
+        .shortcut-table td:last-child { text-align: right; color: var(--lc-dim); font-family: var(--lc-mono); font-size: 0.72rem; }
+        .tpl-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 14px;
+            max-height: 56vh;
+            overflow: auto;
+        }
+        .tpl-card {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 11px 13px;
+            border-radius: 8px;
+            border: 1px solid var(--lc-border);
+            background: #1b1b1b;
+            text-align: left;
+        }
+        .tpl-card:hover { border-color: var(--lc-lime-dim); background: #1f1f1f; }
+        .tpl-card strong { font-size: 0.82rem; }
+        .tpl-card span { color: var(--lc-dim); font-size: 0.72rem; line-height: 1.45; }
+        .tpl-card .files { color: var(--lc-lime-dim); font-family: var(--lc-mono); font-size: 0.66rem; }
+        body.zen #titlebar, body.zen #activity, body.zen #sidebar, body.zen #panel, body.zen #statusbar { display: none !important; }
+
         #toast {
             position: fixed;
             left: 50%;
@@ -363,6 +586,9 @@
         @media (max-width: 820px) {
             #body { grid-template-columns: 44px 0 1fr; }
             #sidebar { display: none; }
+            #previewColumn { display: none !important; }
+            #panel { height: 180px; }
+            .settings-grid, .tpl-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -413,9 +639,45 @@
 
         <main id="main">
             <div id="tabs"></div>
-            <div id="editorWrap">
-                <div id="editor"></div>
-                <textarea id="fallback" spellcheck="false" hidden></textarea>
+            <div id="workArea">
+                <div id="editorColumn">
+                    <div id="editorWrap">
+                        <div id="editor"></div>
+                        <textarea id="fallback" spellcheck="false" hidden></textarea>
+                    </div>
+                    <section id="panel" hidden aria-label="Panel">
+                        <div id="panelTabs">
+                            <button class="panel-tab active" type="button" data-panel="problems">Problems <span class="count" id="problemCount">0</span></button>
+                            <button class="panel-tab" type="button" data-panel="outline">Outline</button>
+                            <button class="panel-tab" type="button" data-panel="search">Search</button>
+                            <span class="spacer"></span>
+                            <button id="panelClose" type="button" title="Close panel">✕</button>
+                        </div>
+                        <div class="panel-body" id="problemsBody"></div>
+                        <div class="panel-body" id="outlineBody" hidden></div>
+                        <div class="panel-body" id="searchBody" hidden>
+                            <div id="searchBar">
+                                <input id="searchInput" type="text" placeholder="Search across files" autocomplete="off" spellcheck="false">
+                                <input id="searchReplace" type="text" placeholder="Replace with" autocomplete="off" spellcheck="false">
+                                <button id="searchCase" class="chip" type="button" title="Match case">Aa</button>
+                                <button id="searchRegex" class="chip" type="button" title="Use a regular expression">.*</button>
+                                <button id="searchWord" class="chip" type="button" title="Match whole word">W</button>
+                                <button id="searchRun" class="chip" type="button">Search</button>
+                                <button id="replaceAll" class="chip" type="button">Replace all</button>
+                            </div>
+                            <div id="searchResults"></div>
+                        </div>
+                    </section>
+                </div>
+                <aside id="previewColumn" hidden aria-label="Live CSS preview">
+                    <div class="panel-head">
+                        <span>Live CSS preview</span>
+                        <span class="spacer"></span>
+                        <button id="previewRefresh" type="button" title="Refresh preview">↻</button>
+                        <button id="previewClose" type="button" title="Close preview">✕</button>
+                    </div>
+                    <iframe id="previewFrame" sandbox="" title="Plugin CSS preview"></iframe>
+                </aside>
             </div>
             <div id="statusbar">
                 <span id="stPath">no file</span>
@@ -431,7 +693,7 @@
 
 <div id="palette" class="overlay" hidden>
     <div class="modal">
-        <input id="paletteInput" type="text" placeholder="Type a command…" autocomplete="off" spellcheck="false">
+        <input id="paletteInput" type="text" placeholder="Type a command, @ for symbols, : for a line…" autocomplete="off" spellcheck="false">
         <div class="modal-list" id="paletteList"></div>
     </div>
 </div>
@@ -440,6 +702,37 @@
     <div class="modal">
         <input id="quickInput" type="text" placeholder="Search files by name…" autocomplete="off" spellcheck="false">
         <div class="modal-list" id="quickList"></div>
+    </div>
+</div>
+
+<div id="settingsOverlay" class="overlay" hidden>
+    <div class="modal wide">
+        <div class="modal-head">Editor settings</div>
+        <div class="settings-grid" id="settingsGrid"></div>
+        <div class="modal-foot">
+            <button class="btn-sm" type="button" id="settingsCancel">Cancel</button>
+            <button class="btn-sm primary" type="button" id="settingsApply">Apply</button>
+        </div>
+    </div>
+</div>
+
+<div id="shortcutsOverlay" class="overlay" hidden>
+    <div class="modal wide">
+        <div class="modal-head">Keyboard shortcuts</div>
+        <div class="modal-list" id="shortcutsBody"></div>
+        <div class="modal-foot">
+            <button class="btn-sm" type="button" id="shortcutsClose">Close</button>
+        </div>
+    </div>
+</div>
+
+<div id="templatesOverlay" class="overlay" hidden>
+    <div class="modal wide">
+        <div class="modal-head">New project from a template</div>
+        <div class="tpl-grid" id="templatesGrid"></div>
+        <div class="modal-foot">
+            <button class="btn-sm" type="button" id="templatesClose">Cancel</button>
+        </div>
     </div>
 </div>
 
@@ -606,11 +899,12 @@ declare module "@api/Settings" {
 }
 
 declare module "@api/Commands" {
-    export enum ApplicationCommandInputType { BUILT_IN = 0, BOT = 1, TEXT = 2 }
+    export enum ApplicationCommandInputType { BUILT_IN_TEXT, BUILT_IN_INTEGRATION, BOT, PLACEHOLDER }
     export enum ApplicationCommandOptionType {
-        STRING = 3, INTEGER = 4, BOOLEAN = 5, USER = 6, CHANNEL = 7, ROLE = 8, MENTIONABLE = 9, NUMBER = 10
+        STRING = 3, INTEGER = 4, BOOLEAN = 5, USER = 6, CHANNEL = 7, ROLE = 8, MENTIONABLE = 9, NUMBER = 10, ATTACHMENT = 11
     }
-    export function findOption(args: any[], name: string): any;
+    export interface CommandArgument { name: string; value: any; }
+    export function findOption(args: CommandArgument[], name: string): any;
     export function sendBotMessage(channelId: string, message: any): void;
 }
 
@@ -621,11 +915,39 @@ declare module "@api/DataStore" {
 }
 
 declare module "@api/Notices" {
-    export function showNotice(content: any, options?: any): () => void;
+    export function showNotice(message: any, buttonText: string, onOkClick: () => void): void;
+}
+
+declare module "@api/ContextMenu" {
+    /** children is the rendered menu; mutating it is how a patch adds an item. */
+    export type NavContextMenuPatchCallback = (children: Array<any>, ...args: Array<any>) => void;
+    export function addContextMenuPatch(navId: string | string[], patch: NavContextMenuPatchCallback): void;
+    export function removeContextMenuPatch(navId: string | string[], patch: NavContextMenuPatchCallback): void;
+}
+
+declare module "@webpack/common" {
+    export const React: any;
+    export const Menu: any;
+    export const UserStore: any;
+    export const ChannelStore: any;
+    export const SelectedChannelStore: any;
 }
 `;
 
-    const DEFAULT_UI = { minimap: false, wordWrap: "off", fontSize: 13.5, sidebar: true };
+    const DEFAULT_UI = {
+        minimap: false,
+        wordWrap: "off",
+        fontSize: 13.5,
+        sidebar: true,
+        tabSize: 4,
+        breadcrumbs: true,
+        stickyScroll: true,
+        renderWhitespace: "selection",
+        formatOnSave: false,
+        panel: "problems",
+        panelOpen: false,
+        preview: false
+    };
 
     const el = id => document.getElementById(id);
 
@@ -649,7 +971,24 @@ declare module "@api/Notices" {
         quickInput: el("quickInput"),
         quickList: el("quickList"),
         toast: el("toast"),
-        hiddenInput: el("hiddenInput")
+        hiddenInput: el("hiddenInput"),
+        workArea: el("workArea"),
+        panel: el("panel"),
+        problemCount: el("problemCount"),
+        problemsBody: el("problemsBody"),
+        outlineBody: el("outlineBody"),
+        searchBody: el("searchBody"),
+        searchInput: el("searchInput"),
+        searchReplace: el("searchReplace"),
+        searchResults: el("searchResults"),
+        previewColumn: el("previewColumn"),
+        previewFrame: el("previewFrame"),
+        settingsOverlay: el("settingsOverlay"),
+        settingsGrid: el("settingsGrid"),
+        shortcutsOverlay: el("shortcutsOverlay"),
+        shortcutsBody: el("shortcutsBody"),
+        templatesOverlay: el("templatesOverlay"),
+        templatesGrid: el("templatesGrid")
     };
 
     /* ---------------------------------------------------------------------
@@ -978,10 +1317,13 @@ declare module "@api/Notices" {
             fontFamily: 'ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace',
             fontSize: state.ws.ui.fontSize,
             lineHeight: 1.6,
-            tabSize: 4,
+            tabSize: state.ws.ui.tabSize,
             insertSpaces: true,
             minimap: { enabled: state.ws.ui.minimap },
             wordWrap: state.ws.ui.wordWrap,
+            breadcrumbs: { enabled: state.ws.ui.breadcrumbs },
+            stickyScroll: { enabled: state.ws.ui.stickyScroll },
+            renderWhitespace: state.ws.ui.renderWhitespace,
             automaticLayout: true,
             scrollBeyondLastLine: false,
             smoothScrolling: true,
@@ -1008,12 +1350,14 @@ declare module "@api/Notices" {
             state.dirty.add(path);
             dom.statusSaved.textContent = "unsaved";
             dom.statusSaved.className = "";
+            scheduleDerived();
             renderTabs();
             persist();
         });
 
         monaco.editor.onDidChangeMarkers(() => updateProblems());
 
+        applyUi();
         openFile(state.ws.active || Object.keys(state.ws.files)[0]);
     }
 
@@ -1029,6 +1373,10 @@ declare module "@api/Notices" {
         dom.statusProblems.title = total === 0
             ? "No problems reported by the language service"
             : `${errors} error(s), ${warnings} warning(s)`;
+
+        dom.problemCount.textContent = String(total);
+        dom.problemCount.className = "count" + (errors ? " bad" : "");
+        if (!dom.panel.hidden && state.ws.ui.panel === "problems") renderProblems();
     }
 
     function modelFor(path) {
@@ -1063,6 +1411,8 @@ declare module "@api/Notices" {
         renderTabs();
         renderTree();
         updateProblems();
+        if (!dom.panel.hidden && state.ws.ui.panel === "outline") renderOutline();
+        if (state.ws.ui.preview) refreshPreview();
         persist();
     }
 
@@ -1330,6 +1680,22 @@ declare module "@api/Notices" {
     function insertTemplate(kind) {
         if (!state.editor) return toast("Editor is still loading", true);
         const snippets = {
+            plugin: `import { Devs } from "@utils/constants";
+import definePlugin from "@utils/types";
+
+export default definePlugin({
+    name: "MyPlugin",
+    description: "What this plugin does",
+    authors: [Devs.Limey],
+    tags: ["Utility"],
+
+    start() {
+    },
+
+    stop() {
+    }
+});
+`,
             command: `    commands: [{
         name: "ping",
         description: "Replies with pong",
@@ -1387,6 +1753,765 @@ declare module "@api/Notices" {
         window.location.href = "/submit-plugin";
     }
 
+    /* ---------------------------------------------------------------------
+     * Workspace search — pure functions, no DOM, so a harness can test them
+     * ------------------------------------------------------------------- */
+
+    const searchOpts = { caseSensitive: false, regex: false, wholeWord: false };
+
+    function escapeRegExp(text) {
+        return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function makeSearchRegExp(query, options) {
+        const opts = options || {};
+        const source = opts.regex ? query : escapeRegExp(query);
+        const wrapped = opts.wholeWord ? "\\b(?:" + source + ")\\b" : source;
+        return new RegExp(wrapped, opts.caseSensitive ? "g" : "gi");
+    }
+
+    /** Every match of query across the workspace, grouped per file. */
+    function searchWorkspace(query, options) {
+        const groups = [];
+        if (!query) return groups;
+        let flags;
+        try {
+            flags = makeSearchRegExp(query, options);
+        } catch {
+            return groups;
+        }
+
+        for (const path of Object.keys(state.ws.files).sort()) {
+            const lines = String(state.ws.files[path] || "").split("\n");
+            const hits = [];
+            for (let index = 0; index < lines.length; index++) {
+                const line = lines[index];
+                const re = new RegExp(flags.source, flags.flags);
+                let match;
+                let guard = 0;
+                while ((match = re.exec(line)) && guard++ < 500) {
+                    hits.push({ line: index + 1, column: match.index + 1, text: line });
+                    if (!match[0]) re.lastIndex++;
+                }
+            }
+            if (hits.length) groups.push({ path, hits });
+        }
+        return groups;
+    }
+
+    /** Replace every match everywhere; returns how much changed. */
+    function replaceInWorkspace(query, replacement, options) {
+        let pattern;
+        try {
+            pattern = makeSearchRegExp(query, options);
+        } catch {
+            return { files: 0, count: 0, error: "invalid pattern" };
+        }
+
+        let files = 0;
+        let count = 0;
+        for (const path of Object.keys(state.ws.files)) {
+            const text = String(state.ws.files[path] || "");
+            const matches = text.match(new RegExp(pattern.source, pattern.flags));
+            if (!matches || !matches.length) continue;
+            count += matches.length;
+            files++;
+            const next = text.replace(new RegExp(pattern.source, pattern.flags), replacement);
+            state.ws.files[path] = next;
+            const model = state.models.get(path);
+            if (model && model.getValue() !== next) model.setValue(next);
+        }
+        return { files, count };
+    }
+
+    /** Top-level declarations of a file, for the outline panel. */
+    const OUTLINE_RULES = [
+        { kind: "function", re: /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([\w$]+)/ },
+        { kind: "class", re: /^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([\w$]+)/ },
+        { kind: "interface", re: /^\s*(?:export\s+)?interface\s+([\w$]+)/ },
+        { kind: "type", re: /^\s*(?:export\s+)?type\s+([\w$]+)\s*=/ },
+        { kind: "enum", re: /^\s*(?:export\s+)?enum\s+([\w$]+)/ },
+        { kind: "const", re: /^\s*(?:export\s+)?(?:const|let|var)\s+([\w$]+)\s*[:=]/ },
+        { kind: "heading", re: /^(#{1,6})\s+(.+)$/ },
+        { kind: "selector", re: /^([.#][\w-][^{,]*)\s*\{/ }
+    ];
+
+    function outlineFor(path, text) {
+        const language = languageFor(path);
+        const rows = [];
+        const lines = String(text || "").split("\n");
+
+        lines.forEach((line, index) => {
+            if (/^\s*\/\//.test(line)) return;
+            for (const rule of OUTLINE_RULES) {
+                if (rule.kind === "heading" && language !== "markdown") continue;
+                if (rule.kind === "selector" && language !== "css" && language !== "scss") continue;
+                const match = rule.re.exec(line);
+                if (!match) continue;
+                rows.push({
+                    label: rule.kind === "heading" ? match[2].trim() : match[1].trim(),
+                    kind: rule.kind,
+                    line: index + 1
+                });
+                return;
+            }
+        });
+        return rows;
+    }
+
+    /** "42", "42:7" and "42,7" all mean line 42. */
+    function parseGotoLine(value) {
+        const match = String(value || "").trim().match(/^(\d+)(?:\s*[:,]\s*(\d+))?$/);
+        if (!match) return null;
+        return { line: Number(match[1]), column: match[2] ? Number(match[2]) : 1 };
+    }
+
+    /* ---------------------------------------------------------------------
+     * Project templates
+     * ------------------------------------------------------------------- */
+
+    const TS_HEADER = 'import { Devs } from "@utils/constants";\n';
+
+    const TEMPLATES = {
+        blank: {
+            label: "Blank plugin",
+            hint: "definePlugin with symmetric start and stop, nothing else.",
+            name: "MyPlugin",
+            files: {
+                "MyPlugin/index.ts": TS_HEADER + 'import definePlugin from "@utils/types";\n\n' +
+                    'export default definePlugin({\n' +
+                    '    name: "MyPlugin",\n' +
+                    '    description: "A short, honest sentence about what this plugin does",\n' +
+                    '    authors: [Devs.Limey],\n' +
+                    '    tags: ["Utility"],\n\n' +
+                    '    start() {\n' +
+                    '        // Subscribe to whatever you need here.\n' +
+                    '    },\n\n' +
+                    '    stop() {\n' +
+                    '        // Undo everything start() did so toggling stays clean.\n' +
+                    '    }\n' +
+                    '});\n',
+                "MyPlugin/README.md": "# MyPlugin\n\nA Limey V1 plugin.\n"
+            }
+        },
+        command: {
+            label: "Slash command",
+            hint: "A built-in / command with options, replying privately to the user.",
+            name: "MyCommandPlugin",
+            files: {
+                "MyCommandPlugin/index.ts": 'import { ApplicationCommandInputType, ApplicationCommandOptionType, findOption, sendBotMessage } from "@api/Commands";\n' +
+                    TS_HEADER + 'import definePlugin from "@utils/types";\n\n' +
+                    'export default definePlugin({\n' +
+                    '    name: "MyCommandPlugin",\n' +
+                    '    description: "Adds a /ping command that replies privately",\n' +
+                    '    authors: [Devs.Limey],\n' +
+                    '    tags: ["Commands"],\n\n' +
+                    '    commands: [{\n' +
+                    '        name: "ping",\n' +
+                    '        description: "Replies with pong",\n' +
+                    '        inputType: ApplicationCommandInputType.BUILT_IN_TEXT,\n' +
+                    '        options: [{\n' +
+                    '            name: "text",\n' +
+                    '            description: "What to echo back",\n' +
+                    '            type: ApplicationCommandOptionType.STRING,\n' +
+                    '            required: false\n' +
+                    '        }],\n' +
+                    '        execute(args, ctx) {\n' +
+                    '            const text = findOption(args, "text") || "pong";\n' +
+                    '            // sendBotMessage is private: only the user sees it.\n' +
+                    '            sendBotMessage(ctx.channel.id, { content: text });\n' +
+                    '        }\n' +
+                    '    }]\n' +
+                    '});\n',
+                "MyCommandPlugin/README.md": "# MyCommandPlugin\n\nRun `/ping` in any channel.\n"
+            }
+        },
+        contextMenu: {
+            label: "Context menu item",
+            hint: "Adds an item to Discord's user context menu and removes it on stop.",
+            name: "MyContextPlugin",
+            files: {
+                "MyContextPlugin/index.ts": 'import { addContextMenuPatch, removeContextMenuPatch } from "@api/ContextMenu";\n' +
+                    TS_HEADER + 'import definePlugin from "@utils/types";\n' +
+                    'import { Menu } from "@webpack/common";\n\n' +
+                    'const patchUserMenu = (children, ...args) => {\n' +
+                    '    const user = args[0] && args[0].user;\n' +
+                    '    if (!user) return;\n' +
+                    '    children.push(Menu.MenuItem({\n' +
+                    '        id: "my-context-copy-id",\n' +
+                    '        label: "Copy user ID",\n' +
+                    '        action: () => navigator.clipboard.writeText(user.id)\n' +
+                    '    }));\n' +
+                    '};\n\n' +
+                    'export default definePlugin({\n' +
+                    '    name: "MyContextPlugin",\n' +
+                    '    description: "Adds a copy-ID item to the user context menu",\n' +
+                    '    authors: [Devs.Limey],\n' +
+                    '    tags: ["Context Menu"],\n\n' +
+                    '    start() {\n' +
+                    '        addContextMenuPatch("user-context", patchUserMenu);\n' +
+                    '    },\n\n' +
+                    '    stop() {\n' +
+                    '        removeContextMenuPatch("user-context", patchUserMenu);\n' +
+                    '    }\n' +
+                    '});\n',
+                "MyContextPlugin/README.md": "# MyContextPlugin\n\nRight-click a user to see the new item.\n"
+            }
+        },
+        settings: {
+            label: "Settings UI",
+            hint: "Boolean, string and slider options wired into settings.store.",
+            name: "MySettingsPlugin",
+            files: {
+                "MySettingsPlugin/index.ts": 'import { definePluginSettings } from "@api/Settings";\n' +
+                    TS_HEADER + 'import definePlugin, { OptionType } from "@utils/types";\n\n' +
+                    'const settings = definePluginSettings({\n' +
+                    '    enabled: {\n' +
+                    '        type: OptionType.BOOLEAN,\n' +
+                    '        description: "Turn the feature on",\n' +
+                    '        default: true\n' +
+                    '    },\n' +
+                    '    message: {\n' +
+                    '        type: OptionType.STRING,\n' +
+                    '        description: "What to say",\n' +
+                    '        default: "hello from Limey"\n' +
+                    '    },\n' +
+                    '    intensity: {\n' +
+                    '        type: OptionType.SLIDER,\n' +
+                    '        description: "How strong the effect is",\n' +
+                    '        markers: [1, 5, 10],\n' +
+                    '        default: 5\n' +
+                    '    }\n' +
+                    '});\n\n' +
+                    'export default definePlugin({\n' +
+                    '    name: "MySettingsPlugin",\n' +
+                    '    description: "Demonstrates every common setting type",\n' +
+                    '    authors: [Devs.Limey],\n' +
+                    '    tags: ["Settings"],\n' +
+                    '    settings,\n\n' +
+                    '    start() {\n' +
+                    '        if (!settings.store.enabled) return;\n' +
+                    '        console.log(settings.store.message, settings.store.intensity);\n' +
+                    '    },\n\n' +
+                    '    stop() {}\n' +
+                    '});\n',
+                "MySettingsPlugin/README.md": "# MySettingsPlugin\n\nIts options appear in Settings → Plugins.\n"
+            }
+        }
+    };
+
+    function applyTemplate(key) {
+        const template = TEMPLATES[key];
+        if (!template) return false;
+        for (const model of state.models.values()) model.dispose();
+        state.models.clear();
+        state.dirty.clear();
+        state.ws.name = template.name;
+        state.ws.files = { ...template.files };
+        state.ws.open = [template.name + "/index.ts"];
+        state.ws.active = template.name + "/index.ts";
+        renderTree();
+        renderTabs();
+        openFile(state.ws.active);
+        persist();
+        return true;
+    }
+
+    /* ---------------------------------------------------------------------
+     * Live CSS preview
+     * ------------------------------------------------------------------- */
+
+    function escapeHtml(text) {
+        return String(text).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
+
+    function previewDocument() {
+        const cssFiles = Object.keys(state.ws.files).filter(path => /\.css$/i.test(path));
+        const css = cssFiles.map(path => state.ws.files[path] || "").join("\n");
+        const title = escapeHtml(state.ws.name || "project");
+        return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>" +
+            "body{margin:0;padding:14px;background:#313338;color:#dbdee1;font-family:system-ui,sans-serif;font-size:14px}" +
+            ".lc-sample{border-radius:10px;padding:12px;background:#2b2d31}" +
+            ".lc-sample+.lc-sample{margin-top:10px}" +
+            ".lc-muted{color:#949ba4;font-size:12px;margin-bottom:8px}" +
+            css +
+            "</style></head><body>" +
+            '<div class="lc-muted">' + title + " · " + cssFiles.length + " stylesheet" + (cssFiles.length === 1 ? "" : "s") + "</div>" +
+            '<div class="lc-sample"><strong>Limey</strong> <span class="lc-muted" style="display:inline">today</span>' +
+            '<div class="my-plugin-pill">my-plugin-pill</div>' +
+            "<p>Your plugin CSS is applied to this panel.</p></div>" +
+            '<div class="lc-sample"><button class="my-plugin-button">Button sample</button> ' +
+            '<span class="my-plugin-badge">badge</span></div>' +
+            "</body></html>";
+    }
+
+    function refreshPreview() {
+        if (!dom.previewFrame) return;
+        dom.previewFrame.srcdoc = previewDocument();
+    }
+
+    function togglePreview() {
+        state.ws.ui.preview = !state.ws.ui.preview;
+        dom.previewColumn.hidden = !state.ws.ui.preview;
+        if (state.ws.ui.preview) refreshPreview();
+        persist();
+    }
+
+    /* ---------------------------------------------------------------------
+     * Panel: problems, outline, search
+     * ------------------------------------------------------------------- */
+
+    function pathFromMarkerUri(uri) {
+        if (!uri) return null;
+        try {
+            return decodeURIComponent(String(uri.path || "").replace(/^\//, ""));
+        } catch {
+            return null;
+        }
+    }
+
+    function gotoLocation(path, line, column) {
+        if (!path || !(path in state.ws.files)) return;
+        openFile(path);
+        if (!state.editor) return;
+        const position = { lineNumber: Math.max(1, Number(line) || 1), column: Math.max(1, Number(column) || 1) };
+        state.editor.revealPositionInCenter(position);
+        state.editor.setPosition(position);
+        state.editor.focus();
+    }
+
+    function openPanel(tab) {
+        state.ws.ui.panelOpen = true;
+        if (tab) state.ws.ui.panel = tab;
+        dom.panel.hidden = false;
+        renderPanel();
+        persist();
+        if (tab === "search") dom.searchInput.focus();
+    }
+
+    function closePanel() {
+        state.ws.ui.panelOpen = false;
+        dom.panel.hidden = true;
+        persist();
+    }
+
+    function togglePanel() {
+        if (dom.panel.hidden) openPanel(state.ws.ui.panel || "problems");
+        else closePanel();
+    }
+
+    function renderPanel() {
+        const tab = state.ws.ui.panel || "problems";
+        for (const button of dom.panel.querySelectorAll("[data-panel]")) {
+            button.classList.toggle("active", button.dataset.panel === tab);
+        }
+        dom.problemsBody.hidden = tab !== "problems";
+        dom.outlineBody.hidden = tab !== "outline";
+        dom.searchBody.hidden = tab !== "search";
+
+        if (tab === "problems") renderProblems();
+        else if (tab === "outline") renderOutline();
+        else renderSearchResults();
+    }
+
+    function renderProblems() {
+        if (!dom.problemsBody) return;
+        dom.problemsBody.innerHTML = "";
+        if (!state.monaco) {
+            dom.problemsBody.innerHTML = '<div class="panel-empty">The language service is not loaded, so there are no problems to list.</div>';
+            return;
+        }
+
+        const markers = state.monaco.editor.getModelMarkers({}).slice(0, 200);
+        if (!markers.length) {
+            dom.problemsBody.innerHTML = '<div class="panel-empty">No problems in this workspace.</div>';
+            return;
+        }
+
+        const severity = state.monaco.MarkerSeverity;
+        markers.sort((a, b) => (a.severity - b.severity) || String(a.resource && a.resource.path).localeCompare(String(b.resource && b.resource.path)) || a.startLineNumber - b.startLineNumber);
+
+        for (const marker of markers) {
+            const path = pathFromMarkerUri(marker.resource);
+            const row = document.createElement("div");
+            row.className = "panel-row";
+            row.title = marker.message;
+
+            const glyph = document.createElement("span");
+            const level = marker.severity === severity.Error ? "error" : marker.severity === severity.Warning ? "warning" : "info";
+            glyph.className = "sev " + level;
+            glyph.textContent = level === "error" ? "✕" : level === "warning" ? "⚠" : "ⓘ";
+            row.appendChild(glyph);
+
+            const where = document.createElement("span");
+            where.className = "where";
+            where.textContent = (path || "unknown").split("/").pop() + ":" + marker.startLineNumber;
+            row.appendChild(where);
+
+            const message = document.createElement("span");
+            message.className = "src";
+            message.textContent = marker.message;
+            row.appendChild(message);
+
+            row.addEventListener("click", () => gotoLocation(path, marker.startLineNumber, marker.startColumn));
+            dom.problemsBody.appendChild(row);
+        }
+    }
+
+    function renderOutline() {
+        if (!dom.outlineBody) return;
+        dom.outlineBody.innerHTML = "";
+        const path = state.ws.active;
+        if (!path) {
+            dom.outlineBody.innerHTML = '<div class="panel-empty">Open a file to see its declarations.</div>';
+            return;
+        }
+
+        const rows = outlineFor(path, state.ws.files[path] || "");
+        if (!rows.length) {
+            dom.outlineBody.innerHTML = '<div class="panel-empty">No top-level declarations found in ' + escapeHtml(path.split("/").pop()) + ".</div>";
+            return;
+        }
+
+        for (const entry of rows) {
+            const row = document.createElement("div");
+            row.className = "panel-row";
+
+            const where = document.createElement("span");
+            where.className = "where";
+            where.textContent = String(entry.line);
+            row.appendChild(where);
+
+            const label = document.createElement("span");
+            label.className = "src";
+            label.textContent = entry.label;
+            row.appendChild(label);
+
+            const kind = document.createElement("span");
+            kind.className = "where";
+            kind.style.marginLeft = "auto";
+            kind.textContent = entry.kind;
+            row.appendChild(kind);
+
+            row.addEventListener("click", () => gotoLocation(path, entry.line, 1));
+            dom.outlineBody.appendChild(row);
+        }
+    }
+
+    function renderSearchResults() {
+        if (!dom.searchResults) return;
+        const query = dom.searchInput.value;
+        dom.searchResults.innerHTML = "";
+
+        if (!query) {
+            dom.searchResults.innerHTML = '<div class="panel-empty">Search every file in the project. Results are grouped by file.</div>';
+            return;
+        }
+
+        const groups = searchWorkspace(query, searchOpts);
+        if (!groups.length) {
+            dom.searchResults.innerHTML = '<div class="panel-empty">No matches for ' + escapeHtml(query) + ".</div>";
+            return;
+        }
+
+        for (const group of groups) {
+            const wrapper = document.createElement("div");
+            wrapper.className = "file-group";
+
+            const head = document.createElement("div");
+            head.className = "file-head";
+            head.textContent = group.path;
+            const count = document.createElement("span");
+            count.className = "hits";
+            count.textContent = String(group.hits.length);
+            head.appendChild(count);
+            head.addEventListener("click", () => gotoLocation(group.path, group.hits[0].line, group.hits[0].column));
+            wrapper.appendChild(head);
+
+            for (const hit of group.hits.slice(0, 50)) {
+                const row = document.createElement("div");
+                row.className = "panel-row hit";
+
+                const where = document.createElement("span");
+                where.className = "where";
+                where.textContent = hit.line + ":" + hit.column;
+                row.appendChild(where);
+
+                const snippet = document.createElement("span");
+                snippet.className = "src";
+                snippet.textContent = hit.text.trim().slice(0, 180);
+                row.appendChild(snippet);
+
+                row.addEventListener("click", () => gotoLocation(group.path, hit.line, hit.column));
+                wrapper.appendChild(row);
+            }
+
+            dom.searchResults.appendChild(wrapper);
+        }
+    }
+
+    /* ---------------------------------------------------------------------
+     * Settings, shortcuts, templates UI
+     * ------------------------------------------------------------------- */
+
+    const SETTING_FIELDS = [
+        { key: "fontSize", label: "Font size", type: "number", min: 10, max: 24, help: "Editor text size in pixels." },
+        { key: "tabSize", label: "Tab size", type: "number", min: 2, max: 8, help: "Spaces per indentation level." },
+        { key: "wordWrap", label: "Word wrap", type: "select", options: ["off", "on"] },
+        { key: "renderWhitespace", label: "Render whitespace", type: "select", options: ["none", "selection", "all"] },
+        { key: "minimap", label: "Minimap", type: "check", help: "The overview strip on the right." },
+        { key: "breadcrumbs", label: "Breadcrumbs", type: "check", help: "Path bar above the editor." },
+        { key: "stickyScroll", label: "Sticky scroll", type: "check", help: "Pins the enclosing scope while scrolling." },
+        { key: "formatOnSave", label: "Format on save", type: "check", help: "Formats the active file when you press Ctrl+S." }
+    ];
+
+    function applyUi() {
+        if (!state.editor) return;
+        state.editor.updateOptions({
+            fontSize: state.ws.ui.fontSize,
+            tabSize: state.ws.ui.tabSize,
+            wordWrap: state.ws.ui.wordWrap,
+            minimap: { enabled: state.ws.ui.minimap },
+            breadcrumbs: { enabled: state.ws.ui.breadcrumbs },
+            stickyScroll: { enabled: state.ws.ui.stickyScroll },
+            renderWhitespace: state.ws.ui.renderWhitespace
+        });
+    }
+
+    function openSettings() {
+        dom.settingsGrid.innerHTML = "";
+        for (const field of SETTING_FIELDS) {
+            const wrap = document.createElement("label");
+            wrap.className = "field" + (field.type === "check" ? " check" : "");
+            wrap.dataset.key = field.key;
+
+            let control;
+            if (field.type === "check") {
+                control = document.createElement("input");
+                control.type = "checkbox";
+                control.checked = Boolean(state.ws.ui[field.key]);
+            } else if (field.type === "select") {
+                control = document.createElement("select");
+                for (const option of field.options) {
+                    const choice = document.createElement("option");
+                    choice.value = option;
+                    choice.textContent = option;
+                    if (state.ws.ui[field.key] === option) choice.selected = true;
+                    control.appendChild(choice);
+                }
+            } else {
+                control = document.createElement("input");
+                control.type = "number";
+                control.min = String(field.min);
+                control.max = String(field.max);
+                control.value = String(state.ws.ui[field.key]);
+            }
+
+            const text = document.createElement("span");
+            text.textContent = field.label;
+            if (field.type === "check") wrap.append(control, text);
+            else wrap.append(text, control);
+
+            if (field.help) {
+                const help = document.createElement("small");
+                help.textContent = field.help;
+                wrap.appendChild(help);
+            }
+
+            dom.settingsGrid.appendChild(wrap);
+        }
+        dom.settingsOverlay.hidden = false;
+    }
+
+    function closeSettings() {
+        dom.settingsOverlay.hidden = true;
+    }
+
+    function saveSettings() {
+        for (const field of SETTING_FIELDS) {
+            const wrap = dom.settingsGrid.querySelector('[data-key="' + field.key + '"]');
+            if (!wrap) continue;
+            const control = wrap.querySelector("input, select");
+            if (!control) continue;
+            if (field.type === "check") state.ws.ui[field.key] = control.checked;
+            else if (field.type === "number") {
+                const value = Number(control.value);
+                const min = field.min == null ? value : field.min;
+                const max = field.max == null ? value : field.max;
+                state.ws.ui[field.key] = Math.min(max, Math.max(min, Number.isFinite(value) ? value : field.min));
+            } else state.ws.ui[field.key] = control.value;
+        }
+        applyUi();
+        persist();
+        closeSettings();
+        toast("Editor settings updated");
+    }
+
+    function openShortcuts() {
+        dom.shortcutsBody.innerHTML = "";
+        const table = document.createElement("table");
+        table.className = "shortcut-table";
+        const extra = [
+            { label: "Command palette", keys: "Ctrl+Shift+P" },
+            { label: "Quick open file", keys: "Ctrl+P" },
+            { label: "Go to line", keys: "Ctrl+G" },
+            { label: "Search across files", keys: "Ctrl+Shift+F" },
+            { label: "Problems panel", keys: "Ctrl+Shift+M" },
+            { label: "Outline panel", keys: "Ctrl+Shift+O" },
+            { label: "Toggle panel", keys: "Ctrl+J" },
+            { label: "Toggle live CSS preview", keys: "Ctrl+Shift+V" },
+            { label: "Editor settings", keys: "Ctrl+," },
+            { label: "Format document", keys: "Alt+Shift+F" },
+            { label: "Rename symbol", keys: "F2" },
+            { label: "Toggle explorer", keys: "Ctrl+B" },
+            { label: "Toggle word wrap", keys: "Alt+Z" },
+            { label: "New file", keys: "Ctrl+N" },
+            { label: "Save workspace", keys: "Ctrl+S" }
+        ];
+        for (const entry of extra) {
+            const row = document.createElement("tr");
+            const left = document.createElement("td");
+            left.textContent = entry.label;
+            const right = document.createElement("td");
+            right.textContent = entry.keys;
+            row.append(left, right);
+            table.appendChild(row);
+        }
+        dom.shortcutsBody.appendChild(table);
+        dom.shortcutsOverlay.hidden = false;
+    }
+
+    function closeShortcuts() {
+        dom.shortcutsOverlay.hidden = true;
+    }
+
+    function openTemplates() {
+        dom.templatesGrid.innerHTML = "";
+        for (const [key, template] of Object.entries(TEMPLATES)) {
+            const card = document.createElement("button");
+            card.type = "button";
+            card.className = "tpl-card";
+
+            const title = document.createElement("strong");
+            title.textContent = template.label;
+            const hint = document.createElement("span");
+            hint.textContent = template.hint;
+            const files = document.createElement("span");
+            files.className = "files";
+            files.textContent = Object.keys(template.files).length + " files";
+
+            card.append(title, hint, files);
+            card.addEventListener("click", () => {
+                if (!confirm('Replace the current project with the "' + template.label + '" template?')) return;
+                applyTemplate(key);
+                closeTemplates();
+                toast(template.label + " template loaded");
+            });
+            dom.templatesGrid.appendChild(card);
+        }
+        dom.templatesOverlay.hidden = false;
+    }
+
+    function closeTemplates() {
+        dom.templatesOverlay.hidden = true;
+    }
+
+    function closeAllOverlays() {
+        closePalette();
+        closeQuickOpen();
+        closeSettings();
+        closeShortcuts();
+        closeTemplates();
+    }
+
+    /* ---------------------------------------------------------------------
+     * Editor-level actions
+     * ------------------------------------------------------------------- */
+
+    function goToLine() {
+        const value = prompt("Go to line (line, line:column):", "1");
+        if (!value) return;
+        const target = parseGotoLine(value);
+        if (!target) return toast("Use a line number like 42 or 42:7", true);
+        gotoLocation(state.ws.active, target.line, target.column);
+    }
+
+    function renameSymbol() {
+        if (!state.editor) return toast("The editor is still loading", true);
+        const action = state.editor.getAction("editor.action.rename");
+        if (!action) return toast("Nothing to rename here", true);
+        action.run();
+    }
+
+    function toggleZen() {
+        const on = document.body.classList.toggle("zen");
+        if (on && !dom.panel.hidden) closePanel();
+        toast("Zen mode " + (on ? "on" : "off"));
+    }
+
+    let derivedTimer = null;
+
+    function scheduleDerived() {
+        clearTimeout(derivedTimer);
+        derivedTimer = setTimeout(() => {
+            if (state.ws.ui.preview) refreshPreview();
+            if (!dom.panel.hidden && state.ws.ui.panel === "outline") renderOutline();
+        }, 350);
+    }
+
+    /* ---------------------------------------------------------------------
+     * Panel / overlay wiring
+     * ------------------------------------------------------------------- */
+
+    for (const button of dom.panel.querySelectorAll("[data-panel]")) {
+        button.addEventListener("click", () => {
+            state.ws.ui.panel = button.dataset.panel;
+            renderPanel();
+            persist();
+        });
+    }
+    el("panelClose").addEventListener("click", closePanel);
+    el("previewClose").addEventListener("click", togglePreview);
+    el("previewRefresh").addEventListener("click", refreshPreview);
+
+    function wireSearchChip(id, key) {
+        const button = el(id);
+        button.addEventListener("click", () => {
+            searchOpts[key] = !searchOpts[key];
+            button.classList.toggle("on", searchOpts[key]);
+            renderSearchResults();
+        });
+    }
+    wireSearchChip("searchCase", "caseSensitive");
+    wireSearchChip("searchRegex", "regex");
+    wireSearchChip("searchWord", "wholeWord");
+
+    dom.searchInput.addEventListener("input", renderSearchResults);
+    el("searchRun").addEventListener("click", renderSearchResults);
+    el("replaceAll").addEventListener("click", () => {
+        const query = dom.searchInput.value.trim();
+        if (!query) return toast("Type something to replace first", true);
+        if (!confirm('Replace every match of "' + query + '" across the whole project?')) return;
+        const result = replaceInWorkspace(query, dom.searchReplace.value, searchOpts);
+        if (result.error) return toast("That pattern is not valid", true);
+        renderSearchResults();
+        renderTree();
+        persist();
+        toast(result.count ? "Replaced " + result.count + " match(es) in " + result.files + " file(s)" : "Nothing matched", !result.count);
+    });
+
+    el("settingsApply").addEventListener("click", saveSettings);
+    el("settingsCancel").addEventListener("click", closeSettings);
+    el("shortcutsClose").addEventListener("click", closeShortcuts);
+    el("templatesClose").addEventListener("click", closeTemplates);
+
+    for (const overlay of [dom.settingsOverlay, dom.shortcutsOverlay, dom.templatesOverlay]) {
+        overlay.addEventListener("click", event => { if (event.target === overlay) overlay.hidden = true; });
+    }
+
+    dom.panel.hidden = !state.ws.ui.panelOpen;
+    dom.previewColumn.hidden = !state.ws.ui.preview;
+
     const commands = [
         { id: "file.new", label: "File: New File", keys: "Ctrl+N", run: newFile },
         { id: "file.folder", label: "File: New Folder", keys: "", run: newFolder },
@@ -1396,6 +2521,17 @@ declare module "@api/Notices" {
         { id: "file.upload", label: "File: Add Files from Disk", keys: "", run: () => dom.hiddenInput.click() },
         { id: "file.reset", label: "File: Restore Demo Plugin", keys: "", run: resetProject },
         { id: "publish.store", label: "Publish: Send to Community Store", keys: "", run: publishToStore },
+        { id: "file.templates", label: "File: New Project from Template…", keys: "", run: openTemplates },
+        { id: "view.panel", label: "View: Toggle Panel", keys: "Ctrl+J", run: togglePanel },
+        { id: "view.problems", label: "View: Problems", keys: "Ctrl+Shift+M", run: () => openPanel("problems") },
+        { id: "view.outline", label: "View: Outline", keys: "Ctrl+Shift+O", run: () => openPanel("outline") },
+        { id: "view.search", label: "View: Search Across Files", keys: "Ctrl+Shift+F", run: () => openPanel("search") },
+        { id: "view.preview", label: "View: Toggle Live CSS Preview", keys: "Ctrl+Shift+V", run: togglePreview },
+        { id: "view.zen", label: "View: Toggle Zen Mode", keys: "", run: toggleZen },
+        { id: "view.settings", label: "Preferences: Open Editor Settings", keys: "Ctrl+,", run: openSettings },
+        { id: "help.shortcuts", label: "Help: Keyboard Shortcuts", keys: "Ctrl+Shift+/", run: openShortcuts },
+        { id: "edit.goto", label: "Go to Line…", keys: "Ctrl+G", run: goToLine },
+        { id: "edit.rename", label: "Edit: Rename Symbol", keys: "F2", run: renameSymbol },
         { id: "view.sidebar", label: "View: Toggle Explorer", keys: "Ctrl+B", run: toggleSidebar },
         { id: "view.minimap", label: "View: Toggle Minimap", keys: "", run: toggleMinimap },
         { id: "view.wrap", label: "View: Toggle Word Wrap", keys: "Alt+Z", run: toggleWordWrap },
@@ -1438,18 +2574,37 @@ declare module "@api/Notices" {
         persist();
     }
 
+    /** Formats the active file; returns true when something could format it. */
     function formatDocument() {
         const path = state.ws.active;
-        if (!path || !state.editor) return;
-        if (languageFor(path) !== "json") return toast("Formatting is only wired up for JSON here", true);
+        if (!path || !state.editor) return false;
         const model = state.editor.getModel();
-        try {
-            const pretty = JSON.stringify(JSON.parse(model.getValue()), null, 4);
-            state.editor.executeEdits("limey-code-format", [{ range: model.getFullModelRange(), text: pretty }]);
-            toast("JSON formatted");
-        } catch (error) {
-            toast("That JSON has a syntax error", true);
+        if (!model) return false;
+
+        // JSON is formatted here so the result is predictable; every other
+        // language goes through the formatter Monaco already ships.
+        if (languageFor(path) === "json") {
+            try {
+                const pretty = JSON.stringify(JSON.parse(model.getValue()), null, 4);
+                state.editor.executeEdits("limey-code-format", [{ range: model.getFullModelRange(), text: pretty }]);
+                toast("JSON formatted");
+                return true;
+            } catch {
+                toast("That JSON has a syntax error", true);
+                return false;
+            }
         }
+
+        const action = state.editor.getAction("editor.action.formatDocument");
+        if (!action) {
+            toast("No formatter available for " + languageFor(path), true);
+            return false;
+        }
+        Promise.resolve(action.run()).then(
+            () => toast("Formatted"),
+            () => toast("No formatter available for " + languageFor(path), true)
+        );
+        return true;
     }
 
     function showApiPanel() {
@@ -1476,18 +2631,48 @@ declare module "@api/Notices" {
         dom.palette.hidden = true;
     }
 
+    /** Palette modes: plain commands, ":" for a line, "@" for symbols. */
+    function paletteRowsFor(query) {
+        const trimmed = query.trim();
+
+        if (trimmed.startsWith(":")) {
+            const target = parseGotoLine(trimmed.slice(1));
+            if (!target) return [{ label: "Type a line number, like :42 or :42:7", keys: "line", run: () => {} }];
+            return [{
+                label: "Go to line " + target.line + (target.column > 1 ? ":" + target.column : ""),
+                keys: "Enter",
+                run: () => gotoLocation(state.ws.active, target.line, target.column)
+            }];
+        }
+
+        if (trimmed.startsWith("@")) {
+            const wanted = trimmed.slice(1).toLowerCase();
+            const path = state.ws.active;
+            return outlineFor(path, state.ws.files[path] || "")
+                .filter(entry => !wanted || entry.label.toLowerCase().includes(wanted))
+                .map(entry => ({
+                    label: entry.label,
+                    keys: entry.kind + " · line " + entry.line,
+                    run: () => gotoLocation(path, entry.line, 1)
+                }));
+        }
+
+        const needle = trimmed.startsWith(">") ? trimmed.slice(1) : trimmed;
+        return commands.filter(command => !needle || matches(command.label, needle));
+    }
+
     function renderPalette(query) {
-        const list = commands.filter(command => !query || matches(command.label, query));
-        state.paletteRows = list;
+        const rows = paletteRowsFor(query);
+        state.paletteRows = rows;
         state.paletteIndex = 0;
         dom.paletteList.innerHTML = "";
 
-        if (!list.length) {
+        if (!rows.length) {
             dom.paletteList.innerHTML = '<div class="empty">No matching commands</div>';
             return;
         }
 
-        list.forEach((command, index) => {
+        rows.forEach((command, index) => {
             const row = document.createElement("div");
             row.className = "row" + (index === 0 ? " active" : "");
             row.dataset.index = String(index);
@@ -1644,12 +2829,34 @@ declare module "@api/Notices" {
 
     window.addEventListener("keydown", event => {
         const mod = event.ctrlKey || event.metaKey;
-        if (mod && event.shiftKey && event.key.toLowerCase() === "p") { event.preventDefault(); openPalette(); }
-        else if (mod && !event.shiftKey && event.key.toLowerCase() === "p") { event.preventDefault(); openQuickOpen(); }
-        else if (mod && event.key.toLowerCase() === "s") { event.preventDefault(); persist(); toast("Workspace saved in this browser"); }
-        else if (mod && event.key.toLowerCase() === "b") { event.preventDefault(); toggleSidebar(); }
-        else if (mod && event.key.toLowerCase() === "n") { event.preventDefault(); newFile(); }
-        else if (event.altKey && event.key.toLowerCase() === "z") { event.preventDefault(); toggleWordWrap(); }
+        const key = event.key.toLowerCase();
+
+        if (!mod) {
+            if (event.key === "F2") { event.preventDefault(); renameSymbol(); }
+            else if (event.altKey && event.shiftKey && key === "f") { event.preventDefault(); formatDocument(); }
+            else if (event.altKey && key === "z") { event.preventDefault(); toggleWordWrap(); }
+            else if (event.key === "Escape") closeAllOverlays();
+            return;
+        }
+
+        if (event.shiftKey && key === "p") { event.preventDefault(); openPalette(); }
+        else if (!event.shiftKey && key === "p") { event.preventDefault(); openQuickOpen(); }
+        else if (event.shiftKey && key === "f") { event.preventDefault(); openPanel("search"); }
+        else if (event.shiftKey && key === "m") { event.preventDefault(); openPanel("problems"); }
+        else if (event.shiftKey && key === "o") { event.preventDefault(); openPanel("outline"); }
+        else if (event.shiftKey && key === "v") { event.preventDefault(); togglePreview(); }
+        else if (event.shiftKey && (event.key === "?" || event.key === "&")) { event.preventDefault(); openShortcuts(); }
+        else if (key === "s") {
+            event.preventDefault();
+            if (state.ws.ui.formatOnSave) formatDocument();
+            persist();
+            toast("Workspace saved in this browser");
+        }
+        else if (key === "b") { event.preventDefault(); toggleSidebar(); }
+        else if (key === "n") { event.preventDefault(); newFile(); }
+        else if (key === "j") { event.preventDefault(); togglePanel(); }
+        else if (key === "g") { event.preventDefault(); goToLine(); }
+        else if (key === ",") { event.preventDefault(); openSettings(); }
     });
 
     /* ---------------------------------------------------------------------
@@ -1702,7 +2909,12 @@ declare module "@api/Notices" {
     bootMonaco();
 
     // Testing hook: the harness pokes at the pure logic without a real browser.
-    window.__limeyCode = { state, buildTree, languageFor, makeZip, crc32, openFile, commands, persist };
+    window.__limeyCode = {
+        state, buildTree, languageFor, makeZip, crc32, openFile, commands, persist,
+        searchWorkspace, replaceInWorkspace, outlineFor, parseGotoLine,
+        previewDocument, applyTemplate, TEMPLATES, applyUi, paletteRowsFor,
+        openPanel, renderPanel, gotoLocation
+    };
 })();
 </script>
 </body>
