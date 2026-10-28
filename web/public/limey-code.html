@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limey V1 Code — plugin editor</title>
+    <meta name="description" content="Limey V1 Code — a VS Code-style plugin editor that runs in your browser, powered by Monaco, with the Limey plugin API built in.">
+    <link rel="icon" href="/browser/icon.png" type="image/png">
+    <link rel="stylesheet" href="/vendor/monaco/index.css">
+    <style>
+        :root {
+            --lc-bg: #0d0d0d;
+            --lc-panel: #121212;
+            --lc-panel-2: #171717;
+            --lc-border: #262626;
+            --lc-text: #e6e6e6;
+            --lc-dim: #8b8b8b;
+            --lc-lime: #9ccc3c;
+            --lc-lime-dim: #6f8f2b;
+            --lc-blue: #60a5fa;
+            --lc-amber: #f0b429;
+            --lc-red: #f87171;
+            --lc-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+            background: var(--lc-bg);
+            color: var(--lc-text);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+        button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+        kbd {
+            font-family: var(--lc-mono);
+            font-size: 0.68rem;
+            padding: 1px 5px;
+            border: 1px solid var(--lc-border);
+            border-bottom-width: 2px;
+            border-radius: 4px;
+            color: var(--lc-dim);
+            background: #1b1b1b;
+        }
+        #app {
+            display: grid;
+            grid-template-rows: 40px 1fr;
+            height: 100%;
+        }
+
+        /* ---------- title bar ---------- */
+        #titlebar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 12px;
+            background: var(--lc-panel);
+            border-bottom: 1px solid var(--lc-border);
+            font-size: 0.8rem;
+            user-select: none;
+        }
+        .tb-left { display: flex; align-items: center; gap: 8px; }
+        .tb-left .logo { font-size: 1rem; }
+        .tb-left strong { font-size: 0.85rem; letter-spacing: 0.01em; }
+        .tb-left .tb-sub { color: var(--lc-dim); }
+        #commandTrigger {
+            flex: 1;
+            max-width: 460px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 26px;
+            padding: 0 12px;
+            border: 1px solid var(--lc-border);
+            border-radius: 7px;
+            background: var(--lc-panel-2);
+            color: var(--lc-dim);
+            font-size: 0.76rem;
+        }
+        #commandTrigger:hover { border-color: #3a3a3a; color: var(--lc-text); }
+        .tb-right { display: flex; align-items: center; gap: 14px; }
+        .tb-right a { color: var(--lc-dim); text-decoration: none; font-size: 0.76rem; }
+        .tb-right a:hover { color: var(--lc-lime); }
+
+        /* ---------- body ---------- */
+        #body {
+            display: grid;
+            grid-template-columns: 48px 260px 1fr;
+            min-height: 0;
+        }
+        #activity {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding-top: 8px;
+            background: var(--lc-panel);
+            border-right: 1px solid var(--lc-border);
+        }
+        .act-btn {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            color: var(--lc-dim);
+            position: relative;
+        }
+        .act-btn:hover { color: var(--lc-text); background: #1c1c1c; }
+        .act-btn.active { color: var(--lc-lime); }
+        .act-btn.active::before {
+            content: "";
+            position: absolute;
+            left: -6px;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            border-radius: 2px;
+            background: var(--lc-lime);
+        }
+
+        #sidebar {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            background: var(--lc-panel);
+            border-right: 1px solid var(--lc-border);
+            font-size: 0.78rem;
+        }
+        #sidebar[hidden] { display: none; }
+        .side-head {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 12px 8px;
+            color: var(--lc-dim);
+            font-size: 0.68rem;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+        }
+        .side-head .spacer { flex: 1; }
+        .side-head button {
+            width: 22px;
+            height: 22px;
+            display: grid;
+            place-items: center;
+            border-radius: 5px;
+            color: var(--lc-dim);
+        }
+        .side-head button:hover { background: #1f1f1f; color: var(--lc-text); }
+        #tree { flex: 1; overflow: auto; padding: 0 6px 12px; }
+        .node {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            height: 24px;
+            padding: 0 6px;
+            border-radius: 5px;
+            color: #cfcfcf;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .node:hover { background: #1b1b1b; }
+        .node.active { background: #22300f; color: #fafafa; }
+        .node .twist {
+            width: 10px;
+            color: var(--lc-dim);
+            font-size: 0.6rem;
+            flex-shrink: 0;
+        }
+        .node .name { overflow: hidden; text-overflow: ellipsis; }
+        .node .ext {
+            flex-shrink: 0;
+            font-family: var(--lc-mono);
+            font-size: 0.56rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            padding: 1px 4px;
+            border-radius: 3px;
+            color: #0d0d0d;
+            background: #6b7280;
+        }
+        .node .ext.ts, .node .ext.tsx { background: #3b82f6; color: #fff; }
+        .node .ext.css { background: #a855f7; color: #fff; }
+        .node .ext.md { background: #64748b; color: #fff; }
+        .node .ext.json { background: #eab308; }
+        .node .row-actions { margin-left: auto; display: none; gap: 2px; }
+        .node:hover .row-actions { display: flex; }
+        .node .row-actions button {
+            width: 18px;
+            height: 18px;
+            display: grid;
+            place-items: center;
+            border-radius: 4px;
+            color: var(--lc-dim);
+            font-size: 0.7rem;
+        }
+        .node .row-actions button:hover { background: #2a2a2a; color: var(--lc-text); }
+        .side-foot {
+            padding: 8px 12px;
+            border-top: 1px solid var(--lc-border);
+            color: var(--lc-dim);
+            font-size: 0.7rem;
+        }
+
+        /* ---------- editor ---------- */
+        #main {
+            display: grid;
+            grid-template-rows: 34px 1fr 24px;
+            min-width: 0;
+            min-height: 0;
+        }
+        #tabs {
+            display: flex;
+            align-items: stretch;
+            overflow-x: auto;
+            background: var(--lc-panel);
+            border-bottom: 1px solid var(--lc-border);
+            scrollbar-width: none;
+        }
+        #tabs::-webkit-scrollbar { display: none; }
+        .tab {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 10px;
+            max-width: 220px;
+            border-right: 1px solid var(--lc-border);
+            color: var(--lc-dim);
+            font-size: 0.76rem;
+            white-space: nowrap;
+        }
+        .tab:hover { background: #171717; color: var(--lc-text); }
+        .tab.active {
+            background: var(--lc-bg);
+            color: var(--lc-text);
+            box-shadow: inset 0 -1px 0 var(--lc-lime);
+        }
+        .tab .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--lc-dim);
+            flex-shrink: 0;
+        }
+        .tab.dirty .dot { background: var(--lc-lime); }
+        .tab .close {
+            width: 16px;
+            height: 16px;
+            display: grid;
+            place-items: center;
+            border-radius: 3px;
+            color: var(--lc-dim);
+            font-size: 0.72rem;
+            flex-shrink: 0;
+        }
+        .tab .close:hover { background: #2a2a2a; color: var(--lc-text); }
+        #editorWrap { position: relative; min-width: 0; min-height: 0; }
+        #editor { position: absolute; inset: 0; }
+        #fallback {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            padding: 12px;
+            border: 0;
+            resize: none;
+            outline: none;
+            background: var(--lc-bg);
+            color: var(--lc-text);
+            font-family: var(--lc-mono);
+            font-size: 13px;
+            line-height: 1.55;
+            tab-size: 4;
+        }
+        #statusbar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 0 12px;
+            background: var(--lc-panel);
+            border-top: 1px solid var(--lc-border);
+            color: var(--lc-dim);
+            font-size: 0.7rem;
+            font-family: var(--lc-mono);
+            user-select: none;
+        }
+        #statusbar .grow { flex: 1; }
+        #statusbar .ok { color: var(--lc-lime); }
+        #statusbar .err { color: var(--lc-red); }
+        #statusbar .warn { color: var(--lc-amber); }
+
+        /* ---------- overlays ---------- */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 72px;
+            background: rgba(0, 0, 0, 0.55);
+        }
+        .overlay[hidden] { display: none; }
+        .modal {
+            width: min(640px, 92vw);
+            background: var(--lc-panel-2);
+            border: 1px solid var(--lc-border);
+            border-radius: 10px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+        }
+        .modal input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 0;
+            border-bottom: 1px solid var(--lc-border);
+            outline: none;
+            background: #1b1b1b;
+            color: var(--lc-text);
+            font-size: 0.85rem;
+            font-family: inherit;
+        }
+        .modal-list { max-height: 46vh; overflow: auto; padding: 6px; }
+        .row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .row .label { flex: 1; }
+        .row .hint { color: var(--lc-dim); font-size: 0.72rem; font-family: var(--lc-mono); }
+        .row.active { background: #26320f; }
+        .row:hover { background: #1f1f1f; }
+        .empty { padding: 18px; text-align: center; color: var(--lc-dim); font-size: 0.8rem; }
+
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: 40px;
+            transform: translateX(-50%) translateY(8px);
+            padding: 9px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--lc-border);
+            background: #1b1b1b;
+            color: var(--lc-text);
+            font-size: 0.78rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s, transform 0.18s;
+            z-index: 60;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        #toast.bad { border-color: var(--lc-red); color: #fecaca; }
+
+        #hiddenInput { display: none; }
+        @media (max-width: 820px) {
+            #body { grid-template-columns: 44px 0 1fr; }
+            #sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <header id="titlebar">
+        <div class="tb-left">
+            <span class="logo">🍋</span>
+            <strong>Limey V1 Code</strong>
+            <span class="tb-sub">plugin editor</span>
+        </div>
+        <button id="commandTrigger" type="button" title="Command palette">
+            <span>Search commands…</span>
+            <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd>
+        </button>
+        <div class="tb-right">
+            <a href="/">Home</a>
+            <a href="/plugins/">Plugins</a>
+            <a href="/marketplace">Marketplace</a>
+            <a href="/submit-plugin">Submit</a>
+        </div>
+    </header>
+
+    <div id="body">
+        <nav id="activity" aria-label="Activity bar">
+            <button class="act-btn active" type="button" data-activity="files" title="Explorer (Ctrl+B)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6l2 3h8v13H4z"/></svg>
+            </button>
+            <button class="act-btn" type="button" data-activity="search" title="Quick open (Ctrl+P)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            </button>
+            <button class="act-btn" type="button" data-activity="api" title="Plugin API reference">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2z"/><path d="M8 7h8M8 11h8"/></svg>
+            </button>
+        </nav>
+
+        <aside id="sidebar">
+            <div class="side-head">
+                <span id="sideTitle">Explorer</span>
+                <span class="spacer"></span>
+                <button type="button" id="newFileBtn" title="New file">＋</button>
+                <button type="button" id="newFolderBtn" title="New folder">🗀</button>
+                <button type="button" id="uploadBtn" title="Upload files">↑</button>
+            </div>
+            <div id="tree"></div>
+            <div class="side-foot" id="projectMeta">—</div>
+        </aside>
+
+        <main id="main">
+            <div id="tabs"></div>
+            <div id="editorWrap">
+                <div id="editor"></div>
+                <textarea id="fallback" spellcheck="false" hidden></textarea>
+            </div>
+            <div id="statusbar">
+                <span id="stPath">no file</span>
+                <span id="stProblems" class="ok">0 problems</span>
+                <span class="grow"></span>
+                <span id="stSaved" class="ok">saved</span>
+                <span id="stPos">Ln 1, Col 1</span>
+                <span id="stLang">—</span>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div id="palette" class="overlay" hidden>
+    <div class="modal">
+        <input id="paletteInput" type="text" placeholder="Type a command…" autocomplete="off" spellcheck="false">
+        <div class="modal-list" id="paletteList"></div>
+    </div>
+</div>
+
+<div id="quickOpen" class="overlay" hidden>
+    <div class="modal">
+        <input id="quickInput" type="text" placeholder="Search files by name…" autocomplete="off" spellcheck="false">
+        <div class="modal-list" id="quickList"></div>
+    </div>
+</div>
+
+<div id="toast"></div>
+<input id="hiddenInput" type="file" multiple>
+
+<script>
+/* Limey V1 Code — a Monaco-based plugin editor.
+   Everything lives in one file: the workspace model (localStorage), the file
+   tree, tabs, panels and the command palette. The editor itself is Monaco,
+   the same engine VS Code uses; /vendor/monaco/* is built by
+   scripts/build/buildMonaco.mjs. */
+(function () {
+    "use strict";
+
+    const STORAGE_KEY = "limey-code:workspace:v1";
+    const DEMO_PREFIX = "MyPlugin/";
+
+    const DEMO_FILES = {
+        "MyPlugin/index.ts": `import { definePluginSettings } from "@api/Settings";
+import { Devs } from "@utils/constants";
+import definePlugin, { OptionType } from "@utils/types";
+
+const settings = definePluginSettings({
+    greeting: {
+        type: OptionType.STRING,
+        description: "What to say when the plugin starts",
+        default: "hello from Limey"
+    },
+    loud: {
+        type: OptionType.BOOLEAN,
+        description: "Shout the greeting",
+        default: false
+    }
+});
+
+export default definePlugin({
+    name: "MyPlugin",
+    description: "A short, honest sentence about what this plugin does",
+    authors: [Devs.Limey],
+    tags: ["Fun"],
+    permissions: [{
+        id: "localDataStore",
+        title: "Store a counter",
+        description: "Keeps a number in Limey's local data store.",
+        risk: "Only a number, stored locally on this device."
+    }],
+    settings,
+
+    start() {
+        const greeting = settings.store.loud
+            ? settings.store.greeting.toUpperCase()
+            : settings.store.greeting;
+
+        console.log(greeting);
+    },
+
+    stop() {
+        // Clear timers, listeners and stores here so toggling stays clean.
+    }
+});
+`,
+        "MyPlugin/README.md": `# MyPlugin
+
+A Limey V1 plugin.
+
+## Install
+
+1. Download this project from Limey V1 Code (the ⬇ button in the title bar).
+2. Unzip it so the folder lands in \`src/userplugins/\`.
+3. \`pnpm build\` then \`pnpm inject\`, and restart Discord.
+4. Enable it in **Settings → Plugins** after reviewing its permissions.
+
+## Rules
+
+- One plugin per folder, entry point \`index.ts\`.
+- Declare every risky capability in \`permissions\`.
+- \`start()\` and \`stop()\` must be symmetric.
+`,
+        "MyPlugin/style.css": `/* Optional styles for your plugin chrome. */
+.my-plugin-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(156, 204, 60, 0.15);
+    color: #9ccc3c;
+    font-size: 12px;
+}
+`,
+        "MyPlugin/plugin.json": `{
+    "name": "MyPlugin",
+    "version": "1.0.0",
+    "limey": "^1.0.0",
+    "entry": "index.ts"
+}
+`
+    };
+
+    /* The plugin API as the editor sees it. Monaco's TypeScript worker uses
+       this file for completions, hovers and errors, so writing a plugin here
+       feels like writing one in the real codebase. */
+    const LIMEY_DTS = `declare module "@utils/types" {
+    export interface PluginAuthor { name: string; id: bigint; }
+    export interface PluginPermission {
+        /** Stable id for this capability, e.g. "sendMessage". */
+        id: string;
+        title: string;
+        description: string;
+        risk: string;
+    }
+    export interface CommandOption {
+        name: string;
+        description: string;
+        type: number;
+        required?: boolean;
+        choices?: { name: string; displayName?: string; value: string }[];
+    }
+    export interface PluginCommand {
+        name: string;
+        description: string;
+        /** Use ApplicationCommandInputType.BUILT_IN to appear in Discord's own / menu. */
+        inputType?: number;
+        options?: CommandOption[];
+        execute(args: any, ctx: any): void | Promise<void>;
+    }
+    export interface PatchReplacement { match: string | RegExp; replace: string | ((match: string, ...groups: string[]) => string); noWarn?: boolean; }
+    export interface Patch { find: string | RegExp; replacement: PatchReplacement | PatchReplacement[]; all?: boolean; noWarn?: boolean; }
+    export interface PluginDef {
+        name: string;
+        description: string;
+        authors: PluginAuthor[];
+        tags?: string[];
+        searchTerms?: string[];
+        dependencies?: string[];
+        permissions?: PluginPermission[];
+        settings?: any;
+        commands?: PluginCommand[];
+        patches?: Patch[];
+        /** Called when the user enables the plugin. */
+        start?(): void | Promise<void>;
+        /** Called when the user disables it — undo everything start() did. */
+        stop?(): void | Promise<void>;
+        [key: string]: any;
+    }
+    export default function definePlugin<P extends PluginDef>(plugin: P): P;
+    export enum OptionType {
+        STRING = 0, NUMBER = 1, BIGINT = 2, BOOLEAN = 3,
+        SELECT = 4, SLIDER = 5, COMPONENT = 6, CUSTOM = 7
+    }
+}
+
+declare module "@utils/constants" {
+    export interface Dev { name: string; id: bigint; }
+    export const Devs: Record<string, Dev> & { Limey: Dev };
+}
+
+declare module "@api/Settings" {
+    export interface SettingDefinition { type: number; description: string; default?: any; options?: any; component?: any; }
+    export interface SettingsWithStore<T> { def: T; store: Record<keyof T, any>; }
+    export function definePluginSettings<T extends Record<string, SettingDefinition>>(defs: T): SettingsWithStore<T>;
+    export function migratePluginSettings(newName: string, oldName: string): void;
+}
+
+declare module "@api/Commands" {
+    export enum ApplicationCommandInputType { BUILT_IN = 0, BOT = 1, TEXT = 2 }
+    export enum ApplicationCommandOptionType {
+        STRING = 3, INTEGER = 4, BOOLEAN = 5, USER = 6, CHANNEL = 7, ROLE = 8, MENTIONABLE = 9, NUMBER = 10
+    }
+    export function findOption(args: any[], name: string): any;
+    export function sendBotMessage(channelId: string, message: any): void;
+}
+
+declare module "@api/DataStore" {
+    export function get<T>(key: string, fallback?: T): Promise<T | undefined>;
+    export function set<T>(key: string, value: T): Promise<void>;
+    export function del(key: string): Promise<void>;
+}
+
+declare module "@api/Notices" {
+    export function showNotice(content: any, options?: any): () => void;
+}
+`;
+
+    const DEFAULT_UI = { minimap: false, wordWrap: "off", fontSize: 13.5, sidebar: true };
+
+    const el = id => document.getElementById(id);
+
+    const dom = {
+        tree: el("tree"),
+        tabs: el("tabs"),
+        editor: el("editor"),
+        editorWrap: el("editorWrap"),
+        fallback: el("fallback"),
+        sidebar: el("sidebar"),
+        statusPath: el("stPath"),
+        statusProblems: el("stProblems"),
+        statusSaved: el("stSaved"),
+        statusPos: el("stPos"),
+        statusLang: el("stLang"),
+        projectMeta: el("projectMeta"),
+        palette: el("palette"),
+        paletteInput: el("paletteInput"),
+        paletteList: el("paletteList"),
+        quick: el("quickOpen"),
+        quickInput: el("quickInput"),
+        quickList: el("quickList"),
+        toast: el("toast"),
+        hiddenInput: el("hiddenInput")
+    };
+
+    /* ---------------------------------------------------------------------
+     * Workspace model
+     * ------------------------------------------------------------------- */
+
+    function emptyWorkspace() {
+        return {
+            name: "MyPlugin",
+            files: { ...DEMO_FILES },
+            open: ["MyPlugin/index.ts"],
+            active: "MyPlugin/index.ts",
+            savedAt: new Date().toISOString(),
+            ui: { ...DEFAULT_UI }
+        };
+    }
+
+    function loadWorkspace() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return emptyWorkspace();
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== "object" || typeof parsed.files !== "object") return emptyWorkspace();
+            return {
+                name: typeof parsed.name === "string" ? parsed.name : "MyPlugin",
+                files: parsed.files || {},
+                open: Array.isArray(parsed.open) ? parsed.open.filter(p => typeof p === "string") : [],
+                active: typeof parsed.active === "string" ? parsed.active : null,
+                savedAt: parsed.savedAt,
+                ui: { ...DEFAULT_UI, ...(parsed.ui || {}) }
+            };
+        } catch {
+            return emptyWorkspace();
+        }
+    }
+
+    const state = {
+        ws: loadWorkspace(),
+        models: new Map(),
+        editor: null,
+        monaco: null,
+        dirty: new Set(),
+        paletteIndex: 0,
+        paletteRows: [],
+        quickIndex: 0,
+        quickRows: [],
+        saveTimer: null
+    };
+
+    function persist() {
+        clearTimeout(state.saveTimer);
+        state.saveTimer = setTimeout(() => {
+            try {
+                state.ws.savedAt = new Date().toISOString();
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state.ws));
+                dom.statusSaved.textContent = "saved";
+                dom.statusSaved.className = "ok";
+            } catch {
+                dom.statusSaved.textContent = "not saved (storage full)";
+                dom.statusSaved.className = "err";
+            }
+        }, 250);
+    }
+
+    /* ---------------------------------------------------------------------
+     * Helpers
+     * ------------------------------------------------------------------- */
+
+    function languageFor(path) {
+        const ext = String(path).split(".").pop().toLowerCase();
+        switch (ext) {
+            case "ts": case "mts": return "typescript";
+            case "tsx": return "typescript";
+            case "js": case "mjs": case "cjs": return "javascript";
+            case "jsx": return "javascript";
+            case "json": return "json";
+            case "css": return "css";
+            case "scss": return "scss";
+            case "html": return "html";
+            case "md": return "markdown";
+            case "yml": case "yaml": return "yaml";
+            case "txt": return "";
+            default: return "plaintext";
+        }
+    }
+
+    function extLabel(path) {
+        const parts = String(path).split(".");
+        return parts.length > 1 ? parts.pop().toLowerCase() : "txt";
+    }
+
+    /** Paths -> nested tree the explorer renders, folders first. */
+    function buildTree(paths) {
+        const root = { name: "", dirs: new Map(), files: [] };
+        for (const path of paths) {
+            const parts = String(path).split("/").filter(Boolean);
+            let node = root;
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (!node.dirs.has(parts[i])) node.dirs.set(parts[i], { name: parts[i], dirs: new Map(), files: [] });
+                node = node.dirs.get(parts[i]);
+            }
+            if (parts.length) node.files.push(parts[parts.length - 1]);
+        }
+        const finish = node => ({
+            name: node.name,
+            dirs: [...node.dirs.values()]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(finish),
+            files: [...node.files].sort((a, b) => a.localeCompare(b))
+        });
+        return finish(root);
+    }
+
+    function wordCount(text) {
+        return text ? text.split("\n").length : 0;
+    }
+
+    function toast(message, bad) {
+        dom.toast.textContent = message;
+        dom.toast.className = "show" + (bad ? " bad" : "");
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => { dom.toast.className = bad ? "bad" : ""; }, 2400);
+    }
+
+    /* ---------------------------------------------------------------------
+     * Zip export (store-only, so no dependency and no worker)
+     * ------------------------------------------------------------------- */
+
+    const CRC_TABLE = (() => {
+        const table = new Uint32Array(256);
+        for (let n = 0; n < 256; n++) {
+            let c = n;
+            for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+            table[n] = c >>> 0;
+        }
+        return table;
+    })();
+
+    function crc32(bytes) {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    /** entries: [{ name, text }] -> Uint8Array zip archive. */
+    function makeZip(entries) {
+        const enc = new TextEncoder();
+        const now = new Date();
+        const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
+        const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+
+        const chunks = [];
+        const central = [];
+        let offset = 0;
+
+        for (const entry of entries) {
+            const nameBytes = enc.encode(entry.name);
+            const data = enc.encode(entry.text);
+            const crc = crc32(data);
+
+            const local = new Uint8Array(30 + nameBytes.length);
+            const lv = new DataView(local.buffer);
+            lv.setUint32(0, 0x04034b50, true);
+            lv.setUint16(4, 20, true);          // version needed
+            lv.setUint16(6, 0x0800, true);      // UTF-8 names
+            lv.setUint16(8, 0, true);           // store
+            lv.setUint16(10, dosTime, true);
+            lv.setUint16(12, dosDate, true);
+            lv.setUint32(14, crc, true);
+            lv.setUint32(18, data.length, true);
+            lv.setUint32(22, data.length, true);
+            lv.setUint16(26, nameBytes.length, true);
+            lv.setUint16(28, 0, true);
+            local.set(nameBytes, 30);
+
+            chunks.push(local, data);
+
+            const header = new Uint8Array(46 + nameBytes.length);
+            const cv = new DataView(header.buffer);
+            cv.setUint32(0, 0x02014b50, true);
+            cv.setUint16(4, 20, true);          // version made by
+            cv.setUint16(6, 20, true);          // version needed
+            cv.setUint16(8, 0x0800, true);
+            cv.setUint16(10, 0, true);
+            cv.setUint16(12, dosTime, true);
+            cv.setUint16(14, dosDate, true);
+            cv.setUint32(16, crc, true);
+            cv.setUint32(20, data.length, true);
+            cv.setUint32(24, data.length, true);
+            cv.setUint16(28, nameBytes.length, true);
+            cv.setUint16(30, 0, true);
+            cv.setUint16(32, 0, true);
+            cv.setUint16(34, 0, true);
+            cv.setUint16(36, 0, true);
+            cv.setUint32(38, 0, true);
+            cv.setUint32(42, offset, true);
+            header.set(nameBytes, 46);
+
+            central.push(header);
+            offset += local.length + data.length;
+        }
+
+        const centralSize = central.reduce((sum, part) => sum + part.length, 0);
+        const end = new Uint8Array(22);
+        const ev = new DataView(end.buffer);
+        ev.setUint32(0, 0x06054b50, true);
+        ev.setUint16(8, entries.length, true);
+        ev.setUint16(10, entries.length, true);
+        ev.setUint32(12, centralSize, true);
+        ev.setUint32(16, offset, true);
+
+        const total = offset + centralSize + end.length;
+        const out = new Uint8Array(total);
+        let at = 0;
+        for (const part of chunks) { out.set(part, at); at += part.length; }
+        for (const part of central) { out.set(part, at); at += part.length; }
+        out.set(end, at);
+        return out;
+    }
+
+    function download(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    function downloadProject() {
+        const name = (state.ws.name || "limey-plugin").replace(/[^\w.-]+/g, "-");
+        const entries = Object.entries(state.ws.files).map(([path, text]) => ({ name: path, text }));
+        if (!entries.length) return toast("Nothing to download yet", true);
+        download(new Blob([makeZip(entries)], { type: "application/zip" }), `${name}.zip`);
+        toast(`Downloaded ${entries.length} files as ${name}.zip`);
+    }
+
+    function downloadActive() {
+        const path = state.ws.active;
+        if (!path) return toast("Open a file first", true);
+        download(new Blob([state.ws.files[path] || ""], { type: "text/plain" }), path.split("/").pop());
+    }
+
+    /* ---------------------------------------------------------------------
+     * Monaco
+     * ------------------------------------------------------------------- */
+
+    function defineTheme(monaco) {
+        monaco.editor.defineTheme("limey-dark", {
+            base: "vs-dark",
+            inherit: true,
+            rules: [
+                { token: "comment", foreground: "6b7373", fontStyle: "italic" },
+                { token: "keyword", foreground: "9ccc3c" },
+                { token: "string", foreground: "b6e08b" },
+                { token: "number", foreground: "f0b429" },
+                { token: "regexp", foreground: "f0b429" },
+                { token: "type", foreground: "7ec8e3" },
+                { token: "type.identifier", foreground: "7ec8e3" },
+                { token: "identifier", foreground: "e6e6e6" },
+                { token: "delimiter", foreground: "8b949e" },
+                { token: "tag", foreground: "9ccc3c" },
+                { token: "attribute.name", foreground: "7ec8e3" }
+            ],
+            colors: {
+                "editor.background": "#0d0d0d",
+                "editor.foreground": "#e6e6e6",
+                "editorLineNumber.foreground": "#4a4a4a",
+                "editorLineNumber.activeForeground": "#9ccc3c",
+                "editorCursor.foreground": "#9ccc3c",
+                "editor.selectionBackground": "#2c3a1a",
+                "editor.inactiveSelectionBackground": "#22300f",
+                "editor.lineHighlightBackground": "#141414",
+                "editorIndentGuide.background1": "#1f1f1f",
+                "editorIndentGuide.activeBackground1": "#3a3a3a",
+                "editorWidget.background": "#171717",
+                "editorWidget.border": "#262626",
+                "editorSuggestWidget.background": "#171717",
+                "editorSuggestWidget.border": "#262626",
+                "editorSuggestWidget.selectedBackground": "#26320f",
+                "editorHoverWidget.background": "#171717",
+                "editorHoverWidget.border": "#262626",
+                "editorBracketMatch.background": "#1f2a12",
+                "editorBracketMatch.border": "#9ccc3c",
+                "minimap.background": "#0d0d0d",
+                "scrollbarSlider.background": "#2a2a2a80",
+                "scrollbarSlider.hoverBackground": "#3a3a3a90"
+            }
+        });
+    }
+
+    function configureLanguages(monaco) {
+        const ts = monaco.languages.typescript;
+        const options = {
+            target: ts.ScriptTarget.ES2022,
+            module: ts.ModuleKind.ESNext,
+            moduleResolution: ts.ModuleResolutionKind.NodeJs,
+            jsx: ts.JsxEmit.ReactJSX,
+            allowNonTsExtensions: true,
+            allowJs: true,
+            checkJs: false,
+            strict: false,
+            noImplicitAny: false,
+            esModuleInterop: true,
+            allowSyntheticDefaultImports: true,
+            skipLibCheck: true,
+            noEmit: true
+        };
+
+        for (const defaults of [ts.typescriptDefaults, ts.javascriptDefaults]) {
+            defaults.setCompilerOptions(options);
+            defaults.setDiagnosticsOptions({ noSemanticValidation: false, noSyntaxValidation: false });
+            if (defaults.setEagerModelSync) defaults.setEagerModelSync(true);
+            defaults.addExtraLib(LIMEY_DTS, "file:///limey-v1/plugin-api.d.ts");
+        }
+    }
+
+    function createEditor(monaco) {
+        defineTheme(monaco);
+        configureLanguages(monaco);
+
+        state.editor = monaco.editor.create(dom.editor, {
+            theme: "limey-dark",
+            fontFamily: 'ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace',
+            fontSize: state.ws.ui.fontSize,
+            lineHeight: 1.6,
+            tabSize: 4,
+            insertSpaces: true,
+            minimap: { enabled: state.ws.ui.minimap },
+            wordWrap: state.ws.ui.wordWrap,
+            automaticLayout: true,
+            scrollBeyondLastLine: false,
+            smoothScrolling: true,
+            renderLineHighlight: "line",
+            padding: { top: 10, bottom: 10 },
+            cursorBlinking: "smooth",
+            cursorSmoothCaretAnimation: "on",
+            roundedSelection: false,
+            overviewRulerBorder: false,
+            scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
+            suggest: { showWords: true, preview: true },
+            quickSuggestions: { other: true, comments: false, strings: false }
+        });
+
+        state.editor.onDidChangeCursorPosition(event => {
+            dom.statusPos.textContent = `Ln ${event.position.lineNumber}, Col ${event.position.column}`;
+        });
+
+        state.editor.onDidChangeModelContent(() => {
+            const path = state.ws.active;
+            if (!path || !state.editor) return;
+            const model = state.editor.getModel();
+            state.ws.files[path] = model ? model.getValue() : "";
+            state.dirty.add(path);
+            dom.statusSaved.textContent = "unsaved";
+            dom.statusSaved.className = "";
+            renderTabs();
+            persist();
+        });
+
+        monaco.editor.onDidChangeMarkers(() => updateProblems());
+
+        openFile(state.ws.active || Object.keys(state.ws.files)[0]);
+    }
+
+    function updateProblems() {
+        if (!state.monaco) return;
+        const markers = state.monaco.editor.getModelMarkers({});
+        const errors = markers.filter(marker => marker.severity === state.monaco.MarkerSeverity.Error).length;
+        const warnings = markers.filter(marker => marker.severity === state.monaco.MarkerSeverity.Warning).length;
+
+        const total = errors + warnings;
+        dom.statusProblems.textContent = total === 0 ? "0 problems" : `${errors} ✕  ${warnings} ⚠`;
+        dom.statusProblems.className = total === 0 ? "ok" : errors ? "err" : "warn";
+        dom.statusProblems.title = total === 0
+            ? "No problems reported by the language service"
+            : `${errors} error(s), ${warnings} warning(s)`;
+    }
+
+    function modelFor(path) {
+        if (!state.monaco) return null;
+        if (state.models.has(path)) return state.models.get(path);
+
+        const uri = state.monaco.Uri.parse("file:///" + path.split("/").map(encodeURIComponent).join("/"));
+        const model = state.monaco.editor.createModel(state.ws.files[path] || "", languageFor(path), uri);
+        state.models.set(path, model);
+        return model;
+    }
+
+    function openFile(path) {
+        if (!path) return;
+        if (!(path in state.ws.files)) return;
+        if (!state.ws.open.includes(path)) state.ws.open.push(path);
+        state.ws.active = path;
+
+        if (state.editor) {
+            dom.fallback.hidden = true;
+            const model = modelFor(path);
+            state.editor.setModel(model);
+            state.editor.focus();
+        } else {
+            // Monaco has not loaded (or failed to): plain textarea fallback.
+            dom.fallback.hidden = false;
+            dom.fallback.value = state.ws.files[path] || "";
+        }
+
+        dom.statusPath.textContent = path;
+        dom.statusLang.textContent = languageFor(path) || "text";
+        renderTabs();
+        renderTree();
+        updateProblems();
+        persist();
+    }
+
+    function closeTab(path) {
+        state.ws.open = state.ws.open.filter(open => open !== path);
+        const model = state.models.get(path);
+        if (model) {
+            model.dispose();
+            state.models.delete(path);
+        }
+        state.dirty.delete(path);
+        if (state.ws.active === path) {
+            state.ws.active = state.ws.open[state.ws.open.length - 1] || Object.keys(state.ws.files)[0] || null;
+            if (state.ws.active) openFile(state.ws.active);
+            else {
+                state.editor && state.editor.setModel(null);
+                dom.statusPath.textContent = "no file";
+            }
+        }
+        renderTabs();
+        persist();
+    }
+
+    /* ---------------------------------------------------------------------
+     * Rendering
+     * ------------------------------------------------------------------- */
+
+    function renderTree() {
+        const tree = buildTree(Object.keys(state.ws.files));
+        dom.tree.innerHTML = "";
+        const collapsed = state.collapsed || (state.collapsed = new Set());
+
+        function row(label, depth, opts) {
+            const node = document.createElement("div");
+            node.className = "node" + (opts.active ? " active" : "");
+            node.style.paddingLeft = 6 + depth * 12 + "px";
+            node.title = opts.title || label;
+
+            const twist = document.createElement("span");
+            twist.className = "twist";
+            twist.textContent = opts.folder ? (collapsed.has(opts.path) ? "▸" : "▾") : "";
+            node.appendChild(twist);
+
+            if (!opts.folder) {
+                const ext = document.createElement("span");
+                ext.className = "ext " + extLabel(label);
+                ext.textContent = extLabel(label).slice(0, 2).toUpperCase();
+                node.appendChild(ext);
+            }
+
+            const name = document.createElement("span");
+            name.className = "name";
+            name.textContent = label;
+            node.appendChild(name);
+
+            if (!opts.folder && opts.path) {
+                const actions = document.createElement("span");
+                actions.className = "row-actions";
+
+                const rename = document.createElement("button");
+                rename.type = "button";
+                rename.title = "Rename";
+                rename.textContent = "✎";
+                rename.addEventListener("click", event => {
+                    event.stopPropagation();
+                    renameFile(opts.path);
+                });
+
+                const remove = document.createElement("button");
+                remove.type = "button";
+                remove.title = "Delete";
+                remove.textContent = "✕";
+                remove.addEventListener("click", event => {
+                    event.stopPropagation();
+                    deleteFile(opts.path);
+                });
+
+                actions.append(rename, remove);
+                node.appendChild(actions);
+            }
+
+            node.addEventListener("click", () => {
+                if (opts.folder) {
+                    if (collapsed.has(opts.path)) collapsed.delete(opts.path);
+                    else collapsed.add(opts.path);
+                    renderTree();
+                } else {
+                    openFile(opts.path);
+                }
+            });
+
+            dom.tree.appendChild(node);
+        }
+
+        function walk(node, prefix, depth) {
+            for (const dir of node.dirs) {
+                const path = prefix ? `${prefix}/${dir.name}` : dir.name;
+                row(dir.name, depth, { folder: true, path });
+                if (!collapsed.has(path)) walk(dir, path, depth + 1);
+            }
+            for (const file of node.files) {
+                const path = prefix ? `${prefix}/${file}` : file;
+                row(file, depth, { path, active: path === state.ws.active });
+            }
+        }
+
+        walk(tree, "", 0);
+
+        const count = Object.keys(state.ws.files).length;
+        const lines = Object.values(state.ws.files).reduce((sum, text) => sum + wordCount(text), 0);
+        dom.projectMeta.textContent = `${state.ws.name || "untitled"} · ${count} file${count === 1 ? "" : "s"} · ${lines} lines`;
+    }
+
+    function renderTabs() {
+        dom.tabs.innerHTML = "";
+        for (const path of state.ws.open) {
+            const tab = document.createElement("div");
+            tab.className = "tab" + (path === state.ws.active ? " active" : "") + (state.dirty.has(path) ? " dirty" : "");
+            tab.title = path;
+
+            const dot = document.createElement("span");
+            dot.className = "dot";
+            tab.appendChild(dot);
+
+            const label = document.createElement("span");
+            label.textContent = path.split("/").pop();
+            tab.appendChild(label);
+
+            const close = document.createElement("button");
+            close.type = "button";
+            close.className = "close";
+            close.textContent = "✕";
+            close.title = "Close";
+            close.addEventListener("click", event => {
+                event.stopPropagation();
+                closeTab(path);
+            });
+            tab.appendChild(close);
+
+            tab.addEventListener("click", () => openFile(path));
+            dom.tabs.appendChild(tab);
+        }
+    }
+
+    /* ---------------------------------------------------------------------
+     * File actions
+     * ------------------------------------------------------------------- */
+
+    function uniquePath(path) {
+        if (!(path in state.ws.files)) return path;
+        const dot = path.lastIndexOf(".");
+        const base = dot > 0 ? path.slice(0, dot) : path;
+        const ext = dot > 0 ? path.slice(dot) : "";
+        let n = 2;
+        while (`${base}-${n}${ext}` in state.ws.files) n++;
+        return `${base}-${n}${ext}`;
+    }
+
+    function newFile() {
+        const name = prompt("New file path (folders are fine):", `${state.ws.name || "MyPlugin"}/newFile.ts`);
+        if (!name) return;
+        const path = uniquePath(name.trim().replace(/^\/+/, ""));
+        state.ws.files[path] = "";
+        state.dirty.add(path);
+        renderTree();
+        openFile(path);
+        persist();
+        toast(`Created ${path}`);
+    }
+
+    function newFolder() {
+        const name = prompt("New folder path:", `${state.ws.name || "MyPlugin"}/components`);
+        if (!name) return;
+        const folder = name.trim().replace(/^\/+|\/+$/g, "");
+        if (!folder) return;
+        state.ws.files[`${folder}/.keep`] = "";
+        renderTree();
+        openFile(`${folder}/.keep`);
+        persist();
+        toast(`Created ${folder}/`);
+    }
+
+    function renameFile(path) {
+        const next = prompt("Rename to:", path);
+        if (!next) return;
+        const cleaned = next.trim().replace(/^\/+/, "");
+        if (!cleaned || cleaned === path) return;
+
+        state.ws.files[cleaned] = state.ws.files[path];
+        delete state.ws.files[path];
+        state.ws.open = state.ws.open.map(open => (open === path ? cleaned : open));
+        if (state.ws.active === path) state.ws.active = cleaned;
+
+        const model = state.models.get(path);
+        if (model) {
+            model.dispose();
+            state.models.delete(path);
+        }
+        renderTree();
+        renderTabs();
+        openFile(cleaned);
+        persist();
+        toast(`Renamed to ${cleaned}`);
+    }
+
+    function deleteFile(path) {
+        if (!confirm(`Delete ${path}? This only affects this browser.`)) return;
+        delete state.ws.files[path];
+        const model = state.models.get(path);
+        if (model) {
+            model.dispose();
+            state.models.delete(path);
+        }
+        state.dirty.delete(path);
+        state.ws.open = state.ws.open.filter(open => open !== path);
+        if (state.ws.active === path) {
+            state.ws.active = state.ws.open[0] || Object.keys(state.ws.files)[0] || null;
+            if (state.ws.active) openFile(state.ws.active);
+        }
+        renderTree();
+        renderTabs();
+        persist();
+        toast(`Deleted ${path}`);
+    }
+
+    function resetProject() {
+        if (!confirm("Restore the demo plugin? Your current files in this browser will be replaced.")) return;
+        for (const model of state.models.values()) model.dispose();
+        state.models.clear();
+        state.dirty.clear();
+        state.ws = emptyWorkspace();
+        renderTree();
+        openFile(state.ws.active);
+        persist();
+        toast("Demo project restored");
+    }
+
+    function uploadFiles(files) {
+        if (!files || !files.length) return;
+        let added = 0;
+        let pending = files.length;
+
+        for (const file of files) {
+            const reader = new FileReader();
+            reader.onerror = () => { if (--pending === 0) finish(); };
+            reader.onload = () => {
+                const path = uniquePath(file.name);
+                state.ws.files[path] = String(reader.result || "");
+                added++;
+                if (--pending === 0) finish();
+            };
+            reader.readAsText(file);
+        }
+
+        function finish() {
+            renderTree();
+            if (added) {
+                openFile(Object.keys(state.ws.files)[Object.keys(state.ws.files).length - 1]);
+                persist();
+                toast(`Added ${added} file${added === 1 ? "" : "s"}`);
+            }
+        }
+    }
+
+    function insertTemplate(kind) {
+        if (!state.editor) return toast("Editor is still loading", true);
+        const snippets = {
+            command: `    commands: [{
+        name: "ping",
+        description: "Replies with pong",
+        inputType: ApplicationCommandInputType.BUILT_IN,
+        execute() {
+            sendBotMessage(arguments[1].channel.id, { content: "pong" });
+        }
+    }],
+`,
+            settings: `const settings = definePluginSettings({
+    enabled: {
+        type: OptionType.BOOLEAN,
+        description: "Toggle the feature",
+        default: true
+    }
+});
+`,
+            permission: `    permissions: [{
+        id: "sendMessage",
+        title: "Post messages in your channels",
+        description: "Sends the plugin's replies as your account.",
+        risk: "Everyone in the channel sees messages sent from your account."
+    }],
+`
+        };
+        const text = snippets[kind];
+        if (!text) return;
+        const selection = state.editor.getSelection();
+        state.editor.executeEdits("limey-code", [{ range: selection, text, forceMoveMarkers: true }]);
+        state.editor.focus();
+    }
+
+    /* ---------------------------------------------------------------------
+     * Commands
+     * ------------------------------------------------------------------- */
+
+    const commands = [
+        { id: "file.new", label: "File: New File", keys: "Ctrl+N", run: newFile },
+        { id: "file.folder", label: "File: New Folder", keys: "", run: newFolder },
+        { id: "file.save", label: "File: Save Workspace", keys: "Ctrl+S", run: () => { persist(); toast("Workspace saved in this browser"); } },
+        { id: "file.downloadProject", label: "File: Download Project as .zip", keys: "", run: downloadProject },
+        { id: "file.downloadActive", label: "File: Download Current File", keys: "", run: downloadActive },
+        { id: "file.upload", label: "File: Add Files from Disk", keys: "", run: () => dom.hiddenInput.click() },
+        { id: "file.reset", label: "File: Restore Demo Plugin", keys: "", run: resetProject },
+        { id: "view.sidebar", label: "View: Toggle Explorer", keys: "Ctrl+B", run: toggleSidebar },
+        { id: "view.minimap", label: "View: Toggle Minimap", keys: "", run: toggleMinimap },
+        { id: "view.wrap", label: "View: Toggle Word Wrap", keys: "Alt+Z", run: toggleWordWrap },
+        { id: "view.fontUp", label: "View: Increase Font Size", keys: "", run: () => changeFont(1) },
+        { id: "view.fontDown", label: "View: Decrease Font Size", keys: "", run: () => changeFont(-1) },
+        { id: "edit.quickOpen", label: "Go to File…", keys: "Ctrl+P", run: openQuickOpen },
+        { id: "edit.find", label: "Edit: Find in File", keys: "Ctrl+F", run: () => state.editor && state.editor.getAction("actions.find").run() },
+        { id: "edit.formatJson", label: "Edit: Format Document", keys: "Shift+Alt+F", run: formatDocument },
+        { id: "snippet.plugin", label: "Insert: definePlugin Skeleton", keys: "", run: () => insertTemplate("plugin") },
+        { id: "snippet.command", label: "Insert: Slash Command", keys: "", run: () => insertTemplate("command") },
+        { id: "snippet.settings", label: "Insert: Plugin Settings", keys: "", run: () => insertTemplate("settings") },
+        { id: "snippet.permission", label: "Insert: Permission Block", keys: "", run: () => insertTemplate("permission") },
+        { id: "help.api", label: "Help: Plugin API Reference", keys: "", run: showApiPanel },
+        { id: "help.market", label: "Help: Open the Marketplace", keys: "", run: () => window.open("/marketplace", "_blank", "noopener") }
+    ];
+
+    function toggleSidebar() {
+        state.ws.ui.sidebar = !state.ws.ui.sidebar;
+        dom.sidebar.hidden = !state.ws.ui.sidebar;
+        persist();
+    }
+
+    function toggleMinimap() {
+        state.ws.ui.minimap = !state.ws.ui.minimap;
+        state.editor && state.editor.updateOptions({ minimap: { enabled: state.ws.ui.minimap } });
+        persist();
+        toast(`Minimap ${state.ws.ui.minimap ? "on" : "off"}`);
+    }
+
+    function toggleWordWrap() {
+        state.ws.ui.wordWrap = state.ws.ui.wordWrap === "on" ? "off" : "on";
+        state.editor && state.editor.updateOptions({ wordWrap: state.ws.ui.wordWrap });
+        persist();
+        toast(`Word wrap ${state.ws.ui.wordWrap}`);
+    }
+
+    function changeFont(delta) {
+        state.ws.ui.fontSize = Math.min(24, Math.max(10, state.ws.ui.fontSize + delta));
+        state.editor && state.editor.updateOptions({ fontSize: state.ws.ui.fontSize });
+        persist();
+    }
+
+    function formatDocument() {
+        const path = state.ws.active;
+        if (!path || !state.editor) return;
+        if (languageFor(path) !== "json") return toast("Formatting is only wired up for JSON here", true);
+        const model = state.editor.getModel();
+        try {
+            const pretty = JSON.stringify(JSON.parse(model.getValue()), null, 4);
+            state.editor.executeEdits("limey-code-format", [{ range: model.getFullModelRange(), text: pretty }]);
+            toast("JSON formatted");
+        } catch (error) {
+            toast("That JSON has a syntax error", true);
+        }
+    }
+
+    function showApiPanel() {
+        openFile("MyPlugin/README.md");
+        toast("The plugin API is wired into completions — type definePlugin(");
+    }
+
+    /* ---------------------------------------------------------------------
+     * Palette + quick open
+     * ------------------------------------------------------------------- */
+
+    function matches(haystack, needle) {
+        return haystack.toLowerCase().includes(needle.toLowerCase());
+    }
+
+    function openPalette() {
+        dom.palette.hidden = false;
+        dom.paletteInput.value = "";
+        renderPalette("");
+        dom.paletteInput.focus();
+    }
+
+    function closePalette() {
+        dom.palette.hidden = true;
+    }
+
+    function renderPalette(query) {
+        const list = commands.filter(command => !query || matches(command.label, query));
+        state.paletteRows = list;
+        state.paletteIndex = 0;
+        dom.paletteList.innerHTML = "";
+
+        if (!list.length) {
+            dom.paletteList.innerHTML = '<div class="empty">No matching commands</div>';
+            return;
+        }
+
+        list.forEach((command, index) => {
+            const row = document.createElement("div");
+            row.className = "row" + (index === 0 ? " active" : "");
+            row.dataset.index = String(index);
+
+            const label = document.createElement("span");
+            label.className = "label";
+            label.textContent = command.label;
+            row.appendChild(label);
+
+            if (command.keys) {
+                const hint = document.createElement("span");
+                hint.className = "hint";
+                hint.textContent = command.keys;
+                row.appendChild(hint);
+            }
+
+            row.addEventListener("click", () => {
+                closePalette();
+                command.run();
+            });
+            dom.paletteList.appendChild(row);
+        });
+    }
+
+    function movePalette(delta) {
+        if (!state.paletteRows.length) return;
+        state.paletteIndex = (state.paletteIndex + delta + state.paletteRows.length) % state.paletteRows.length;
+        [...dom.paletteList.children].forEach((row, index) => row.classList.toggle("active", index === state.paletteIndex));
+        const active = dom.paletteList.children[state.paletteIndex];
+        if (active && active.scrollIntoView) active.scrollIntoView({ block: "nearest" });
+    }
+
+    function runPalette() {
+        const command = state.paletteRows[state.paletteIndex];
+        if (!command) return;
+        closePalette();
+        command.run();
+    }
+
+    function openQuickOpen() {
+        dom.quick.hidden = false;
+        dom.quickInput.value = "";
+        renderQuick("");
+        dom.quickInput.focus();
+    }
+
+    function closeQuickOpen() {
+        dom.quick.hidden = true;
+    }
+
+    function renderQuick(query) {
+        const files = Object.keys(state.ws.files).filter(path => !query || matches(path, query));
+        state.quickRows = files;
+        state.quickIndex = 0;
+        dom.quickList.innerHTML = "";
+
+        if (!files.length) {
+            dom.quickList.innerHTML = '<div class="empty">No matching files</div>';
+            return;
+        }
+
+        files.forEach((path, index) => {
+            const row = document.createElement("div");
+            row.className = "row" + (index === 0 ? " active" : "");
+
+            const label = document.createElement("span");
+            label.className = "label";
+            label.textContent = path.split("/").pop();
+            row.appendChild(label);
+
+            const hint = document.createElement("span");
+            hint.className = "hint";
+            hint.textContent = path;
+            row.appendChild(hint);
+
+            row.addEventListener("click", () => {
+                closeQuickOpen();
+                openFile(path);
+            });
+            dom.quickList.appendChild(row);
+        });
+    }
+
+    function moveQuick(delta) {
+        if (!state.quickRows.length) return;
+        state.quickIndex = (state.quickIndex + delta + state.quickRows.length) % state.quickRows.length;
+        [...dom.quickList.children].forEach((row, index) => row.classList.toggle("active", index === state.quickIndex));
+        const active = dom.quickList.children[state.quickIndex];
+        if (active && active.scrollIntoView) active.scrollIntoView({ block: "nearest" });
+    }
+
+    function runQuick() {
+        const path = state.quickRows[state.quickIndex];
+        if (!path) return;
+        closeQuickOpen();
+        openFile(path);
+    }
+
+    /* ---------------------------------------------------------------------
+     * Wiring
+     * ------------------------------------------------------------------- */
+
+    dom.paletteInput.addEventListener("input", () => renderPalette(dom.paletteInput.value));
+    dom.paletteInput.addEventListener("keydown", event => {
+        if (event.key === "ArrowDown") { event.preventDefault(); movePalette(1); }
+        else if (event.key === "ArrowUp") { event.preventDefault(); movePalette(-1); }
+        else if (event.key === "Enter") { event.preventDefault(); runPalette(); }
+        else if (event.key === "Escape") { event.preventDefault(); closePalette(); }
+    });
+    dom.palette.addEventListener("click", event => { if (event.target === dom.palette) closePalette(); });
+
+    dom.quickInput.addEventListener("input", () => renderQuick(dom.quickInput.value));
+    dom.quickInput.addEventListener("keydown", event => {
+        if (event.key === "ArrowDown") { event.preventDefault(); moveQuick(1); }
+        else if (event.key === "ArrowUp") { event.preventDefault(); moveQuick(-1); }
+        else if (event.key === "Enter") { event.preventDefault(); runQuick(); }
+        else if (event.key === "Escape") { event.preventDefault(); closeQuickOpen(); }
+    });
+    dom.quick.addEventListener("click", event => { if (event.target === dom.quick) closeQuickOpen(); });
+
+    el("commandTrigger").addEventListener("click", openPalette);
+    el("newFileBtn").addEventListener("click", newFile);
+    el("newFolderBtn").addEventListener("click", newFolder);
+    el("uploadBtn").addEventListener("click", () => dom.hiddenInput.click());
+    dom.hiddenInput.addEventListener("change", event => {
+        uploadFiles(event.target.files);
+        event.target.value = "";
+    });
+
+    for (const button of document.querySelectorAll("[data-activity]")) {
+        button.addEventListener("click", () => {
+            const activity = button.dataset.activity;
+            for (const other of document.querySelectorAll("[data-activity]")) other.classList.toggle("active", other === button);
+            el("sideTitle").textContent = activity === "search" ? "Files" : activity === "api" ? "Plugin API" : "Explorer";
+
+            if (activity === "search") openQuickOpen();
+            else if (activity === "api") showApiPanel();
+            else {
+                dom.sidebar.hidden = false;
+                state.ws.ui.sidebar = true;
+                renderTree();
+            }
+        });
+    }
+
+    dom.fallback.addEventListener("input", () => {
+        const path = state.ws.active;
+        if (!path) return;
+        state.ws.files[path] = dom.fallback.value;
+        state.dirty.add(path);
+        renderTabs();
+        persist();
+    });
+
+    window.addEventListener("keydown", event => {
+        const mod = event.ctrlKey || event.metaKey;
+        if (mod && event.shiftKey && event.key.toLowerCase() === "p") { event.preventDefault(); openPalette(); }
+        else if (mod && !event.shiftKey && event.key.toLowerCase() === "p") { event.preventDefault(); openQuickOpen(); }
+        else if (mod && event.key.toLowerCase() === "s") { event.preventDefault(); persist(); toast("Workspace saved in this browser"); }
+        else if (mod && event.key.toLowerCase() === "b") { event.preventDefault(); toggleSidebar(); }
+        else if (mod && event.key.toLowerCase() === "n") { event.preventDefault(); newFile(); }
+        else if (event.altKey && event.key.toLowerCase() === "z") { event.preventDefault(); toggleWordWrap(); }
+    });
+
+    /* ---------------------------------------------------------------------
+     * Boot: Monaco first, plain textarea if it never arrives
+     * ------------------------------------------------------------------- */
+
+    let attempts = 0;
+
+    function bootMonaco() {
+        if (typeof window.monaco === "undefined") {
+            if (++attempts > 120) {
+                dom.fallback.hidden = false;
+                dom.editor.style.display = "none";
+                dom.statusProblems.textContent = "editor bundle missing";
+                dom.statusProblems.className = "warn";
+                toast("Monaco could not load — plain editor active. Run pnpm buildMonaco.", true);
+                return;
+            }
+            return setTimeout(bootMonaco, 100);
+        }
+
+        state.monaco = window.monaco;
+        try {
+            createEditor(state.monaco);
+        } catch (error) {
+            console.error("[Limey Code] failed to start Monaco", error);
+            dom.fallback.hidden = false;
+            dom.editor.style.display = "none";
+            toast("Monaco failed to start — plain editor active", true);
+        }
+    }
+
+    dom.sidebar.hidden = !state.ws.ui.sidebar;
+    renderTree();
+    renderTabs();
+    dom.statusPath.textContent = state.ws.active || "no file";
+    dom.statusLang.textContent = state.ws.active ? languageFor(state.ws.active) : "—";
+    if (!Object.keys(state.ws.files).length) state.ws.files = { ...DEMO_FILES };
+
+    const script = document.createElement("script");
+    script.src = "/vendor/monaco/index.js";
+    script.onload = bootMonaco;
+    script.onerror = () => {
+        dom.fallback.hidden = false;
+        dom.editor.style.display = "none";
+        toast("Monaco bundle not found — plain editor active", true);
+    };
+    document.body.appendChild(script);
+
+    bootMonaco();
+
+    // Testing hook: the harness pokes at the pure logic without a real browser.
+    window.__limeyCode = { state, buildTree, languageFor, makeZip, crc32, openFile, commands, persist };
+})();
+</script>
+</body>
+</html>

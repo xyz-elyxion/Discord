@@ -2683,6 +2683,7 @@ const NAMED_PAGES = {
     "/docs": "docs/index.html",
     "/plugins": "plugins.html",
     "/marketplace": "marketplace.html",
+    "/limey-code": "limey-code.html",
     "/tools": "tools.html",
     "/rules": "rules.html",
     "/usrbg": "usrbg.html",
