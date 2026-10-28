@@ -1366,6 +1366,27 @@ declare module "@api/Notices" {
      * Commands
      * ------------------------------------------------------------------- */
 
+    function publishToStore() {
+        // Same sessionStorage handoff the old workshop used, so /submit-plugin
+        // still prefills the form and attaches the project files.
+        const entry = Object.keys(state.ws.files).find(path => /(^|\/)index\.tsx?$/.test(path));
+        // The plugin's own description sits at one indent level; settings options
+        // have their own description strings further in, so anchor on the line.
+        const description = entry
+            ? (state.ws.files[entry].match(/^ {4}description:\s*"([^"]*)"/m) || [])[1] || ""
+            : "";
+        try {
+            sessionStorage.setItem("limey-publish-payload", JSON.stringify({
+                name: state.ws.name || "",
+                description,
+                tags: [],
+                authorName: "",
+                files: { ...state.ws.files }
+            }));
+        } catch { /* storage full — the form still opens, just unprefilled */ }
+        window.location.href = "/submit-plugin";
+    }
+
     const commands = [
         { id: "file.new", label: "File: New File", keys: "Ctrl+N", run: newFile },
         { id: "file.folder", label: "File: New Folder", keys: "", run: newFolder },
@@ -1374,6 +1395,7 @@ declare module "@api/Notices" {
         { id: "file.downloadActive", label: "File: Download Current File", keys: "", run: downloadActive },
         { id: "file.upload", label: "File: Add Files from Disk", keys: "", run: () => dom.hiddenInput.click() },
         { id: "file.reset", label: "File: Restore Demo Plugin", keys: "", run: resetProject },
+        { id: "publish.store", label: "Publish: Send to Community Store", keys: "", run: publishToStore },
         { id: "view.sidebar", label: "View: Toggle Explorer", keys: "Ctrl+B", run: toggleSidebar },
         { id: "view.minimap", label: "View: Toggle Minimap", keys: "", run: toggleMinimap },
         { id: "view.wrap", label: "View: Toggle Word Wrap", keys: "Alt+Z", run: toggleWordWrap },
