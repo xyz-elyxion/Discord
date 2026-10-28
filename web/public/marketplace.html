@@ -200,27 +200,12 @@
             align-items: center;
             margin-top: 4px;
         }
-        .mk-btn {
+        /* Cards reuse the site's .btn variants: style.css colours every
+           a:any-link:not(.btn) lime, so a custom button class gets overridden
+           and the primary label turns lime-on-lime. Only size it here. */
+        .mk-actions .btn {
             font-size: 0.85rem;
-            font-weight: 600;
             padding: 8px 14px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            color: #fafafa;
-            text-decoration: none;
-            transition: border-color 0.15s, background 0.15s;
-        }
-        .mk-btn:hover {
-            border-color: #404040;
-            background: #1f1f1f;
-        }
-        .mk-btn.primary {
-            background: var(--lime);
-            border-color: var(--lime);
-            color: #101010;
-        }
-        .mk-btn.primary:hover {
-            background: #abd94a;
         }
         .mk-note {
             font-size: 0.8rem;
@@ -531,7 +516,7 @@
 
             if (item.download) {
                 const link = document.createElement("a");
-                link.className = "mk-btn primary";
+                link.className = "btn btn-primary";
                 link.href = item.download;
                 link.download = "";
                 link.textContent = "Download .zip" + (item.downloadBytes ? ` · ${formatBytes(item.downloadBytes)}` : "");
@@ -550,7 +535,7 @@
 
             if (item.sourceUrl) {
                 const source = document.createElement("a");
-                source.className = "mk-btn";
+                source.className = "btn btn-ghost";
                 source.href = item.sourceUrl;
                 source.target = "_blank";
                 source.rel = "noopener noreferrer";
