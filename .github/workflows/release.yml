@@ -1,0 +1,94 @@
+name: Release
+
+# Builds every downloadable artifact here instead of inside the Docker image,
+# then publishes it as a GitHub Release. The site links straight at
+# /releases/latest/download/<asset>, so a download never depends on a container
+# rebuild finishing first. Pushing a v* tag cuts a versioned release; running
+# this workflow by hand refreshes the rolling "latest" release.
+on:
+    push:
+        tags:
+            - v*
+    workflow_dispatch:
+
+permissions:
+    contents: write
+
+env:
+    FORCE_COLOR: true
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    REPO: ${{ github.repository }}
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: pnpm/action-setup@v6 # Install pnpm using packageManager key in package.json
+
+            - name: Use Node.js 24
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+                  cache: "pnpm"
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # buildWeb is buildWeb.mjs + zipExtension.mjs + buildMonaco.mjs, so
+            # this produces the userscript, the loadable extension zip and the
+            # Monaco vendor bundle in one step.
+            - name: Build the web bundle, extension zip and Monaco bundle
+              run: pnpm buildWebStandalone
+
+            - name: Build the client bundle
+              run: pnpm build --standalone
+
+            # Same cross-compile the Dockerfile used to do, but on the CI runner.
+            # mingw is only needed for the cgo-based Windows GUI installer.
+            - name: Build the installer binaries
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y --no-install-recommends mingw-w64
+                  cd installer
+                  CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ GOOS=windows GOARCH=amd64 \
+                      go build -ldflags "-H windowsgui -s -w" -o ../dist/LimeyV1Installer.exe .
+                  CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags cli -ldflags "-s -w -extldflags=-static" -o ../dist/LimeyV1Installer-cli-win.exe .
+                  CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags cli -ldflags "-s -w" -o ../dist/LimeyV1Installer-cli-macos-arm64 .
+                  CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -tags cli -ldflags "-s -w" -o ../dist/LimeyV1Installer-cli-macos-amd64 .
+                  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags cli -ldflags "-s -w -extldflags=-static" -o ../dist/LimeyV1Installer-cli-linux .
+
+            - name: Resolve the release tag
+              run: |
+                  if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+                      echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+                  else
+                      echo "TAG=latest" >> "$GITHUB_ENV"
+                  fi
+
+            - name: Publish the release
+              run: |
+                  set -euo pipefail
+                  assets=(
+                      dist/LimeyV1Installer.exe
+                      dist/LimeyV1Installer-cli-win.exe
+                      dist/LimeyV1Installer-cli-macos-arm64
+                      dist/LimeyV1Installer-cli-macos-amd64
+                      dist/LimeyV1Installer-cli-linux
+                      dist/LimeyV1.user.js
+                      dist/LimeyV1-Extension.zip
+                      dist/browser.js
+                      dist/browser.css
+                  )
+                  for asset in "${assets[@]}"; do
+                      test -f "$asset" || { echo "missing build artifact: $asset" >&2; exit 1; }
+                  done
+
+                  if ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+                      gh release create "$TAG" --repo "$REPO" --latest \
+                          --title "Limey V1 $TAG" \
+                          --notes "Automated build of $GITHUB_SHA. Every download on the site is served from this release."
+                  fi
+                  gh release upload "$TAG" "${assets[@]}" --repo "$REPO" --clobber

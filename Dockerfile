@@ -6,25 +6,10 @@ RUN go mod download
 COPY services/cloud .
 RUN CGO_ENABLED=0 go build -o limeycloud-backend .
 
-# ---------- Limey V1 Installer (Go CLI + Windows GUI) ----------
-FROM golang:1.27-alpine AS installer
-WORKDIR /installer
-# mingw is needed to cross-compile the cgo-based GUI installer for Windows
-RUN apk add --no-cache mingw-w64-gcc
-COPY installer/go.mod installer/go.sum ./
-# The installer module force-replaces imgui-go with our vendored fork
-# (soft-assert patch, see third_party/imgui-go) — at /installer that relative
-# path resolves to /third_party/imgui-go, so copy it there too.
-COPY third_party /third_party
-RUN go mod download
-COPY installer .
-# Cross-compile the GUI installer (Windows .exe) and static CLI installers
-# for Windows, macOS (Intel + Apple Silicon) and Linux
-RUN CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui -s -w" -o /LimeyV1Installer.exe . \
- && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags cli -ldflags "-s -w -extldflags=-static" -o /LimeyV1Installer-cli-win.exe . \
- && CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags cli -ldflags "-s -w" -o /LimeyV1Installer-cli-macos-arm64 . \
- && CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -tags cli -ldflags "-s -w" -o /LimeyV1Installer-cli-macos-amd64 . \
- && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags cli -ldflags "-s -w -extldflags=-static" -o /LimeyV1Installer-cli-linux .
+# The installer binaries (Windows GUI + CLI for Windows/macOS/Linux) are not
+# built here any more: .github/workflows/release.yml cross-compiles them on CI
+# and publishes them as release assets, and the site links straight at that
+# release, so the image needs no Go toolchain or mingw.
 
 # ---------- Limebot (Discord bot) ----------
 FROM node:22-alpine AS limebot
@@ -205,11 +190,7 @@ COPY --from=desktop --chown=node:node /desktop/package.json /app/dist/limeyDeskt
 # Full browser/ extension shell so the server can package the install zip itself
 COPY --from=build --chown=node:node /app/browser ./browser
 COPY --from=cloud --chown=node:node /services/cloud/limeycloud-backend ./services/cloud/limeycloud-backend
-COPY --from=installer --chown=node:node /LimeyV1Installer.exe ./dist/LimeyV1Installer.exe
-COPY --from=installer --chown=node:node /LimeyV1Installer-cli-win.exe ./dist/LimeyV1Installer-cli-win.exe
-COPY --from=installer --chown=node:node /LimeyV1Installer-cli-macos-arm64 ./dist/LimeyV1Installer-cli-macos-arm64
-COPY --from=installer --chown=node:node /LimeyV1Installer-cli-macos-amd64 ./dist/LimeyV1Installer-cli-macos-amd64
-COPY --from=installer --chown=node:node /LimeyV1Installer-cli-linux ./dist/LimeyV1Installer-cli-linux
+# Installer downloads come from the GitHub release, not from this image.
 # Ghost Client overlay EXE (portable Windows zip) for download
 COPY --from=ghost-client --chown=node:node /ghost/dist/*.zip ./dist/
 COPY --from=limebot --chown=node:node /bot/dist ./bot/dist
