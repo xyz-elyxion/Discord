@@ -133,12 +133,33 @@ jobs:
                       test -f "$asset" || { echo "missing build artifact: $asset" >&2; exit 1; }
                   done
 
-                  if ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-                      gh release create "$TAG" --repo "$REPO" --latest \
-                          --title "Limey V1 $TAG" \
-                          --notes "Automated build of $GITHUB_SHA. Every download on the site is served from this release."
+                  # The rolling "latest" tag is reused by every build, so its metadata has to be
+                  # rewritten as well. Only creating it once leaves the release page naming the
+                  # commit and timestamp of the very first build, which looks like nothing shipped.
+                  notes="$(printf 'Automated build of %s, published %s.\n\nEvery download on the site is served from this release.' \
+                      "$GITHUB_SHA" "$(date -u '+%Y-%m-%d %H:%M UTC')")"
+
+                  # Re-assert --latest on the rolling release on every run: the whole site
+                  # downloads through /releases/latest/download, so a versioned tag must never
+                  # take that pointer over and leave the live URLs stuck on older assets.
+                  if [[ "$TAG" == "latest" ]]; then
+                      latest=(--latest)
+                  else
+                      latest=()
+                  fi
+
+                  if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+                      gh release edit "$TAG" --repo "$REPO" --title "Limey V1 $TAG" --notes "$notes" "${latest[@]}"
+                  else
+                      gh release create "$TAG" --repo "$REPO" --title "Limey V1 $TAG" --notes "$notes" "${latest[@]}"
                   fi
                   gh release upload "$TAG" "${assets[@]}" --repo "$REPO" --clobber
+
+                  # Print what is actually attached: an upload that silently skipped assets is
+                  # otherwise invisible, and the deploy below pulls the desktop archive back out
+                  # of this release, so a missing asset has to be loud here.
+                  gh release view "$TAG" --repo "$REPO" --json tagName,isLatest,updatedAt,assets \
+                      --jq '"release \(.tagName) latest=\(.isLatest) updated=\(.updatedAt)", (.assets[] | "  \(.name)  \(.size) bytes")'
 
             # Only after every artifact is on the release: the Render image pulls
             # LimeyV1Desktop-build.tar.gz from it during the Docker build, so
