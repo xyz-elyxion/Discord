@@ -3,8 +3,9 @@ name: Release
 # Builds every downloadable artifact here instead of inside the Docker image,
 # then publishes it as a GitHub Release. The site links straight at
 # /releases/latest/download/<asset>, so a download never depends on a container
-# rebuild finishing first. Pushing a v* tag cuts a versioned release; running
-# this workflow by hand refreshes the rolling "latest" release.
+# rebuild finishing first, and the image pulls the desktop build from the
+# release instead of packaging it. Pushing a v* tag cuts a versioned release;
+# running this workflow by hand refreshes the rolling "latest" release.
 on:
     push:
         tags:
@@ -18,6 +19,9 @@ env:
     FORCE_COLOR: true
     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     REPO: ${{ github.repository }}
+    # electron-builder fetches Electron per target; the CDN mirror is faster and
+    # less prone to rate limits than the GitHub release download.
+    ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
 
 jobs:
     release:
@@ -33,6 +37,9 @@ jobs:
               with:
                   node-version: 24
                   cache: "pnpm"
+
+            - name: Enable corepack (each sub-project pins its own pnpm)
+              run: sudo corepack enable
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
@@ -60,6 +67,36 @@ jobs:
                   CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -tags cli -ldflags "-s -w" -o ../dist/LimeyV1Installer-cli-macos-amd64 .
                   CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags cli -ldflags "-s -w -extldflags=-static" -o ../dist/LimeyV1Installer-cli-linux .
 
+            # Ghost Client overlay: electron-builder only zips the win32-x64
+            # Electron dist, so no Wine is needed. The pre-fetch script fills
+            # electron-builder's cache first (some hosts block the download).
+            - name: Build the Ghost Client
+              working-directory: ghost-client
+              run: |
+                  pnpm install --frozen-lockfile=false --ignore-scripts
+                  node scripts/fetch-electron-dist.mjs
+                  pnpm build:win
+
+            # Desktop standalone client: esbuild bundles into dist/js, then
+            # electron-builder adds the Linux AppImage/.tar.gz and the portable
+            # Windows zip. The whole build output is archived as well — the web
+            # server serves those files (and the packaged installers next to
+            # them) at /dist/limeyDesktop and /v1/install/desktop-app.
+            - name: Build the desktop client
+              env:
+                  XDG_CACHE_HOME: ${{ runner.temp }}/electron-cache
+              run: |
+                  cd desktop
+                  pnpm install --frozen-lockfile --ignore-scripts
+                  pnpm rebuild esbuild
+                  pnpm build
+                  test -f dist/js/main.js
+                  pnpm exec electron-builder --linux AppImage tar.gz --publish never
+                  pnpm exec electron-builder --win zip --x64 --publish never
+                  rm -rf dist/linux-unpacked dist/win-unpacked dist/*.blockmap \
+                      dist/builder-debug.yml dist/builder-effective-config.yaml
+                  tar -czf "$GITHUB_WORKSPACE/LimeyV1Desktop-build.tar.gz" dist static package.json
+
             - name: Resolve the release tag
               run: |
                   if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
@@ -81,6 +118,8 @@ jobs:
                       dist/LimeyV1-Extension.zip
                       dist/browser.js
                       dist/browser.css
+                      ghost-client/dist/LimeyV1GhostClient-win-x64-1.0.0.zip
+                      LimeyV1Desktop-build.tar.gz
                   )
                   for asset in "${assets[@]}"; do
                       test -f "$asset" || { echo "missing build artifact: $asset" >&2; exit 1; }
@@ -92,3 +131,21 @@ jobs:
                           --notes "Automated build of $GITHUB_SHA. Every download on the site is served from this release."
                   fi
                   gh release upload "$TAG" "${assets[@]}" --repo "$REPO" --clobber
+
+            # Only after every artifact is on the release: the Render image pulls
+            # LimeyV1Desktop-build.tar.gz from it during the Docker build, so
+            # deploying any earlier would build against a release that isn't there.
+            # The deploy hook key lives in the RENDER_DEPLOY_KEY secret, never in
+            # the repo. Deploys are limited to main and version tags so a manual
+            # run from a feature branch can't take the live site down.
+            - name: Deploy to Render
+              if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
+              env:
+                  RENDER_DEPLOY_HOOK: https://api.render.com/deploy/srv-datf64favr4c73da5lvg?key=${{ secrets.RENDER_DEPLOY_KEY }}
+                  RENDER_DEPLOY_KEY: ${{ secrets.RENDER_DEPLOY_KEY }}
+              run: |
+                  if [[ -z "$RENDER_DEPLOY_KEY" ]]; then
+                      echo "RENDER_DEPLOY_KEY is not set — add it under Settings → Secrets and variables → Actions." >&2
+                      exit 1
+                  fi
+                  curl -fsS -X POST "$RENDER_DEPLOY_HOOK" -o /dev/null -w "Render deploy triggered: HTTP %{http_code}\n"

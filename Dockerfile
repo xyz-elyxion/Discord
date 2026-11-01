@@ -31,76 +31,11 @@ RUN pnpm install --frozen-lockfile --ignore-scripts \
     && pnpm rebuild better-sqlite3 sharp
 RUN node scripts/build.mjs
 
-# ---------- Limey V1 Desktop (standalone Electron client) ----------
-# Builds the rebranded Vesktop fork in desktop/: esbuild bundles the
-# app's main/preload/renderer/splash/updater scripts into /desktop/dist.
-# No Electron runtime scripts are needed for bundling, so install with
-# --ignore-scripts (electron binaries are fetched per-target by
-# electron-builder at package time) and rebuild esbuild, which ships a
-# platform binary. Debian (glibc) rather than Alpine: electron-builder's
-# native packers (app-builder, AppImage toolset) need glibc; musl breaks them.
-FROM node:22-slim AS desktop
-WORKDIR /desktop
-
-RUN corepack enable
-
-COPY desktop/package.json desktop/pnpm-lock.yaml desktop/pnpm-workspace.yaml ./
-COPY desktop/patches ./patches
-COPY desktop/packages ./packages
-RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild esbuild
-
-# .dockerignore keeps the context lean (node_modules/ and dist/ never match),
-# so this copies clean source; the build regenerates dist/ in-image.
-COPY desktop ./
-RUN pnpm build \
-    && test -f dist/js/main.js && test -f dist/js/renderer.js && test -f dist/js/preload.js
-
-# Package real installers next to the plain bundles, all built in-image:
-#  - Linux: AppImage + .tar.gz (both arches from the electron-builder config)
-#  - Windows: portable .zip (unzip & run; no NSIS/Wine needed for zip targets)
-# Packaging pulls the per-target Electron dist zips itself. --publish never:
-# artifacts must stay local to the image, not be uploaded anywhere.
-RUN pnpm exec electron-builder --linux AppImage tar.gz --publish never \
-    && pnpm exec electron-builder --win zip --x64 --publish never
-
-# Drop unpacked intermediates electron-builder leaves behind — the installers
-# are what ships; linux-unpacked/win-unpacked just inflate the image.
-RUN rm -rf dist/linux-unpacked dist/win-unpacked dist/*.blockmap dist/builder-debug.yml dist/builder-effective-config.yaml
-
-# ---------- Ghost Client overlay (Electron EXE) ----------
-# Builds the Prestige-style overlay app (ghost-client/) into a portable
-# Windows zip. Cross-compiled on Linux: electron-builder just downloads the
-# win32-x64 Electron dist and zips it, so no Wine is needed for the zip target.
-FROM node:22-slim AS ghost-client
-
-WORKDIR /ghost
-
-RUN corepack enable
-
-# app-builder downloads the electron win32-x64 dist with a parallel-part
-# downloader that some CI hosts (Render et al.) rate-limit or block. Use the
-# npmmirror CDN mirror instead and pre-fetch the zip into electron-builder's
-# cache with retries, so the in-builder download short-circuits entirely.
-ENV ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
-ENV XDG_CACHE_HOME=/node/.cache
-
-COPY ghost-client/package.json ./
-
-# electron's postinstall grabs a ~100MB binary we never run locally and it
-# needs no scripts at build time (the correct dist is pre-fetched below).
-RUN pnpm install --frozen-lockfile=false --ignore-scripts
-
-# Pre-fetch the electron win32-x64 dist into electron-builder's cache from the
-# npmmirror CDN with retries — app-builder's own GitHub release download gets
-# rate-limited/blocked on some CI hosts and would kill the whole build.
-# Living in the app repo's scripts/ keeps the Dockerfile parser-friendly
-# (no multi-line inline scripts) and testable outside Docker.
-COPY ghost-client/scripts/fetch-electron-dist.mjs ./scripts/fetch-electron-dist.mjs
-RUN node scripts/fetch-electron-dist.mjs
-
-COPY ghost-client ./
-RUN pnpm build:win \
-    && test -f dist/LimeyV1GhostClient-win-x64-1.0.0.zip
+# The desktop client (esbuild bundles + electron-builder AppImage/.tar.gz/.zip)
+# and the Ghost Client overlay zip are built by .github/workflows/release.yml
+# and published as release assets. This image downloads the packaged desktop
+# build instead of producing it (see the fetch step in the build stage), and
+# the Ghost Client is linked straight from the release.
 
 # ---------- Build stage ----------
 FROM node:22-alpine AS build
@@ -143,6 +78,18 @@ RUN mkdir -p /app/runtime_deps/node_modules \
     && cd /app/runtime_deps \
     && echo '{"name":"limey-runtime-deps","private":true}' > package.json \
     && npm install --no-audit --no-fund --loglevel=error "pg@$(node -p "require('/app/node_modules/pg/package.json').version")"
+# Pull the desktop build the release workflow produced: the same layout the
+# image used to build in a `desktop` stage (dist/ + static/ + package.json),
+# including the packaged installers electron-builder writes into dist/ that
+# /v1/install/desktop-app hands out. Fails loudly rather than shipping an image
+# with a dead desktop app, so RELEASE_URL must point at a release that has the
+# asset (the rolling `latest` release by default).
+ARG RELEASE_URL=https://github.com/xyz-elyxion/Discord/releases/latest/download
+RUN mkdir -p /app/dist/limeyDesktop \
+    && wget -q -O /tmp/limeyDesktop.tar.gz "$RELEASE_URL/LimeyV1Desktop-build.tar.gz" \
+    && tar -xzf /tmp/limeyDesktop.tar.gz -C /app/dist/limeyDesktop \
+    && rm /tmp/limeyDesktop.tar.gz \
+    && test -f /app/dist/limeyDesktop/dist/js/main.js
 # Generate the plugin catalog data for /plugins/ and the source archives the
 # /marketplace download buttons hand out
 RUN pnpm generatePluginJson web/public/plugins.json web/public/readmes.json \
@@ -181,18 +128,14 @@ COPY --from=build --chown=node:node /app/package.json /app/server.js ./
 COPY --from=build --chown=node:node /app/web ./web
 COPY --from=build --chown=node:node /app/runtime_deps/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
-# Limey V1 Desktop standalone app (built by the desktop stage): bundles, views
-# and manifest under /dist/limeyDesktop. /dist/limeyDesktop/* serves the raw
-# build files and /v1/install/desktop-app serves the packaged installers.
-COPY --from=desktop --chown=node:node /desktop/dist /app/dist/limeyDesktop/dist
-COPY --from=desktop --chown=node:node /desktop/static /app/dist/limeyDesktop/static
-COPY --from=desktop --chown=node:node /desktop/package.json /app/dist/limeyDesktop/package.json
+# The desktop app lives in /app/dist/limeyDesktop, unpacked from the release
+# asset during the build stage: /dist/limeyDesktop/* serves the raw build files
+# and /v1/install/desktop-app serves the packaged installers beside them.
 # Full browser/ extension shell so the server can package the install zip itself
 COPY --from=build --chown=node:node /app/browser ./browser
 COPY --from=cloud --chown=node:node /services/cloud/limeycloud-backend ./services/cloud/limeycloud-backend
 # Installer downloads come from the GitHub release, not from this image.
-# Ghost Client overlay EXE (portable Windows zip) for download
-COPY --from=ghost-client --chown=node:node /ghost/dist/*.zip ./dist/
+# Ghost Client download is a release asset (see download.html), so no zip here.
 COPY --from=limebot --chown=node:node /bot/dist ./bot/dist
 COPY --from=limebot --chown=node:node /bot/node_modules ./bot/node_modules
 COPY --from=limebot --chown=node:node /bot/package.json ./bot/package.json
