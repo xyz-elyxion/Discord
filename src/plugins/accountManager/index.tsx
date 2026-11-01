@@ -11,6 +11,7 @@ import { Devs } from "@utils/constants";
 import { Logger } from "@utils/Logger";
 import definePlugin from "@utils/types";
 import { findByProps } from "@webpack";
+import { AuthenticationStore, RestAPI } from "@webpack/common";
 
 const STORE_KEY = "accountManager.accounts";
 const logger = new Logger("AccountManager");
@@ -19,13 +20,40 @@ const logger = new Logger("AccountManager");
  * `window.localStorage` does not exist in every Discord build this plugin can
  * run in, so reading and writing the auth token must go through Discord's own
  * authState module (the same thing the login flow itself uses).
+ *
+ * Discord keeps moving those methods between modules, and findByProps *throws*
+ * when nothing matches — which aborted `/account add` with
+ * "webpack.findByProps found no module" before the token was ever checked.
+ * Probe the shapes a build might expose instead, then fall back to the typed
+ * AuthenticationStore.
  */
-function authTokenModule(): { getToken?: () => string; setToken?: (t: string) => void; } | null {
+function tryFindProps(filter: string[]): any | null {
     try {
-        return findByProps("getToken", "setToken") ?? null;
+        return (findByProps as any)(...filter) ?? null;
     } catch {
         return null;
     }
+}
+
+let cachedAuthModule: any | null = null;
+
+function authTokenModule(): { getToken?: () => string; setToken?: (t: string) => void; logout?: () => Promise<void>; } | null {
+    if (cachedAuthModule) return cachedAuthModule;
+
+    for (const filter of [
+        ["getToken", "setToken"],
+        ["getToken", "logout"],
+        ["logout", "getStore"],
+        ["getToken"],
+    ]) {
+        const mod = tryFindProps(filter);
+        if (mod && typeof mod.getToken === "function") {
+            cachedAuthModule = mod;
+            return mod;
+        }
+    }
+
+    return (AuthenticationStore as any) ?? null;
 }
 
 function currentToken(): string | null {
@@ -97,13 +125,11 @@ function masked(token: string): string {
  * is ever stored.
  */
 async function verifyToken(token: string): Promise<{ id: string; username: string; avatar: string | null; bot?: boolean; email?: string; }> {
-    const auth = findByProps("getState", "logout", "getToken");
-    const API = auth?.RestAPI ?? findByProps("get", "post", "del");
-    if (!API) throw new Error("RestAPI not available.");
-
-    const res = await API.get({
+    // The shipped RestAPI already knows the endpoint layout and base URL; go
+    // through it rather than hunting for credentials-bearing module shapes.
+    const res = await (RestAPI as any).get({
         url: "/users/@me",
-        auth: false,
+        auth: false, // verify the token we were handed, not the current session
         headers: token
             ? { Authorization: token }
             : undefined,
@@ -175,8 +201,8 @@ async function switchToAccount(entry: AccountEntry & { token?: string }, sendRes
         sendResult("That account has no stored token.");
         return;
     }
-    const auth = findByProps("logout", "getStore", "getToken");
-    if (!auth) {
+    const auth = authTokenModule();
+    if (typeof auth?.logout !== "function") {
         sendResult("AuthState module not found — cannot switch accounts this build.");
         return;
     }
