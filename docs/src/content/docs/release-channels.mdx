@@ -60,6 +60,8 @@ The registry is not just prose — the platform now serves and renders it:
 | `GET /v1/channels` | Schema-versioned manifest (`limey.v1/channels/1`) of every channel above, each entry carrying `origin`, `stability`, `cadence` and an `implemented` flag. Single-channel lookup at `/v1/channels/:id`. |
 | `GET /v1/install/files` | Channel-aware file serving: `/v1/install/files/<name>` is stable; `/v1/install/files/{lts,rc,beta}/<name>` serve the frozen snapshots in `dist/<channel>/`, frozen with `pnpm publishChannel <channel>`. LTS falls back to the current stable files with the same hash-stamping and HMAC signatures until pinned; RC and Beta answer 503 "not published yet" instead — a pre-release must never be silently replaced by a stable build. |
 | `GET /v1/install/desktop` | The install-info endpoint embeds a `channels` object: the current track (`stable`), the docs URL, `ltsAvailable`, and the four implemented desktop host channels as `installTargets`, each already mapped to the installer's `--branch` value. |
+| `POST /v1/admin/rollout/*` | Admin controls for every strategy in §4: cohort percentages, calendar phases, the blue/green serve flip, shadow percent, flags, A/B variants, `freeze-previous`, and `rollback` / `resume`. The dashboard's Release channels card exposes rollback and roll-forward directly. |
+| Release automation | `server.js` arms `dist/previous/`, re-freezes `nightly`/`edge` whenever the build hash changes (boot, post-build, 30-minute interval), and serves the previous copy when a routed copy is missing a file. No admin action is required for any of it. |
 | Download page (`/download`) | A **Release channels** section documents the shipped tracks — Stable, Development and the Stable LTS card (with its `--channel lts` command and live pin status) — and a host picker turns any Discord branch (Stable, PTB, Canary, Development) into the matching installer command. It reads `/v1/channels` live to confirm the page's implemented channels match the backend. |
 | Installer `--branch` / `--channel` | The CLI installer accepts `[auto\|stable\|ptb\|canary\|development]` for `--branch` — the same ids as the host channels minus the `discord-` prefix — and `[stable\|lts\|rc\|beta\|canary\|alpha]` for `--channel` (the implemented installable channel subset; `preview` is a UI label, not an artifact stream). After patching it writes a `channel.txt` marker into the files dir. |
 | `pnpm publishChannel` | The freeze step: `scripts/publishChannel.mjs` copies the current desktop build into `dist/<channel>/` (requires `--force` to replace an existing snapshot). LTS is effectively a permanent pin; RC is re-frozen once per release cycle, Beta per feature batch, and both land in `stable` when clean. |
@@ -168,9 +170,10 @@ All of these are **implemented** — backed by the backend's rollout engine
 (okay, `server.js` has a hat rack again): one module (`rollouts.js`) decides,
 per stable-file request, *which copy* of the build answers — the live dist
 (blue), the frozen previous snapshot (`dist/previous/`, green), or the frozen
-canary snapshot. Strategies are admin-controlled (Dashboard → rollout
-endpoints under `/v1/admin/rollout/*`), state persists in the same KV store
-as the channel snapshots, and every strategy is observable at
+canary snapshot. Strategies are admin-controlled (the dashboard's Release
+channels card carries **Roll back to last good build** / **Roll forward**, and
+every strategy has a `/v1/admin/rollout/*` endpoint), state persists in the
+same KV store as the channel snapshots, and every strategy is observable at
 `GET /v1/rollouts`.
 
 Cohorts are **deterministic buckets** of a client key — `?installId=` if the
@@ -185,11 +188,12 @@ changes which artifacts exist, only which copy rides them.
 | `canary-rollout`   | Canary Rollout        | **Limey** (implemented) | A percentage cohort rides the frozen canary snapshot (`dist/canary/`) while everyone else stays on stable. `POST /v1/admin/rollout/canary {"percent":N}`; requires a published canary snapshot. | Volunteers (by cohort bucket) | Production (early cohort) | Per release, percentage-driven | Catch client regressions with a bounded blast radius |
 | `progressive`      | Progressive Rollout (Staged rollout) | **Limey** (implemented) | Stage cohorts (`1% → 10% → 50% → 100%`) are served the current build while the rest of the population is held on the frozen previous copy. `POST /v1/admin/rollout/stage {"percent":N}`; the current stable is frozen into `dist/previous/` first. | Everyone, spread over time | Production | Per stage bump | Rolling out a risky change gradually, with an instant way back |
 | `phased`           | Phased Rollout        | **Limey** (implemented) | Like progressive, but the effective percent comes from admin-set calendar windows (`{ at, percent }`) resolved at request time — no manual bumps. `POST /v1/admin/rollout/phases {"phases":[{"at":"2026-10-25T10:00:00Z","percent":10}, …]}`. | Ops with planned windows | Production | Per planned window | Coordinating across regions/times without a human watching the clock |
+| `scheduled`        | Scheduled Rollout (auto-advance) | **Limey** (implemented) | Progressive, but the stages advance themselves: `POST /v1/admin/rollout/schedule {"stages":[{"afterHours":0,"percent":1},{"afterHours":24,"percent":10},{"afterHours":72,"percent":50},{"afterHours":168,"percent":100}]}` stores the activation time, and the effective percent is resolved per request from elapsed hours. No admin bump and no cron — a full rollout completes unattended. | Everyone, over a defined window | Production | Continuous, self-advancing | Shipping without watching a clock or pressing stage buttons |
 | `bluegreen`        | Blue-Green Deployment | **Limey** (implemented) | Two complete copies: blue = live dist, green = frozen previous snapshot. `POST /v1/admin/rollout/serve {"serve":"green"}` moves *every* client onto the old copy — a one-click revert without waiting for a new build. | Everyone | Production | Per deployment | Reverting a bad stable release in one call |
 | `shadow`           | Shadow Release        | **Limey** (implemented) | A tiny shadow cohort rides the new build while everyone else is held on the frozen previous copy; shadow responses carry `X-Limey-Shadow: 1`. `POST /v1/admin/rollout/shadow {"percent":N}`. | Diagnostic cohort | Production (shadow ring) | Per experiment | Validating a new build against real update traffic without changing the user-visible baseline |
-| `shadow`           | Shadow Release        | **Limey** (implemented) | See the row above — the engine serves the new build only to the shadow cohort and answers everyone else with the frozen previous copy, so the new code takes real traffic while the user-visible baseline never moves. |
 | `featureflagged`   | Feature-Flagged Release | **Limey** (implemented) | Stable file serving is unaffected; per-cohort flags resolve at `GET /v1/featureflags?installId=…` (`POST /v1/admin/rollout/flags {"name":{"enabled":true,"percent":10}}`). Shipped-but-disabled features can be enabled remotely per cohort without any reinstall. | Everyone (features opt-in by bucket) | Production | Continuous, no re-install needed | Frequent-Safe experimentation without new builds |
 | `abtest`           | A/B Testing           | **Limey** (implemented) | `GET /v1/abtest/:slug?installId=…` assigns a stable variant from the admin-defined list (`POST /v1/admin/rollout/abtest/:slug {"variants":["control","variant-a"],"percent":50}`). The same client keeps its assignment forever. | Data-driven UX work | Production (per-cohort) | Per experiment | Plugin-store or settings-menu variants without shipping separate arrays |
+| `rollback`         | Rollback              | **Limey** (implemented) | Emergency revert: every client is re-pointed at the frozen previous copy (`dist/previous/`) and the backend records that hash as the last known good build. `POST /v1/admin/rollout/rollback` refuses to activate when no previous copy exists — a rollback must never resolve to the bad build — and `POST /v1/admin/rollout/resume` rolls forward again. Affected responses carry `X-Limey-Rollout: rollback`. | Users being protected | Production | Emergency only | Recovering from a bad `stable` push without waiting for the next patch |
 
 **Overlap notes.** `canary-rollout` / `progressive` / `phased` / `shadow` are
 the same cohort-bucket family calibrated differently (canary snapshot vs
@@ -197,6 +201,22 @@ stage percent vs calendar windows vs diagnostic ring); `bluegreen` is the
 crazy-care version of the same machinery where the green copy wins outright
 until someone flips it back. Pick one per release; they are all live at the
 same time, one at a time.
+
+### Automation — no human in the loop
+
+Three things happen without anyone opening the dashboard:
+
+| Mechanism | When it runs | What it does |
+| :-------- | :----------- | :----------- |
+| Previous-copy arming | container boot, after a self-build, every 30 minutes | If `dist/previous/` is missing, the current build is frozen into it and its hash recorded, so `rollback` and every staged strategy always have a known good target instead of nothing to fall back to. |
+| Auto channel refresh | same triggers | `nightly` and `edge` are re-frozen to the current build hash whenever it changes, persisted to KV exactly like an admin publish (`POST /v1/admin/channels/:ch/publish`). |
+| Serving safety net | every build-file request | If the copy a cohort was routed to lacks a file (half-finished build, unrestored snapshot), the frozen previous copy answers and the response carries `X-Limey-Fallback: previous` instead of 404ing that cohort. |
+
+`POST /v1/admin/rollout/schedule` is the unattended counterpart of `stage`:
+stages are elapsed-time offsets, so a release advances on its own. Every
+automatic action is idempotent — it compares the current build hash with what
+it already recorded — so repeated boots and intervals are cheap, and an admin
+can still override any of it by hand.
 
 ---
 
@@ -210,7 +230,7 @@ States and processes a track can enter — not (usually) channels users choose.
 | `maintenance`      | Maintenance Release | **Proposed** | Bug-fix-only drop on an otherwise-frozen track. | Users of a given version | Production | As bugs are fixed | Polish between feature batches |
 | `hotfix`           | Hotfix              | **Proposed** (standard industry idiom) | Out-of-band patch applied bypassing normal gates because the live product is broken. | Everyone (fast-tracked) | Production (usually) | As needed | Fixing a broken build or a widespread plugin outage right now |
 | `security-patch`   | Security Patch      | **Proposed** (concept known industry-wide; upstream Vencord itself does push urgent fixes) | Same as hotfix, plus *silent deploy priority* — security-sensitive fixes should reach `stable` before a changelog is cut. | Everyone | Production | As vulnerabilities are found | Patching patchers or anti-scam/anti-scam heuristics |
-| `rollback`         | Rollback            | **Proposed** (operations concept) | Re-point users to the previous hash after a bad release. Keeps a "last known good" pointer in the backend to enable one-click revert. | Users being protected | Production | Emergency only | Recovering from a bad `stable` push without waiting for the next patch |
+| `rollback`         | Rollback            | **Limey** (implemented as a rollout strategy) | See [§4](#4-deployment--rollout-strategies): a state the serving layer enters, not a channel — every client is re-pointed at the frozen previous copy until an admin rolls forward. | Users being protected | Production | Emergency only | Recovering from a bad `stable` push without waiting for the next patch |
 | `legacy`           | Legacy              | **Proposed** | Old client-version-limited builds kept around for users who cannot (or will not) update their Discord client. Tool must state concrete "supported until" dates. | Users on old Discord versions | Testing (frozen) | Patch-stratified, rare | Long-tail Discord-version support |
 | `deprecated`       | Deprecated          | **Proposed** (real concept upstream for *plugins*, proposed here for *tracks*) | A channel scheduled to be removed; updater should nag with a transition link. | Everyone | Any | Until removal | Cleaning up rarely-loaded channels without surprise delivery |
 | `archived`         | Archived            | **Proposed** | Read-only snapshots of any channel, no binaries served, no support. Users cannot "install" it; they can only *inspect* old artifacts. | Historians, forensics | Frozen | Never updates | Audit trail, crash-regression archaeology |
@@ -281,11 +301,12 @@ release-manager
     ├── canary-rollout  ✅  implemented (percent cohort on the canary copy)
     ├── progressive     ✅  implemented (1% → 10% → 100% staged on dist/previous)
     ├── phased          ✅  implemented (calendar windows)
+    ├── scheduled       ✅  implemented (stages advance on elapsed time)
     ├── bluegreen       ✅  implemented (blue/green serve flip — instant revert)
     ├── shadow          ✅  implemented (shadow ring + X-Limey-Shadow header)
     ├── featureflagged  ✅  implemented (per-cohort flags, no reinstall)
     ├── abtest          ✅  implemented (stable variant per slug)
-    └── rollback        → proposed: always-on capability, never "a channel"
+    └── rollback        ✅  implemented (every client re-pointed at dist/previous)
 ```
 
 And a maintenance ring a track can *enter*:

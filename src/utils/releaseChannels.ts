@@ -262,10 +262,16 @@ export const RELEASE_CHANNELS: ReleaseChannel[] = [
         implemented: true
     },
     {
-        id: "rollback", name: "Rollback", category: "rollout", origin: "proposed",
+        id: "scheduled", name: "Scheduled Rollout (auto-advance)", category: "rollout", origin: "limey",
+        stability: "production", cadence: "per elapsed-time stage", audience: "everyone, spread over time",
+        description: "Progressive rollout whose stages advance on their own: the effective percent comes from elapsed time since activation, so no human bumps 1% → 10% → 50% → 100%.",
+        implemented: true
+    },
+    {
+        id: "rollback", name: "Rollback", category: "rollout", origin: "limey",
         stability: "production", cadence: "emergency only", audience: "users being protected",
-        description: "Re-point users to the last known good hash after a bad release.",
-        implemented: false
+        description: "Every client is re-pointed at the frozen previous copy after a bad release; the backend records the last known good hash and rolls forward again on demand.",
+        implemented: true
     },
 
     // ---------------- Maintenance states ----------------

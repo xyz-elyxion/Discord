@@ -36,8 +36,8 @@ const CURRENT_SCHEMA = "limey.v1/rollouts/1";
 const STATE_KV_KEY = "limey:rollout-state";
 
 const STRATEGIES = [
-    "full", "rolling", "canary-rollout", "progressive", "phased",
-    "bluegreen", "shadow", "featureflagged", "abtest"
+    "full", "rolling", "canary-rollout", "progressive", "phased", "scheduled",
+    "bluegreen", "shadow", "featureflagged", "abtest", "rollback"
 ];
 
 let ctx = {
@@ -52,7 +52,7 @@ let state = null;
 // counters — per process, never persisted (cheap + informative in /v1/rollouts)
 let stats = {
     full: 0, rolling: 0, canary: 0, current: 0, previous: 0, green: 0,
-    blue: 0, shadow: 0, flagsResolved: 0, abtestResolved: 0
+    blue: 0, shadow: 0, rollback: 0, flagsResolved: 0, abtestResolved: 0
 };
 
 function sanitizeInstallId(raw) {
@@ -88,8 +88,30 @@ function canaryCopyPublished() {
     try { return require("fs").existsSync(join(ctx.DIST, "canary", "patcher.js")); } catch { return false; }
 }
 
+/**
+ * Percent for the auto-advancing `scheduled` strategy: the stages are
+ * elapsed-time offsets from `startedAt`, resolved at request time, so nobody
+ * has to bump a percentage by hand. A malformed or missing schedule falls back
+ * to the last explicit stage percent.
+ */
+function scheduledPercent() {
+    const schedule = state.schedule;
+    if (!schedule || !schedule.startedAt || !Array.isArray(schedule.stages) || !schedule.stages.length) {
+        return state.stagePercent;
+    }
+    const started = Date.parse(schedule.startedAt);
+    if (Number.isNaN(started)) return state.stagePercent;
+    const elapsedHours = (Date.now() - started) / 3600000;
+    let percent = 0;
+    for (const stage of schedule.stages) {
+        if (elapsedHours >= stage.afterHours) percent = Math.max(percent, stage.percent);
+    }
+    return percent;
+}
+
 /** percent for `progressive`-family strategies at the moment of a request. */
 function stagedPercent() {
+    if (state.strategy === "scheduled") return scheduledPercent();
     if (state.strategy === "phased") {
         const now = Date.now();
         let percent = 0;
@@ -129,7 +151,8 @@ function resolveServing(clientKey) {
         }
 
         case "progressive":
-        case "phased": {
+        case "phased":
+        case "scheduled": {
             const percent = stagedPercent();
             if (percent >= 100) return { dir: DIST, mode: "full", isShadow: false };
             if (percent <= 0) return { dir: DIST, mode: "full", isShadow: false };
@@ -148,6 +171,17 @@ function resolveServing(clientKey) {
             if (!hasPreviousCopy()) return { dir: DIST, mode: "full", isShadow: false };
             if (bucket < state.shadowPercent) return { dir: DIST, mode: "shadow", isShadow: true };
             return { dir: join(DIST, "previous"), mode: "staged-previous", isShadow: false };
+        }
+
+        case "rollback": {
+            // Emergency revert: every client is pointed back at the frozen
+            // previous copy, the "last known good" build. Unlike bluegreen
+            // there is no silent fallback — setRollback refuses to activate
+            // without a frozen copy, because answering with the bad build
+            // while claiming a rollback is the one failure mode this must not
+            // have. This branch only guards against the copy vanishing later.
+            if (!hasPreviousCopy()) return { dir: DIST, mode: "full", isShadow: false };
+            return { dir: join(DIST, "previous"), mode: "rollback", isShadow: false };
         }
 
         // File serving ignores flag / abtest strategies (their surface is
@@ -170,6 +204,7 @@ function recordServing(mode, isShadow) {
     else if (mode === "blue") stats.blue++;
     else if (mode === "staged-current" || mode === "shadow") stats.current++;
     else if (mode === "staged-previous") stats.previous++;
+    else if (mode === "rollback") { stats.rollback++; stats.previous++; }
 }
 
 function activePhase(percent) {
@@ -199,12 +234,19 @@ function publicStatus() {
         phased: state.strategy === "phased"
             ? { percent: stagedPercent(), activePhase: activePhase(stagedPercent()), phases: state.phases, previousCopyReady: hasPreviousCopy() }
             : null,
+        scheduled: state.strategy === "scheduled"
+            ? { percent: stagedPercent(), startedAt: state.schedule.startedAt, stages: state.schedule.stages, previousCopyReady: hasPreviousCopy(), previousHash: state.previousHash }
+            : null,
         bluegreen: state.strategy === "bluegreen"
             ? { serve: state.serve, previousCopyReady: hasPreviousCopy(), previousHash: state.previousHash }
             : null,
         shadow: state.strategy === "shadow"
             ? { percent: state.shadowPercent, previousCopyReady: hasPreviousCopy(), previousHash: state.previousHash }
             : null,
+        rollback: state.strategy === "rollback"
+            ? { hash: state.rollback.hash, at: state.rollback.at, previousCopyReady: hasPreviousCopy() }
+            : null,
+        lastKnownGood: state.rollback.hash,
         featureflagged: state.strategy === "featureflagged"
             ? { flagCount: Object.keys(state.flags).length }
             : null,
@@ -221,7 +263,7 @@ function publicStatus() {
 
 function assertStrategy(value) {
     if (!STRATEGIES.includes(value)) throw new Error("strategy must be one of " + STRATEGIES.join("|"));
-    if ((value === "canary-rollout" || value === "progressive" || value === "phased" || value === "bluegreen" || value === "shadow") && !ctx.DIST) {
+    if ((value === "canary-rollout" || value === "progressive" || value === "phased" || value === "scheduled" || value === "bluegreen" || value === "shadow" || value === "rollback") && !ctx.DIST) {
         throw new Error("engine not ready");
     }
 }
@@ -266,6 +308,26 @@ async function setPhases(phases) {
     await persist();
 }
 
+/**
+ * Auto-advancing rollout: `stages` are [{ afterHours, percent }] offsets from
+ * activation. The percent is computed per request, so a release can go
+ * 1% → 10% → 50% → 100% with nobody in the loop. It still wants a frozen
+ * previous copy so the not-yet-rolled-forward population keeps a good build.
+ */
+async function setSchedule(stages) {
+    if (!Array.isArray(stages) || !stages.length) throw new Error("stages must be a non-empty array of { afterHours, percent }");
+    const clean = stages
+        .map(stage => ({
+            afterHours: Math.max(0, Number(stage?.afterHours) || 0),
+            percent: Math.max(0, Math.min(100, Number(stage?.percent) | 0))
+        }))
+        .sort((a, b) => a.afterHours - b.afterHours);
+    state.schedule = { startedAt: new Date().toISOString(), stages: clean };
+    state.strategy = "scheduled";
+    await persist();
+    ctx.log(`[rollouts] scheduled rollout armed: ${clean.map(s => `${s.percent}% after ${s.afterHours}h`).join(" -> ")}`);
+}
+
 async function setShadowPercent(percent) {
     percent = Math.max(0, Math.min(100, Number(percent) | 0));
     state.shadowPercent = percent;
@@ -283,6 +345,32 @@ async function setServe(side) {
 async function notePreviousCopy(hash) {
     state.previousHash = hash ?? null;
     await persist();
+}
+
+/**
+ * Roll back: point every client at the frozen previous copy (the last known
+ * good build) and record which hash that was. Refuses without a frozen copy,
+ * so "rollback" can never resolve to serving the current build.
+ */
+async function setRollback(hash) {
+    if (!ctx.DIST) throw new Error("engine not ready");
+    if (!hasPreviousCopy()) {
+        throw new Error("no frozen previous copy — freeze one with POST /v1/admin/rollout/freeze-previous first");
+    }
+    state.strategy = "rollback";
+    state.rollback = {
+        hash: typeof hash === "string" && hash ? hash : state.previousHash ?? null,
+        at: new Date().toISOString()
+    };
+    await persist();
+    ctx.log(`[rollouts] rolled back to last known good (hash ${state.rollback.hash ?? "unknown"})`);
+}
+
+/** Resume normal serving after a rollback (the current build wins again). */
+async function clearRollback() {
+    if (state.strategy === "rollback") state.strategy = "full";
+    await persist();
+    ctx.log("[rollouts] rollback cleared — serving the current build");
 }
 
 async function setFlags(flags) {
@@ -355,7 +443,9 @@ async function init({ DIST, kvGet, kvSet, log }) {
         serve: "blue",
         flags: {},
         abtests: {},
-        previousHash: null
+        previousHash: null,
+        rollback: { hash: null, at: null },
+        schedule: { startedAt: null, stages: [] }
     };
     try {
         let stored = await kvGet(STATE_KV_KEY);
@@ -368,6 +458,10 @@ async function init({ DIST, kvGet, kvSet, log }) {
             if (!Array.isArray(state.phases)) state.phases = [];
             if (typeof state.flags !== "object" || !state.flags) state.flags = {};
             if (typeof state.abtests !== "object" || !state.abtests) state.abtests = {};
+            if (typeof state.rollback !== "object" || !state.rollback) state.rollback = { hash: null, at: null };
+            if (typeof state.schedule !== "object" || !state.schedule || !Array.isArray(state.schedule.stages)) {
+                state.schedule = { startedAt: null, stages: [] };
+            }
         }
     } catch (err) {
         ctx.log(`[rollouts] state load failed (${err && err.message}) — starting fresh`);
@@ -389,11 +483,14 @@ module.exports = {
     setCanaryPercent,
     setStagePercent,
     setPhases,
+    setSchedule,
     setShadowPercent,
     setServe,
     setFlags,
     setAbtests,
     notePreviousCopy,
+    setRollback,
+    clearRollback,
     resolveFlags,
     abtestVariant,
     hasPreviousCopy,

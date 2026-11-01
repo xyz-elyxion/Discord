@@ -41,3 +41,6 @@ installer/cpp/build/
 
 # Generated plugin archives for the /marketplace download buttons
 web/public/plugin-downloads/
+
+# Runtime malware hash store written by web/malware-db.js (KV is used when the host has a database)
+web/data/malware-hashes.json

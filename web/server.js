@@ -373,8 +373,21 @@ function handleInstall(req, res, url) {
         const clientKey = rollouts.clientKeyFor(req, rolloutQuery);
         const serve = rollouts.resolveServing(clientKey);
         rollouts.recordServing(serve.mode, serve.isShadow);
-        const serveDir = serve.dir || DIST;
-        const filePath = join(serveDir, name);
+        let serveDir = serve.dir || DIST;
+        let filePath = join(serveDir, name);
+        let fellBack = false;
+        // Safety net: a half-finished build or a snapshot that has not been
+        // restored can leave the copy a cohort was routed to without this
+        // file. Serving the frozen previous copy beats 404ing the whole cohort.
+        if (!existsSync(filePath)) {
+            const previousFile = join(DIST, "previous", name);
+            if (serveDir !== join(DIST, "previous") && existsSync(previousFile)) {
+                serveDir = join(DIST, "previous");
+                filePath = previousFile;
+                fellBack = true;
+                console.warn(`[rollouts] ${name} missing in the ${serve.mode} copy — served dist/previous instead`);
+            }
+        }
         if (!existsSync(filePath)) return json(res, 404, { error: "file not found — is the build ready?" }), true;
 
         let content = readFileSync(filePath);
@@ -403,7 +416,8 @@ function handleInstall(req, res, url) {
             "Cache-Control": "no-cache",
             "Access-Control-Allow-Origin": "*",
             "X-Limey-Rollout": serve.mode,
-            ...(serve.isShadow ? { "X-Limey-Shadow": "1" } : {})
+            ...(serve.isShadow ? { "X-Limey-Shadow": "1" } : {}),
+            ...(fellBack ? { "X-Limey-Fallback": "previous" } : {})
         });
         return res.end(content), true;
     }
@@ -608,8 +622,12 @@ function startBuildIfMissing() {
                 startedAt: buildStatus[key]?.startedAt,
                 finishedAt: new Date().toISOString(),
             };
-            if (ok) console.log(`[build] pnpm ${name} finished`);
-            else console.error(`[build] pnpm ${name} exited with code ${code}`);
+            if (ok) {
+                console.log(`[build] pnpm ${name} finished`);
+                // A self-built dist is a new release: refresh the automatic
+                // channels and arm the previous copy right away.
+                if (key === "desktop") void autoMaintainReleaseState("build");
+            } else console.error(`[build] pnpm ${name} exited with code ${code}`);
         });
     }
 }
@@ -1711,6 +1729,26 @@ try {
 }
 
 // ------------------------------------------------------------------
+// Malware hash database — entries admins add from /admin, served to the
+// MalwareDetector plugin at /v1/malware/hashes so hashes no longer have to
+// ship inside the client bundle.
+// ------------------------------------------------------------------
+let malwareDb;
+try {
+    malwareDb = require("./malware-db");
+    void malwareDb.init({
+        kvGet,
+        kvSet,
+        getAdminSession: dashGetSession,
+        file: join(ROOT, "data", "malware-hashes.json"),
+        log: console.error
+    }).catch(err => console.error("[malware-db] failed to load stored hashes:", err.message));
+    console.log("[malware-db] backend loaded");
+} catch (err) {
+    console.error("[malware-db] failed to load backend:", err.message);
+}
+
+// ------------------------------------------------------------------
 // User dashboard — Discord OAuth login + session API (public/dashboard.html)
 // Uses the shared OAuth callback (state=dashboard) and persists sessions
 // via the same PostgreSQL kv store as the rest of the site.
@@ -1721,6 +1759,10 @@ const DASH_SESSIONS_KEY = "limey:dashboard-sessions";
 // strategy values the updater accepts ("stable" until an admin flips it —
 // matches release-channels.js implemented track ids).
 const SNAPSHOT_CHANNELS = ["lts", "rc", "beta", "canary", "alpha", "nightly", "edge", "debug", "custom", "snapshot", "experimental", "early", "insider", "preview-ch", "dev-preview", "internal", "community"];
+// Channels that ship every build and are refreshed without an admin: the
+// release pipeline's "no human in the loop" set (see autoMaintainReleaseState).
+const AUTO_CHANNELS = ["nightly", "edge"];
+const AUTO_MAINTAIN_INTERVAL_MS = 30 * 60 * 1000;
 const LIVE_CHANNELS = ["stable", "lts"];
 const LIVE_CHANNEL_KEY = "limey:live-release-channel";
 
@@ -1784,6 +1826,60 @@ function freezePreviousStable(actor) {
     if (typeof hash === "string") void rollouts.notePreviousCopy(hash);
     console.log(`[rollouts] frozen current stable (hash ${hash ?? "unknown"}) as dist/previous — ${actor}`);
     return hash;
+}
+
+// ------------------------------------------------------------------
+// Release automation — keeps channels alive without an admin.
+//
+// Runs at boot, after a self-build finishes, and on an interval:
+//   1. arms a rollback target: when dist/previous is missing (fresh
+//      container, ephemeral disk), freeze the current build into it once, so
+//      rollback and every staged strategy always have somewhere to fall back
+//      to instead of waiting for someone to press a button;
+//   2. refreshes the channels that ship every build (nightly, edge) to the
+//      current hash and persists their files, exactly like an admin publish.
+// Both steps are idempotent — nothing happens when the recorded hash already
+// matches — so repeated boots and intervals are cheap.
+// ------------------------------------------------------------------
+let autoMaintainRunning = false;
+// Last result of autoMaintainReleaseState(), surfaced to the admin panel so an
+// admin can see the automation ran without reading container logs.
+let lastAutoMaintain = null;
+
+async function autoMaintainReleaseState(reason) {
+    if (autoMaintainRunning) return null;
+    if (!CH_FILES_LIST.every(file => existsSync(join(DIST, file)))) return null;
+    autoMaintainRunning = true;
+    try {
+        const head = readFileSync(join(DIST, "patcher.js"), "utf8").slice(0, 64);
+        const hash = (/^\/\/ Limey V1 (\S+)/.exec(head) || [])[1] ?? null;
+        const summary = { reason, hash, frozePrevious: false, refreshed: [] };
+        if (!existsSync(join(DIST, "previous", "patcher.js"))) {
+            summary.frozePrevious = Boolean(freezePreviousStable(`auto:${reason}`));
+        }
+        for (const channel of AUTO_CHANNELS) {
+            if (channelState[channel]?.hash === hash && existsSync(join(DIST, channel, "patcher.js"))) continue;
+            const snapshotDir = join(DIST, channel);
+            try {
+                mkdirSync(snapshotDir, { recursive: true });
+                for (const file of CH_FILES_LIST) copyFileSync(join(DIST, file), join(snapshotDir, file));
+            } catch (err) {
+                console.error(`[channels] auto-refresh of ${channel} failed:`, err.message);
+                continue;
+            }
+            recordChannelPublish(channel, hash);
+            channelState[channel].files = captureChannelFiles(channel);
+            saveChannelState();
+            summary.refreshed.push(channel);
+        }
+        lastAutoMaintain = { ...summary, at: new Date().toISOString() };
+        if (summary.frozePrevious || summary.refreshed.length) {
+            console.log(`[channels] auto-maintain (${reason}): previous ${summary.frozePrevious ? "armed" : "kept"}, refreshed ${summary.refreshed.join(", ") || "none"} @ ${hash ?? "unknown"}`);
+        }
+        return summary;
+    } finally {
+        autoMaintainRunning = false;
+    }
 }
 
 // base64 copies of an already-frozen snapshot dir (for restart restore).
@@ -2341,24 +2437,42 @@ async function handleDashboard(req, res, url) {
         const adminSession = dashGetSession(req);
         if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
         if (!releaseChannels) return json(res, 503, { error: "channel registry unavailable" }), true;
-        const snapshotChannels = ["lts", "rc", "beta", "canary", "alpha"];
         const strategy = await kvGet(LIVE_CHANNEL_KEY);
-        const hashes = {};
-        for (const ch of snapshotChannels) {
+        const hashIn = dir => {
             try {
-                const head = readFileSync(join(DIST, ch, "patcher.js"), "utf8").slice(0, 64);
-                hashes[ch] = /^\/\/ Limey V1 (\S+)/.exec(head)?.[1] ?? null;
-            } catch { hashes[ch] = null; }
+                return /^\/\/ Limey V1 (\S+)/.exec(readFileSync(join(dir, "patcher.js"), "utf8").slice(0, 64))?.[1] ?? null;
+            } catch { return null; }
+        };
+        // Report every channel the registry knows, not just the five that get a
+        // hand-frozen snapshot: nightly/edge are refreshed by
+        // autoMaintainReleaseState, and an admin has to be able to see that they
+        // are live (and whether the automation armed a rollback target) without
+        // reading container logs.
+        const published = {};
+        const snapshots = {};
+        for (const ch of SNAPSHOT_CHANNELS) {
+            const isPublished = existsSync(join(DIST, ch, "patcher.js"));
+            published[ch] = isPublished;
+            snapshots[ch] = {
+                hash: (isPublished ? hashIn(join(DIST, ch)) : null) ?? channelState[ch]?.hash ?? null,
+                publishedAt: channelState[ch]?.publishedAt ?? null,
+                auto: AUTO_CHANNELS.includes(ch)
+            };
         }
-        const head = readFileSync(join(DIST, "patcher.js"), "utf8").slice(0, 64);
-        const stableHash = /^\/\/ Limey V1 (\S+)/.exec(head)?.[1] ?? null;
         return json(res, 200, {
             schema: releaseChannels.CURRENT_SCHEMA,
-            stableHash,
+            stableHash: hashIn(DIST),
             liveChannel: typeof strategy === "string" && LIVE_CHANNELS.includes(strategy) ? strategy : "stable",
             strategy: releaseChannels.manifest().strategy,
-            published: Object.fromEntries(snapshotChannels.map(ch => [ch, existsSync(join(DIST, ch, "patcher.js"))])),
-            snapshots: Object.fromEntries(snapshotChannels.map(ch => [ch, { hash: hashes[ch], publishedAt: channelState[ch]?.publishedAt ?? null }]))
+            autoChannels: AUTO_CHANNELS,
+            automation: {
+                intervalMs: AUTO_MAINTAIN_INTERVAL_MS,
+                previousArmed: existsSync(join(DIST, "previous", "patcher.js")),
+                lastRun: lastAutoMaintain
+            },
+            rollout: rollouts ? rollouts.publicStatus() : null,
+            published,
+            snapshots
         }), true;
     }
 
@@ -2446,7 +2560,7 @@ async function handleDashboard(req, res, url) {
         }), true;
     }
 
-    const rolloutAdminPost = /^(\/v1\/admin\/rollout\/(strategy|canary|stage|phases|shadow|serve|flags|freeze-previous))$/.exec(url);
+    const rolloutAdminPost = /^(\/v1\/admin\/rollout\/(strategy|canary|stage|phases|schedule|shadow|serve|flags|freeze-previous|rollback|resume))$/.exec(url);
     if (rolloutAdminPost && req.method === "POST") {
         const adminSession = dashGetSession(req);
         if (!adminSession || !adminSession.admin) return json(res, 401, { error: "not authorized" }), true;
@@ -2473,6 +2587,14 @@ async function handleDashboard(req, res, url) {
             } else if (action === "freeze-previous") {
                 const hash = freezePreviousStable(`admin:${adminSession.discordId}`);
                 if (!hash) return json(res, 503, { error: "dist artifacts missing — is the build ready?" }), true;
+            } else if (action === "rollback") {
+                // Emergency revert to the frozen previous copy; setRollback
+                // refuses without one rather than serving the bad build.
+                await rollouts.setRollback(body.hash);
+            } else if (action === "resume") {
+                await rollouts.clearRollback();
+            } else if (action === "schedule") {
+                await rollouts.setSchedule(body.stages);
             }
         } catch (err) {
             return json(res, 400, { error: String(err?.message || err) }), true;
@@ -2959,6 +3081,8 @@ const server = http.createServer(async (req, res) => {
         if (sentinel && url.startsWith("/v1/sentinel/") && await sentinel.handle(req, res, url)) return;
         // Community plugin store (handled in-process)
         if (pluginStore && url.startsWith("/v1/plugins/") && await pluginStore.handle(req, res, url)) return;
+        // Malware hash database: public list for the plugin, admin writes from /admin
+        if (malwareDb && await malwareDb.handle(req, res, url)) return;
         if (await handleStatus(req, res, url)) return;
         if (await handleBotState(req, res, url)) return;
         // USRBG API lives alongside /v1 (handled in-process)
@@ -3054,10 +3178,17 @@ hydrateKv().then(() => {
     // Rollout strategy state (docs §4 engine) — persisted in KV like the
     // channel publish state; must be loaded before the first request.
     return rollouts.init({ DIST, kvGet, kvSet });
+}).then(() => {
+    // Release automation: arm the rollback copy and refresh the channels that
+    // ship every build, so a fresh container is usable with no admin step.
+    return autoMaintainReleaseState("boot");
 }).finally(() => {
     server.listen(PORT, HOST, () => {
         console.log(`Limey V1 web server running at http://${HOST}:${PORT} (persistent storage: ${KV_ENABLED ? "PostgreSQL" : "local files"})`);
         // Start the cloud settings-sync sidecar (binds on CLOUD_HOST:CLOUD_PORT)
         startCloud();
+        // A redeploy or in-container rebuild changes dist/; this picks it up
+        // without waiting for someone to open the dashboard.
+        setInterval(() => { void autoMaintainReleaseState("interval"); }, AUTO_MAINTAIN_INTERVAL_MS).unref();
     });
 });

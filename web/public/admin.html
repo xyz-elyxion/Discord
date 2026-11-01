@@ -177,6 +177,7 @@
                                 <button class="nav-item" data-sec="tools" data-title="Support tools"><span class="ni-icon">🛠️</span><span class="label">Support tools</span></button>
                                 <button class="nav-item" data-sec="usrbg" data-title="USRBG banners"><span class="ni-icon">🖼️</span><span class="label">USRBG banners</span></button>
                                 <button class="nav-item" data-sec="channels" data-title="Release channels"><span class="ni-icon">📡</span><span class="label">Release channels</span></button>
+                                <button class="nav-item" data-sec="malware" data-title="Malware database"><span class="ni-icon">🦠</span><span class="label">Malware database</span></button>
                             </div>
                         </nav>
 
@@ -310,7 +311,10 @@
                     <div class="chip-row" id="chanChips">
                         <span class="chip" id="chanStable">Stable</span>
                         <span class="chip" id="chanLive">Live rollout</span>
+                        <span class="chip" id="chanAuto">Auto-managed</span>
+                        <span class="chip" id="chanPrevious">Rollback target</span>
                     </div>
+                    <p class="admin-sub" id="chanAutoDetail" style="margin:0 0 8px;font-size:0.78rem"></p>
                     <table id="chanTable" class="data-table">
                         <thead>
                             <tr>
@@ -329,9 +333,41 @@
                         </select>
                         <button class="btn btn-secondary" id="chanStrategy">Set live channel</button>
                     </div>
+                    <div class="admin-actions" style="margin-top:10px">
+                        <button class="btn btn-secondary" id="chanRollback">Roll back to last good build</button>
+                        <button class="btn btn-ghost" id="chanResume">Roll forward</button>
+                    </div>
                     <div class="msg" id="chanMsg"></div>
                     </div><!-- /channels card -->
                         </div><!-- /channels section -->
+
+                        <div class="shell-section" data-sec="malware">
+                    <div class="card admin-card">
+                    <h2>🦠 Malware database</h2>
+                    <p class="admin-sub">
+                        Pick a suspicious file and the panel hashes it <b>in your browser</b> — only the sha256, name and
+                        notes are sent, the file itself never leaves your machine. Clients download this list from
+                        <code>/v1/malware/hashes</code>, so an entry here reaches the MalwareDetector plugin without a
+                        client update.
+                    </p>
+                    <label for="malFiles">Sample file(s)</label>
+                    <input type="file" id="malFiles" multiple />
+                    <div class="admin-actions">
+                        <button class="btn btn-primary" id="malHashBtn">Hash selected files</button>
+                        <button class="btn btn-ghost" id="malLoad">Reload database</button>
+                    </div>
+                    <div class="msg" id="malMsg"></div>
+                    <div id="malPending" style="margin-top:10px"></div>
+                    <label for="malManualSha" style="margin-top:14px">Or add a digest by hand</label>
+                    <input type="text" id="malManualSha" placeholder="64-character sha256 hex" />
+                    <input type="text" id="malManualName" placeholder="Family / sample name" />
+                    <input type="text" id="malManualKind" placeholder="Kind (optional), e.g. token stealer" />
+                    <div class="admin-actions">
+                        <button class="btn btn-primary" id="malAddManual">Add hash</button>
+                    </div>
+                    <div id="malList" style="margin-top:14px"></div>
+                    </div><!-- /malware card -->
+                        </div><!-- /malware section -->
                     </div><!-- /dash-main -->
                 </div><!-- /dash-shell -->
             </div><!-- /#content -->
@@ -486,16 +522,52 @@
         const liveChip = document.getElementById("chanLive");
         liveChip.className = "chip ok";
         liveChip.innerHTML = "Live rollout channel <b>" + data.liveChannel + "</b>";
+
+        // Automation state: which channels refresh themselves, when that last
+        // ran, and whether a rollback target is currently armed.
+        const auto = data.automation || {};
+        const lastRun = auto.lastRun || null;
+        const autoChannels = data.autoChannels || [];
+        const autoChip = document.getElementById("chanAuto");
+        autoChip.className = autoChannels.length ? "chip ok" : "chip";
+        autoChip.innerHTML = "Auto-managed <b>" + (autoChannels.join(", ") || "none") + "</b>"
+            + (lastRun && lastRun.at ? " · checked " + new Date(lastRun.at).toLocaleTimeString() : " · not run yet");
+        const prevChip = document.getElementById("chanPrevious");
+        prevChip.className = auto.previousArmed ? "chip ok" : "chip";
+        prevChip.innerHTML = "Rollback target " + (auto.previousArmed ? "armed" : "not armed");
+        const autoDetail = document.getElementById("chanAutoDetail");
+        if (autoDetail) {
+            const r = data.rollout || {};
+            const parts = ["strategy " + (r.strategy || data.strategy || "?")];
+            if (r.scheduled) {
+                parts.push(Math.round(r.scheduled.percent || 0) + "% now (scheduled, " + (r.scheduled.stages || []).length + " stage(s) from " + new Date(r.scheduled.startedAt).toLocaleString() + ")");
+            }
+            if (r.progressive) parts.push((r.progressive.stagePercent || 0) + "% staged");
+            if (r.phased) parts.push(Math.round(r.phased.percent || 0) + "% phased");
+            if (r.rollback) parts.push("rolled back to " + (r.rollback.hash || "previous build"));
+            if (lastRun) {
+                parts.push(lastRun.frozePrevious ? "armed previous @ " + (lastRun.hash || "?") : "previous kept");
+                const refreshed = lastRun.refreshed || [];
+                if (refreshed.length) parts.push("refreshed " + refreshed.join(", "));
+                if (lastRun.reason) parts.push("via " + lastRun.reason);
+            }
+            autoDetail.textContent = parts.join(" · ");
+        }
+
         const tbody = document.querySelector("#chanTable tbody");
         tbody.innerHTML = "";
         for (const ch of SNAPSHOT_CHANNELS) {
             const published = data.published[ch];
             const tr = document.createElement("tr");
+            const snapInfo = (data.snapshots || {})[ch] || {};
             const name = document.createElement("td");
             name.className = "t-name";
-            name.textContent = ch;
+            name.textContent = ch + (snapInfo.auto ? " (auto)" : "");
             const snap = document.createElement("td");
-            snap.textContent = published ? ("published @ " + (data.snapshots[ch].hash || "?")) : "not published";
+            snap.textContent = published
+                ? ("published @ " + (snapInfo.hash || "?"))
+                : (snapInfo.hash ? "last frozen @ " + snapInfo.hash : "not published");
+            if (snapInfo.publishedAt) snap.title = "recorded " + new Date(snapInfo.publishedAt).toLocaleString();
             snap.className = published ? "t-name" : "t-dim";
             const actions = document.createElement("td");
             actions.style.padding = "8px 4px";
@@ -535,6 +607,140 @@
         ok ? chanShow("✅ Live rollout channel set to " + data.liveChannel, true) : chanShow("❌ " + status + ": " + (data.error || "unknown"), false);
         channelsLoad();
     };
+    // Roll back / forward: the rollout engine re-points every client at the
+    // frozen previous copy (dist/previous) or back at the current build.
+    document.getElementById("chanRollback").onclick = async () => {
+        if (!confirm("Point every client at the frozen previous build (dist/previous)?")) return;
+        const { ok, status, data } = await chanCall("POST", "/v1/admin/rollout/rollback", {});
+        const hash = data && data.rollout && data.rollout.rollback ? data.rollout.rollback.hash : null;
+        ok ? chanShow("✅ Rolled back to " + (hash || "the frozen previous build"), true) : chanShow("❌ " + status + ": " + (data.error || "unknown"), false);
+    };
+    document.getElementById("chanResume").onclick = async () => {
+        const { ok, status, data } = await chanCall("POST", "/v1/admin/rollout/resume", {});
+        ok ? chanShow("✅ Serving the current build (" + data.rollout.strategy + ")", true) : chanShow("❌ " + status + ": " + (data.error || "unknown"), false);
+    };
+
+    // ---- Malware database manager ----
+    // Files are hashed here with WebCrypto: the server only ever receives the
+    // digest, so a malicious sample is never uploaded anywhere.
+    const malMsg = document.getElementById("malMsg");
+    const malPending = document.getElementById("malPending");
+    const malList = document.getElementById("malList");
+    const malShow = (text, ok) => {
+        malMsg.textContent = text;
+        malMsg.style.color = ok === undefined ? "" : ok ? "#9cc43c" : "#ff6b6b";
+    };
+    async function malCall(method, path, body) {
+        const res = await fetch(path, { method, headers: authHeaders(), body: body ? JSON.stringify(body) : undefined });
+        let data = null;
+        try { data = await res.json(); } catch { /* empty body */ }
+        return { ok: res.ok, status: res.status, data };
+    }
+    async function sha256OfFile(file) {
+        if (!window.crypto || !window.crypto.subtle) throw new Error("WebCrypto is unavailable — open the panel over https");
+        const digest = await window.crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+        return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+    function malAddRow(sha, suggestedName, filename, size) {
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0";
+        const digest = document.createElement("code");
+        digest.style.cssText = "font-size:0.68rem;word-break:break-all;max-width:260px";
+        digest.textContent = (filename ? filename + " — " : "") + sha;
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = suggestedName || "";
+        nameInput.placeholder = "Family / sample name";
+        nameInput.style.cssText = "padding:4px 8px;font-size:0.75rem;width:190px";
+        const kindInput = document.createElement("input");
+        kindInput.type = "text";
+        kindInput.placeholder = "Kind (optional)";
+        kindInput.style.cssText = "padding:4px 8px;font-size:0.75rem;width:150px";
+        const add = document.createElement("button");
+        add.className = "btn btn-primary";
+        add.style.cssText = "padding:4px 10px;font-size:0.72rem";
+        add.textContent = "Add";
+        add.onclick = async () => {
+            const r = await malCall("POST", "/v1/admin/malware/hashes", {
+                sha256: sha,
+                name: nameInput.value.trim() || suggestedName || "Unnamed sample",
+                kind: kindInput.value.trim() || undefined,
+                filename: filename || undefined,
+                size: typeof size === "number" ? size : undefined
+            });
+            if (!r.ok) return malShow("❌ " + r.status + ": " + ((r.data && r.data.error) || "unknown"), false);
+            add.disabled = true;
+            add.textContent = "Added";
+            malShow("✅ " + (filename || sha) + " added.", true);
+            malwareLoad();
+        };
+        row.append(digest, nameInput, kindInput, add);
+        malPending.appendChild(row);
+    }
+    document.getElementById("malHashBtn").onclick = async () => {
+        const files = Array.from(document.getElementById("malFiles").files || []);
+        if (!files.length) return malShow("Pick at least one file first.", false);
+        malShow("Hashing " + files.length + " file(s) locally…", true);
+        malPending.innerHTML = "";
+        for (const file of files) {
+            try {
+                const sha = await sha256OfFile(file);
+                malAddRow(sha, file.name.replace(/\.[^.]+$/, ""), file.name, file.size);
+            } catch (e) {
+                malShow("❌ " + file.name + ": " + e.message, false);
+            }
+        }
+        malShow("Hashed — name each sample and press Add.", true);
+    };
+    document.getElementById("malAddManual").onclick = async () => {
+        const sha = document.getElementById("malManualSha").value.trim();
+        const family = document.getElementById("malManualName").value.trim();
+        const kind = document.getElementById("malManualKind").value.trim();
+        if (!/^[0-9a-fA-F]{64}$/.test(sha)) return malShow("A sha256 digest is 64 hex characters.", false);
+        const r = await malCall("POST", "/v1/admin/malware/hashes", { sha256: sha, name: family || "Manual entry", kind: kind || undefined });
+        if (!r.ok) return malShow("❌ " + r.status + ": " + ((r.data && r.data.error) || "unknown"), false);
+        malShow("✅ Digest added.", true);
+        ["malManualSha", "malManualName", "malManualKind"].forEach(id => { document.getElementById(id).value = ""; });
+        malwareLoad();
+    };
+    document.getElementById("malLoad").onclick = () => malwareLoad();
+    async function malwareLoad() {
+        const { ok, status, data } = await malCall("GET", "/v1/admin/malware/hashes");
+        malList.innerHTML = "";
+        if (!ok) return malShow("❌ " + status + ": " + ((data && data.error) || "unknown"), false);
+        const entries = (data && data.entries) || [];
+        const head = document.createElement("p");
+        head.className = "admin-sub";
+        head.style.margin = "0 0 6px";
+        head.textContent = entries.length + " hash(es)"
+            + (data && data.updatedAt ? " · updated " + new Date(data.updatedAt).toLocaleString() : " · nothing added yet");
+        malList.appendChild(head);
+        for (const entry of entries) {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;gap:8px;align-items:center;justify-content:space-between;margin:4px 0;padding-bottom:4px;font-size:0.78rem;border-bottom:1px solid var(--border)";
+            const info = document.createElement("span");
+            info.style.cssText = "word-break:break-all";
+            info.textContent = (entry.name || "Unnamed")
+                + (entry.kind ? " (" + entry.kind + ")" : "")
+                + " — " + entry.sha256
+                + (entry.addedBy ? " · by " + entry.addedBy : "");
+            const del = document.createElement("button");
+            del.className = "btn btn-ghost";
+            del.style.cssText = "color:#ff6b6b;padding:2px 8px;font-size:0.7rem";
+            del.textContent = "Delete";
+            del.onclick = async () => {
+                if (!confirm("Remove " + entry.sha256 + " from the malware database?")) return;
+                const r = await malCall("DELETE", "/v1/admin/malware/hashes/" + entry.sha256);
+                r.ok ? malShow("✅ Removed.", true) : malShow("❌ " + r.status + ": " + ((r.data && r.data.error) || "unknown"), false);
+                malwareLoad();
+            };
+            row.append(info, del);
+            malList.appendChild(row);
+        }
+    }
+    document.querySelectorAll('#admin-shell .side-nav .nav-item[data-sec="malware"]').forEach(btn => {
+        btn.addEventListener("click", () => malwareLoad());
+    });
 
     async function usrbgSet() {
         const userId = document.getElementById("usrbgUserId").value.trim();
