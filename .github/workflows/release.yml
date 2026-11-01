@@ -126,8 +126,6 @@ jobs:
                       dist/LimeyV1Installer-cli-linux
                       dist/LimeyV1.user.js
                       dist/LimeyV1-Extension.zip
-                      dist/browser.js
-                      dist/browser.css
                       ghost-client/dist/LimeyV1GhostClient-win-x64-1.0.0.zip
                       LimeyV1Desktop-build.tar.gz
                   )
