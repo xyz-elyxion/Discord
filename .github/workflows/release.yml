@@ -158,4 +158,31 @@ jobs:
                       echo "RENDER_DEPLOY_KEY is not set — add it under Settings → Secrets and variables → Actions." >&2
                       exit 1
                   fi
-                  curl -fsS -X POST "$RENDER_DEPLOY_HOOK" -o /dev/null -w "Render deploy triggered: HTTP %{http_code}\n"
+
+                  # No -f: a rejected hook still has an HTTP status worth reporting,
+                  # and curl's exit code alone (22) does not say which one.
+                  status=$(curl -sS -X POST "$RENDER_DEPLOY_HOOK" -o /dev/null \
+                      -w "%{http_code}" --max-time 30 --retry 1 --retry-connrefused) || true
+                  echo "Render deploy hook answered HTTP $status"
+
+                  case "$status" in
+                      200|201|202)
+                          echo "Render deploy triggered."
+                          ;;
+                      404)
+                          echo "::error::Render does not recognise this deploy hook (HTTP 404)." >&2
+                          echo "Render answers 404, not 401, when either the service id or the key is wrong." >&2
+                          echo "Check, in this order:" >&2
+                          echo "  1. The RENDER_DEPLOY_KEY secret: a trailing newline or space makes the key invalid." >&2
+                          echo "     Regenerate it from Render → the service → Settings → Deploy Hook and re-save the secret." >&2
+                          echo "  2. The srv id in this workflow (srv-datf64favr4c73da5lvg): if the service was" >&2
+                          echo "     deleted or recreated, the hook points at a service that no longer exists." >&2
+                          echo "The release above is published and downloadable; only the deploy did not happen." >&2
+                          exit 1
+                          ;;
+                      *)
+                          echo "::error::Render deploy failed (HTTP $status)." >&2
+                          echo "The release above is published and downloadable; only the deploy did not happen." >&2
+                          exit 1
+                          ;;
+                  esac
