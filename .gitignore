@@ -36,5 +36,8 @@ src/userplugins
 ExtensionCache/
 /settings
 
+# C++ installer build output (installer/cpp)
+installer/cpp/build/
+
 # Generated plugin archives for the /marketplace download buttons
 web/public/plugin-downloads/
