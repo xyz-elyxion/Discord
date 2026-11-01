@@ -4,16 +4,26 @@ name: Release
 # then publishes it as a GitHub Release. The site links straight at
 # /releases/latest/download/<asset>, so a download never depends on a container
 # rebuild finishing first, and the image pulls the desktop build from the
-# release instead of packaging it. Pushing a v* tag cuts a versioned release;
-# running this workflow by hand refreshes the rolling "latest" release.
+# release instead of packaging it. Every push to main refreshes the rolling
+# "latest" release and then deploys Render; a v* tag cuts a versioned
+# release; running it by hand does the same on demand.
 on:
     push:
+        branches:
+            - main
         tags:
             - v*
     workflow_dispatch:
 
 permissions:
     contents: write
+
+# Every run uploads to the same `latest` release and ends with a Render
+# deploy, so runs are serialised: two overlapping builds would clobber each
+# other's assets and race two deploys.
+concurrency:
+    group: release
+    cancel-in-progress: false
 
 env:
     FORCE_COLOR: true
