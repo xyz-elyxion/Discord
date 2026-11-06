@@ -158,11 +158,12 @@ jobs:
                   # Print what is actually attached: an upload that silently skipped assets is
                   # otherwise invisible, and the deploy below pulls the desktop archive back out
                   # of this release, so a missing asset has to be loud here.
-                  # `isLatest` is not a field the runner's gh understands (it answers
-                  # "Unknown JSON field" and fails the job), so the latest pointer is
-                  # checked through the API instead of the release view.
-                  gh release view "$TAG" --repo "$REPO" --json tagName,updatedAt,assets \
-                      --jq '"release \(.tagName) updated=\(.updatedAt)", (.assets[] | "  \(.name)  \(.size) bytes")'
+                  # Read the release from the REST API rather than `gh release view --json`:
+                  # that flag only accepts the field names the runner's gh build knows, and
+                  # rejects the rest with "Unknown JSON field" (isLatest, updatedAt), which
+                  # fails the job after every asset has already been published.
+                  gh api "repos/$REPO/releases/tags/$TAG" \
+                      --jq '"release \(.tag_name) published=\(.published_at)", (.assets[] | "  \(.name)  \(.size) bytes")'
 
                   if [[ "$TAG" == "latest" ]]; then
                       printf 'latest pointer -> %s\n' "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)"
