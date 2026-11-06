@@ -146,8 +146,10 @@ export type WebpackRequire = ((moduleId: PropertyKey) => ModuleExports) & {
      *     }
      * }
      * // exports is now { exportName: someExportedValue } (but each value is actually a getter)
+     *
+     * Newer builds also take a third argument of plain values, defined as value properties instead of getters.
      */
-    d: (this: WebpackRequire, exports: Record<PropertyKey, any>, definiton: Record<PropertyKey, () => ModuleExports>) => void;
+    d: (this: WebpackRequire, exports: Record<PropertyKey, any>, definiton: Record<PropertyKey, () => ModuleExports>, values?: Record<PropertyKey, ModuleExports>) => void;
     /** The ensure chunk handlers, which are used to ensure the files of the chunks are loaded, or load if necessary */
     f: EnsureChunkHandlers;
     /**
