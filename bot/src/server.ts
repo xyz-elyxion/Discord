@@ -6,6 +6,7 @@ import { PROD } from "./constants";
 import { getGitRemote } from "./util/git";
 import { makeLazy } from "./util/lazy";
 import { challengeSolved, clearChallenge, consumeToken, currentChallenge, disableGuildConfig, ensureCard, getGuildConfig, getGuildConfigIds, getGuildRulesText, getTokenInfo, grantVerifiedRole, isVerified, mintToken, setGuildConfig, setGuildRulesText, submitAnswer } from "./modules/verification";
+import { normalizeIp } from "./modules/verificationIntel";
 import { ensureRulesCard, lockRulesChannel } from "./modules/rulesPage";
 import { disableCountingConfig, getCountingConfig, setCountingConfig } from "./modules/counting";
 import { disableLevelingConfig, getLeaderboard, getLevelingConfig, setLevelingConfig } from "./modules/leveling";
@@ -51,6 +52,28 @@ if (enabled) {
         res.header("Access-Control-Allow-Origin", "*");
         res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.header("Access-Control-Allow-Headers", "Content-Type");
+    };
+
+    // The verifying member's address as seen by whatever terminates TLS in
+    // front of this service. Forwarded headers are only trusted when the
+    // deployment sets LIMEY_VERIFY_PROXY_KEY and the caller sends it, or any
+    // client could choose its own "IP" with a header.
+    const verifyMeta = (req: any) => {
+        const expectedKey = process.env.LIMEY_VERIFY_PROXY_KEY || "";
+        const forwarded = req.headers["x-forwarded-for"];
+        const forwardedIp = Array.isArray(forwarded)
+            ? forwarded[0]
+            : typeof forwarded === "string" ? forwarded.split(",")[0].trim() : "";
+        const proxyTrusted = !!expectedKey && req.headers["x-limey-verify-key"] === expectedKey;
+        // With no key configured, still believe the header when the request
+        // itself arrived on a private/loopback socket — that is the site's
+        // proxy or the Go cloud service, never a browser on the internet.
+        const peerIsProxy = normalizeIp(req.socket?.remoteAddress) === null;
+
+        return {
+            ip: proxyTrusted || (!expectedKey && peerIsProxy) ? forwardedIp || null : (req.ip ?? null),
+            userAgent: typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : null,
+        };
     };
 
     fastify.options("/v1/verify/*", async (req, res) => {
@@ -101,13 +124,14 @@ if (enabled) {
             clearChallenge(token);
             const consumed = await consumeToken(token);
             if (!consumed) return res.code(410).send({ error: "token already used or invalid" });
-            const userId = consumed.userId;
-            const guildId = consumed.guildId;
+            const { userId } = consumed;
+            const { guildId } = consumed;
             if (!guildId) return res.code(410).send({ error: "token has no guild — request a new link" });
             try {
-                await grantVerifiedRole(guildId, userId);
+                await grantVerifiedRole(guildId, userId, verifyMeta(req));
                 return { ok: true, userId, guildId };
             } catch (e: any) {
+                if (e?.verificationBlocked) return res.code(403).send({ error: e.message, blocked: e.reason });
                 console.error("[verify] failed to grant role:", e);
                 return res.code(500).send({ error: "failed to grant role" });
             }
@@ -129,9 +153,10 @@ if (enabled) {
             return { ok: true, alreadyVerified: true };
 
         try {
-            await grantVerifiedRole(guildId, userId);
+            await grantVerifiedRole(guildId, userId, verifyMeta(req));
             return { ok: true };
         } catch (e: any) {
+            if (e?.verificationBlocked) return res.code(403).send({ error: e.message, blocked: e.reason });
             console.error("[verify] failed to grant role (oauth):", e);
             return res.code(500).send({ error: "failed to grant role" });
         }
@@ -856,9 +881,10 @@ if (enabled) {
         const guildId = resolveGuild((req.query as { guildId?: string }).guildId);
         if (!guildId) return res.code(400).send({ error: "no verification guild — configure one in the dashboard or pass ?guildId=" });
         try {
-            await grantVerifiedRole(guildId, userId);
+            await grantVerifiedRole(guildId, userId, verifyMeta(req));
             return { ok: true };
         } catch (e: any) {
+            if (e?.verificationBlocked) return res.code(403).send({ error: e.message, blocked: e.reason });
             console.error("[verify] failed to grant role (claim):", e);
             return res.code(500).send({ error: "failed to grant role" });
         }
@@ -905,7 +931,12 @@ if (enabled) {
             const guildId = resolveGuild(requestedGuild);
             if (!guildId) return res.redirect(`${Config.verification.siteUrl}/verify?challenge=1&uid=${id}&noguild=1`);
             if (await isVerified(guildId, id)) return { ok: true, userId: id, alreadyVerified: true };
-            await grantVerifiedRole(guildId, id);
+            try {
+                await grantVerifiedRole(guildId, id, verifyMeta(req));
+            } catch (e: any) {
+                if (e?.verificationBlocked) return res.redirect(`${Config.verification.siteUrl}/verify?blocked=${encodeURIComponent(e.reason ?? "blocked")}`);
+                throw e;
+            }
             // browsers land here directly — bounce to a friendly page instead
             // of showing raw JSON
             return res.redirect(`${Config.verification.siteUrl}/verify?done=1`);

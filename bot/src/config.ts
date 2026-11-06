@@ -151,6 +151,27 @@ const Config = {
         "siteUrl": process.env.LIMEY_SITE_URL || "https://limey-discord.onrender.com",
         // client id used for the website OAuth flow (same app as the bot)
         "clientId": "1514929209158402078",
+
+        // Shared-address and VPN checks that run before the verified role is
+        // granted. Needs LIMEY_VERIFY_SECRET (the HMAC key for the stored IP
+        // hashes) — with it unset the checks stay off rather than writing
+        // weakly-hashed addresses to disk. The verify page and the bot's DM
+        // state what is recorded; a shared address only alerts staff.
+        "intel": {
+            "enabled": true,
+            // block VPN/proxy/Tor/datacenter addresses from verifying
+            "vpnBlock": false,
+            // post shared-address and VPN findings to logChannelId
+            "altAlerts": true,
+            // channel that receives the alerts; empty disables them
+            "logChannelId": "",
+            // how long a hashed address is kept, in days
+            "retentionDays": 90,
+            // proxycheck.io answers without a key for light use (100/day per
+            // address); set an API key in the env var named below for more
+            "apiUrl": "https://proxycheck.io/v2",
+            "apiKeyEnv": "VERIFY_IP_API_KEY",
+        },
     },
 
     // known issue command

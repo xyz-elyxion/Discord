@@ -6,6 +6,8 @@ import { Vaius } from "~/Client";
 import Config from "~/config";
 import { db } from "~/db";
 
+import { assessVerification, VerificationBlockedError, type VerifyMeta, verifyDisclosure } from "./verificationIntel";
+
 const { siteUrl, clientId } = Config.verification;
 
 const MARKER = "-# [verification card]";
@@ -207,9 +209,17 @@ export async function isVerified(guildId: string, userId: string) {
     return !!member?.roles.includes(cfg.roleId);
 }
 
-export async function grantVerifiedRole(guildId: string, userId: string) {
+export async function grantVerifiedRole(guildId: string, userId: string, meta?: VerifyMeta) {
     const cfg = getGuildConfig(guildId);
     if (!cfg) throw new Error("no verification config for guild");
+
+    // Shared-address / VPN check before the role is granted. It throws
+    // VerificationBlockedError when the guild blocks VPNs, and otherwise only
+    // notifies staff when the address is already in use by another account.
+    const assessment = await assessVerification(guildId, userId, meta);
+    if (!assessment.allowed)
+        throw new VerificationBlockedError(assessment.reason ?? "blocked", assessment.message ?? "verification blocked");
+
     await Vaius.rest.guilds.addMemberRole(guildId, userId, cfg.roleId, "Website verification");
 }
 
@@ -281,7 +291,7 @@ function buildVerificationMessage(cfg: GuildVerifyConfig) {
         ? `agree to the rules in <#${cfg.rulesChannelId}>`
         : "agree to the server rules";
     return {
-        content: `${MARKER}\n# ✅ Verify to join the server\nWelcome! To unlock the server you need to verify that you're human.\n\n**Option 1 — Website:**\nClick **Verify on Website** below, log in with Discord, and you're in.\n\n**Option 2 — Limey V1 users:**\nIf you have the Limey V1 mod, click **Instant Verify** — no website needed. 🍋\n\n-# Verification proves you're human and ${rulesNote}.`,
+        content: `${MARKER}\n# ✅ Verify to join the server\nWelcome! To unlock the server you need to verify that you're human.\n\n**Option 1 — Website:**\nClick **Verify on Website** below, log in with Discord, and you're in.\n\n**Option 2 — Limey V1 users:**\nIf you have the Limey V1 mod, click **Instant Verify** — no website needed. 🍋\n\n-# Verification proves you're human and ${rulesNote}.\n-# ${verifyDisclosure()}`,
         components: [
             {
                 type: 1,
@@ -336,7 +346,7 @@ async function handleVerifyButton(interaction: import("oceanic.js").ComponentInt
         const dm = await interaction.user.createDM().catch(() => null);
         if (dm) {
             await dm.createMessage({
-                content: `🍋 **Verify your Limey V1 account**\n\nClick this one-time link to verify — it expires after use:\n${url}`
+                content: `🍋 **Verify your Limey V1 account**\n\nClick this one-time link to verify — it expires after use:\n${url}\n\n-# ${verifyDisclosure()}`
             }).catch(() => null);
             return void interaction.createMessage({
                 content: "⚡ I sent you a **one-time verification link** in your DMs — click it to finish verifying.",
@@ -353,7 +363,7 @@ async function handleVerifyButton(interaction: import("oceanic.js").ComponentInt
     // Website verify: mint a fresh token and reply with the personalized
     // link directly (ephemeral — only visible to the clicker)
     return void interaction.createMessage({
-        content: `🌐 **Here's your personal verification link:**\n${url}\n-# One-time use, only visible to you. Opens on limey-discord.onrender.com.`,
+        content: `🌐 **Here's your personal verification link:**\n${url}\n-# One-time use, only visible to you. Opens on limey-discord.onrender.com.\n-# ${verifyDisclosure()}`,
         flags: 64
     });
 }
@@ -388,7 +398,7 @@ export function initVerification() {
     Vaius.on("interactionCreate", async interaction => {
         try {
             if (interaction.type !== 3 /* COMPONENT */) return;
-            const data = (interaction as import("oceanic.js").ComponentInteraction).data;
+            const { data } = (interaction as import("oceanic.js").ComponentInteraction);
             if (data.customID !== "verify:instant" && data.customID !== "verify:website") return;
             const ci = interaction as import("oceanic.js").ComponentInteraction;
             const cfg = ci.guildID ? getGuildConfig(ci.guildID) : null;

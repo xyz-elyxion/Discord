@@ -58,6 +58,18 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         .fine { font-size: 0.8rem; margin-top: 20px; }
+        .intel-note {
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: var(--text-dim);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin: 16px 0 0;
+            text-align: left;
+        }
+        .intel-note strong { color: var(--text); }
         .challenge-box {
             margin: 20px 0;
             text-align: left;
@@ -169,6 +181,12 @@
             <div class="logo">🍋</div>
             <h1>Verify your account</h1>
             <p id="intro">Complete a quick human challenge to unlock the Limey V1 server.</p>
+            <p class="intel-note" id="intel-note">
+                <strong>What verification records:</strong> a keyed hash of your IP address (never the address
+                itself), a coarse country, and whether the address belongs to a VPN, proxy or datacenter — used
+                only to spot alternate accounts. Hashes are deleted after 90 days, and a shared address only
+                raises a note for server staff. <a href="/privacy">Privacy policy</a>
+            </p>
             <div id="status" class="verify-status busy"></div>
             <div id="actions"></div>
             <p class="fine">Verifying grants you the verified role and agrees you'll follow the <a href="/rules">community rules</a>.</p>
@@ -251,6 +269,7 @@
                 actionsEl.innerHTML = '<a class="btn-lime" href="https://discord.com/channels/1550709562267672607/1554636290211971092">Back to #rules</a>';
             } else if (res.status === 403 || res.status === 429) {
                 setStatus("❌ " + (data.error || "Challenge not solved. Reload the page and try again."), "err");
+                if (data.blocked) introEl.textContent = "That address can't be verified.";
             } else {
                 setStatus("❌ " + (data.error || "Verification failed. Try again from Discord."), "err");
             }
@@ -453,6 +472,10 @@
         } catch (e) {
             setStatus("❌ Could not reach the verification service.", "err");
         }
+    } else if (params.get("blocked")) {
+        setStatus("❌ Verification is blocked from VPN, proxy, Tor and datacenter addresses. Turn it off and try again — ask a moderator if you think this is wrong.", "err");
+        introEl.textContent = "That address can't be verified.";
+        actionsEl.innerHTML = '<a class="btn-lime" href="https://discord.com/channels/1550709562267672607/1554636290211971092">Back to #verification</a>';
     } else {
         introEl.textContent = "Verify with your Discord account, or get a one-time link from the bot in the verification channel.";
         actionsEl.innerHTML = '<button class="btn-lime" id="discord-verify">Verify with Discord</button>' +
