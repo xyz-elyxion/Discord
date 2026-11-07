@@ -18,7 +18,7 @@
 
 import "./fixDiscordBadgePadding.css";
 
-import { _getBadges, BadgePosition, BadgeUserArgs, ProfileBadge } from "@api/Badges";
+import { _getBadges, BadgePosition, BadgeRarity, BadgeUserArgs, DirectoryBadge, ProfileBadge } from "@api/Badges";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Flex } from "@components/Flex";
 import { Heart } from "@components/Heart";
@@ -38,13 +38,52 @@ const CONTRIBUTOR_BADGE = "data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww
 const ContributorBadge: ProfileBadge = {
     id: "limeyV1_contributor_badge",
     description: "Limey V1 Contributor",
+    name: "Limey V1 Contributor",
+    detail: "Contributed code, fixes or features to Limey V1.",
+    infoLabel: "Limey V1",
+    rarity: BadgeRarity.MYTHIC,
     iconSrc: CONTRIBUTOR_BADGE,
+    largeIconSrc: CONTRIBUTOR_BADGE,
     position: BadgePosition.START,
     shouldShow: ({ userId }) => shouldShowContributorBadge(userId),
     onClick: (_, { userId }) => openContributorModal(UserStore.getUser(userId))
 };
 
-let DonorBadges = {} as Record<string, Array<Record<"tooltip" | "badge", string> & { kind?: string; tier?: string; trial?: boolean }>>;
+let DonorBadges = {} as Record<string, Array<Record<"tooltip" | "badge", string> & { "2"?: 1; kind?: string; tier?: string; trial?: boolean }>>;
+let DirectoryBadges = {} as Record<string, DirectoryBadge>;
+
+/** Directory entry Discord's badge modal (and BadgeDirectoryStore) can resolve. */
+function toDirectoryBadge(b: ProfileBadge, userId: string): DirectoryBadge {
+    const id = `limey-${userId}-${b.id}`;
+
+    return DirectoryBadges[id] ??= {
+        badge_id: id,
+        name: b.name ?? b.description ?? "",
+        description: b.detail ?? b.description ?? b.name ?? "",
+        info_label: b.infoLabel ?? "Limey V1",
+        rarity: b.rarity ?? BadgeRarity.COMMON,
+        simple_icon_url: b.iconSrc!,
+        complex_icon_static_url: b.largeIconSrc ?? b.iconSrc!,
+        obtained_at: b.obtainedAt,
+        is_earnable: false,
+        owned: true,
+        hidden: false,
+        tiers: []
+    };
+}
+
+/** Donor badges flagged with "2" ship an @2x variant, which the modal uses. */
+function largeIconFor(iconSrc: string, has2x?: number) {
+    if (!has2x) return;
+
+    try {
+        const url = new URL(iconSrc);
+        url.pathname = url.pathname.replace(/(\.[^/.]+)$/, "@2x$1");
+        return url.toString();
+    } catch {
+        return;
+    }
+}
 
 // Opens a modal describing a Lime tier badge (Seedling/Grove/Orchard)
 function openTierBadgeModal(badge: { tooltip?: string; tier?: string; trial?: boolean }) {
@@ -148,6 +187,11 @@ export default definePlugin({
                 {
                     match: /href:(\i)\.link/,
                     replace: "...$self.getBadgeMouseEventHandlers($1),$&"
+                },
+                {
+                    // Give our badges a synthetic directory id so the badge modal can look them up
+                    match: /legacyBadgeId:(\i),userId:(\i),.{0,100}?=\i,\i=\(0,\i\.\i\)\(\\1\)/,
+                    replace: "$&??$self.getDirectoryBadgeId($1,$2)"
                 }
             ]
         },
@@ -156,6 +200,20 @@ export default definePlugin({
             replacement: {
                 match: /getBadges\(\)\{.{0,100}?return\[/,
                 replace: "$&...$self.getBadges(this),"
+            }
+        },
+        {
+            find: '"BadgeDirectoryStore"',
+            replacement: {
+                match: /getBadgeById\((\i),(\i)\)\{/,
+                replace: "$&const limeyBadge=$self.getDirectoryBadge($1);if(limeyBadge)return limeyBadge;"
+            }
+        },
+        {
+            find: "badge_directory_closed",
+            replacement: {
+                match: /(\i\.\i\.getBadges\((\i)\))(?=:\[\],\[\2\]\))/,
+                replace: "[...$1,...$self.getDirectoryBadges($2)]"
             }
         }
     ],
@@ -183,6 +241,7 @@ export default definePlugin({
 
     async stop() {
         clearInterval(intervalId);
+        DirectoryBadges = {};
     },
 
     getBadges(profile: { userId: string; guildId: string; }) {
@@ -194,6 +253,25 @@ export default definePlugin({
             new Logger("BadgeAPI#getBadges").error(e);
             return [];
         }
+    },
+
+    getDirectoryBadge(id: string) {
+        return DirectoryBadges[id];
+    },
+
+    getDirectoryBadges(userId: string) {
+        return this.getBadges({ userId, guildId: "" })
+            .filter(b => b.iconSrc)
+            .map(b => toDirectoryBadge(b, userId));
+    },
+
+    getDirectoryBadgeId(badgeId: string, userId?: string) {
+        if (!userId) return;
+
+        const badge = this.getBadges({ userId, guildId: "" })
+            .find(b => b.id === badgeId && b.iconSrc);
+
+        if (badge) return toDirectoryBadge(badge, userId).badge_id;
     },
 
     renderBadgeComponent: ErrorBoundary.wrap((badge: ProfileBadge & BadgeUserArgs) => {
@@ -219,7 +297,11 @@ export default definePlugin({
         return DonorBadges[userId]?.map((badge, idx) => ({
             id: `limeyV1_donor_badge_${idx}`,
             iconSrc: badge.badge,
+            largeIconSrc: largeIconFor(badge.badge, badge["2"]),
             description: badge.tooltip,
+            name: badge.tooltip,
+            infoLabel: badge.kind === "limeTier" ? "Lime Tier" : "Limey V1 Donor",
+            rarity: BadgeRarity.MYTHIC,
             position: BadgePosition.START,
             props: {
                 style: {
