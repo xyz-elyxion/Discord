@@ -241,6 +241,26 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
                     </div>
                 )}
 
+                {!!plugin.permissions?.length && (
+                    <section>
+                        <Text variant="heading-lg/semibold" className={classes(Margins.top16, Margins.bottom8)}>Permissions</Text>
+                        <Forms.FormText className={Margins.bottom8}>
+                            Shown before this plugin is enabled, and what it will do with each one.
+                        </Forms.FormText>
+                        {plugin.permissions.map(permission => (
+                            <div key={permission.id} className={Margins.bottom8}>
+                                <Forms.FormText>
+                                    <b>{permission.title}</b> <span style={{ opacity: 0.6 }}>({permission.id})</span>
+                                </Forms.FormText>
+                                <Forms.FormText>{permission.description}</Forms.FormText>
+                                <Forms.FormText style={{ color: "#ff7473" }}>
+                                    Why it can be bad: {permission.risk}
+                                </Forms.FormText>
+                            </div>
+                        ))}
+                    </section>
+                )}
+
                 <section>
                     <Text variant="heading-lg/semibold" className={classes(Margins.top16, Margins.bottom8)}>Settings</Text>
                     {renderSettings()}
