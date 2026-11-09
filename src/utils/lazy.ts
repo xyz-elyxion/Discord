@@ -127,3 +127,12 @@ export function proxyLazy<T>(factory: () => T, attempts = 5, isChild = false): T
         }
     }) as any;
 }
+
+/**
+ * Resolves a {@link proxyLazy} to the value behind it without going through the
+ * get trap, which throws when the lazy resolved to a primitive. Values that are
+ * not lazies are returned unchanged.
+ */
+export function unwrapLazy<T>(value: T): T {
+    return (value as any)?.[SYM_LAZY_GET]?.() ?? value;
+}

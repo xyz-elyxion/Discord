@@ -190,7 +190,7 @@ export default definePlugin({
                 },
                 {
                     // Give our badges a synthetic directory id so the badge modal can look them up
-                    match: /legacyBadgeId:(\i),userId:(\i),.{0,100}?=\i,\i=\(0,\i\.\i\)\(\\1\)/,
+                    match: /legacyBadgeId:(\i),userId:(\i),.{0,100}?=\i,\i=\(0,\i\.\i\)\(\1\)/,
                     replace: "$&??$self.getDirectoryBadgeId($1,$2)"
                 }
             ]
