@@ -39,9 +39,9 @@ export function normalize(text: string): string {
 
 // https://github.com/mazko/jssnowball
 const stem = proxyLazyWebpack(() => {
-    const stemmer: { newStemmer: (locale: string) => Stemmer } = findByProps("newStemmer");
+    const stemmer: { newStemmer?: (locale: string) => Stemmer; } | undefined = findByProps("newStemmer");
 
-    return stemmer.newStemmer("english").stem;
+    return stemmer?.newStemmer?.("english")?.stem;
 });
 
 export class InlineNodeBuilder {
@@ -61,12 +61,18 @@ export class InlineNodeBuilder {
 }
 
 export function normalizeWord(text: string): string {
-    return stem(
-        text
-            .replace(/('|\u2019|\uFF07)(s|S)$/, "")
-            .toLowerCase()
-            .trim()
-    );
+    const word = text
+        .replace(/('|\u2019|\uFF07)(s|S)$/, "")
+        .toLowerCase()
+        .trim();
+
+    // Discord has moved this stemmer between builds. Highlighting still works without it,
+    // so fall back to the unstemmed word rather than calling through an unresolved lazy.
+    try {
+        return stem?.(word) || word;
+    } catch {
+        return word;
+    }
 }
 
 type HostAndPath = Record<"host" | "pathPrefix", string | null>;

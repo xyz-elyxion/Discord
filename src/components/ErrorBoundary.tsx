@@ -73,7 +73,10 @@ const ErrorBoundary = LazyComponent(() => {
 
         componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
             this.props.onError?.({ error, errorInfo, props: this.props.wrappedProps });
-            logger.error(`${this.props.message || "A component threw an Error"}\n`, error, errorInfo.componentStack);
+            // The error object and componentStack get collapsed to "[object Object]" when a
+            // console log is copied, so put the reason in the message itself.
+            const reason = this.state.message || error?.message || String(error);
+            logger.error(`${this.props.message || "A component threw an Error"}: ${reason}\n`, error, errorInfo.componentStack);
         }
 
         get isNoop() {
