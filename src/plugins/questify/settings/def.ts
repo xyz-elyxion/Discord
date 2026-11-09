@@ -44,12 +44,6 @@ export const defaultDisableAccountPanelQuestProgress = false;
 export const defaultDisableOrbsAndQuestsBadges = false;
 export const defaultDisableFriendsListPromo = true;
 export const defaultDisableMembersListPromo = true;
-export const defaultResumeInterruptedQuests = false;
-export const defaultAllowChangingDangerousSettings = false; // true -> Risky
-export const defaultMakeMobileVideoQuestsDesktopCompatible = false; // true -> Risky
-export const defaultCompleteVideoQuestsQuicker = false; // true -> Risky
-export const defaultPreventVideoQuestsPausing = false; // true -> Risky
-export const defaultAutoCompleteQuestsSimultaneously = false; // true -> Risky
 export const defaultNotifyOnQuestComplete = true;
 export const defaultNotifyOnNewQuests = true;
 export const defaultNotifyOnNewExcludedQuests = false;
@@ -68,33 +62,6 @@ const questTaskTypes = [
     QuestTaskType.PLAY_ON_PLAYSTATION,
     QuestTaskType.PLAY_ON_XBOX,
 ] as const satisfies readonly QuestTaskType[];
-
-export const autoCompleteQuestTaskTypes = [
-    QuestTaskType.PLAY_ON_DESKTOP,
-    QuestTaskType.PLAY_ON_XBOX,
-    QuestTaskType.PLAY_ON_PLAYSTATION,
-    QuestTaskType.PLAY_ACTIVITY,
-    QuestTaskType.WATCH_VIDEO,
-    QuestTaskType.WATCH_VIDEO_ON_MOBILE,
-    QuestTaskType.ACHIEVEMENT_IN_ACTIVITY,
-] as const satisfies readonly QuestTaskType[];
-
-const desktopOnlyAutoCompleteQuestTypes = new Set<QuestTaskType>([
-    QuestTaskType.PLAY_ON_DESKTOP,
-    QuestTaskType.PLAY_ON_PLAYSTATION,
-    QuestTaskType.PLAY_ON_XBOX,
-    QuestTaskType.PLAY_ACTIVITY,
-]);
-
-export function isDesktopCompatible(questType: QuestTaskType): boolean {
-    return IS_DISCORD_DESKTOP || !desktopOnlyAutoCompleteQuestTypes.has(questType);
-}
-
-export type AutoCompleteQuestTypes = Partial<Record<QuestTaskType, boolean>>;
-
-export const defaultAutoCompleteQuestTypes = Object.fromEntries(
-    autoCompleteQuestTaskTypes.map(questType => [questType, false])
-) as AutoCompleteQuestTypes;
 
 export type QuestButtonIncludedTypes = Record<QuestTaskType | QuestRewardType, boolean>;
 
@@ -125,5 +92,3 @@ export const defaultLastQuestPageSort = "questify";
 export const defaultLastQuestPageFilters = {} as Record<string, { group: string, filter: string; }>;
 export const ignoredQuestIDsKey = "questIDs";
 export const defaultIgnoredQuestIDs = { [ignoredQuestIDsKey]: [] } as Record<typeof ignoredQuestIDsKey, string[]>;
-export const defaultResumeQuestIDs = {} as Record<string, // key: UserID
-    { timestamp: number, questIDs: string[]; }>;

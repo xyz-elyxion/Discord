@@ -25,14 +25,6 @@ Modify how Quests behave, hide Quest-related UI, or disable Quest functionality 
   - Account Panel Promo
   - Account Panel Quest Progress
   - Quest & Orbs Badges
-- Optional dangerous behavior:
-  - Accelerate Video Quest auto-completion by using Discord's progress leeway and elapsed enrollment time.
-  - Make some mobile-only Video Quests completable on desktop.
-  - Auto-complete selected Quest task types from the Quests page.
-  - Resume interrupted auto-completions after reloads or restarts.
-
-Desktop-only Quest types are only available in official Discord desktop clients. Third-party clients such as web extensions, Vesktop, Equibop, and others cannot auto-complete Play on Desktop, PlayStation, Xbox, or Activity Quests due to Discord-side limitations.
-
 ### Quest Button
 
 Show a Quest button in the server list with optional indicators for unclaimed and unignored Quests.
@@ -144,6 +136,4 @@ Questify adds extra actions to Quest tile context menus:
 
 - Mark as Ignored
 - Unmark as Ignored
-- Start Auto-Complete
-- Stop Auto-Complete
 - Copy Quest ID

@@ -8,12 +8,10 @@ import { getQuestifySettings, useQuestifySettings } from "../settings/access";
 import { defaultClaimedSubsort, defaultExpiredSubsort, defaultIgnoredSubsort, defaultQuestOrder, defaultUnclaimedSubsort, type QuestOrderStatus, type QuestSubsort, type QuestTileColorSetting, type QuestTileGradient } from "../settings/def";
 import { getIgnoredQuestIDs } from "../settings/ignoredQuests";
 import { getQuestStatus, QuestStatus } from "./questState";
-import { Quest, QuestTaskType, QuestTaskWatchVideo, QuestTaskWatchVideoOnMobile } from "./types";
+import { Quest } from "./types";
 import { adjustRGB, decimalToRGB, isDarkish, q, type RGB } from "./ui";
 
 type QuestGroupKey = "claimed" | "expired" | "ignored" | "unclaimed" | "unknown";
-
-export const desktopVideoCompatibilityQuestIds = new Set<string>();
 
 interface QuestTileColorSettings {
     questTileUnclaimedColor: QuestTileColorSetting;
@@ -207,59 +205,19 @@ function getValidQuestOrder(value: unknown): QuestOrderStatus[] {
     return order;
 }
 
-function injectDesktopVideoQuestTasks(quests: Quest[]): void {
-    for (const quest of quests) {
-        const tasks = quest.config.taskConfigV2?.tasks;
-        const mobileVideoTask = tasks?.[QuestTaskType.WATCH_VIDEO_ON_MOBILE] as QuestTaskWatchVideoOnMobile | undefined;
-
-        if (!tasks || !mobileVideoTask || tasks[QuestTaskType.WATCH_VIDEO]) {
-            continue;
-        }
-
-        const desktopVideoTask: QuestTaskWatchVideo = {
-            ...mobileVideoTask,
-            type: QuestTaskType.WATCH_VIDEO,
-        };
-
-        const reorderedTasks: typeof tasks = {};
-
-        for (const [taskType, task] of Object.entries(tasks) as [QuestTaskType, typeof tasks[QuestTaskType]][]) {
-            if (taskType === QuestTaskType.WATCH_VIDEO_ON_MOBILE) {
-                reorderedTasks[QuestTaskType.WATCH_VIDEO] = desktopVideoTask;
-            }
-
-            reorderedTasks[taskType] = task;
-        }
-
-        quest.config.taskConfigV2.tasks = reorderedTasks;
-        desktopVideoCompatibilityQuestIds.add(quest.id);
-    }
-}
-
-export function hasInjectedDesktopVideoCompatibility(quest?: Quest | string | null): boolean {
-    return !quest ? false : desktopVideoCompatibilityQuestIds.has(typeof quest === "string" ? quest : quest.id);
-}
-
 export function sortQuests(quests: Quest[], skip?: boolean): Quest[] {
     const questSorting = useQuestifySettings([
         "disableQuestsEverything",
         "ignoredQuestIDs",
-        "makeMobileVideoQuestsDesktopCompatible",
-        "completeVideoQuestsQuicker",
         "questOrder",
         "unclaimedSubsort",
         "claimedSubsort",
         "ignoredSubsort",
         "expiredSubsort",
-        "autoCompleteQuestTypes",
     ]);
 
     if (questSorting.disableQuestsEverything) {
         return quests;
-    }
-
-    if (questSorting.makeMobileVideoQuestsDesktopCompatible || !!questSorting.autoCompleteQuestTypes.WATCH_VIDEO_ON_MOBILE) {
-        injectDesktopVideoQuestTasks(quests);
     }
 
     if (skip) {

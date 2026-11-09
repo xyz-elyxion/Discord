@@ -13,7 +13,7 @@ import { QuestFeaturesSetting } from "../components/questFeaturesSetting";
 import { QuestNotificationsSetting } from "../components/questNotificationsSetting";
 import { QuestTilesSetting } from "../components/questTilesSetting";
 import { ReorderQuestsSetting } from "../components/reorderQuestsSetting";
-import { defaultAllowChangingDangerousSettings, defaultAutoCompleteQuestsSimultaneously, defaultAutoCompleteQuestTypes, defaultClaimedSubsort, defaultCompleteVideoQuestsQuicker, defaultDisableAccountPanelPromo, defaultDisableAccountPanelQuestProgress, defaultDisableFriendsListPromo, defaultDisableMembersListPromo, defaultDisableOrbsAndQuestsBadges, defaultDisableQuestsEverything, defaultDisableRelocationNotices, defaultDisableSponsoredBanner, defaultExpiredSubsort, defaultIgnoredQuestIDs, defaultIgnoredSubsort, defaultIsOnQuestsPage, defaultLastQuestPageFilters, defaultLastQuestPageSort, defaultLeftClickAction, defaultMakeMobileVideoQuestsDesktopCompatible, defaultMiddleClickAction, defaultNewExcludedQuestAlertSound, defaultNewExcludedQuestAlertVolume, defaultNewQuestAlertSound, defaultNewQuestAlertVolume, defaultNotifyOnNewExcludedQuests, defaultNotifyOnNewQuests, defaultNotifyOnQuestComplete, defaultPreventVideoQuestsPausing, defaultQuestButtonBadgeColor, defaultQuestButtonBadgeCount, defaultQuestButtonDisplay, defaultQuestButtonIncludedTypes, defaultQuestButtonIndicator, defaultQuestCompletedAlertSound, defaultQuestCompletedAlertVolume, defaultQuestFetchInterval, defaultQuestOrder, defaultQuestTileClaimedColorSetting, defaultQuestTileExpiredColorSetting, defaultQuestTileGradient, defaultQuestTileIgnoredColorSetting, defaultQuestTilePreload, defaultQuestTileUnclaimedColorSetting, defaultRememberQuestPageFilters, defaultRememberQuestPageSort, defaultResumeInterruptedQuests, defaultResumeQuestIDs, defaultRightClickAction, defaultUnclaimedSubsort, type QuestButtonAction, type QuestButtonDisplayMode, type QuestButtonIncludedTypes, type QuestButtonIndicatorMode, type QuestOrderStatus } from "./def";
+import { defaultClaimedSubsort, defaultDisableAccountPanelPromo, defaultDisableAccountPanelQuestProgress, defaultDisableFriendsListPromo, defaultDisableMembersListPromo, defaultDisableOrbsAndQuestsBadges, defaultDisableQuestsEverything, defaultDisableRelocationNotices, defaultDisableSponsoredBanner, defaultExpiredSubsort, defaultIgnoredQuestIDs, defaultIgnoredSubsort, defaultIsOnQuestsPage, defaultLastQuestPageFilters, defaultLastQuestPageSort, defaultLeftClickAction, defaultMiddleClickAction, defaultNewExcludedQuestAlertSound, defaultNewExcludedQuestAlertVolume, defaultNewQuestAlertSound, defaultNewQuestAlertVolume, defaultNotifyOnNewExcludedQuests, defaultNotifyOnNewQuests, defaultNotifyOnQuestComplete, defaultQuestButtonBadgeColor, defaultQuestButtonBadgeCount, defaultQuestButtonDisplay, defaultQuestButtonIncludedTypes, defaultQuestButtonIndicator, defaultQuestCompletedAlertSound, defaultQuestCompletedAlertVolume, defaultQuestFetchInterval, defaultQuestOrder, defaultQuestTileClaimedColorSetting, defaultQuestTileExpiredColorSetting, defaultQuestTileGradient, defaultQuestTileIgnoredColorSetting, defaultQuestTilePreload, defaultQuestTileUnclaimedColorSetting, defaultRememberQuestPageFilters, defaultRememberQuestPageSort, defaultRightClickAction, defaultUnclaimedSubsort, type QuestButtonAction, type QuestButtonDisplayMode, type QuestButtonIncludedTypes, type QuestButtonIndicatorMode, type QuestOrderStatus } from "./def";
 
 const MIGRATION_TARGET = 1;
 const CURRENT_SETTINGS = PlainSettings.plugins.Questify;
@@ -97,54 +97,6 @@ export const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         description: "Disable the actively playing icon in members list items.",
         default: defaultDisableMembersListPromo,
-        restartNeeded: true,
-        hidden: true,
-    },
-    allowChangingDangerousSettings: {
-        type: OptionType.BOOLEAN,
-        description: "Allow changing dangerous settings.",
-        default: defaultAllowChangingDangerousSettings,
-        hidden: true,
-    },
-    resumeInterruptedQuests: {
-        type: OptionType.BOOLEAN,
-        description: "Resume auto-completing Quests after a reload or restart.",
-        default: defaultResumeInterruptedQuests,
-        restartNeeded: true,
-        hidden: true,
-    },
-    makeMobileVideoQuestsDesktopCompatible: {
-        type: OptionType.BOOLEAN,
-        description: "Make mobile-only Video Quests compatible with desktop.",
-        default: defaultMakeMobileVideoQuestsDesktopCompatible,
-        restartNeeded: true,
-        hidden: true,
-    },
-    autoCompleteQuestsSimultaneously: {
-        type: OptionType.BOOLEAN,
-        description: "Complete Quests simultaneously rather than sequentially.",
-        default: defaultAutoCompleteQuestsSimultaneously,
-        restartNeeded: true,
-        hidden: true,
-    },
-    completeVideoQuestsQuicker: {
-        type: OptionType.BOOLEAN,
-        description: "Use Discord's progress leeway and elapsed enrollment time for Video Quest auto-completion.",
-        default: defaultCompleteVideoQuestsQuicker,
-        restartNeeded: true,
-        hidden: true,
-    },
-    preventVideoQuestsPausing: {
-        type: OptionType.BOOLEAN,
-        description: "Prevent pausing the video when the Quest modal loses focus.",
-        default: defaultPreventVideoQuestsPausing,
-        restartNeeded: true,
-        hidden: true,
-    },
-    autoCompleteQuestTypes: {
-        type: OptionType.CUSTOM,
-        description: "Which types of Quests to auto-complete in the background.",
-        default: defaultAutoCompleteQuestTypes,
         restartNeeded: true,
         hidden: true,
     },
@@ -377,12 +329,6 @@ export const settings = definePluginSettings({
         type: OptionType.CUSTOM,
         description: "An array of Quest IDs that are ignored.",
         default: defaultIgnoredQuestIDs,
-        hidden: true,
-    },
-    resumeQuestIDs: {
-        type: OptionType.CUSTOM,
-        description: "An array of Quest IDs that are being or are queued to be auto-completed in the background.",
-        default: defaultResumeQuestIDs,
         hidden: true,
     },
 });

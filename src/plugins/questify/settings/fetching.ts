@@ -6,8 +6,7 @@
 
 import { fetchAndAlertQuests } from "../utils/fetching";
 import { QL } from "../utils/logging";
-import type { Quest } from "../utils/types";
-import { getCurrentUserId, getQuestifySettings } from "./access";
+import { getQuestifySettings } from "./access";
 
 let autoFetchInterval: null | ReturnType<typeof setInterval> = null;
 const minimumAutoFetchIntervalValue = 30 * 60; // 30 minutes
@@ -66,31 +65,4 @@ export function stopAutoFetchingQuests(): void {
         autoFetchInterval = null;
         QL.info("STOP_AUTO_FETCHING_QUESTS");
     }
-}
-
-export function resetQuestsToResume(quest?: Quest, userId?: string): void {
-    const { resumeQuestIDs } = getQuestifySettings();
-    const key = getCurrentUserId(userId);
-
-    if (!key) {
-        QL.warn("RESET_QUESTS_TO_RESUME_NO_USER");
-        return;
-    }
-
-    const resumeState = resumeQuestIDs[key];
-
-    if (!resumeState) {
-        return;
-    }
-
-    if (!quest) {
-        delete resumeQuestIDs[key];
-
-        return;
-    }
-
-    resumeQuestIDs[key] = {
-        timestamp: resumeState.timestamp,
-        questIDs: resumeState.questIDs.filter(id => id !== quest.id),
-    };
 }
