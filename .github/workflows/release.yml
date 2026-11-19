@@ -47,12 +47,49 @@ jobs:
               with:
                   node-version: 24
                   cache: "pnpm"
+                  # desktop/ is its own pnpm project with its own lockfile, so the
+                  # pnpm store cache has to be keyed on it as well; otherwise a
+                  # desktop-only dependency bump keeps restoring a store that
+                  # cannot satisfy the new lockfile.
+                  cache-dependency-path: |
+                      pnpm-lock.yaml
+                      desktop/pnpm-lock.yaml
 
             - name: Enable corepack (each sub-project pins its own pnpm)
               run: sudo corepack enable
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
+
+            # electron-builder downloads an Electron build per target arch (the
+            # Linux AppImage/tar.gz and the Windows zip here), which is well over
+            # a hundred megabytes and only changes when desktop/pnpm-lock.yaml
+            # moves. The desktop step below no longer redirects XDG_CACHE_HOME, so
+            # this default cache directory is the one it fills. Its own toolset
+            # downloads (appimage, winCodeSign) are small and deliberately left
+            # uncached: a bad extraction there would be cached permanently.
+            - name: Cache the Electron downloads
+              uses: actions/cache@v6
+              with:
+                  path: ~/.cache/electron
+                  key: ${{ runner.os }}-electron-${{ hashFiles('desktop/pnpm-lock.yaml') }}
+                  restore-keys: |
+                      ${{ runner.os }}-electron-
+
+            # The installer is cross-compiled once per target, which rebuilds
+            # giu/glfw for every GOOS. The module cache holds those sources and
+            # the build cache holds the compiled objects; the latter is
+            # content-addressed, so keying on the go.sum files is enough — stale
+            # entries just miss instead of producing wrong binaries.
+            - name: Cache Go modules and build cache
+              uses: actions/cache@v6
+              with:
+                  path: |
+                      ~/go/pkg/mod
+                      ~/.cache/go-build
+                  key: ${{ runner.os }}-go-${{ hashFiles('installer/go.sum', 'services/cloud/go.sum', 'third_party/imgui-go/go.mod') }}
+                  restore-keys: |
+                      ${{ runner.os }}-go-
 
             # buildWeb is buildWeb.mjs + zipExtension.mjs + buildMonaco.mjs, so
             # this produces the userscript, the loadable extension zip and the
@@ -83,8 +120,6 @@ jobs:
             # server serves those files (and the packaged installers next to
             # them) at /dist/limeyDesktop and /v1/install/desktop-app.
             - name: Build the desktop client
-              env:
-                  XDG_CACHE_HOME: ${{ runner.temp }}/electron-cache
               run: |
                   cd desktop
                   pnpm install --frozen-lockfile --ignore-scripts
