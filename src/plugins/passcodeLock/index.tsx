@@ -8,7 +8,7 @@
 // (https://github.com/okdevme/DiscordPlugins) — re-implemented natively for Limey V1.
 
 import { definePluginSettings } from "@api/Settings";
-import { enableStyle } from "@api/Styles";
+import { enableStyle, isStyleEnabled } from "@api/Styles";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { Button, createRoot, React, showToast, Toasts, useEffect, useRef, useState } from "@webpack/common";
@@ -124,6 +124,14 @@ const hasPasscode = () => !!settings.store.hash;
 // --- Lock screen component ----------------------------------------------------
 
 const MAX_CODE_LENGTH = 15;
+
+// Applied inline to the lock container. The managed stylesheet is the normal source
+// of these rules, but inlining them means the overlay still covers Discord if the
+// stylesheet is deleted from the element inspector.
+const LOCK_MOUNT_STYLE =
+    "position: fixed; inset: 0; z-index: 2999; overflow: hidden; user-select: none;"
+    + " display: flex; align-items: center; justify-content: center;"
+    + " background-color: rgb(0 0 0 / 50%); backdrop-filter: blur(30px);";
 
 function PasscodeLocker({ mode, onUnlock, onCancel }: {
     mode: "default" | "editor";
@@ -292,6 +300,8 @@ const V1Plugin = {
 
     locked: false,
     lockRoot: null as HTMLDivElement | null,
+    lockObserver: null as MutationObserver | null,
+    lockWatchdog: undefined as ReturnType<typeof setInterval> | undefined,
     keyHandler: null as ((e: KeyboardEvent) => void) | null,
     keybindHandler: null as ((e: KeyboardEvent) => void) | null,
     blurListener: null as (() => void) | null,
@@ -315,6 +325,8 @@ const V1Plugin = {
         const close = () => this.unlock();
 
         this.lockRoot = document.createElement("div");
+        this.lockRoot.className = "v1-pcl-mount";
+        this.lockRoot.style.cssText = LOCK_MOUNT_STYLE;
         document.body.appendChild(this.lockRoot);
         const container = this.lockRoot;
         {
@@ -347,6 +359,26 @@ const V1Plugin = {
             }
         };
         window.addEventListener("keydown", this.keyHandler, true);
+
+        // Re-assert the lock whenever the overlay or its stylesheet is tampered with,
+        // so deleting the element from the inspector does not reveal Discord.
+        const guard = () => {
+            const root = this.lockRoot;
+            if (!root) return;
+
+            if (!root.isConnected) document.body.appendChild(root);
+            if (root.className !== "v1-pcl-mount") root.className = "v1-pcl-mount";
+            if (root.style.cssText !== LOCK_MOUNT_STYLE) root.style.cssText = LOCK_MOUNT_STYLE;
+            root.removeAttribute("hidden");
+
+            if (!isStyleEnabled(managedStyle)) enableStyle(managedStyle);
+        };
+
+        this.lockObserver = new MutationObserver(guard);
+        this.lockObserver.observe(document.body, { childList: true });
+        this.lockObserver.observe(container, { attributes: true, attributeFilter: ["style", "class", "hidden"] });
+        // Backstop in case the observer is disabled or the node is moved somewhere it is not watched.
+        this.lockWatchdog = setInterval(guard, 250);
     },
 
     unlock() {
@@ -360,6 +392,10 @@ const V1Plugin = {
             this.lockRoot = null;
             root.remove();
         }
+        this.lockObserver?.disconnect();
+        this.lockObserver = null;
+        clearInterval(this.lockWatchdog);
+
         if (this.keyHandler) {
             window.removeEventListener("keydown", this.keyHandler, true);
             this.keyHandler = null;
