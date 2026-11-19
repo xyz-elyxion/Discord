@@ -154,15 +154,6 @@ importers:
         specifier: ^0.3.5
         version: 0.3.5
 
-  ghost-client:
-    devDependencies:
-      electron:
-        specifier: 33.4.11
-        version: 33.4.11
-      electron-builder:
-        specifier: ^25.1.8
-        version: 25.1.8(electron-builder-squirrel-windows@25.1.8)
-
   limebot-app:
     devDependencies:
       electron:

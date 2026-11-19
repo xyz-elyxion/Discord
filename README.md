@@ -14,7 +14,6 @@ This is a monorepo — each top-level folder is its own project:
 | `server.js` (shim) + `web/` | **Web server** — site, admin panel, `/v1/*` APIs, single-file backends (`server.js` at the root is kept for hosts that hardcode that start path) |
 | `bot/` | **Discord bot** (Limebot) — starts via `dist/botOnly.js` → `bot/run.js` on single-file hosts like Wispbyte |
 | `desktop/` | **Standalone Electron client** (packaged installer + portable builds) |
-| `ghost-client/` | **Ghost client** overlay app (Windows) |
 | `docs/` | **Astro docs site** (built output served from `web/public/docs`) |
 | `services/` | Small **Go services**: `services/cloud` (settings-sync API), `services/sentinel-color-dirs` |
 | `third_party/` | Vendored dependencies (imgui-go fork for the installer) |

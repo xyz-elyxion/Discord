@@ -9,7 +9,7 @@
  *      file/link drop — no extension required for the drop itself.
  *   2. Extension relay: the pinned chips "Open in app" via the site's remote
  *      bridge, and the app can push "Send to the Limey site" chips here even
- *      without a drag (see public/limey-remote.js + the extension relay).
+ *      without a drag (see the extension relay in browser/).
  *
  * Chips are themselves native drag sources, so pin -> drag into your Discord
  * completes the round trip.

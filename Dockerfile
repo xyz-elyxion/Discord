@@ -32,10 +32,9 @@ RUN pnpm install --frozen-lockfile --ignore-scripts \
 RUN node scripts/build.mjs
 
 # The desktop client (esbuild bundles + electron-builder AppImage/.tar.gz/.zip)
-# and the Ghost Client overlay zip are built by .github/workflows/release.yml
-# and published as release assets. This image downloads the packaged desktop
-# build instead of producing it (see the fetch step in the build stage), and
-# the Ghost Client is linked straight from the release.
+# is built by .github/workflows/release.yml and published as a release asset.
+# This image downloads the packaged desktop build instead of producing it (see
+# the fetch step in the build stage).
 
 # ---------- Build stage ----------
 FROM node:22-alpine AS build
@@ -135,7 +134,6 @@ COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/browser ./browser
 COPY --from=cloud --chown=node:node /services/cloud/limeycloud-backend ./services/cloud/limeycloud-backend
 # Installer downloads come from the GitHub release, not from this image.
-# Ghost Client download is a release asset (see download.html), so no zip here.
 COPY --from=limebot --chown=node:node /bot/dist ./bot/dist
 COPY --from=limebot --chown=node:node /bot/node_modules ./bot/node_modules
 COPY --from=limebot --chown=node:node /bot/package.json ./bot/package.json

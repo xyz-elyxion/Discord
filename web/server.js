@@ -1448,208 +1448,6 @@ async function handleDetector(req, res, url) {
     return false;
 }
 
-// ------------------------------------------------------------------
-// Limey V1 Ghost Client relay — connects the Ghost Client plugin running
-// inside Limey V1 (in Discord) with the standalone Ghost Client overlay app
-// (the EXE that floats above the Discord client). The overlay renders the
-// GUI from the plugin state relayed here; the actual behavior still comes
-// from Limey V1 installed in Discord.
-//
-// Endpoints (all with open CORS, like the detector API):
-//   POST /v1/ghost/ping     — plugin heartbeat { userId, username, ... }
-//   POST /v1/ghost/beacon   — Ghost Client overlay heartbeat + state fetch
-// ------------------------------------------------------------------
-const GHOST_SESSION_TTL_MS = 90 * 1000;
-const GHOST_MAX_PLUGINS = 200;
-const GHOST_MAX_PLUGIN_NAME = 64;
-// ESP anchors: screen positions of the plugin effects' placeholders in the
-// Discord renderer, relayed so the EXE can draw the effects where they belong.
-const GHOST_MAX_ANCHORS = 48;
-
-// { "session:<userId>": { userId, online, appOnline, lastDiscordPingAt,
-//   lastAppPingAt, username, displayName, enabledPlugins, flags,
-//   anchors, viewport } } —
-// sessions are ephemeral presence state, refreshed
-// by both heartbeats ~30s apart, so nothing here is persisted to disk/kv.
-const ghostSessions = new Map();
-
-function ghostSanitize(value, max) {
-    if (value === null || value === undefined) return null;
-    const s = String(value).slice(0, max);
-    return s.length ? s : null;
-}
-
-function pruneGhostSessions() {
-    const cutoff = Date.now() - GHOST_SESSION_TTL_MS;
-    for (const [key, session] of ghostSessions) {
-        if ((session.t.lastDiscordPingAt ?? session.t.created) < cutoff) ghostSessions.delete(key);
-    }
-}
-
-function ensureGhostSession(userId) {
-    const key = `session:${userId}`;
-    let session = ghostSessions.get(key);
-    if (!session) {
-        session = {
-            userId,
-            t: { created: Date.now(), lastDiscordPingAt: null },
-            online: false,
-            appOnline: false,
-            lastAppPingAt: null,
-            username: null,
-            displayName: null,
-            enabledPlugins: [],
-            flags: {},
-            anchors: [],
-            viewport: null,
-        };
-        ghostSessions.set(key, session);
-    }
-    return session;
-}
-
-function ghostSanitizeViewport(v) {
-    if (!v || typeof v !== "object") return null;
-    const dpr = Number(v.dpr), vw = Number(v.vw), vh = Number(v.vh);
-    if (!Number.isFinite(dpr) || dpr <= 0 || dpr > 10) return null;
-    if (!Number.isFinite(vw) || vw < 0 || vw > 100000) return null;
-    if (!Number.isFinite(vh) || vh < 0 || vh > 100000) return null;
-    return { dpr: Math.round(dpr * 100) / 100, vw: Math.round(vw), vh: Math.round(vh) };
-}
-
-// Ghost Client ESP anchor + viewport payloads must stay tiny and numeric.
-function ghostSanitizeAnchors(raw) {
-    if (!Array.isArray(raw)) return null;
-    const out = [];
-    for (const a of raw) {
-        if (!a || typeof a !== "object") continue;
-        const effect = ghostSanitize(a.effect, 32);
-        const userId = typeof a.userId === "string" && /^\d{1,25}$/.test(a.userId) ? a.userId : "";
-        const pos = ["x", "y", "w", "h"].map(k => {
-            const n = Number(a[k]);
-            return Number.isFinite(n) && Math.abs(n) <= 1e6 ? Math.round(n * 10) / 10 : null;
-        });
-        if (effect && userId && !pos.includes(null)) {
-            out.push({ effect, userId, x: pos[0], y: pos[1], w: pos[2], h: pos[3] });
-            if (out.length >= GHOST_MAX_ANCHORS) break;
-        }
-    }
-    return out;
-}
-
-async function handleGhostClient(req, res, url) {
-    if (!url.startsWith("/v1/ghost/")) return false;
-
-    if (req.method === "OPTIONS") {
-        res.writeHead(204, {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type"
-        });
-        return res.end(), true;
-    }
-
-    // POST /v1/ghost/ping — the Limey V1 plugin inside Discord
-    if (req.method === "POST" && url === "/v1/ghost/ping") {
-        let body;
-        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
-            return json(res, 400, { error: "invalid JSON body" }), true;
-        }
-        const userId = String(body.userId || "");
-        if (!/^\d{5,25}$/.test(userId)) {
-            return json(res, 400, { error: "invalid userId" }), true;
-        }
-        const session = ensureGhostSession(userId);
-        const now = Date.now();
-        session.t.lastDiscordPingAt = now;
-        session.online = true;
-        session.username = ghostSanitize(body.username, 64);
-        session.displayName = ghostSanitize(body.display, 64);
-        if (Array.isArray(body.enabledPlugins)) {
-            const seen = new Set();
-            session.enabledPlugins = body.enabledPlugins
-                .map(name => ghostSanitize(name, GHOST_MAX_PLUGIN_NAME))
-                .filter(name => {
-                    if (!name || seen.has(name)) return false;
-                    seen.add(name);
-                    return true;
-                })
-                .slice(0, GHOST_MAX_PLUGINS);
-        }
-        if (body.flags && typeof body.flags === "object") {
-            const cleanFlags = {};
-            for (const [flag, value] of Object.entries(body.flags)) {
-                const name = ghostSanitize(flag, GHOST_MAX_PLUGIN_NAME);
-                if (name) cleanFlags[name] = Boolean(value);
-            }
-            session.flags = cleanFlags;
-        }
-        const pingAnchors = ghostSanitizeAnchors(body.anchors);
-        if (pingAnchors) session.anchors = pingAnchors;
-        const pingViewport = ghostSanitizeViewport(body.viewport);
-        if (pingViewport) session.viewport = pingViewport;
-        pruneGhostSessions();
-        return json(res, 200, {
-            appOnline: !!session.appOnline,
-        }), true;
-    }
-
-    // POST /v1/ghost/anchors — ESP fast lane: the plugin pushes fresh
-    // effect placeholders (viewport-relative rects) up to every second so the
-    // EXE can draw them at their exact spot while the member list scrolls.
-    if (req.method === "POST" && url === "/v1/ghost/anchors") {
-        let body;
-        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
-            return json(res, 400, { error: "invalid JSON body" }), true;
-        }
-        const userId = String(body.userId || "");
-        if (!/^\d{5,25}$/.test(userId)) {
-            return json(res, 400, { error: "invalid userId" }), true;
-        }
-        pruneGhostSessions();
-        const session = ghostSessions.get(`session:${userId}`);
-        if (!session || !session.online) return json(res, 200, { error: "no session" }), true;
-        const anchors = ghostSanitizeAnchors(body.anchors);
-        if (!anchors) return json(res, 400, { error: "invalid anchors" }), true;
-        session.anchors = anchors;
-        const viewport = ghostSanitizeViewport(body.viewport);
-        if (viewport) session.viewport = viewport;
-        return json(res, 200, { ok: true }), true;
-    }
-
-    // POST /v1/ghost/beacon — the Ghost Client GUI app heartbeat + mirror fetch
-    if (req.method === "POST" && url === "/v1/ghost/beacon") {
-        let body;
-        try { body = JSON.parse(await readBody(req) || "{}"); } catch {
-            return json(res, 400, { error: "invalid JSON body" }), true;
-        }
-        const userId = String(body.userId || "");
-        if (!/^\d{5,25}$/.test(userId)) {
-            return json(res, 400, { error: "invalid userId" }), true;
-        }
-        pruneGhostSessions();
-        const session = ghostSessions.get(`session:${userId}`);
-        if (!session || !session.online) {
-            return json(res, 200, { session: null }), true;
-        }
-        session.appOnline = true;
-        session.lastAppPingAt = Date.now();
-        return json(res, 200, {
-            session: session.userId,
-            displayName: session.displayName,
-            username: session.username,
-            online: !!session.online,
-            enabledPlugins: session.enabledPlugins,
-            flags: session.flags,
-            anchors: session.anchors || [],
-            viewport: session.viewport || null,
-        }), true;
-    }
-
-    if (url.startsWith("/v1/ghost/")) return json(res, 404, { error: "not found" }), true;
-    return false;
-}
-
 // Persistence is now handled by PostgreSQL (pgkv.js); the Go cloud backend
 // still takes a REDIS_URI for its own use.
 function normalizeRedisUri(uri) {
@@ -2782,9 +2580,9 @@ function serveFile(res, filePath, status = 200) {
     // minutes, not a day later. Give just these a short window; the rest of
     // dist/ (renderer/patcher files served per-build) stays immutable-cached.
     const installerName = filePath.split(/[\\/]/).pop() || "";
-    if (installerName.startsWith("LimeyV1Installer") || installerName.startsWith("LimeyV1GhostClient")) {
-        // Installer/overlay binaries must hand out fresh bytes quickly when a
-        // rebuilt container republishes them.
+    if (installerName.startsWith("LimeyV1Installer")) {
+        // Installer binaries must hand out fresh bytes quickly when a rebuilt
+        // container republishes them.
         headers["Cache-Control"] = "public, max-age=300";
     }
 
@@ -2814,7 +2612,6 @@ const NAMED_PAGES = {
     "/dashboard": "dashboard.html",
     "/submit-plugin": "submit-plugin.html",
     "/code": "code.html",
-    "/ghost": "ghost.html",
     "/404": "404.html",
     "/sdk": "sdk.html",
     "/terms": "terms.html",
@@ -3089,8 +2886,6 @@ const server = http.createServer(async (req, res) => {
         if (await handleUsrbg(req, res, url)) return;
         // Limey V1 Detector API (handled in-process)
         if (await handleDetector(req, res, url)) return;
-        // Limey V1 Ghost Client relay (plugin <-> companion app GUI)
-        if (await handleGhostClient(req, res, url)) return;
         // Tools page lookup proxy (invite + guild widget)
         if (await handleToolsLookup(req, res, url)) return;
         // CORS-friendly media proxy for the GifCaptioner plugin

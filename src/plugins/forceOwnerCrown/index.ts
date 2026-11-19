@@ -17,11 +17,9 @@
 */
 
 import { Channel, User } from "@limeyV1/discord-types";
-import { addMemberListDecorator, removeMemberListDecorator } from "@api/MemberListDecorators";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import { GuildStore, React, SelectedGuildStore } from "@webpack/common";
-import { shouldHideInDiscord } from "@plugins/ghostClient";
+import { GuildStore } from "@webpack/common";
 
 export default definePlugin({
     name: "ForceOwnerCrown",
@@ -33,7 +31,7 @@ export default definePlugin({
             risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
         }
     ],
-    description: "Force the owner crown next to usernames even if the server is large. When the Ghost Client overlay is connected, the forced crown renders on the overlay instead of inside Discord — drawn ESP-style directly at the owner's spot in the member list.",
+    description: "Force the owner crown next to usernames even if the server is large.",
     authors: [Devs.D3SOX, Devs.Nickyux],
     tags: ["Roles", "Appearance", "Servers"],
     patches: [
@@ -46,11 +44,6 @@ export default definePlugin({
         }
     ],
     isGuildOwner(props: { user: User, channel: Channel, isOwner: boolean, guildId?: string; }) {
-        // Ghost Client overlay mode: the forced crown lives on the Ghost Client
-        // EXE, not inside the client where Limey V1 is installed. Fall back to
-        // Discord's own isOwner so nothing native disappears too.
-        if (shouldHideInDiscord()) return props.isOwner;
-
         if (!props?.user?.id) return props.isOwner;
         if (props.channel?.type === 3 /* GROUP_DM */)
             return props.isOwner;
@@ -60,46 +53,5 @@ export default definePlugin({
         const userId = props.user.id;
 
         return GuildStore.getGuild(guildId)?.ownerId === userId;
-    },
-
-    start() {
-        // Ghost-only mode: instead of forcing the crown into Discord, drop an
-        // invisible "anchor" into the owner's member-list row. The Ghost Client
-        // EXE reads these anchors' live screen positions and draws the crown
-        // exactly where it belongs — ESP-style, over the Discord window.
-        addMemberListDecorator("ForceOwnerCrown", props => {
-            if (!shouldHideInDiscord()) return null;
-            if (!props?.user?.id) return null;
-
-            // props.isOwner is the patch context's own ownership decision; not
-            // every member-list patch context carries it, so fall back to
-            // checking the selected guild's owner directly.
-            const isOwner = props.isOwner ??
-                (() => {
-                    // Not every member-list patch context carries isOwner, so
-                    // fall back to checking the selected guild's owner directly.
-                    const guildId = SelectedGuildStore?.getGuildId?.();
-                    return Boolean(guildId) && GuildStore.getGuild(guildId!)?.ownerId === props.user.id;
-                })();
-            if (!isOwner) return null;
-
-            return React.createElement("span", {
-                className: "limey-ghost-anchor",
-                "data-limey-ghost-anchor": "crown",
-                "data-user-id": props.user.id,
-                "aria-hidden": true,
-                style: {
-                    display: "inline-block",
-                    width: 0,
-                    height: 16,
-                    verticalAlign: "text-bottom",
-                    pointerEvents: "none",
-                },
-            });
-        }, "guilds");
-    },
-
-    stop() {
-        removeMemberListDecorator("ForceOwnerCrown");
     },
 });

@@ -33,7 +33,6 @@ and (usually) eslint config; installing at the root does **not** install their d
 | `web/` + root `server.js` | **Web server**: site, admin panel, `/v1/*` APIs, single-file backends | `node --check <file>`; no build step |
 | `bot/` | **Limebot**, the Discord bot (esbuild bundle, SQLite via kysely) | `cd bot && pnpm install --frozen-lockfile`, `pnpm testTypes`, `pnpm lint` |
 | `desktop/` | Standalone Electron client (installer + portable) | `cd desktop && pnpm testTypes`, `pnpm lint` |
-| `ghost-client/` | Ghost client overlay app (Windows) | `node --check` / its own scripts |
 | `docs/` | Astro documentation site, built into `web/public/docs` | `cd docs && pnpm build` |
 | `services/` | Small Go services (`cloud`, `sentinel-color-dirs`) | `go build ./...` in that service |
 | `limebot-app/` | Electron wrapper volunteers use to run the bot | `pnpm check`, `pnpm build:linux` |

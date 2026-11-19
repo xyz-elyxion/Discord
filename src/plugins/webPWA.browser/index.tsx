@@ -13,47 +13,6 @@ import managedStyle from "./styles.css?managed";
 
 let _keybinds: Record<string, { onTrigger: () => any; }>;
 
-//
-// Site remote — direct-window channel (works in the userscript where the
-// extension's background/tab bridge doesn't exist, and harmlessly alongside
-// it in the extension build).
-//
-// The Limey site opens (or reuses) an app tab and cross-origin postMessages
-// the app directly; the app tab answers in the SAME window target so the
-// opener receives it without any extension hop:
-//   "limeyV1:remote:ping" Oliver Redmondoais  "limeyV1:remote:pong" { version, commands? }
-//   "limeyV1:remote:command" -> ack "limeyV1:remote:ack" { command, ok: contacted > 0 } (sent to opener
-//      AND, for legacy flows, back toward the page origin like the old path)
-//
-// For the extension build the site's content-script path still returns a full
-// pong first, so this only fires when the extension isn't answering.
-const REMOTE_COMMAND_SURFACE = ["TOGGLE_MUTE", "TOGGLE_DEAFEN", "TOGGLE_VOICE_MODE", "TOGGLE_STREAMER_MODE", "TOGGLE_GO_LIVE_STREAMING", "NAVIGATE_BACK", "NAVIGATE_FORWARD", "SAVE_CLIP"];
-
-function handleSiteRemoteMessage(event: MessageEvent) {
-    const { data, source } = event;
-    const target: Window | null = source === window ? window : source instanceof Window ? source : null;
-    if (!data || !target || typeof data !== "object" || !data.type) return;
-    if ((data.type !== "limeyV1:site" && data.type !== "limeyV1:remote:ping")) return;
-
-    if (data.type === "limeyV1:remote:ping" || data.action === "ping-direct") {
-        target.postMessage({
-            type: "limeyV1:remote:pong",
-            version: VERSION,
-            commands: REMOTE_COMMAND_SURFACE.slice(0)
-        }, "*");
-        return;
-    }
-
-    if (data.type === "limeyV1:remote:command" && typeof data.command === "string") {
-        if (_keybinds && data.command in _keybinds) {
-            _keybinds[data.command].onTrigger();
-            target.postMessage({ type: "limeyV1:remote:ack", command: data.command, ok: true }, "*");
-        } else {
-            target.postMessage({ type: "limeyV1:remote:ack", command: data.command, ok: false }, "*");
-        }
-    }
-}
-
 function colorToHex(color: string) {
     const ctx = document.createElement("canvas").getContext("2d");
     if (!ctx) return "#000000"; // no GPU, you'll have bigger issues than a miscolored title bar
@@ -166,29 +125,15 @@ export default definePlugin({
         RelationshipStore.addChangeListener(this.setBadge);
         this.setBadge();
 
-        if (!IS_USERSCRIPT) {
-            // keybinds (extension: relays from the site via the background)
-            this.ctrl.abort();
-            this.ctrl = new AbortController();
-            window.addEventListener("message", ({ data }) => {
-                if (data?.type === "limeyV1:keybinds" && _keybinds) {
-                    const { meta } = data;
-                    if (meta in _keybinds) _keybinds[meta].onTrigger();
-                }
-            }, this.ctrl);
-        } else {
-            // userscript: no extension bridge, so answer the site remote's
-            // direct cross-origin channel instead (see handleSiteRemoteMessage).
-            this.ctrl.abort();
-            this.ctrl = new AbortController();
-            window.addEventListener("message", ({ data }) => {
-                if (data?.type === "limeyV1:keybinds" && _keybinds) {
-                    const { meta } = data;
-                    if (meta in _keybinds) _keybinds[meta].onTrigger();
-                }
-            }, this.ctrl);
-            window.addEventListener("message", handleSiteRemoteMessage, this.ctrl);
-        }
+        // keybinds (extension: relays from the site via the background)
+        this.ctrl.abort();
+        this.ctrl = new AbortController();
+        window.addEventListener("message", ({ data }) => {
+            if (data?.type === "limeyV1:keybinds" && _keybinds) {
+                const { meta } = data;
+                if (meta in _keybinds) _keybinds[meta].onTrigger();
+            }
+        }, this.ctrl);
     },
     stop() {
         if (navigator.clearAppBadge) navigator.clearAppBadge();

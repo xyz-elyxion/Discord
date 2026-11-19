@@ -77,16 +77,6 @@ jobs:
                   CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -tags cli -ldflags "-s -w" -o ../dist/LimeyV1Installer-cli-macos-amd64 .
                   CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags cli -ldflags "-s -w -extldflags=-static" -o ../dist/LimeyV1Installer-cli-linux .
 
-            # Ghost Client overlay: electron-builder only zips the win32-x64
-            # Electron dist, so no Wine is needed. The pre-fetch script fills
-            # electron-builder's cache first (some hosts block the download).
-            - name: Build the Ghost Client
-              working-directory: ghost-client
-              run: |
-                  pnpm install --frozen-lockfile=false --ignore-scripts
-                  node scripts/fetch-electron-dist.mjs
-                  pnpm build:win
-
             # Desktop standalone client: esbuild bundles into dist/js, then
             # electron-builder adds the Linux AppImage/.tar.gz and the portable
             # Windows zip. The whole build output is archived as well — the web
@@ -126,7 +116,6 @@ jobs:
                       dist/LimeyV1Installer-cli-linux
                       dist/LimeyV1.user.js
                       dist/LimeyV1-Extension.zip
-                      ghost-client/dist/LimeyV1GhostClient-win-x64-1.0.0.zip
                       LimeyV1Desktop-build.tar.gz
                   )
                   for asset in "${assets[@]}"; do
