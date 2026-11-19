@@ -2,16 +2,18 @@
  * Limey V1, a Discord client mod
  * Copyright (c) 2026 Limey and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
- *
- * Converted from the BetterDiscord plugin "PasscodeLock" by arg0NNY
- * (https://github.com/okdevme/DiscordPlugins) — re-implemented natively
- * for Limey V1.
  */
 
+// Converted from the BetterDiscord plugin "PasscodeLock" by arg0NNY
+// (https://github.com/okdevme/DiscordPlugins) — re-implemented natively for Limey V1.
+
 import { definePluginSettings } from "@api/Settings";
+import { enableStyle } from "@api/Styles";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { Button, TextInput, Toasts, showToast, useEffect, useState, useRef, React, createRoot } from "@webpack/common";
+import { Button, createRoot, React, showToast, Toasts, useEffect, useRef, useState } from "@webpack/common";
+
+import managedStyle from "./styles.css?managed";
 
 type CodeType = "4-digit" | "6-digit" | "custom-numeric";
 
@@ -119,95 +121,6 @@ const settings = definePluginSettings({
 
 const hasPasscode = () => !!settings.store.hash;
 
-// --- CSS ---------------------------------------------------------------------
-
-const css = `
-.v1-pcl-layout {
-    position: fixed;
-    inset: 0;
-    z-index: 2999;
-    overflow: hidden;
-    color: #dcddde;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: rgba(0, 0, 0, .5);
-    backdrop-filter: blur(30px);
-    user-select: none;
-}
-.v1-pcl-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-bottom: 22px;
-}
-.v1-pcl-title {
-    margin: 25px 0;
-    font-size: 20px;
-    font-weight: 600;
-}
-.v1-pcl-dots {
-    display: flex;
-    height: 8px;
-    justify-content: center;
-}
-.v1-pcl-dot {
-    height: 8px;
-    width: 8px;
-    border-radius: 50%;
-    margin: 0 5px;
-    opacity: 0;
-    transform: scale(.5);
-    transition: .25s opacity, .25s transform;
-    background: #dcddde;
-}
-.v1-pcl-dot.v1-pcl-dot-active {
-    opacity: 1;
-    transform: scale(1);
-}
-.v1-pcl-buttons {
-    display: grid;
-    grid-template-columns: repeat(3, 64px);
-    grid-auto-rows: 64px;
-    gap: 24px;
-    padding: 40px 20px;
-}
-.v1-pcl-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 50%;
-    border: 1px solid transparent;
-    transition: .3s background-color;
-}
-.v1-pcl-btn:hover {
-    border-color: rgba(255, 255, 255, .15);
-    background-color: rgba(255, 255, 255, .1);
-}
-.v1-pcl-btn-number {
-    font-size: 32px;
-    font-weight: 500;
-    line-height: 36px;
-}
-.v1-pcl-btn-dec {
-    height: 11px;
-    font-size: 10px;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, .3);
-}
-.v1-pcl-delay {
-    position: absolute;
-    top: 55px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: max-content;
-    text-align: center;
-    line-height: 1.2;
-}
-`;
-
 // --- Lock screen component ----------------------------------------------------
 
 const MAX_CODE_LENGTH = 15;
@@ -302,7 +215,7 @@ function PasscodeLocker({ mode, onUnlock, onCancel }: {
         submit();
     }
 
-    const btns = ["ABC", "DEF", "GHI", "JKL", "MNO", "PQRS", "TUV", "WXYZ"];
+    const btns = ["", "ABC", "DEF", "GHI", "JKL", "MNO", "PQRS", "TUV", "WXYZ"];
 
     return (
         <div className="v1-pcl-layout">
@@ -329,7 +242,7 @@ function PasscodeLocker({ mode, onUnlock, onCancel }: {
                     {btns.map((dec, i) => (
                         <div key={i} className="v1-pcl-btn" onClick={() => append(i + 1)}>
                             <div className="v1-pcl-btn-number">{i + 1}</div>
-                            <div className="v1-pcl-btn-dec">{dec}</div>
+                            {dec && <div className="v1-pcl-btn-dec">{dec}</div>}
                         </div>
                     ))}
                     <div className="v1-pcl-btn" onClick={() => (code ? accept() : onCancel())}>⏎</div>
@@ -359,10 +272,10 @@ const V1Plugin = {
     }],
     settings,
 
-    managedStyle: css,
+    managedStyle,
 
     toolboxActions: {
-        "Lock Discord": function (this: any) { this.lock(); }
+        "Lock Discord": () => V1Plugin.lock()
     },
 
     settingsAboutComponent: () => {
@@ -391,6 +304,10 @@ const V1Plugin = {
         if (!hasPasscode() && mode === "default") {
             return void showToast("Please first set up the passcode in the plugin settings.", Toasts.Type.FAILURE);
         }
+
+        // The lock screen is styled by the plugin's managed stylesheet; make sure it
+        // is applied even when the passcode is being set with the plugin toggled off.
+        enableStyle(managedStyle);
 
         this.locked = true;
         settings.store.locked = true;
@@ -465,7 +382,7 @@ const V1Plugin = {
         window.addEventListener("keydown", this.keybindHandler);
 
         this.blurListener = () => {
-            const autolock = settings.store.autolock;
+            const { autolock } = settings.store;
             if (!autolock) return;
             this.autolockTimeout = setTimeout(() => this.lock(), autolock * 1000);
         };
