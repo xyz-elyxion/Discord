@@ -17,7 +17,7 @@ const UserGuildSettingsStore = findStoreLazy("UserGuildSettingsStore");
 const JoinedThreadsStore = findStoreLazy("JoinedThreadsStore");
 const NumberBadgeLazy = mapMangledModuleLazy('SQUARE:""}', {
     NumberBadge: filters.componentByCode("renderBadgeCount:")
-}).NumberBadge;
+}, true).NumberBadge;
 
 const settings = definePluginSettings({
     showOnMutedChannels: {
@@ -55,14 +55,19 @@ export default definePlugin({
     })),
 
     UnreadCountBadge: (channelId: string, guildId: string) => {
-        const unreadCount = useStateFromStores([ReadStateStore], () => ReadStateStore.getUnreadCount(channelId), []);
+        const unreadCount = useStateFromStores([ReadStateStore], () => ReadStateStore?.getUnreadCount(channelId) ?? 0, []);
         // Discord relocates this component between builds. When the filter misses, the lazy
-        // resolves to a primitive and React reading it throws out of the channel list render,
-        // so resolve it here and render nothing rather than crashing the client.
+        // resolves to nothing, and React reading a property off the unresolved proxy throws out
+        // of the channel list render and takes the client with it. Resolve every lazy up front
+        // and render nothing when one of them did not resolve.
         const NumberBadge = unwrapLazy(NumberBadgeLazy);
         if (!unreadCount || typeof NumberBadge !== "function") return null;
 
-        if (!settings.store.showOnMutedChannels && (UserGuildSettingsStore.isChannelMuted(guildId, channelId) || JoinedThreadsStore.isMuted(channelId)))
+        const guildSettings = unwrapLazy(UserGuildSettingsStore);
+        const joinedThreads = unwrapLazy(JoinedThreadsStore);
+        if (!guildSettings || !joinedThreads) return null;
+
+        if (!settings.store.showOnMutedChannels && (guildSettings.isChannelMuted(guildId, channelId) || joinedThreads.isMuted(channelId)))
             return null;
 
         return (

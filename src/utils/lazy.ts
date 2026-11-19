@@ -132,7 +132,12 @@ export function proxyLazy<T>(factory: () => T, attempts = 5, isChild = false): T
  * Resolves a {@link proxyLazy} to the value behind it without going through the
  * get trap, which throws when the lazy resolved to a primitive. Values that are
  * not lazies are returned unchanged.
+ *
+ * A lazy whose factory never produced anything resolves to undefined instead of
+ * the proxy: the proxy is built on a function, so it would still pass a typeof
+ * check and throw as soon as something read a property off it.
  */
-export function unwrapLazy<T>(value: T): T {
-    return (value as any)?.[SYM_LAZY_GET]?.() ?? value;
+export function unwrapLazy<T>(value: T): T | undefined {
+    const get = (value as any)?.[SYM_LAZY_GET];
+    return typeof get === "function" ? get() : value;
 }
