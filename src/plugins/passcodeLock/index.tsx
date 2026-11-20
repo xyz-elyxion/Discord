@@ -329,6 +329,9 @@ const V1Plugin = {
         this.lockRoot.style.cssText = LOCK_MOUNT_STYLE;
         document.body.appendChild(this.lockRoot);
         const container = this.lockRoot;
+        // Read the style back: the engine normalises the declaration, so comparisons
+        // must use its serialisation rather than the literal above.
+        const mountStyle = container.style.cssText;
         {
             const root = createRoot(container);
             const Locker = PasscodeLocker as any;
@@ -362,23 +365,24 @@ const V1Plugin = {
 
         // Re-assert the lock whenever the overlay or its stylesheet is tampered with,
         // so deleting the element from the inspector does not reveal Discord.
-        const guard = () => {
+        const enforce = () => {
             const root = this.lockRoot;
             if (!root) return;
 
             if (!root.isConnected) document.body.appendChild(root);
             if (root.className !== "v1-pcl-mount") root.className = "v1-pcl-mount";
-            if (root.style.cssText !== LOCK_MOUNT_STYLE) root.style.cssText = LOCK_MOUNT_STYLE;
-            root.removeAttribute("hidden");
+            if (root.style.cssText !== mountStyle) root.style.cssText = mountStyle;
+            if (root.hasAttribute("hidden")) root.removeAttribute("hidden");
 
             if (!isStyleEnabled(managedStyle)) enableStyle(managedStyle);
         };
 
-        this.lockObserver = new MutationObserver(guard);
+        // Only the body's child list is observed: watching the container's own style
+        // attribute would let a correction schedule the next one. Attribute tampering
+        // is undone by the watchdog instead, which is rate limited by its interval.
+        this.lockObserver = new MutationObserver(enforce);
         this.lockObserver.observe(document.body, { childList: true });
-        this.lockObserver.observe(container, { attributes: true, attributeFilter: ["style", "class", "hidden"] });
-        // Backstop in case the observer is disabled or the node is moved somewhere it is not watched.
-        this.lockWatchdog = setInterval(guard, 250);
+        this.lockWatchdog = setInterval(enforce, 250);
     },
 
     unlock() {
