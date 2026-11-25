@@ -11,7 +11,7 @@ import { Devs } from "@utils/constants";
 import { Logger } from "@utils/Logger";
 import definePlugin from "@utils/types";
 import { findByProps } from "@webpack";
-import { AuthenticationStore, RestAPI } from "@webpack/common";
+import { AuthenticationStore, FluxDispatcher, RestAPI } from "@webpack/common";
 
 const STORE_KEY = "accountManager.accounts";
 const logger = new Logger("AccountManager");
@@ -73,17 +73,53 @@ function currentToken(): string | null {
 }
 
 function applyToken(token: string): void {
+    let appliedViaApi = false;
     const mod = authTokenModule();
     if (typeof mod?.setToken === "function") {
-        mod.setToken(token);
-        return;
+        try {
+            mod.setToken(token);
+            appliedViaApi = true;
+        } catch (e) {
+            logger.warn("auth setToken failed; writing the token store directly", e);
+        }
     }
-    const ls = (globalThis as any).localStorage;
-    if (ls) {
-        ls.setItem("token", JSON.stringify(token));
-        return;
+    // The client reads the token store on boot, so mirroring it here makes the
+    // reload land on the new account even when setToken only changed memory.
+    try {
+        const ls = (globalThis as any).localStorage;
+        if (typeof ls?.setItem === "function") {
+            ls.setItem("token", JSON.stringify(token));
+            return;
+        }
+    } catch (e) {
+        logger.warn("writing the token store failed", e);
     }
+    if (appliedViaApi) return;
     throw new Error("No token API is available in this client build.");
+}
+
+/**
+ * Newer builds no longer put `logout` on the token module, so asking it for one
+ * (and bailing out when it is missing) blocked every switch. Log out through
+ * whatever this build exposes, and if it exposes nothing, skip the logout: the
+ * caller overwrites the token and reloads, which replaces the session anyway.
+ */
+async function logoutAuthState(): Promise<void> {
+    const auth = authTokenModule();
+    if (typeof auth?.logout === "function") {
+        try {
+            await auth.logout();
+        } catch (e) {
+            logger.warn("authState.logout threw", e);
+        }
+        return;
+    }
+    try {
+        // Discord's own logout action; stable even when the method is gone.
+        await (FluxDispatcher.dispatch({ type: "LOGOUT" }) as unknown as Promise<void> | undefined);
+    } catch (e) {
+        logger.warn("LOGOUT dispatch failed", e);
+    }
 }
 
 const TOKEN_SUFFIXES = [".", "_", "-"];
@@ -201,16 +237,7 @@ async function switchToAccount(entry: AccountEntry & { token?: string }, sendRes
         sendResult("That account has no stored token.");
         return;
     }
-    const auth = authTokenModule();
-    if (typeof auth?.logout !== "function") {
-        sendResult("AuthState module not found — cannot switch accounts this build.");
-        return;
-    }
-    try {
-        await auth.logout();
-    } catch (e) {
-        logger.warn("authState.logout threw", e);
-    }
+    await logoutAuthState();
     try {
         applyToken(token);
     } catch (e) {
