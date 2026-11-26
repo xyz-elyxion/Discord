@@ -11,11 +11,12 @@ import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/Co
 import * as DataStore from "@api/DataStore";
 import { definePluginSettings } from "@api/Settings";
 import { enableStyle, isStyleEnabled } from "@api/Styles";
+import { ChannelType } from "@limeyV1/discord-types/enums";
 import { Devs } from "@utils/constants";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy } from "@webpack";
-import { Button, ChannelStore, createRoot, GuildStore, Menu, React, SelectedChannelStore, showToast, Toasts, useEffect, useRef, useState } from "@webpack/common";
+import { Button, ChannelStore, createRoot, GuildStore, Menu, React, SelectedChannelStore, showToast, Toasts, useEffect, useRef, UserStore, useState } from "@webpack/common";
 
 import managedStyle from "./styles.css?managed";
 
@@ -198,11 +199,26 @@ function channelScopeKey(channelId?: string | null, guildId?: string | null): st
     return null;
 }
 
+/** Readable name for a channel, DM or group DM; null when it cannot be resolved yet. */
+function channelDisplayName(channel: any): string | null {
+    if (!channel) return null;
+    if (channel.name) return channel.guild_id ? `#${channel.name}` : channel.name;
+
+    const recipients: string[] = channel.recipients ?? [];
+    const names = recipients
+        .map((id: string) => {
+            const user = UserStore.getUser(id) as { globalName?: string; username?: string; } | undefined;
+            return user?.globalName ?? user?.username;
+        })
+        .filter(Boolean);
+
+    return names.length ? names.join(", ") : null;
+}
+
 function scopeLabel(key: string): string {
     const [kind, id] = key.split(":");
     if (kind === "guild") return GuildStore.getGuild(id)?.name ?? `server ${id}`;
-    const channel = ChannelStore.getChannel(id);
-    return channel?.name ? `#${channel.name}` : `chat ${id}`;
+    return channelDisplayName(ChannelStore.getChannel(id)) ?? `chat ${id}`;
 }
 
 async function unlockScope(kind: "channel" | "guild", id: string) {
@@ -502,17 +518,20 @@ function mountLockOverlay(opts: {
 interface MenuChannel {
     id: string;
     name?: string;
+    type?: number;
     guild_id?: string | null;
+    recipients?: string[];
 }
 
-const channelContextPatch: NavContextMenuPatchCallback = (children, { channel }: { channel?: MenuChannel; }) => {
-    if (!channel?.id) return;
+function isDmChannel(channel: MenuChannel) {
+    return channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM;
+}
 
+function buildChannelLockItem(channel: MenuChannel) {
     const isLocked = !!scopes.channels[channel.id];
-    const label = channel.name ? `#${channel.name}` : "this chat";
-    const group = findGroupChildrenByChildId("mark-channel-read", children) ?? children;
+    const label = channelDisplayName(channel) ?? "this chat";
 
-    group.push(
+    return (
         <Menu.MenuItem
             id="v1-passcode-lock-chat"
             label={isLocked ? "Unlock This Chat" : "Lock This Chat"}
@@ -534,6 +553,24 @@ const channelContextPatch: NavContextMenuPatchCallback = (children, { channel }:
             }}
         />
     );
+}
+
+const channelContextPatch: NavContextMenuPatchCallback = (children, { channel }: { channel?: MenuChannel; }) => {
+    if (!channel?.id) return;
+
+    const group = findGroupChildrenByChildId("mark-channel-read", children) ?? children;
+    group.push(buildChannelLockItem(channel));
+};
+
+/** DMs and group DMs hang off the user and group-DM menus instead of the channel menu. */
+const dmContextPatch: NavContextMenuPatchCallback = (children, { channel }: { channel?: MenuChannel; }) => {
+    if (!channel?.id || !isDmChannel(channel)) return;
+
+    const group = findGroupChildrenByChildId(["close-dm", "leave-channel"], children);
+    if (!group) return;
+
+    const anchor = group.findIndex(c => c?.props?.id === "close-dm" || c?.props?.id === "leave-channel");
+    group.splice(anchor === -1 ? group.length : anchor, 0, buildChannelLockItem(channel));
 };
 
 const guildContextPatch: NavContextMenuPatchCallback = (children, { guild }: { guild?: { id: string | number; name?: string; }; }) => {
@@ -715,6 +752,8 @@ const V1Plugin = {
     contextMenus: {
         "channel-context": channelContextPatch,
         "thread-context": channelContextPatch,
+        "user-context": dmContextPatch,
+        "gdm-context": dmContextPatch,
         "guild-context": guildContextPatch,
         "guild-header-popout": guildContextPatch
     },
