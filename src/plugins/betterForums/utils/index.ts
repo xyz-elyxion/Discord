@@ -56,16 +56,23 @@ export const findSingleExportLazy = function findSingleExportLazy<T>(
 ): T {
     return exportFilter
         ? mapMangledModuleLazy(moduleFilter, { default: exportFilter }).default
-        : proxyLazy(() => getDefaultExport(moduleFilter));
+        : proxyLazy<T>(() => getDefaultExport(moduleFilter) as T);
 };
 
-function getDefaultExport<T>(filter: string | RegExp | CodeFilter): T {
+function getDefaultExport<T>(filter: string | RegExp | CodeFilter): T | undefined {
     const id = findModuleId(...(Array.isArray(filter) ? filter : [filter]));
-    if (!id) handleModuleNotFound(findSingleExportLazy.name, filter);
+    // wreq() throws on a missing id, and an unresolved lazy has to stay undefined so callers
+    // can check for it instead of reading a property off the proxy.
+    if (!id) {
+        handleModuleNotFound(findSingleExportLazy.name, filter);
+        return undefined;
+    }
 
     const mod = wreq(id as PropertyKey);
 
-    return defaultKeys.map(key => mod[key]).filter(Boolean)[0];
+    return defaultKeys
+        .map(key => mod[key])
+        .find(value => typeof value === "function" || typeof value === "object") as T | undefined;
 }
 
 export type Merger<T extends object> = {
