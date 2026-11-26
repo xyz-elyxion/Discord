@@ -7,11 +7,15 @@
 // Converted from the BetterDiscord plugin "PasscodeLock" by arg0NNY
 // (https://github.com/okdevme/DiscordPlugins) — re-implemented natively for Limey V1.
 
+import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/ContextMenu";
+import * as DataStore from "@api/DataStore";
 import { definePluginSettings } from "@api/Settings";
 import { enableStyle, isStyleEnabled } from "@api/Styles";
 import { Devs } from "@utils/constants";
+import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
-import { Button, createRoot, React, showToast, Toasts, useEffect, useRef, useState } from "@webpack/common";
+import { findByPropsLazy } from "@webpack";
+import { Button, ChannelStore, createRoot, GuildStore, Menu, React, SelectedChannelStore, showToast, Toasts, useEffect, useRef, useState } from "@webpack/common";
 
 import managedStyle from "./styles.css?managed";
 
@@ -22,6 +26,8 @@ interface CodeHash {
     salt: string;
     iterations: number;
 }
+
+const logger = new Logger("PasscodeLock");
 
 // --- PBKDF2 hashing (same scheme as the original) ---------------------------
 
@@ -121,6 +127,77 @@ const settings = definePluginSettings({
 
 const hasPasscode = () => !!settings.store.hash;
 
+function savePasscode(code: string) {
+    hashCode(code).then(hashed => {
+        settings.store.hash = hashed.hash;
+        settings.store.salt = hashed.salt;
+        settings.store.iterations = hashed.iterations;
+        showToast("Passcode has been updated!", Toasts.Type.SUCCESS);
+    });
+}
+
+// --- Locked chats and servers -------------------------------------------------
+
+interface Scopes {
+    channels: Record<string, true>;
+    guilds: Record<string, true>;
+}
+
+const SCOPES_KEY = "passcodeLock.scopes";
+
+let scopes: Scopes = { channels: {}, guilds: {} };
+let scopesLoaded = false;
+/** Scope unlocked for the current visit; cleared once you navigate elsewhere. */
+let unlockedScope: string | null = null;
+/** Last channel that was not behind a lock, used when a prompt is cancelled. */
+let lastAllowedChannelId: string | null = null;
+
+async function loadScopes() {
+    try {
+        const stored = await DataStore.get<Scopes>(SCOPES_KEY);
+        scopes = {
+            channels: stored?.channels ?? {},
+            guilds: stored?.guilds ?? {}
+        };
+    } catch (e) {
+        logger.warn("loading locked chats and servers failed", e);
+    }
+    scopesLoaded = true;
+}
+
+function saveScopes(): Promise<void> {
+    return DataStore.set(SCOPES_KEY, scopes);
+}
+
+/** The lock covering a channel, if any: a channel lock wins over its server's. */
+function channelScopeKey(channelId?: string | null, guildId?: string | null): string | null {
+    if (!channelId) return null;
+    if (scopes.channels[channelId]) return `channel:${channelId}`;
+    if (guildId && scopes.guilds[guildId]) return `guild:${guildId}`;
+    return null;
+}
+
+function scopeLabel(key: string): string {
+    const [kind, id] = key.split(":");
+    if (kind === "guild") return GuildStore.getGuild(id)?.name ?? "This server";
+    const channel = ChannelStore.getChannel(id);
+    return channel?.name ? `#${channel.name}` : "This chat";
+}
+
+const { selectChannel } = findByPropsLazy("selectChannel");
+
+function goBackFromGate() {
+    const target = lastAllowedChannelId;
+    if (!target || target === SelectedChannelStore.getChannelId()) return;
+    const channel = ChannelStore.getChannel(target);
+    if (!channel) return;
+    try {
+        selectChannel(channel.guild_id ?? null, target);
+    } catch (e) {
+        logger.warn("navigating back from a locked chat failed", e);
+    }
+}
+
 // --- Lock screen component ----------------------------------------------------
 
 const MAX_CODE_LENGTH = 15;
@@ -133,8 +210,9 @@ const LOCK_MOUNT_STYLE =
     + " display: flex; align-items: center; justify-content: center;"
     + " background-color: rgb(0 0 0 / 50%); backdrop-filter: blur(30px);";
 
-function PasscodeLocker({ mode, onUnlock, onCancel }: {
+function PasscodeLocker({ mode, title, onUnlock, onCancel }: {
     mode: "default" | "editor";
+    title?: string;
     onUnlock: (newCode?: string) => void;
     onCancel: () => void;
 }) {
@@ -230,9 +308,9 @@ function PasscodeLocker({ mode, onUnlock, onCancel }: {
             <div style={{ position: "relative" }}>
                 <div className="v1-pcl-header">
                     <div className="v1-pcl-title">
-                        {mode === "editor"
+                        {title ?? (mode === "editor"
                             ? (!confirm ? "Enter your new passcode" : "Re-enter your passcode")
-                            : "Enter your Discord passcode"}
+                            : "Enter your Discord passcode")}
                     </div>
                     <div className="v1-pcl-dots">
                         {Array(MAX_CODE_LENGTH).fill(null).map((_, i) => (
@@ -265,19 +343,163 @@ function PasscodeLocker({ mode, onUnlock, onCancel }: {
     );
 }
 
+// --- Overlay mounting ---------------------------------------------------------
+
+interface LockOverlay {
+    destroy(): void;
+}
+
+function mountLockOverlay(opts: {
+    mode: "default" | "editor";
+    title?: string;
+    onUnlock: (newCode?: string) => void;
+    onCancel: () => void;
+}): LockOverlay {
+    // The lock screen is styled by the plugin's managed stylesheet; make sure it is
+    // applied even when the passcode is being set with the plugin toggled off.
+    enableStyle(managedStyle);
+
+    const root = document.createElement("div");
+    root.className = "v1-pcl-mount";
+    root.style.cssText = LOCK_MOUNT_STYLE;
+    document.body.appendChild(root);
+    // Read the style back: the engine normalises the declaration, so comparisons
+    // must use its serialisation rather than the literal above.
+    const mountStyle = root.style.cssText;
+
+    let destroyed = false;
+
+    createRoot(root).render(
+        React.createElement(PasscodeLocker as any, {
+            mode: opts.mode,
+            title: opts.title,
+            onUnlock: (code?: string) => {
+                if (!destroyed) opts.onUnlock(code);
+            },
+            onCancel: () => {
+                if (!destroyed) opts.onCancel();
+            }
+        })
+    );
+
+    // Keys typed at the lock screen belong to the lock screen. Letting them through
+    // typed the digits into the chat box behind the overlay, and Enter sent them.
+    // Capture phase on window stops them before Discord's own handlers see them.
+    const blockKeys = (e: KeyboardEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    window.addEventListener("keydown", blockKeys, true);
+
+    // Re-assert the lock whenever the overlay or its stylesheet is tampered with,
+    // so deleting the element from the inspector does not reveal Discord.
+    const enforce = () => {
+        if (destroyed) return;
+
+        if (!root.isConnected) document.body.appendChild(root);
+        if (root.className !== "v1-pcl-mount") root.className = "v1-pcl-mount";
+        if (root.style.cssText !== mountStyle) root.style.cssText = mountStyle;
+        if (root.hasAttribute("hidden")) root.removeAttribute("hidden");
+
+        if (!isStyleEnabled(managedStyle)) enableStyle(managedStyle);
+    };
+
+    // Only the body's child list is observed: watching the container's own style
+    // attribute would let a correction schedule the next one. Attribute tampering
+    // is undone by the watchdog instead, which is rate limited by its interval.
+    const observer = new MutationObserver(enforce);
+    observer.observe(document.body, { childList: true });
+    const watchdog = setInterval(enforce, 250);
+
+    return {
+        destroy() {
+            destroyed = true;
+            observer.disconnect();
+            clearInterval(watchdog);
+            window.removeEventListener("keydown", blockKeys, true);
+            root.remove();
+        }
+    };
+}
+
+// --- Context menu entries -----------------------------------------------------
+
+interface MenuChannel {
+    id: string;
+    name?: string;
+    guild_id?: string | null;
+}
+
+const channelContextPatch: NavContextMenuPatchCallback = (children, { channel }: { channel?: MenuChannel; }) => {
+    if (!channel?.id) return;
+
+    const isLocked = !!scopes.channels[channel.id];
+    const label = channel.name ? `#${channel.name}` : "this chat";
+    const group = findGroupChildrenByChildId("mark-channel-read", children) ?? children;
+
+    group.push(
+        <Menu.MenuItem
+            id="v1-passcode-lock-chat"
+            label={isLocked ? "Unlock This Chat" : "Lock This Chat"}
+            action={() => {
+                if (isLocked) delete scopes.channels[channel.id];
+                else scopes.channels[channel.id] = true;
+
+                void saveScopes().then(() => {
+                    showToast(`${isLocked ? "Unlocked" : "Locked"} ${label}`, Toasts.Type.SUCCESS);
+                    V1Plugin.refreshScopeGate();
+                });
+            }}
+        />
+    );
+};
+
+const guildContextPatch: NavContextMenuPatchCallback = (children, { guild }: { guild?: { id: string | number; name?: string; }; }) => {
+    if (guild?.id == null) return;
+
+    const id = String(guild.id);
+    const isLocked = !!scopes.guilds[id];
+    const group = findGroupChildrenByChildId("privacy", children) ?? children;
+
+    group.push(
+        <Menu.MenuItem
+            id="v1-passcode-lock-guild"
+            label={isLocked ? "Unlock This Server" : "Lock This Server"}
+            action={() => {
+                if (isLocked) delete scopes.guilds[id];
+                else scopes.guilds[id] = true;
+
+                void saveScopes().then(() => {
+                    showToast(`${isLocked ? "Unlocked" : "Locked"} ${guild.name ?? "this server"}`, Toasts.Type.SUCCESS);
+                    if (!isLocked) unlockedScope = null;
+                    V1Plugin.refreshScopeGate();
+                });
+            }}
+        />
+    );
+};
+
 // --- Plugin --------------------------------------------------------------------
 
 const V1Plugin = {
     name: "PasscodeLock",
-    description: "Protect your Discord with a passcode. Converted from the BetterDiscord plugin by arg0NNY.",
+    description: "Protect your Discord with a passcode, and lock individual chats or servers behind it. Converted from the BetterDiscord plugin by arg0NNY.",
     tags: ["Utility", "Privacy"],
     authors: [Devs.Limey],
-    permissions: [{
-        id: "localDataStore",
-        title: "Store data locally",
-        description: "Stores a salted hash of your passcode locally so the lock can be verified without storing the passcode itself.",
-        risk: "Data persists on your device between sessions."
-    }],
+    permissions: [
+        {
+            id: "uiPatches",
+            title: "Patch Discord's UI and internals",
+            description: "Adds the lock entries to chat and server context menus.",
+            risk: "Patches run inside your client with full plugin privileges; bugs can break the client until disabled."
+        },
+        {
+            id: "localDataStore",
+            title: "Store data locally",
+            description: "Stores a salted hash of your passcode and the list of locked chats and servers locally.",
+            risk: "Data persists on your device between sessions."
+        }
+    ],
     settings,
 
     managedStyle,
@@ -299,10 +521,9 @@ const V1Plugin = {
     },
 
     locked: false,
-    lockRoot: null as HTMLDivElement | null,
-    lockObserver: null as MutationObserver | null,
-    lockWatchdog: undefined as ReturnType<typeof setInterval> | undefined,
-    keyHandler: null as ((e: KeyboardEvent) => void) | null,
+    overlay: null as LockOverlay | null,
+    gateOverlay: null as LockOverlay | null,
+    gateScope: null as string | null,
     keybindHandler: null as ((e: KeyboardEvent) => void) | null,
     blurListener: null as (() => void) | null,
     focusListener: null as (() => void) | null,
@@ -315,74 +536,18 @@ const V1Plugin = {
             return void showToast("Please first set up the passcode in the plugin settings.", Toasts.Type.FAILURE);
         }
 
-        // The lock screen is styled by the plugin's managed stylesheet; make sure it
-        // is applied even when the passcode is being set with the plugin toggled off.
-        enableStyle(managedStyle);
-
+        this.closeGate();
         this.locked = true;
         settings.store.locked = true;
 
-        const close = () => this.unlock();
-
-        this.lockRoot = document.createElement("div");
-        this.lockRoot.className = "v1-pcl-mount";
-        this.lockRoot.style.cssText = LOCK_MOUNT_STYLE;
-        document.body.appendChild(this.lockRoot);
-        const container = this.lockRoot;
-        // Read the style back: the engine normalises the declaration, so comparisons
-        // must use its serialisation rather than the literal above.
-        const mountStyle = container.style.cssText;
-        {
-            const root = createRoot(container);
-            const Locker = PasscodeLocker as any;
-            root.render(
-                React.createElement(Locker, {
-                    mode,
-                    onUnlock: (code?: string) => {
-                        if (code) {
-                            hashCode(code).then(async hashed => {
-                                settings.store.hash = hashed.hash;
-                                settings.store.salt = hashed.salt;
-                                settings.store.iterations = hashed.iterations;
-                                showToast("Passcode has been updated!", Toasts.Type.SUCCESS);
-                            });
-                        }
-                        close();
-                    },
-                    onCancel: () => close()
-                })
-            );
-        }
-
-        // Block Ctrl+Shift+I / C and other shortcuts while locked
-        this.keyHandler = e => {
-            if (e.ctrlKey) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        };
-        window.addEventListener("keydown", this.keyHandler, true);
-
-        // Re-assert the lock whenever the overlay or its stylesheet is tampered with,
-        // so deleting the element from the inspector does not reveal Discord.
-        const enforce = () => {
-            const root = this.lockRoot;
-            if (!root) return;
-
-            if (!root.isConnected) document.body.appendChild(root);
-            if (root.className !== "v1-pcl-mount") root.className = "v1-pcl-mount";
-            if (root.style.cssText !== mountStyle) root.style.cssText = mountStyle;
-            if (root.hasAttribute("hidden")) root.removeAttribute("hidden");
-
-            if (!isStyleEnabled(managedStyle)) enableStyle(managedStyle);
-        };
-
-        // Only the body's child list is observed: watching the container's own style
-        // attribute would let a correction schedule the next one. Attribute tampering
-        // is undone by the watchdog instead, which is rate limited by its interval.
-        this.lockObserver = new MutationObserver(enforce);
-        this.lockObserver.observe(document.body, { childList: true });
-        this.lockWatchdog = setInterval(enforce, 250);
+        this.overlay = mountLockOverlay({
+            mode,
+            onUnlock: (code?: string) => {
+                if (code) savePasscode(code);
+                this.unlock();
+            },
+            onCancel: () => this.unlock()
+        });
     },
 
     unlock() {
@@ -391,22 +556,81 @@ const V1Plugin = {
         settings.store.attempts = 0;
         settings.store.delayUntil = 0;
 
-        if (this.lockRoot) {
-            const root = this.lockRoot;
-            this.lockRoot = null;
-            root.remove();
-        }
-        this.lockObserver?.disconnect();
-        this.lockObserver = null;
-        clearInterval(this.lockWatchdog);
+        this.overlay?.destroy();
+        this.overlay = null;
+    },
 
-        if (this.keyHandler) {
-            window.removeEventListener("keydown", this.keyHandler, true);
-            this.keyHandler = null;
+    /** Prompt for the passcode when the current chat sits behind a lock. */
+    openGate(key: string) {
+        if (this.locked || this.gateOverlay) return;
+        if (!hasPasscode()) {
+            return void showToast("Set a passcode in the PasscodeLock settings before locking chats or servers.", Toasts.Type.FAILURE);
+        }
+
+        this.gateScope = key;
+        this.gateOverlay = mountLockOverlay({
+            mode: "default",
+            title: `${scopeLabel(key)} is locked`,
+            onUnlock: () => {
+                unlockedScope = key;
+                this.closeGate();
+            },
+            onCancel: () => {
+                this.closeGate();
+                unlockedScope = null;
+                goBackFromGate();
+            }
+        });
+    },
+
+    closeGate() {
+        this.gateOverlay?.destroy();
+        this.gateOverlay = null;
+        this.gateScope = null;
+    },
+
+    /** Open or close the prompt to match whatever chat is on screen right now. */
+    refreshScopeGate() {
+        const channelId = SelectedChannelStore.getChannelId() ?? null;
+        const channel = channelId ? ChannelStore.getChannel(channelId) : null;
+        const key = channelScopeKey(channelId, channel?.guild_id);
+
+        if (!key) {
+            this.closeGate();
+            return;
+        }
+        if (this.locked || this.gateScope === key) return;
+        this.openGate(key);
+    },
+
+    flux: {
+        CHANNEL_SELECT({ channelId }: { channelId?: string | null; }) {
+            if (!scopesLoaded || !channelId) return;
+
+            const channel = ChannelStore.getChannel(channelId);
+            const key = channelScopeKey(channelId, channel?.guild_id);
+
+            if (!key) {
+                lastAllowedChannelId = channelId;
+                unlockedScope = null;
+                V1Plugin.closeGate();
+                return;
+            }
+
+            if (key === unlockedScope) return;
+            if (V1Plugin.locked || V1Plugin.gateOverlay) return;
+            V1Plugin.openGate(key);
         }
     },
 
-    start() {
+    contextMenus: {
+        "channel-context": channelContextPatch,
+        "thread-context": channelContextPatch,
+        "guild-context": guildContextPatch,
+        "guild-header-popout": guildContextPatch
+    },
+
+    async start() {
         const kb = (settings.store.lockKeybind || "control+l").toLowerCase().split("+");
 
         this.keybindHandler = (e: KeyboardEvent) => {
@@ -430,15 +654,26 @@ const V1Plugin = {
         window.addEventListener("blur", this.blurListener);
         window.addEventListener("focus", this.focusListener);
 
-        if (hasPasscode() && (settings.store.lockOnStartup || settings.store.locked)) setTimeout(() => this.lock());
+        await loadScopes();
+        lastAllowedChannelId = SelectedChannelStore.getChannelId() ?? null;
+
+        if (hasPasscode() && (settings.store.lockOnStartup || settings.store.locked)) {
+            setTimeout(() => this.lock());
+        } else {
+            this.refreshScopeGate();
+        }
     },
 
     stop() {
         this.unlock();
+        this.closeGate();
         if (this.keybindHandler) window.removeEventListener("keydown", this.keybindHandler);
         clearTimeout(this.autolockTimeout);
         window.removeEventListener("blur", this.blurListener!);
         window.removeEventListener("focus", this.focusListener!);
+
+        unlockedScope = null;
+        lastAllowedChannelId = null;
     }
 };
 
