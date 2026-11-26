@@ -115,6 +115,11 @@ const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         default: false
     },
+    lockedList: {
+        type: OptionType.COMPONENT,
+        description: "Chats and servers that currently ask for your passcode. Unlock one here if you can no longer right-click it.",
+        component: () => <LockedScopesList />
+    },
     // Internal — not shown to the user. The passcode is stored as a
     // PBKDF2 hash with a random salt so the code itself is never saved.
     hash: { type: OptionType.STRING, default: "", hidden: true },
@@ -147,6 +152,22 @@ const SCOPES_KEY = "passcodeLock.scopes";
 
 let scopes: Scopes = { channels: {}, guilds: {} };
 let scopesLoaded = false;
+const scopeListeners = new Set<() => void>();
+
+/** Redraw the settings list after a lock is added or removed. */
+function notifyScopesChanged() {
+    for (const listener of scopeListeners) listener();
+}
+
+function useScopesSnapshot() {
+    const [, forceUpdate] = useState(0);
+    useEffect(() => {
+        const listener = () => forceUpdate(n => n + 1);
+        scopeListeners.add(listener);
+        return () => void scopeListeners.delete(listener);
+    }, []);
+    return scopes;
+}
 /** Scope unlocked for the current visit; cleared once you navigate elsewhere. */
 let unlockedScope: string | null = null;
 /** Last channel that was not behind a lock, used when a prompt is cancelled. */
@@ -179,9 +200,63 @@ function channelScopeKey(channelId?: string | null, guildId?: string | null): st
 
 function scopeLabel(key: string): string {
     const [kind, id] = key.split(":");
-    if (kind === "guild") return GuildStore.getGuild(id)?.name ?? "This server";
+    if (kind === "guild") return GuildStore.getGuild(id)?.name ?? `server ${id}`;
     const channel = ChannelStore.getChannel(id);
-    return channel?.name ? `#${channel.name}` : "This chat";
+    return channel?.name ? `#${channel.name}` : `chat ${id}`;
+}
+
+async function unlockScope(kind: "channel" | "guild", id: string) {
+    const key = `${kind}:${id}`;
+    if (kind === "channel") delete scopes.channels[id];
+    else delete scopes.guilds[id];
+
+    await saveScopes();
+
+    if (unlockedScope === key) unlockedScope = null;
+    if (V1Plugin.gateScope === key) V1Plugin.closeGate();
+    notifyScopesChanged();
+    showToast(`Unlocked ${scopeLabel(key)}`, Toasts.Type.SUCCESS);
+    V1Plugin.refreshScopeGate();
+}
+
+function LockedScopeRow({ kind, id }: { kind: "channel" | "guild"; id: string; }) {
+    return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <span style={{ fontSize: 14 }}>
+                {scopeLabel(`${kind}:${id}`)}
+                <span style={{ opacity: 0.6 }}> ({kind === "guild" ? "server" : "chat"})</span>
+            </span>
+            <Button
+                size={Button.Sizes.SMALL}
+                color={Button.Colors.RED}
+                onClick={() => void unlockScope(kind, id)}
+            >
+                Unlock
+            </Button>
+        </div>
+    );
+}
+
+function LockedScopesList() {
+    useScopesSnapshot();
+
+    const guildIds = Object.keys(scopes.guilds);
+    const channelIds = Object.keys(scopes.channels);
+
+    if (!guildIds.length && !channelIds.length) {
+        return (
+            <div style={{ fontSize: 14, opacity: 0.75 }}>
+                Nothing is locked. Right-click a chat and choose "Lock This Chat", or a server and choose "Lock This Server".
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {guildIds.map(id => <LockedScopeRow key={`guild:${id}`} kind="guild" id={id} />)}
+            {channelIds.map(id => <LockedScopeRow key={`channel:${id}`} kind="channel" id={id} />)}
+        </div>
+    );
 }
 
 const { selectChannel } = findByPropsLazy("selectChannel");
@@ -442,13 +517,20 @@ const channelContextPatch: NavContextMenuPatchCallback = (children, { channel }:
             id="v1-passcode-lock-chat"
             label={isLocked ? "Unlock This Chat" : "Lock This Chat"}
             action={() => {
+                if (!isLocked && !hasPasscode()) {
+                    return void showToast("Set a passcode in the PasscodeLock settings before locking chats or servers.", Toasts.Type.FAILURE);
+                }
+
                 if (isLocked) delete scopes.channels[channel.id];
                 else scopes.channels[channel.id] = true;
 
-                void saveScopes().then(() => {
-                    showToast(`${isLocked ? "Unlocked" : "Locked"} ${label}`, Toasts.Type.SUCCESS);
-                    V1Plugin.refreshScopeGate();
-                });
+                void saveScopes()
+                    .then(() => {
+                        showToast(`${isLocked ? "Unlocked" : "Locked"} ${label}`, Toasts.Type.SUCCESS);
+                        notifyScopesChanged();
+                        V1Plugin.refreshScopeGate();
+                    })
+                    .catch(e => logger.warn("saving a locked chat failed", e));
             }}
         />
     );
@@ -466,14 +548,21 @@ const guildContextPatch: NavContextMenuPatchCallback = (children, { guild }: { g
             id="v1-passcode-lock-guild"
             label={isLocked ? "Unlock This Server" : "Lock This Server"}
             action={() => {
+                if (!isLocked && !hasPasscode()) {
+                    return void showToast("Set a passcode in the PasscodeLock settings before locking chats or servers.", Toasts.Type.FAILURE);
+                }
+
                 if (isLocked) delete scopes.guilds[id];
                 else scopes.guilds[id] = true;
 
-                void saveScopes().then(() => {
-                    showToast(`${isLocked ? "Unlocked" : "Locked"} ${guild.name ?? "this server"}`, Toasts.Type.SUCCESS);
-                    if (!isLocked) unlockedScope = null;
-                    V1Plugin.refreshScopeGate();
-                });
+                void saveScopes()
+                    .then(() => {
+                        showToast(`${isLocked ? "Unlocked" : "Locked"} ${guild.name ?? "this server"}`, Toasts.Type.SUCCESS);
+                        if (!isLocked) unlockedScope = null;
+                        notifyScopesChanged();
+                        V1Plugin.refreshScopeGate();
+                    })
+                    .catch(e => logger.warn("saving a locked server failed", e));
             }}
         />
     );
