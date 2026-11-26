@@ -1,0 +1,7 @@
+# This package keeps its own lockfile. Being its own workspace root stops pnpm from resolving
+# through the repository root's pnpm-workspace.yaml when someone runs `pnpm install` in here.
+packages:
+  - "."
+
+allowBuilds:
+  esbuild: true

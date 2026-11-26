@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Evaluations for limey-v1-mcp-server. Every question must be answerable with read-only tool
+  calls against a Limey V1 checkout at the commit this file was written for, and the answer must
+  be a short string that can be compared exactly.
+
+  Run with an MCP client connected to the server, or with the evaluation script from the
+  mcp-builder skill (`scripts/evaluation.py`).
+-->
+<evaluation>
+  <qa_pair>
+    <question>How many build targets can a Limey V1 plugin declare in src/utils/pluginTargets.ts? Answer with the number.</question>
+    <answer>6</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>The plugin that hides servers from the guild list has a setting that shows a menu to unhide them. What is that setting's default value?</question>
+    <answer>true</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which plugin declares the setting key "voiceActivity"?</question>
+    <answer>MemberCount</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>The plugin that opens a channel or DM as a sidebar or popout stores which popout windows to restore. What is the key of that setting?</question>
+    <answer>persistedPopoutWindowIds</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which file in the checkout defines the unwrapLazy helper? Give the repository-relative path.</question>
+    <answer>src/utils/lazy.ts</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which src/api module has src/api/DataStore/index.ts as its entry file? Give the module name.</question>
+    <answer>DataStore</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>How many TypeScript or TSX files are in src/plugins/betterForums/components/ContextMenus?</question>
+    <answer>2</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which plugin's folder contains the file stores/MissingGuildMemberStore.ts?</question>
+    <answer>BetterForums</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which src/api module exports the definePluginSettings function?</question>
+    <answer>Settings</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>The plugin whose folder is "hideServers" has which entry file? Give the repository-relative path.</question>
+    <answer>src/plugins/hideServers/index.tsx</answer>
+  </qa_pair>
+</evaluation>
